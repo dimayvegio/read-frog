@@ -1,7 +1,7 @@
 import type { VariantProps } from "class-variance-authority"
 import type { buttonVariants } from "@/components/ui/base-ui/button"
 import type { Config } from "@/types/config/config"
-import { Icon } from "@iconify/react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/base-ui/dialog"
 import { ScrollArea } from "@/components/ui/base-ui/scroll-area"
+import { toPortableConfig } from "@/utils/config/portable"
 import { CONFIG_SCHEMA_VERSION } from "@/utils/constants/config"
 import { i18n } from "@/utils/i18n"
 
@@ -41,7 +42,7 @@ export function ViewConfig({
             {JSON.stringify(
               {
                 schemaVersion: configSchemaVersion ?? CONFIG_SCHEMA_VERSION,
-                config,
+                config: toPortableConfig(config),
               },
               null,
               2,

@@ -1,9 +1,1 @@
-export const subtitlesContentScriptMatches = [
-  "*://*.youtube.com/*",
-  "*://*.youtube-nocookie.com/*",
-  "*://x.com/*",
-  "*://*.x.com/*",
-  "*://twitter.com/*",
-  "*://*.twitter.com/*",
-  "*://www.netflix.com/*",
-]
+export const subtitlesContentScriptMatches = ["*://*.youtube.com/*", "*://*.youtube-nocookie.com/*"]

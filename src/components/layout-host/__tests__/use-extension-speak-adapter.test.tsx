@@ -30,7 +30,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 function speakOptions(autoplay?: boolean) {
-  return renderHook(() => useExtensionSpeakAdapter(undefined, autoplay), { wrapper }).result.current
+  return renderHook(() => useExtensionSpeakAdapter(autoplay), { wrapper }).result.current
 }
 
 async function play(text: string, options: { lang?: string; autoplay?: boolean } = {}) {

@@ -17,7 +17,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Icon } from "@iconify/react"
 import { RiTranslate } from "@remixicon/react"
 import {
   IconDotsVertical,
@@ -31,6 +30,7 @@ import {
 } from "@tabler/icons-react"
 import { useAtom } from "jotai"
 import { useRef, useState } from "react"
+import { Icon } from "@/components/local-icon"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/base-ui/popover"
 import { Separator } from "@/components/ui/base-ui/separator"
 import { SelectionToolbarTooltip } from "@/components/ui/selection-popover/selection-tooltip"

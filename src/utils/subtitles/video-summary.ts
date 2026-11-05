@@ -6,9 +6,9 @@ import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { getLocalConfig } from "@/utils/config/storage"
 import { VIDEO_SUMMARY_TRANSCRIPT_CHAR_BUDGET } from "@/utils/constants/subtitles"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
-import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { sendMessage } from "@/utils/message"
 import { getVideoSummaryPrompt } from "@/utils/prompts/summary"
+import { getProviderCacheIdentity } from "@/utils/providers/provider-ref"
 import { resolveSubtitlesProvider, resolveSubtitlesProviderRef } from "./processor/translator"
 
 const TRANSCRIPT_SAMPLE_WINDOWS = 8
@@ -50,13 +50,12 @@ export function videoSummaryQueryKey(
   targetCode: string,
   resolved: VideoSummaryProviderRef,
 ) {
-  const providerIdentity = !resolved
-    ? null
-    : resolved.kind === "local"
-      ? resolved.config
-      : { providerId: resolved.id, modelTier: resolved.modelTier }
-
-  return [...VIDEO_SUMMARY_QUERY_SCOPE, videoId, targetCode, providerIdentity] as const
+  return [
+    ...VIDEO_SUMMARY_QUERY_SCOPE,
+    videoId,
+    targetCode,
+    resolved ? getProviderCacheIdentity({ kind: "local", config: resolved.config }) : null,
+  ] as const
 }
 
 const ZERO_WIDTH_CHARS_RE = /[\u200B-\u200D\uFEFF]/g
@@ -91,10 +90,7 @@ export function stripLeadingHeading(summary: string): string {
     .trim()
 }
 
-export type VideoSummaryAvailability =
-  | { status: "ok" }
-  | { status: "needsModel" }
-  | { status: "hostedUnavailable"; message: string }
+export type VideoSummaryAvailability = { status: "ok" } | { status: "needsModel" }
 
 /**
  * The subtitles provider list is gated on the wider translate capability, so
@@ -109,9 +105,6 @@ export async function checkVideoSummaryAvailability(): Promise<VideoSummaryAvail
     return { status: "needsModel" }
   }
   const resolution = await resolveSubtitlesProvider(config, "summary")
-  if (resolution.status === "hostedUnavailable") {
-    return { status: "hostedUnavailable", message: resolution.message }
-  }
   if (resolution.status !== "ok") {
     // "none" and "notPromptable" both land here: nothing the panel can run.
     return { status: "needsModel" }
@@ -157,24 +150,13 @@ export async function requestVideoSummary(
     targetLanguage,
     sampleTranscript(transcript, VIDEO_SUMMARY_TRANSCRIPT_CHAR_BUDGET),
   )
-  const payload: BackgroundStreamTextSerializablePayload =
-    providerRef.kind === "system"
-      ? {
-          providerKind: "system",
-          providerId: providerRef.providerId,
-          modelTier: providerRef.modelTier,
-          requestId: getRandomUUID(),
-          hostedFeature: "videoSubtitles" as const,
-          instructions: systemPrompt,
-          prompt,
-        }
-      : {
-          providerKind: "local",
-          providerId: providerRef.config.id,
-          providerConfig: providerRef.config,
-          instructions: systemPrompt,
-          prompt,
-        }
+  const payload: BackgroundStreamTextSerializablePayload = {
+    providerKind: "local",
+    providerId: providerRef.config.id,
+    providerConfig: providerRef.config,
+    instructions: systemPrompt,
+    prompt,
+  }
 
   const snapshot = await streamBackgroundText(payload, {
     signal,

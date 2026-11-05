@@ -335,25 +335,7 @@ describe("floatingButton controls", () => {
 
     fireEvent.click(feedbackButton)
 
-    const openPageCall = vi
-      .mocked(sendMessage)
-      .mock.calls.find(([message]) => message === "openPage")
-    const openPagePayload = openPageCall?.[1] as { active: boolean; url: string } | undefined
-    expect(openPagePayload).toBeDefined()
-    const openedUrl = new URL(openPagePayload!.url)
-
-    expect(openedUrl.origin).toBe("https://feedback.readfrog.app")
-    expect(openedUrl.pathname).toBe("/en")
-    expect(JSON.parse(openedUrl.searchParams.get("metaData")!)).toEqual({
-      browser: "chrome",
-      extension_version: "1.0.0",
-      // The intent is query/hash stripping, not the origin itself.
-      page_url: `${window.location.origin}/private/path`,
-    })
-    expect(openPagePayload).toEqual({
-      url: openedUrl.toString(),
-      active: true,
-    })
+    expect(sendMessage).toHaveBeenCalledWith("openOptionsPage", { route: "/help" })
   })
 
   it("shows a Firefox sidebar help link when the browser requires an extension user action", async () => {

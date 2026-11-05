@@ -1,5 +1,5 @@
-import { Icon } from "@iconify/react"
 import { useCallback, useRef, useState } from "react"
+import { Icon } from "@/components/local-icon"
 import { cn } from "@/utils/styles/utils"
 
 type Corner = "bottom-right" | "top-right"

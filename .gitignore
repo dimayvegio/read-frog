@@ -45,5 +45,11 @@ docs/
 
 scripts/output/
 
+# Local agent scratch files and validation reports
+.codex-*
+.codex/**
+!.codex/environments/
+!.codex/environments/environment.toml
+
 reference/
 .gstack/

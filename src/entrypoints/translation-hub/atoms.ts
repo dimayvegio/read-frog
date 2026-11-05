@@ -2,7 +2,6 @@ import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { Config } from "@/types/config/config"
 import { atom } from "jotai"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
-import { filterEnabledProvidersConfig, getTranslateProvidersConfig } from "@/utils/config/helpers"
 import {
   getProviderIdsForCapability,
   resolveProviderRefForCapability,
@@ -57,19 +56,7 @@ export function getAvailableHubProviderIds(config: Pick<Config, "providersConfig
 }
 
 export const selectedProviderIdsAtom = atom(
-  (get) => {
-    const ids = get(configFieldsAtomMap.translationHub).selectedProviderIds
-    const providersConfig = get(configFieldsAtomMap.providersConfig)
-    if (ids === null) {
-      return filterEnabledProvidersConfig(getTranslateProvidersConfig(providersConfig)).map(
-        (provider) => provider.id,
-      )
-    }
-    const available = new Set(getAvailableHubProviderIds({ providersConfig }))
-    return [...new Set(ids)].filter((id) => available.has(id))
-  },
-  (_get, set, ids: string[]) =>
-    set(configFieldsAtomMap.translationHub, { selectedProviderIds: ids }),
+  (get) => get(configFieldsAtomMap.translationHub).selectedProviderIds,
 )
 
 // === Translation Card UI State ===

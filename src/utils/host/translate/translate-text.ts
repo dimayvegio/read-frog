@@ -1,7 +1,5 @@
 import type { LangCodeISO6393, LangLevel } from "@read-frog/definitions"
-import type { HostedAiTextStreamRoute } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
-import type { LLMProviderConfig, TranslateProviderConfig } from "@/types/config/provider"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type { WebPagePromptContext } from "@/types/content"
 import type { MatchedTerm } from "@/utils/glossary/types"
@@ -9,27 +7,20 @@ import type { PromptableProviderRef, SerializableProviderRef } from "@/utils/pro
 import type { ResolvedProviderRef } from "@/utils/providers/provider-registry"
 import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { toastManager } from "@/components/ui/base-ui/toast"
-import { isAPIProviderConfig, isLLMProviderConfig } from "@/types/config/provider"
-import { classifyResolvedProvider } from "@/utils/analytics-provider"
 import { isNoTranslationSentinel } from "@/utils/constants/prompt"
 import { detectLanguage } from "@/utils/content/language"
 import { resolveGlossaryTerms } from "@/utils/glossary/active-matcher"
-import { trackGlossaryUsed } from "@/utils/glossary/analytics"
 import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
-import { serializeProviderRef } from "@/utils/providers/provider-ref"
+import { getProviderCacheIdentity, serializeProviderRef } from "@/utils/providers/provider-ref"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { TranslationCancelledError } from "@/utils/request/cancellation"
 import { Sha256Hex } from "../../hash"
 import { sendMessage } from "../../message"
 import { getInMemoryTranslation, storeInMemoryTranslation } from "./in-memory-translation-cache"
 import { prepareTranslationText } from "./text-preparation"
-import {
-  getPageTranslationSessionId,
-  getPageTranslationSessionProviderRef,
-  setPageTranslationSessionProviderRef,
-} from "./translation-session"
+import { getPageTranslationSessionId } from "./translation-session"
 
 /**
  * Minimum text length before a skip decision is attempted at all. Deliberately
@@ -111,37 +102,14 @@ async function buildWebPageHashComponents(
 ): Promise<string[]> {
   const preparedText = prepareTranslationText(text)
   const normalizedWebPageContext = normalizeWebPagePromptContext(webPageContext)
-  const providerConfig = providerRef.kind === "local" ? providerRef.config : null
-  const providerHashIdentity =
-    providerRef.kind === "local"
-      ? providerRef.config
-      : {
-          providerId: providerRef.providerId,
-          modelRevision: providerRef.modelRevision,
-        }
   const hashComponents = [
     preparedText,
-    JSON.stringify(providerHashIdentity),
+    getProviderCacheIdentity(providerRef),
     partialLangConfig.sourceCode,
     partialLangConfig.targetCode,
+    `textFormat:${textFormat}`,
+    `preserveLineBreaks:${preserveLineBreaks}`,
   ]
-
-  if (providerConfig && !isLLMProviderConfig(providerConfig)) {
-    // The provider request depends on the text format (escaping / textType), so
-    // cache entries must too. This component also orphans entries cached before
-    // the format-aware pipeline existed, which could hold corrupted output.
-    hashComponents.push(`textFormat:${textFormat}`)
-    // Pushed only when the flag actually changes the provider request —
-    // today that is Google alone — so cache entries written before the flag
-    // existed stay valid and identical Microsoft/DeepL requests are not
-    // fragmented. Flagged Google requests get fresh entries (any old
-    // collapsed-line output for the same text is orphaned rather than
-    // reused).
-    if (preserveLineBreaks && providerConfig.provider === "google-translate") {
-      hashComponents.push("preserveLineBreaks:true")
-    }
-    return hashComponents
-  }
 
   const targetLangName = LANG_CODE_TO_EN_NAME[partialLangConfig.targetCode]
   // The terms are passed in rather than resolved here, so the prompt this hash
@@ -175,104 +143,12 @@ async function buildWebPageHashComponents(
   return hashComponents
 }
 
-/**
- * Reuse the session's resolved system-provider ref when it matches the
- * requested provider, so every paragraph of a page-translation session runs
- * on one status snapshot: no per-paragraph status fetches, and a mid-session
- * status blip cannot fail in-flight paragraphs.
- */
-function getSessionProviderRefFor(
-  provider: ResolvedProviderRef<TranslateProviderConfig>,
-): SerializableProviderRef | null {
-  if (provider.kind !== "system") {
-    return null
-  }
-  const sessionRef = getPageTranslationSessionProviderRef()
-  if (
-    sessionRef?.kind !== "system" ||
-    sessionRef.providerId !== provider.id ||
-    sessionRef.modelTier !== provider.modelTier
-  ) {
-    return null
-  }
-  return sessionRef
-}
-
-const pendingSystemSerializes = new Map<string, Promise<SerializableProviderRef>>()
-/**
- * Most recently requested system-provider key. Stale stragglers — paragraphs
- * that captured the previous provider from config before a mid-session switch
- * and resolve late — must not adopt their ref back over the snapshot the
- * newer paragraphs converged on, which would evict it and force refetch
- * ping-pong.
- */
-let lastRequestedSystemKey: string | null = null
-
-/**
- * Resolve the transport ref for the requested provider. Snapshot misses do
- * happen off the happy path — a mid-session provider/tier switch, node
- * translation without an active session — and each translation unit resolves
- * independently, so without coalescing a dense batch would fan out one
- * hosted-status fetch per paragraph. Concurrent misses for the same system
- * provider share one serialization (per-key, so interleaved keys cannot evict
- * each other's in-flight fetch), and an active session adopts the result so
- * later paragraphs skip the network entirely.
- */
 export async function resolvePageProviderRef(
-  provider: ResolvedProviderRef<LLMProviderConfig>,
-  sessionId: string | undefined,
-  feature: HostedAiTextStreamRoute,
-): Promise<PromptableProviderRef>
-export async function resolvePageProviderRef(
-  provider: ResolvedProviderRef<TranslateProviderConfig>,
-  sessionId: string | undefined,
-  feature: HostedAiTextStreamRoute,
-): Promise<SerializableProviderRef>
-export async function resolvePageProviderRef(
-  provider: ResolvedProviderRef<TranslateProviderConfig>,
-  sessionId: string | undefined,
-  feature: HostedAiTextStreamRoute,
-): Promise<SerializableProviderRef> {
-  if (provider.kind === "local") {
-    return serializeProviderRef(provider, feature)
-  }
-
-  // The feature is part of the key: two features on the same provider and tier
-  // gate on different tier statuses, so they must not share an in-flight fetch.
-  const key = `${provider.id}:${provider.modelTier}:${feature}`
-  lastRequestedSystemKey = key
-
-  // The session snapshot belongs to the page-translation run; other features
-  // must not adopt it, and must not overwrite it below.
-  const sessionRef = feature === "pageTranslation" ? getSessionProviderRefFor(provider) : null
-  if (sessionRef) {
-    return sessionRef
-  }
-
-  let promise = pendingSystemSerializes.get(key)
-  if (!promise) {
-    const created = serializeProviderRef(provider, feature)
-    promise = created
-    pendingSystemSerializes.set(key, created)
-    void created
-      .catch(() => undefined)
-      .finally(() => {
-        if (pendingSystemSerializes.get(key) === created) {
-          pendingSystemSerializes.delete(key)
-        }
-      })
-  }
-
-  const providerRef = await promise
-  if (
-    feature === "pageTranslation" &&
-    sessionId !== undefined &&
-    getPageTranslationSessionId() === sessionId &&
-    key === lastRequestedSystemKey
-  ) {
-    setPageTranslationSessionProviderRef(providerRef)
-  }
-  return providerRef
+  provider: ResolvedProviderRef,
+  _sessionId?: string,
+  _feature?: string,
+): Promise<PromptableProviderRef> {
+  return serializeProviderRef(provider)
 }
 
 export interface TranslateTextOptions {
@@ -282,7 +158,7 @@ export interface TranslateTextOptions {
     targetCode: LangCodeISO6393
     level: LangLevel
   }
-  providerConfig: ResolvedProviderRef<TranslateProviderConfig>
+  providerConfig: ResolvedProviderRef
   enableAIContentAware?: boolean
   extraHashTags?: string[]
   webPageContext?: WebPagePromptContext
@@ -299,13 +175,6 @@ export interface TranslateTextOptions {
    * arrangement as `enableAIContentAware`.
    */
   glossaryEnabled?: boolean
-  /**
-   * Which hosted route a system provider bills against; local providers
-   * ignore it. Required so every entry point states its route where the
-   * function is named — a defaulted route once let page translation gate on
-   * and bill against the wrong quota.
-   */
-  hostedFeature: HostedAiTextStreamRoute
 }
 
 /**
@@ -325,7 +194,6 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
     sessionId,
     forceRetranslation = false,
     glossaryEnabled = false,
-    hostedFeature,
   } = options
 
   const preparedText = prepareTranslationText(text)
@@ -341,7 +209,7 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
   }
 
   const normalizedWebPageContext = normalizeWebPagePromptContext(webPageContext)
-  const providerRef = await resolvePageProviderRef(providerConfig, sessionId, hostedFeature)
+  const providerRef = await resolvePageProviderRef(providerConfig, sessionId)
 
   // Resolved ONCE, here, where `location.href` says which glossaries apply.
   // The same list feeds the cache hash and travels with the request, so the
@@ -357,16 +225,6 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
     glossaryEnabled,
     langConfig.targetCode,
   )
-  // Covers page, input and pure-translate-provider selection runs, which all
-  // enter here; the two prompt-building selection paths and subtitles resolve
-  // their own terms and report at their own resolve sites.
-  trackGlossaryUsed(
-    hostedFeature,
-    glossaryTerms,
-    langConfig.targetCode,
-    classifyResolvedProvider(providerConfig),
-  )
-
   const hashComponents = await buildWebPageHashComponents(
     preparedText,
     providerRef,
@@ -427,7 +285,6 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
     forceRetranslation,
     glossaryTerms,
     glossaryRevision,
-    hostedFeature,
   })
   if (sessionId !== undefined) {
     // Raw result, sentinel included, so a "no translation needed" verdict is
@@ -458,18 +315,6 @@ export function validateTranslationConfigAndToast(
   if (languageConfig.sourceCode === languageConfig.targetCode) {
     toastManager.add({ type: "error", title: i18n.t("translation.sameLanguage") })
     logger.info("validateTranslationConfig: returning false (same language)")
-    return false
-  }
-
-  // check if the API key is configured
-  if (
-    provider.kind === "local" &&
-    isAPIProviderConfig(provider.config) &&
-    !provider.config.apiKey?.trim() &&
-    !["deeplx", "ollama"].includes(provider.config.provider)
-  ) {
-    toastManager.add({ type: "error", title: i18n.t("noAPIKeyConfig.warning") })
-    logger.info("validateTranslationConfig: returning false (no API key)")
     return false
   }
 

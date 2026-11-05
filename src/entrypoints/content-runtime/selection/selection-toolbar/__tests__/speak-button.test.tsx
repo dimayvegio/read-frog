@@ -76,7 +76,6 @@ function selectText(store: ReturnType<typeof createStore>, text: string) {
     createdAt: 0,
     selectionSnapshot: { text, ranges: [] },
     contextSnapshot: { text, paragraphs: [] },
-    noteOrigin: null,
   }
   store.set(selectionSessionAtom, session)
 }
@@ -117,9 +116,7 @@ describe("SelectionSpeechProvider", () => {
 
     const event = pressSpeakKey()
 
-    expect(tts.play).toHaveBeenCalledWith("Hello there", DEFAULT_CONFIG.tts, {
-      surface: "shortcut",
-    })
+    expect(tts.play).toHaveBeenCalledWith("Hello there", DEFAULT_CONFIG.tts)
     expect(event.defaultPrevented).toBe(true)
   })
 
@@ -139,7 +136,6 @@ describe("SelectionSpeechProvider", () => {
       expect(tts.play).toHaveBeenCalledWith(
         "Selected with Shift and the arrow keys",
         DEFAULT_CONFIG.tts,
-        { surface: "shortcut" },
       )
       expect(event.defaultPrevented).toBe(true)
     } finally {

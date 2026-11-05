@@ -3,15 +3,11 @@ import { useAtomValue, useSetAtom } from "jotai"
 import { use, useState } from "react"
 import { customActionRequestAtom } from "@/components/custom-action/atoms"
 import { CustomActionPanel } from "@/components/custom-action/custom-action-panel"
-import { isSaveToNotebaseDialogOpenAtom } from "@/components/custom-action/save-to-notebase-dialog-atom"
-import { SaveToNotebaseDialogHost } from "@/components/custom-action/save-to-notebase-dialog-host"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { SelectionPopover } from "@/components/ui/selection-popover"
 import { SUBTITLES_BOX_CLASS } from "@/utils/constants/subtitles"
-import { getVideoNoteOrigin } from "@/utils/note-origin"
 import { ShadowWrapperContext } from "@/utils/react-shadow-host/create-shadow-host"
 import { subtitlesPositionAtom } from "../atoms"
-import { useSubtitlesUI } from "../ui/subtitles-ui-context"
 import { lookUpAtom, wordLookupAtom } from "./atoms"
 import { useHoldPlayback } from "./use-hold-playback"
 import { useTopLayerPortalContainer } from "./use-top-layer-portal-container"
@@ -48,11 +44,9 @@ export function WordLookupCard() {
   const lookup = useAtomValue(wordLookupAtom)
   const request = useAtomValue(customActionRequestAtom)
   const lookUp = useSetAtom(lookUpAtom)
-  const isSaveToNotebaseDialogOpen = useAtomValue(isSaveToNotebaseDialogOpenAtom)
   const subtitlesAtBottom = useAtomValue(subtitlesPositionAtom).anchor === "bottom"
   // The subtitles' own shadow root, read before this card provides its own container.
   const subtitlesRoot = use(ShadowWrapperContext)
-  const { getVideoElement, getVideoPageUrl } = useSubtitlesUI()
   const [pinned, setPinned] = useState(false)
   // Owned here, so a lookup closed from outside the card (navigation, subtitles
   // turned off) also drops the pin.
@@ -79,7 +73,7 @@ export function WordLookupCard() {
     )
   }
   const open = lookup !== null
-  const active = open || isSaveToNotebaseDialogOpen
+  const active = open
   const container = useTopLayerPortalContainer(active)
 
   useHoldPlayback()
@@ -103,20 +97,11 @@ export function WordLookupCard() {
               eventDetails.cancel()
             }
           }}
-          disablePointerDismissal={isSaveToNotebaseDialogOpen}
         >
           <SelectionPopover.Content key={placement.mountKey} container={container}>
-            <CustomActionPanel
-              getNoteOrigin={() =>
-                getVideoNoteOrigin({
-                  seconds: getVideoElement()?.currentTime,
-                  videoPageUrl: getVideoPageUrl(),
-                })
-              }
-            />
+            <CustomActionPanel />
           </SelectionPopover.Content>
         </SelectionPopover.Root>
-        {active && <SaveToNotebaseDialogHost />}
       </ThemeProvider>
     </ShadowWrapperContext>
   )

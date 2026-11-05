@@ -12,11 +12,30 @@ const FIXED_PARAMS = {
   cplayer: "UNIPLAYER",
 } as const
 
+/** Caption URLs come from the page; they cannot select arbitrary extension fetch targets. */
+export function isYoutubeCaptionUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.hash &&
+      ["www.youtube.com", "youtube.com", "www.youtube-nocookie.com"].includes(url.hostname) &&
+      url.pathname === "/api/timedtext"
+    )
+  } catch {
+    return false
+  }
+}
+
 export function buildSubtitleUrl(
   track: CaptionTrack,
   playerData: PlayerData,
   potToken: PotToken,
 ): string {
+  if (!isYoutubeCaptionUrl(track.baseUrl)) throw new Error("Unsupported YouTube caption URL")
   const url = new URL(track.baseUrl)
 
   Object.entries(FIXED_PARAMS).forEach(([key, value]) => {

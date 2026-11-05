@@ -1,19 +1,22 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
-import type { GuideDictionaryNotebaseCompletionInput } from "./guide/dictionary-notebase"
-import type { FeatureUsageContext, FeatureUsedEventProperties } from "@/types/analytics"
 import type {
   BackgroundGenerateTextPayload,
   BackgroundGenerateTextResponse,
 } from "@/types/background-generate-text"
 import type { Config } from "@/types/config/config"
+import type {
+  InitialConfigResult,
+  OpenAIKeyStatus,
+  OpenAIPublicConfig,
+  OpenAIConnectionResult,
+} from "@/types/config/openai"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type {
   EdgeTTSHealthStatus,
   EdgeTTSSynthesizeRequest,
   EdgeTTSSynthesizeWireResponse,
 } from "@/types/edge-tts"
-import type { ProviderRequestRouting } from "@/types/hosted-request"
-import type { ProxyRequest, ProxyResponse } from "@/types/proxy-fetch"
+import type { ProviderRequestRouting } from "@/types/provider-request"
 import type {
   TTSPlaybackStartRequest,
   TTSPlaybackStartResponse,
@@ -21,14 +24,14 @@ import type {
 } from "@/types/tts-playback"
 import type { GlossarySnapshot } from "@/utils/glossary/active-matcher"
 import type { MatchedTerm } from "@/utils/glossary/types"
-import type { HostedAiStatus } from "@/utils/hosted-ai/types"
 import type { PromptableProviderRef, SerializableProviderRef } from "@/utils/providers/provider-ref"
 import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  openTranslationHub: () => void
   // navigation
-  openPage: (data: { url: string; active?: boolean }) => void
+
   openOptionsPage: (data?: { route?: `/${string}` }) => void
   toggleSidePanel: (data?: { source?: "content-script" | "extension-user-action" }) => Promise<
     | { ok: true; action: "opened" | "closed" }
@@ -42,7 +45,11 @@ interface ProtocolMap {
       }
   >
   // config
-  getInitialConfig: () => Config | null
+  getInitialConfig: (data?: { retry?: boolean }) => InitialConfigResult<Config>
+  getOpenAIKeyStatus: () => OpenAIKeyStatus
+  saveOpenAIKey: (data: { key: string }) => OpenAIKeyStatus
+  deleteOpenAIKey: () => OpenAIKeyStatus
+  testOpenAIConnection: (data: OpenAIPublicConfig) => OpenAIConnectionResult
   // glossary — the terms live in IndexedDB, which a content script cannot open,
   // so it asks the background once per page and compiles a matcher locally.
   // `url` says which page is asking; glossaries scoped to other sites are left
@@ -54,15 +61,8 @@ interface ProtocolMap {
   // translation state
   getEnablePageTranslationByTabId: (data: { tabId: number }) => boolean | undefined
   getEnablePageTranslationFromContentScript: () => Promise<boolean>
-  tryToSetEnablePageTranslationByTabId: (data: {
-    tabId: number
-    enabled: boolean
-    analyticsContext?: FeatureUsageContext<"page_translation">
-  }) => void
-  tryToSetEnablePageTranslationOnContentScript: (data: {
-    enabled: boolean
-    analyticsContext?: FeatureUsageContext<"page_translation">
-  }) => void
+  tryToSetEnablePageTranslationByTabId: (data: { tabId: number; enabled: boolean }) => void
+  tryToSetEnablePageTranslationOnContentScript: (data: { enabled: boolean }) => void
   setAndNotifyPageTranslationStateChangedByManager: (data: {
     enabled: boolean
     url?: string
@@ -80,10 +80,7 @@ interface ProtocolMap {
   getDetectedCode: () => LangCodeISO6393
   detectedPageLanguageChanged: (data: { detectedCode: LangCodeISO6393 }) => void
   // ask host to start page translation
-  askManagerToTogglePageTranslation: (data: {
-    enabled: boolean
-    analyticsContext?: FeatureUsageContext<"page_translation">
-  }) => void
+  askManagerToTogglePageTranslation: (data: { enabled: boolean }) => void
   openSelectionTranslationFromContextMenu: (data: { selectionText: string }) => void
   openSelectionCustomActionFromContextMenu: (data: {
     actionId: string
@@ -91,13 +88,9 @@ interface ProtocolMap {
   }) => void
   readAloudSelectionFromContextMenu: (data: { selectionText: string }) => void
   // analytics
-  trackFeatureUsedEvent: (data: FeatureUsedEventProperties) => void
+
   // user guide
-  pinStateChanged: (data: { isPinned: boolean }) => void
-  getPinState: () => boolean
-  returnPinState: (data: { isPinned: boolean }) => void
-  guideDictionaryNotebaseStateChanged: (data: { completed: boolean }) => void
-  completeGuideDictionaryNotebase: (data: GuideDictionaryNotebaseCompletionInput) => void
+
   // request
   enqueueTranslateRequest: (
     data: ProviderRequestRouting & {
@@ -138,7 +131,7 @@ interface ProtocolMap {
   // tab can only ever cancel its own requests.
   cancelPageTranslationRequests: (data: { sessionId: string }) => void
   getOrGenerateWebPageSummary: (
-    data: ProviderRequestRouting<PromptableProviderRef> & {
+    data: ProviderRequestRouting & {
       webTitle: string
       webContent: string
     },
@@ -180,21 +173,11 @@ interface ProtocolMap {
     jsonContent: string
     providerRef: PromptableProviderRef
   }) => Promise<string>
-  // Hosted AI availability. Owned by the background because one response covers
-  // every feature and tier — so it can be cached and shared across tabs — and
-  // because content scripts cannot read the session storage that cache lives in.
-  // Null means "no verdict" (fetch failed); callers fail open on it.
-  getHostedAiStatus: () => Promise<HostedAiStatus | null>
   // network proxy
-  backgroundFetch: (data: ProxyRequest) => Promise<ProxyResponse>
+
   // cache management
   clearAllTranslationRelatedCache: () => Promise<void>
   clearAiSegmentationCache: () => Promise<void>
-  // Drops the cached session verdict. Granting a host permission changes no
-  // cookie, so the background's cookie listener never fires — without this the
-  // "signed out" entry cached while the permission was missing would outlive
-  // the grant. Awaiting it before refetching keeps the two ordered.
-  invalidateAuthCache: () => Promise<void>
   // edge tts
   edgeTtsSynthesize: (data: EdgeTTSSynthesizeRequest) => Promise<EdgeTTSSynthesizeWireResponse>
   edgeTtsListVoices: () => Promise<EdgeTTSVoice[]>

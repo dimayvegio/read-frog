@@ -1,10 +1,10 @@
 import type { SelectionToolbarCustomAction } from "@/types/config/selection-toolbar"
 import type { CustomActionTemplate } from "@/utils/constants/custom-action-templates"
-import { Icon } from "@iconify/react"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useMemo, useState } from "react"
 import { useLocation } from "react-router"
 import { requestEditorNavigationAtom } from "@/components/form/autosave-navigation"
+import { Icon } from "@/components/local-icon"
 import { SortableList } from "@/components/sortable-list"
 import { Button } from "@/components/ui/base-ui/button"
 import { Dialog, DialogTrigger } from "@/components/ui/base-ui/dialog"
@@ -24,7 +24,7 @@ import { getSelectableProvidersForCapability } from "@/utils/providers/provider-
 import { setSelectionToolbarCustomActions } from "@/utils/selection-toolbar-items"
 import { EntityListItem } from "../../../components/entity-list-item"
 import { EntityListRail } from "../../../components/entity-list-rail"
-import { customActionEditorTabAtom, selectedCustomActionIdAtom } from "../atoms"
+import { selectedCustomActionIdAtom } from "../atoms"
 import { AddActionDialog } from "./add-action-dialog"
 import { RecentChangeBadge } from "./recent-change-badge"
 
@@ -34,7 +34,6 @@ export function CustomActionCardList() {
   )
   const requestNavigation = useSetAtom(requestEditorNavigationAtom)
   const setSelectedCustomActionId = useSetAtom(selectedCustomActionIdAtom)
-  const setEditorTab = useSetAtom(customActionEditorTabAtom)
   const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
   const { targetCode } = useAtomValue(configFieldsAtomMap.language)
   const { search } = useLocation()
@@ -66,7 +65,6 @@ export function CustomActionCardList() {
           },
         ],
       }))
-      setEditorTab("config")
       await setSelectedCustomActionId(newAction.id)
       setDialogOpen(false)
     })

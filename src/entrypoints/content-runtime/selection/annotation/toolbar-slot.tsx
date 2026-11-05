@@ -1,13 +1,12 @@
 import type { RefObject } from "react"
-import { Icon } from "@iconify/react"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useCallback, useEffect, useRef, useState } from "react"
+import { Icon } from "@/components/local-icon"
 import { Switch } from "@/components/ui/base-ui/switch"
 import {
   SelectionToolbarTooltip,
   useSelectionTooltipState,
 } from "@/components/ui/selection-popover/selection-tooltip"
-import { ANALYTICS_SURFACE } from "@/types/analytics"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { getAnnotationModeShortcut, getAnnotationShortcut } from "@/utils/constants/selection"
 import { i18n } from "@/utils/i18n"
@@ -94,7 +93,7 @@ export function AnnotateButton({ onPointerEnter }: { onPointerEnter: () => void 
   const label = i18n.t("annotation.annotate")
 
   const handleClick = useCallback(() => {
-    if (annotate(session, ANALYTICS_SURFACE.SELECTION_TOOLBAR)) {
+    if (annotate(session)) {
       handlePress()
       setIsSelectionToolbarOpen(false)
     }

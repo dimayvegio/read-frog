@@ -16,8 +16,6 @@ import { SELECTION_UI_CSS } from "@/utils/content-ui-css"
 import { primeGlossaryMatcher } from "@/utils/glossary/active-matcher"
 import { initI18n } from "@/utils/i18n"
 import { LocaleBoundary } from "@/utils/i18n/locale-boundary"
-import { registerBundledIcons } from "@/utils/iconify/bundled-icons"
-import { ensureIconifyBackgroundFetch } from "@/utils/iconify/setup-background-fetch"
 import { ShadowWrapperContext } from "@/utils/react-shadow-host/create-shadow-host"
 import { protectSelectAllShadowRoot } from "@/utils/select-all"
 import { insertShadowRootUIWrapperInto, keepShadowHostRendered } from "@/utils/shadow-root"
@@ -29,7 +27,6 @@ import {
 import { queryClient } from "@/utils/tanstack-query"
 import { getLocalThemeMode } from "@/utils/theme"
 import App from "./app"
-import { setupExternalSelectionSource } from "./external-selection-source"
 
 function HydrateAtoms({
   initialValues,
@@ -52,9 +49,6 @@ declare global {
 }
 
 async function mountSelectionUI(ctx: ContentScriptContext) {
-  ensureIconifyBackgroundFetch()
-  registerBundledIcons()
-
   const themeMode = await getLocalThemeMode()
 
   const ui = await createShadowRootUi(ctx, {
@@ -134,12 +128,6 @@ export async function runSelectionContent(ctx: ContentScriptContext) {
   // narrowing it; `glossary` itself is always present once config is, since
   // its schema carries a default.
   if (config?.glossary.enabled) primeGlossaryMatcher(config.language.targetCode)
-
-  // Answer ebook bridge handshakes before the React UI finishes mounting
-  const cleanupExternalSelectionSource = setupExternalSelectionSource()
-  if (cleanupExternalSelectionSource) {
-    ctx.onInvalidated(cleanupExternalSelectionSource)
-  }
 
   await initI18n(config?.uiLanguage)
 

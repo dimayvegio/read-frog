@@ -7,9 +7,9 @@
  */
 
 import type { UserRulesValidationErrorKind, UserRulesValidationResult } from "./validate-user-rules"
-import { Icon } from "@iconify/react"
 import { useAtom } from "jotai"
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
+import { Icon } from "@/components/local-icon"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/base-ui/alert"
 import { Button } from "@/components/ui/base-ui/button"
 import { JSONCodeEditor } from "@/components/ui/json-code-editor"

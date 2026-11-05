@@ -1,24 +1,12 @@
-import { Icon } from "@iconify/react"
 import { useMutation } from "@tanstack/react-query"
 import { useAtomValue, useSetAtom } from "jotai"
-import { useState } from "react"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/base-ui/alert-dialog"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Input } from "@/components/ui/base-ui/input"
 import { Label } from "@/components/ui/base-ui/label"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { useExportConfig } from "@/hooks/use-export-config"
-import { configAtom, writeConfigAtom } from "@/utils/atoms/config"
+import { configAtom, replaceConfigAtom } from "@/utils/atoms/config"
 import { addBackup } from "@/utils/backup/storage"
 import { migrateConfig } from "@/utils/config/migration"
 import { EXTENSION_VERSION } from "@/utils/constants/app"
@@ -60,7 +48,7 @@ export function ManualConfigSyncConfigItems() {
 
 function ImportConfig() {
   const currentConfig = useAtomValue(configAtom)
-  const setConfig = useSetAtom(writeConfigAtom)
+  const setConfig = useSetAtom(replaceConfigAtom)
   const invalidateGlossary = useGlossaryInvalidation()
 
   const { mutate: importConfig, isPending: isImporting } = useMutation({
@@ -131,7 +119,14 @@ function ImportConfig() {
 
       if (!glossary?.ok) return { glossaryTerms: null }
 
-      const replaced = await replaceGlossary(glossary.document)
+      let replaced
+      try {
+        replaced = await replaceGlossary(glossary.document)
+      } catch {
+        throw new Error(
+          "Settings were imported, but the glossary could not be updated. Restore settings from the backup if needed; the glossary import can be retried.",
+        )
+      }
       if (!replaced.ok) {
         throw new Error(
           i18n.t("options.preference.config.manualSync.glossaryCapExceeded", [
@@ -224,52 +219,15 @@ function ImportConfig() {
 }
 
 function ExportConfig() {
-  const [open, setOpen] = useState(false)
   const config = useAtomValue(configAtom)
-
-  const { mutate: exportConfig, isPending: isExporting } = useExportConfig({
+  const { mutate: exportConfig, isPending } = useExportConfig({
     config,
     schemaVersion: CONFIG_SCHEMA_VERSION,
   })
-
   return (
-    <AlertDialog open={open} onOpenChange={setOpen}>
-      <AlertDialogTrigger render={<Button variant="outline" size="sm" disabled={isExporting} />}>
-        <Icon icon="tabler:file-export" />
-        {i18n.t("options.preference.config.manualSync.export")}
-      </AlertDialogTrigger>
-
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {i18n.t("options.preference.config.manualSync.exportOptions.title")}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {i18n.t("options.preference.config.manualSync.exportOptions.description")}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-
-        <AlertDialogFooter className="flex justify-between!">
-          <AlertDialogCancel>
-            {i18n.t("options.preference.config.manualSync.exportOptions.cancel")}
-          </AlertDialogCancel>
-          <div className="flex gap-2">
-            <AlertDialogAction
-              variant="secondary"
-              onClick={() => exportConfig(true, { onSettled: () => setOpen(false) })}
-              disabled={isExporting}
-            >
-              {i18n.t("options.preference.config.manualSync.exportOptions.includeAPIKeys")}
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => exportConfig(false, { onSettled: () => setOpen(false) })}
-              disabled={isExporting}
-            >
-              {i18n.t("options.preference.config.manualSync.exportOptions.excludeAPIKeys")}
-            </AlertDialogAction>
-          </div>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <Button variant="outline" size="sm" disabled={isPending} onClick={() => exportConfig()}>
+      <Icon icon="tabler:file-export" />
+      {i18n.t("options.preference.config.manualSync.export")}
+    </Button>
   )
 }

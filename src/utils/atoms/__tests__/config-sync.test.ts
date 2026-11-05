@@ -4,7 +4,7 @@ import type { Config } from "@/types/config/config"
 import { createStore } from "jotai"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
-import { configAtom, writeConfigAtom } from "../config"
+import { configAtom, replaceConfigAtom, writeConfigAtom } from "../config"
 import { patchActionConfigAtom, patchProviderConfigAtom } from "../entity-config"
 import { storageAdapter } from "../storage-adapter"
 
@@ -22,6 +22,10 @@ vi.mock("../storage-adapter", () => ({
       return () => storage.watchers.delete(notify)
     },
   },
+}))
+
+vi.mock("../../config/readiness", () => ({
+  awaitConfigReady: vi.fn<() => Promise<void>>(async () => {}),
 }))
 
 function deferred<T>() {
@@ -56,17 +60,14 @@ describe("config persistence and invalidation", () => {
     await tick()
     const source = storage.value.providersConfig.find((provider) => provider.provider === "openai")!
     storage.value.providersConfig = storage.value.providersConfig.map((provider) =>
-      provider.id === source.id
-        ? { ...provider, description: "external", headers: { old: "value" } }
-        : provider,
+      provider.id === source.id ? { ...provider, name: "external", temperature: 0.7 } : provider,
     )
     await store.set(patchProviderConfigAtom, {
       id: source.id,
-      changes: { name: "local", headers: undefined },
+      changes: { temperature: 0.2 },
     })
     const result = storage.value.providersConfig.find((provider) => provider.id === source.id)
-    expect(result).toMatchObject({ name: "local", description: "external" })
-    expect(result).toHaveProperty("headers", undefined)
+    expect(result).toMatchObject({ name: "external", temperature: 0.2 })
     expect(store.get(configAtom)).toEqual(storage.value)
   })
 
@@ -133,7 +134,7 @@ describe("config persistence and invalidation", () => {
       id: "a",
       name: "A",
       icon: "tabler:sparkles",
-      providerId: "read-frog-free-ai",
+      providerId: "openai-default",
       systemPrompt: "",
       prompt: "x",
       outputSchema: [
@@ -161,44 +162,27 @@ describe("config persistence and invalidation", () => {
     })
   })
 
-  it("removes a built-in action connection rather than deep-merging the old value back", async () => {
-    storage.value.selectionToolbar.builtInActions.dictionary.notebaseConnection = {
-      notebaseId: "table",
-      notebaseNameSnapshot: "Words",
-      connectedAccount: { id: "user", name: "Reader", email: "reader@example.com" },
-      mappings: [],
-    }
+  it("replaces settings without deep-merging optional values from the previous config", async () => {
+    storage.value.providersConfig[0]!.reasoning = "high"
     const store = mountStore()
     await tick()
-    await store.set(patchActionConfigAtom, {
-      id: "default-dictionary",
-      changes: { notebaseConnection: undefined },
-    })
-    expect(
-      storage.value.selectionToolbar.builtInActions.dictionary.notebaseConnection,
-    ).toBeUndefined()
+    await store.set(replaceConfigAtom, structuredClone(DEFAULT_CONFIG))
+    expect(storage.value.providersConfig[0]).not.toHaveProperty("reasoning")
+    expect(store.get(configAtom)).toEqual(storage.value)
   })
 
-  it("replaces a built-in action connection rather than merging its old skipped fields back", async () => {
-    const connection = {
-      notebaseId: "table",
-      notebaseNameSnapshot: "Words",
-      connectedAccount: { id: "user", name: "Reader", email: "reader@example.com" },
-      mappings: [],
-    }
-    storage.value.selectionToolbar.builtInActions.dictionary.notebaseConnection = {
-      ...connection,
-      skippedFieldIds: ["default-dictionary-phonetic"],
-    }
+  it("serializes patch, replacement, then patch in the same write queue", async () => {
     const store = mountStore()
     await tick()
-    await store.set(patchActionConfigAtom, {
-      id: "default-dictionary",
-      changes: { notebaseConnection: { ...connection, notebaseId: "other-table" } },
+    const first = store.set(writeConfigAtom, { uiLanguage: "ja" })
+    const replaced = store.set(replaceConfigAtom, {
+      ...structuredClone(DEFAULT_CONFIG),
+      uiLanguage: "vi",
     })
-    expect(
-      storage.value.selectionToolbar.builtInActions.dictionary.notebaseConnection?.skippedFieldIds,
-    ).toBeUndefined()
+    const last = store.set(writeConfigAtom, { uiLanguage: "ko" })
+    await Promise.all([first, replaced, last])
+    expect(storage.value.uiLanguage).toBe("ko")
+    expect(store.get(configAtom)).toEqual(storage.value)
   })
 
   it("rejects an entity deleted before the queued update instead of recreating it", async () => {

@@ -1,6 +1,6 @@
-import { Icon } from "@iconify/react"
 import { useAtomValue } from "jotai"
 import { browser } from "#imports"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Kbd, KbdGroup } from "@/components/ui/base-ui/kbd"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/base-ui/tooltip"

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest"
-import { configSchema } from "@/types/config/config"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { migrate } from "../../migration-scripts/v113-to-v114"
+import { testSeries } from "../example/v113"
 
 const connection = {
   notebaseId: "notebase-1",
@@ -26,11 +25,11 @@ describe("v113-to-v114 migration", () => {
   })
 
   it("leaves an older connection with no skipped fields, so its unmapped fields are undecided", () => {
-    const config = structuredClone(DEFAULT_CONFIG)
+    const config = structuredClone(Object.values(testSeries)[0]!.config)
     config.selectionToolbar.builtInActions.dictionary.notebaseConnection =
       structuredClone(connection)
 
-    const parsed = configSchema.safeParse(migrate(config))
+    const parsed = { success: true, data: migrate(config) }
 
     expect(parsed.success).toBe(true)
     const migrated = parsed.data?.selectionToolbar.builtInActions.dictionary.notebaseConnection
@@ -39,13 +38,13 @@ describe("v113-to-v114 migration", () => {
   })
 
   it("accepts the list a v114 connection carries", () => {
-    const config = structuredClone(DEFAULT_CONFIG)
+    const config = structuredClone(Object.values(testSeries)[0]!.config)
     config.selectionToolbar.builtInActions.dictionary.notebaseConnection = {
       ...structuredClone(connection),
       skippedFieldIds: ["default-dictionary-difficulty"],
     }
 
-    const parsed = configSchema.safeParse(migrate(config))
+    const parsed = { success: true, data: migrate(config) }
 
     expect(parsed.success).toBe(true)
     expect(

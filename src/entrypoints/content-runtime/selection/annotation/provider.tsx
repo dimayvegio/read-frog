@@ -1,6 +1,5 @@
 import type { ReactNode } from "react"
 import type { SelectionSession } from "../selection-toolbar/atoms"
-import type { AnalyticsSurface } from "@/types/analytics"
 import type { AnnotateFailure, AnnotationController } from "@/utils/annotate"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import {
@@ -14,10 +13,6 @@ import {
 } from "react"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { isAbortError } from "@/components/ui/selection-popover/inline-error"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { createFeatureUsageContext, trackFeatureUsed } from "@/utils/analytics"
-import { classifyFailureReason } from "@/utils/analytics-failure-reason"
-import { classifyResolvedProvider } from "@/utils/analytics-provider"
 import { disposeAnnotationController, getAnnotationController } from "@/utils/annotate"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import {
@@ -41,11 +36,6 @@ import { toLiveRange } from "../utils"
 import { annotationModeAtom } from "./atoms"
 import { useAnnotationModeShortcut } from "./use-mode-shortcut"
 
-export type AnnotateSurface = Extract<
-  AnalyticsSurface,
-  "selection_toolbar" | "shortcut" | "annotation_mode"
->
-
 interface AnnotationContextValue {
   /** The slot is on, and the toolbar with it. */
   enabled: boolean
@@ -54,7 +44,7 @@ interface AnnotationContextValue {
   /** How many annotations the page has. */
   count: number
   /** Annotates the session's selection. False when nothing was annotated. */
-  annotate: (session: SelectionSession | null, surface: AnnotateSurface) => boolean
+  annotate: (session: SelectionSession | null) => boolean
 }
 
 const AnnotationContext = createContext<AnnotationContextValue | null>(null)
@@ -168,7 +158,7 @@ function useAnnotationController(): AnnotationContextValue {
   )
 
   const annotate = useCallback(
-    (session: SelectionSession | null, surface: AnnotateSurface): boolean => {
+    (session: SelectionSession | null): boolean => {
       const snapshot = session?.selectionSnapshot
       if (!snapshot || snapshot.text === "") {
         warn("annotation.noTextSelected")
@@ -210,23 +200,12 @@ function useAnnotationController(): AnnotationContextValue {
 
       const { record } = result
       const preparedText = prepareTranslationText(snapshot.text)
-      const analyticsContext = createFeatureUsageContext(ANALYTICS_FEATURE.WORD_ANNOTATION, surface)
-      const providerAnalytics = classifyResolvedProvider(translateRequest.provider)
-      const observed = {
-        char_count: preparedText.length,
-        target_language: translateRequest.language.targetCode,
-      }
 
       if (!record.glossFits) {
         // The block cannot make room between its lines: the mark stands alone.
         controller.setGloss(record.id, "")
         toastManager.add({ type: "info", title: i18n.t("annotation.markOnly") })
-        void trackFeatureUsed({
-          ...analyticsContext,
-          ...providerAnalytics,
-          ...observed,
-          outcome: "success",
-        })
+
         return true
       }
 
@@ -250,22 +229,10 @@ function useAnnotationController(): AnnotationContextValue {
           if (gloss === "") {
             controller.remove(record.id)
             warn("annotation.failed")
-            void trackFeatureUsed({
-              ...analyticsContext,
-              ...providerAnalytics,
-              ...observed,
-              outcome: "failure",
-              failure_reason: "invalid_output",
-            })
+
             return
           }
           controller.setGloss(record.id, gloss)
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            ...observed,
-            outcome: "success",
-          })
         })
         .catch((error: unknown) => {
           inFlight.current.delete(record.id)
@@ -276,13 +243,6 @@ function useAnnotationController(): AnnotationContextValue {
             type: "error",
             title: i18n.t("annotation.failed"),
             ...(message ? { description: message } : {}),
-          })
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            ...observed,
-            outcome: "failure",
-            failure_reason: classifyFailureReason(error),
           })
         })
       return true
@@ -299,7 +259,7 @@ function useAnnotationController(): AnnotationContextValue {
     (_, session) => {
       if (window.getSelection()?.isCollapsed !== false) return false
       if (!session?.selectionSnapshot.text) return false
-      return annotate(session, ANALYTICS_SURFACE.SHORTCUT)
+      return annotate(session)
     },
   )
 

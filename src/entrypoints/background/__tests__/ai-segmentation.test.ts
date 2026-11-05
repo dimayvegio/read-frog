@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 
 const generateTextForProviderRefMock = vi.fn<(...args: any[]) => any>()
 const cacheGetMock = vi.fn<(...args: any[]) => any>()
@@ -30,7 +31,7 @@ vi.mock("@/utils/logger", () => ({
 // that actually has a model to prompt.
 const providerRef = {
   kind: "local" as const,
-  config: { id: "openai-default", provider: "openai" } as never,
+  config: DEFAULT_OPENAI_CONFIG,
 }
 const jsonContent = JSON.stringify([{ s: 1000, e: 2000, t: "hello world" }])
 

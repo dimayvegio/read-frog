@@ -72,10 +72,10 @@ describe("provider config routes", () => {
 
   it("reads back what it wrote", () => {
     const search = new URL(
-      `https://x${buildProviderTypeConfigRoute("deepseek", { highlightApiKey: true })}`,
+      `https://x${buildProviderTypeConfigRoute("openai", { highlightApiKey: true })}`,
     ).search
 
-    expect(getRequestedProviderType(search)).toBe("deepseek")
+    expect(getRequestedProviderType(search)).toBe("openai")
     expect(shouldHighlightApiKey(search)).toBe(true)
   })
 

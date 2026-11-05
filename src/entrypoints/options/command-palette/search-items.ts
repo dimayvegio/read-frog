@@ -1,8 +1,5 @@
 import type { GeneratedI18nStructure } from "#i18n"
-import {
-  CUSTOM_ACTION_LAYOUT_SECTION_ID,
-  CUSTOM_ACTION_NOTEBASE_SECTION_ID,
-} from "@/utils/navigation"
+import { CUSTOM_ACTION_LAYOUT_SECTION_ID } from "@/utils/navigation"
 
 type I18nKey = keyof GeneratedI18nStructure
 
@@ -74,13 +71,7 @@ export const SEARCH_ITEMS: SearchItem[] = [
     descriptionKey: "options.preference.extensionActivation.mode.description",
     pageKey: "options.preference.title",
   },
-  {
-    sectionId: "google-drive-sync",
-    route: "/preference",
-    titleKey: "options.preference.config.googleDrive.title",
-    descriptionKey: "options.preference.config.googleDrive.description",
-    pageKey: "options.preference.title",
-  },
+
   {
     sectionId: "manual-config-sync",
     route: "/preference",
@@ -108,13 +99,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     route: "/preference",
     titleKey: "options.preference.userExperience.beta.title",
     descriptionKey: "options.preference.userExperience.beta.description",
-    pageKey: "options.preference.title",
-  },
-  {
-    sectionId: "analytics",
-    route: "/preference",
-    titleKey: "options.preference.userExperience.analytics.title",
-    descriptionKey: "options.preference.userExperience.analytics.description",
     pageKey: "options.preference.title",
   },
 
@@ -227,14 +211,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
     route: "/custom-actions",
     titleKey: "options.selectionToolbar.customActions.form.layout.title",
     descriptionKey: "options.selectionToolbar.customActions.form.layout.description",
-    pageKey: "options.selectionToolbar.customActions.title",
-  },
-  {
-    // The Notebase tab trigger itself; the scroll activates it.
-    sectionId: CUSTOM_ACTION_NOTEBASE_SECTION_ID,
-    route: "/custom-actions",
-    titleKey: "options.selectionToolbar.customActions.form.notebase.title",
-    descriptionKey: "options.selectionToolbar.customActions.form.notebase.description",
     pageKey: "options.selectionToolbar.customActions.title",
   },
 
@@ -373,6 +349,82 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.translation.title",
   },
 
+  // Video subtitles
+  {
+    sectionId: "subtitles-enable",
+    route: "/video-subtitles",
+    titleKey: "options.videoSubtitles.preference.enable.title",
+    descriptionKey: "options.videoSubtitles.preference.enable.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    // Its own page, drilled into from the Translate on open row of the Basics section.
+    sectionId: "subtitles-auto-start",
+    route: "/video-subtitles/auto-start",
+    titleKey: "options.videoSubtitles.preference.autoStart.title",
+    descriptionKey: "options.videoSubtitles.preference.autoStart.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    sectionId: "subtitles-ai-segmentation",
+    route: "/video-subtitles",
+    titleKey: "options.videoSubtitles.preference.aiSegmentation.title",
+    descriptionKey: "options.videoSubtitles.preference.aiSegmentation.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    sectionId: "subtitles-pause-on-hover",
+    route: "/video-subtitles",
+    titleKey: "options.videoSubtitles.preference.pauseOnHover.title",
+    descriptionKey: "options.videoSubtitles.preference.pauseOnHover.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    // Its own page, drilled into from the Video Subtitles page's Subtitle style section.
+    sectionId: "subtitles-style",
+    route: "/video-subtitles/style",
+    titleKey: "options.videoSubtitles.style.title",
+    descriptionKey: "options.videoSubtitles.style.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    // A page below the style page, drilled into from the custom CSS row at its bottom.
+    sectionId: "subtitles-custom-css",
+    route: "/video-subtitles/style/custom-css",
+    titleKey: "options.videoSubtitles.style.customCSS.title",
+    descriptionKey: "options.videoSubtitles.style.customCSS.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    // Its own page, drilled into from the Video Subtitles page's Custom prompts section.
+    sectionId: "subtitles-custom-prompts",
+    route: "/video-subtitles/prompts",
+    titleKey: "options.videoSubtitles.customPrompts.title",
+    descriptionKey: "options.videoSubtitles.customPrompts.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    // On the Subtitle queue page, drilled into from the Video Subtitles page.
+    sectionId: "subtitles-request-rate",
+    route: "/video-subtitles/subtitles-queue",
+    titleKey: "options.videoSubtitles.subtitlesQueue.requestQueueConfig.title",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    sectionId: "subtitles-request-batch",
+    route: "/video-subtitles/subtitles-queue",
+    titleKey: "options.videoSubtitles.subtitlesQueue.batchQueueConfig.title",
+    descriptionKey: "options.videoSubtitles.subtitlesQueue.batchQueueConfig.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+  {
+    sectionId: "clear-ai-segmentation-cache",
+    route: "/video-subtitles",
+    titleKey: "options.videoSubtitles.cache.clearCache.title",
+    descriptionKey: "options.videoSubtitles.cache.clearCache.description",
+    pageKey: "options.videoSubtitles.title",
+  },
+
   // Floating Button page
   {
     sectionId: "floating-button-toggle",
@@ -420,13 +472,7 @@ export const SEARCH_ITEMS: SearchItem[] = [
     descriptionKey: "options.selectionToolbar.actions.translate.description",
     pageKey: "options.selectionToolbar.title",
   },
-  {
-    sectionId: "selection-toolbar-note-suggestion",
-    route: "/selection-toolbar",
-    titleKey: "options.selectionToolbar.actions.noteSuggestion.title",
-    descriptionKey: "options.selectionToolbar.actions.noteSuggestion.description",
-    pageKey: "options.selectionToolbar.title",
-  },
+
   {
     sectionId: "selection-toolbar-annotation",
     route: "/selection-toolbar",
@@ -490,87 +536,6 @@ export const SEARCH_ITEMS: SearchItem[] = [
   },
 
   // Video Subtitles page
-  {
-    sectionId: "subtitles-enable",
-    route: "/video-subtitles",
-    titleKey: "options.videoSubtitles.preference.enable.title",
-    descriptionKey: "options.videoSubtitles.preference.enable.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    // Its own page, drilled into from the Translate on open row of the Basics section.
-    sectionId: "subtitles-auto-start",
-    route: "/video-subtitles/auto-start",
-    titleKey: "options.videoSubtitles.preference.autoStart.title",
-    descriptionKey: "options.videoSubtitles.preference.autoStart.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    sectionId: "subtitles-ai-segmentation",
-    route: "/video-subtitles",
-    titleKey: "options.videoSubtitles.preference.aiSegmentation.title",
-    descriptionKey: "options.videoSubtitles.preference.aiSegmentation.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    sectionId: "subtitles-pause-on-hover",
-    route: "/video-subtitles",
-    titleKey: "options.videoSubtitles.preference.pauseOnHover.title",
-    descriptionKey: "options.videoSubtitles.preference.pauseOnHover.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    sectionId: "subtitles-ai-quota",
-    route: "/video-subtitles",
-    titleKey: "options.videoSubtitles.aiQuota.title",
-    descriptionKey: "options.videoSubtitles.aiQuota.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    // Its own page, drilled into from the Video Subtitles page's Subtitle style section.
-    sectionId: "subtitles-style",
-    route: "/video-subtitles/style",
-    titleKey: "options.videoSubtitles.style.title",
-    descriptionKey: "options.videoSubtitles.style.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    // A page below the style page, drilled into from the custom CSS row at its bottom.
-    sectionId: "subtitles-custom-css",
-    route: "/video-subtitles/style/custom-css",
-    titleKey: "options.videoSubtitles.style.customCSS.title",
-    descriptionKey: "options.videoSubtitles.style.customCSS.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    // Its own page, drilled into from the Video Subtitles page's Custom prompts section.
-    sectionId: "subtitles-custom-prompts",
-    route: "/video-subtitles/prompts",
-    titleKey: "options.videoSubtitles.customPrompts.title",
-    descriptionKey: "options.videoSubtitles.customPrompts.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    // On the Subtitle queue page, drilled into from the Video Subtitles page.
-    sectionId: "subtitles-request-rate",
-    route: "/video-subtitles/subtitles-queue",
-    titleKey: "options.videoSubtitles.subtitlesQueue.requestQueueConfig.title",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    sectionId: "subtitles-request-batch",
-    route: "/video-subtitles/subtitles-queue",
-    titleKey: "options.videoSubtitles.subtitlesQueue.batchQueueConfig.title",
-    descriptionKey: "options.videoSubtitles.subtitlesQueue.batchQueueConfig.description",
-    pageKey: "options.videoSubtitles.title",
-  },
-  {
-    sectionId: "clear-ai-segmentation-cache",
-    route: "/video-subtitles",
-    titleKey: "options.videoSubtitles.cache.clearCache.title",
-    descriptionKey: "options.videoSubtitles.cache.clearCache.description",
-    pageKey: "options.videoSubtitles.title",
-  },
 
   // Text to Speech page
   {

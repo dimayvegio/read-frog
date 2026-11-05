@@ -42,6 +42,20 @@ describe("getEdgeTTSEndpointToken", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1)
   })
 
+  it.each(["eastus.evil", "eastus@evil.invalid/", "eastus/../../", "https://evil.invalid"])(
+    "rejects malformed speech region %s",
+    async (region) => {
+      const fetchSpy = vi
+        .spyOn(globalThis, "fetch")
+        .mockResolvedValue(new Response(JSON.stringify({ r: region, t: "test-token" })))
+      await expect(getEdgeTTSEndpointToken()).rejects.toThrow("Invalid Microsoft speech region")
+      expect(fetchSpy).toHaveBeenCalledExactlyOnceWith(
+        expect.any(String),
+        expect.objectContaining({ method: "POST", credentials: "omit", redirect: "error" }),
+      )
+    },
+  )
+
   it("falls back to cached token when refresh request fails but token is still unexpired", async () => {
     const nowSeconds = Math.floor(Date.now() / 1000)
     const fetchSpy = vi.spyOn(globalThis, "fetch")

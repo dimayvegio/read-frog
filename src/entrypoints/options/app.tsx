@@ -20,9 +20,6 @@ const CustomActionsPage = lazy(() =>
 const TranslationPage = lazy(() =>
   import("./pages/translation").then((module) => ({ default: module.TranslationPage })),
 )
-const VideoSubtitlesPage = lazy(() =>
-  import("./pages/video-subtitles").then((module) => ({ default: module.VideoSubtitlesPage })),
-)
 const FloatingButtonPage = lazy(() =>
   import("./pages/floating-button").then((module) => ({ default: module.FloatingButtonPage })),
 )
@@ -99,26 +96,34 @@ const ExtensionActivationPage = lazy(() =>
     default: module.ExtensionActivationPage,
   })),
 )
-const SubtitlesCustomCssPage = lazy(() =>
-  import("./pages/video-subtitles/subtitles-style/custom-css").then((module) => ({
-    default: module.SubtitlesCustomCssPage,
-  })),
+const VideoSubtitlesPage = lazy(() =>
+  import("./pages/video-subtitles").then((module) => ({ default: module.VideoSubtitlesPage })),
 )
+
 const SubtitlesAutoStartPage = lazy(() =>
   import("./pages/video-subtitles/preference/auto-start-page").then((module) => ({
     default: module.SubtitlesAutoStartPage,
   })),
 )
+
 const SubtitlesStylePage = lazy(() =>
   import("./pages/video-subtitles/subtitles-style/style-editor").then((module) => ({
     default: module.SubtitlesStylePage,
   })),
 )
+
+const SubtitlesCustomCssPage = lazy(() =>
+  import("./pages/video-subtitles/subtitles-style/custom-css").then((module) => ({
+    default: module.SubtitlesCustomCssPage,
+  })),
+)
+
 const SubtitlesCustomPromptsPage = lazy(() =>
   import("./pages/video-subtitles/custom-prompts/prompts").then((module) => ({
     default: module.SubtitlesCustomPromptsPage,
   })),
 )
+
 const SubtitlesQueuePage = lazy(() =>
   import("./pages/video-subtitles/subtitles-queue/queue-page").then((module) => ({
     default: module.SubtitlesQueuePage,
@@ -127,12 +132,18 @@ const SubtitlesQueuePage = lazy(() =>
 
 const ROUTE_COMPONENTS: Record<RoutePath, ComponentType> = {
   "/": ApiProvidersPage,
+  "/video-subtitles": VideoSubtitlesPage,
+  "/video-subtitles/auto-start": SubtitlesAutoStartPage,
+  "/video-subtitles/style": SubtitlesStylePage,
+  "/video-subtitles/style/custom-css": SubtitlesCustomCssPage,
+  "/video-subtitles/prompts": SubtitlesCustomPromptsPage,
+  "/video-subtitles/subtitles-queue": SubtitlesQueuePage,
   "/preference": PreferencePage,
   "/shortcuts": ShortcutsPage,
   "/api-providers": ApiProvidersPage,
   "/custom-actions": CustomActionsPage,
   "/page-translation": TranslationPage,
-  "/video-subtitles": VideoSubtitlesPage,
+
   "/floating-button": FloatingButtonPage,
   "/selection-toolbar": SelectionToolbarPage,
   "/context-menu": ContextMenuPage,
@@ -152,11 +163,6 @@ const ROUTE_COMPONENTS: Record<RoutePath, ComponentType> = {
     NeverAutoTranslateWebsitesPage,
   "/page-translation/translation-control/site-rules": SiteRulesPage,
   "/page-translation/translation-queue": TranslationQueuePage,
-  "/video-subtitles/auto-start": SubtitlesAutoStartPage,
-  "/video-subtitles/style": SubtitlesStylePage,
-  "/video-subtitles/style/custom-css": SubtitlesCustomCssPage,
-  "/video-subtitles/prompts": SubtitlesCustomPromptsPage,
-  "/video-subtitles/subtitles-queue": SubtitlesQueuePage,
 }
 
 function RouteLoadingFallback() {

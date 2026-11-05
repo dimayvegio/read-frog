@@ -1,5 +1,5 @@
 import type { ReactNode } from "react"
-import { Icon } from "@iconify/react"
+import { Icon } from "@/components/local-icon"
 import { SelectionPopover } from "@/components/ui/selection-popover"
 import { cn } from "@/utils/styles/utils"
 

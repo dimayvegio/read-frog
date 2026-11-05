@@ -70,6 +70,10 @@ function ensureEndpointPayload(data: unknown): EdgeTTSEndpointResponse {
     throw new EdgeTTSError("TOKEN_FETCH_FAILED", "Endpoint response is missing token or region")
   }
 
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(endpoint.r)) {
+    throw new EdgeTTSError("TOKEN_FETCH_FAILED", "Invalid Microsoft speech region")
+  }
+
   return endpoint
 }
 
@@ -84,6 +88,8 @@ export async function getEdgeTTSEndpointToken(): Promise<EdgeTTSTokenInfo> {
 
     const response = await fetch(EDGE_TTS_ENDPOINT_URL, {
       method: "POST",
+      credentials: "omit",
+      redirect: "error",
       headers: {
         "Accept-Language": "zh-Hans",
         "X-ClientVersion": EDGE_TTS_CLIENT_VERSION,

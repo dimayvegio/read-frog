@@ -2,16 +2,15 @@ import type {
   BackgroundGenerateTextPayload,
   BackgroundGenerateTextResponse,
 } from "@/types/background-generate-text"
-import { validateProviderHostedFeature } from "@/utils/hosted-ai/routing"
-import { logger } from "@/utils/logger"
+import { openAIGeneratePayloadSchema } from "@/types/openai-execution"
+import { safeOpenAIErrorMessage } from "@/utils/error/openai"
 import { onMessage } from "@/utils/message"
 import { generateTextForProviderRef } from "./background-stream"
 
 export async function runGenerateTextInBackground(
   payload: BackgroundGenerateTextPayload,
 ): Promise<BackgroundGenerateTextResponse> {
-  validateProviderHostedFeature(payload.providerRef, payload.hostedFeature)
-  return { text: await generateTextForProviderRef(payload) }
+  return { text: await generateTextForProviderRef(openAIGeneratePayloadSchema.parse(payload)) }
 }
 
 export function setupLLMGenerateTextMessageHandlers() {
@@ -19,8 +18,8 @@ export function setupLLMGenerateTextMessageHandlers() {
     try {
       return await runGenerateTextInBackground(message.data)
     } catch (error) {
-      logger.error("[Background] backgroundGenerateText failed", error)
-      throw error
+      // oxlint-disable-next-line unicorn/preserve-caught-error -- SDK causes can include credentials and must not cross this message boundary.
+      throw new Error(safeOpenAIErrorMessage(error))
     }
   })
 }

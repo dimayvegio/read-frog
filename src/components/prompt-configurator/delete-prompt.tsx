@@ -1,7 +1,7 @@
 import type { TranslatePromptObj } from "@/types/config/translate"
-import { Icon } from "@iconify/react/dist/iconify.js"
 import { useAtom, useAtomValue } from "jotai"
 import { useState } from "react"
+import { Icon } from "@/components/local-icon"
 import {
   AlertDialog,
   AlertDialogAction,

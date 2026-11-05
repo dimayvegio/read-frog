@@ -4,7 +4,8 @@ import { dequal } from "dequal"
 import { atom } from "jotai"
 import { selectAtom } from "jotai/utils"
 import { configSchema } from "@/types/config/config"
-import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from "../constants/config"
+import { awaitConfigReady } from "../config/readiness"
+import { CONFIG_SCHEMA_VERSION, CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from "../constants/config"
 import { storageAdapter } from "./storage-adapter"
 
 export const configAtom = atom<Config>(DEFAULT_CONFIG)
@@ -22,6 +23,9 @@ const mergeUpdaterResult = deepmergeCustom({
 })
 
 export type ConfigUpdate = Partial<Config> | ((current: Config) => Partial<Config>)
+type ConfigWriteOperation =
+  | { kind: "patch"; update: ConfigUpdate }
+  | { kind: "replace"; config: Config }
 
 // Shared by writers in this extension context. Other contexts remain independent.
 let writeQueue: Promise<void> = Promise.resolve()
@@ -35,8 +39,13 @@ function applyUpdate(current: Config, update: ConfigUpdate): Config {
     : mergeWithArrayOverwrite(current, update)
 }
 
-export const writeConfigAtom = atom(null, async (get, set, update: ConfigUpdate) => {
-  const optimistic = applyUpdate(get(configAtom), update)
+const writeConfigOperationAtom = atom(null, async (get, set, operation: ConfigWriteOperation) => {
+  await awaitConfigReady()
+  const apply = (current: Config) =>
+    configSchema.parse(
+      operation.kind === "replace" ? operation.config : applyUpdate(current, operation.update),
+    )
+  const optimistic = apply(get(configAtom))
   set(configAtom, optimistic)
   const version = ++writeVersion
   pendingWrites++
@@ -45,9 +54,12 @@ export const writeConfigAtom = atom(null, async (get, set, update: ConfigUpdate)
     let stored: Config | undefined
     try {
       stored = await storageAdapter.get(CONFIG_STORAGE_KEY, DEFAULT_CONFIG, configSchema)
-      const next = applyUpdate(stored, update)
+      const next = apply(stored)
       await storageAdapter.set(CONFIG_STORAGE_KEY, next, configSchema)
-      await storageAdapter.setMeta(CONFIG_STORAGE_KEY, { lastModifiedAt: Date.now() })
+      await storageAdapter.setMeta(CONFIG_STORAGE_KEY, {
+        schemaVersion: CONFIG_SCHEMA_VERSION,
+        lastModifiedAt: Date.now(),
+      })
       if (version === writeVersion && !dequal(get(configAtom), next)) set(configAtom, next)
     } catch (error) {
       if (version === writeVersion && stored) set(configAtom, stored)
@@ -61,6 +73,13 @@ export const writeConfigAtom = atom(null, async (get, set, update: ConfigUpdate)
   return task
 })
 
+export const writeConfigAtom = atom(null, (_get, set, update: ConfigUpdate) =>
+  set(writeConfigOperationAtom, { kind: "patch", update }),
+)
+export const replaceConfigAtom = atom(null, (_get, set, config: Config) =>
+  set(writeConfigOperationAtom, { kind: "replace", config }),
+)
+
 // Watch notifications invalidate a read. Their payload may describe an older write,
 // and must never replace a newer optimistic update or an already persisted value.
 configAtom.onMount = (setAtom) => {
@@ -73,6 +92,7 @@ configAtom.onMount = (setAtom) => {
     if (reading) return
     reading = true
     try {
+      await awaitConfigReady()
       while (requested) {
         if (!active) return
         await writeQueue

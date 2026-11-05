@@ -1,5 +1,5 @@
-import { Icon } from "@iconify/react"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
+import { Icon } from "@/components/local-icon"
 import { Switch } from "@/components/ui/base-ui/switch"
 import { NOTRANSLATE_CLASS } from "@/utils/constants/dom-labels"
 import {

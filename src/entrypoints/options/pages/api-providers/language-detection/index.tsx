@@ -1,124 +1,40 @@
-import { useAtom, useAtomValue } from "jotai"
-import { useMemo } from "react"
-import ProviderSelector from "@/components/llm-providers/provider-selector"
-import { useHostedAiProviderOptions } from "@/components/llm-providers/use-hosted-ai-provider-options"
-import { useHostedAiStatus } from "@/components/llm-providers/use-hosted-ai-status"
-import { Label } from "@/components/ui/base-ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/base-ui/radio-group"
+import { useAtom } from "jotai"
+import { OPENAI_PROVIDER_ID } from "@/types/config/openai"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
-import { resolveLanguageDetectionConfigForModeChange } from "@/utils/config/helpers"
-import { i18n } from "@/utils/i18n"
-import { isProviderSelectorOptionDisabled } from "@/utils/providers/provider-display"
-import { getSelectableProvidersForCapability } from "@/utils/providers/provider-registry"
-import { ConfigItem } from "../../../components/config-item"
 import { ConfigSection } from "../../../components/config-section"
-import { SELECT_CONTENT_PROPS } from "../../../components/select-content-props"
 
 export function LanguageDetectionConfig() {
-  const [languageDetection, setLanguageDetection] = useAtom(configFieldsAtomMap.languageDetection)
-  const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
-
-  // Capability-based so Built-in AI appears: it is synthesized by the provider
-  // registry rather than stored in providersConfig, so the old
-  // getEnabledLLMProvidersConfig filter could never surface it.
-  const selectableProviders = useMemo(
-    () => getSelectableProvidersForCapability("languageDetection", providersConfig),
-    [providersConfig],
-  )
-  // Adds the Ultra badge and grays out tiers this account cannot run, matching
-  // every other provider dropdown.
-  const providerOptions = useHostedAiProviderOptions("languageDetection", selectableProviders)
-  const { status } = useHostedAiStatus()
-
-  // Local providers do not carry a disabled flag, while Built-in AI can be
-  // disabled by account access. Count every selectable option so a configured
-  // local LLM keeps this control usable even when hosted AI is unavailable.
-  const hasProviders = providerOptions.some((option) => !isProviderSelectorOptionDisabled(option))
-  const isLLMMode = languageDetection.mode === "llm"
-
-  const statusIndicator = useMemo(() => {
-    if (!hasProviders) {
-      return {
-        color: "bg-warning",
-        text: i18n.t("options.apiProviders.languageDetection.status.noProviders"),
-      }
-    }
-    if (!isLLMMode) {
-      return {
-        color: "bg-blue-400",
-        text: i18n.t("options.apiProviders.languageDetection.status.basicRecommend"),
-      }
-    }
-    return {
-      color: "bg-success",
-      text: i18n.t("options.apiProviders.languageDetection.status.llmEnabled"),
-    }
-  }, [hasProviders, isLLMMode])
-
+  const [config, setConfig] = useAtom(configFieldsAtomMap.languageDetection)
   return (
-    <ConfigSection
-      id="language-detection"
-      title={i18n.t("options.apiProviders.languageDetection.title")}
-    >
-      <ConfigItem
-        title={i18n.t("options.apiProviders.languageDetection.provider.label")}
-        description={
-          <>
-            {i18n.t("options.apiProviders.languageDetection.description")}
-            <span className="mt-2 flex items-center gap-1.5">
-              <span className={`size-2 rounded-full ${statusIndicator.color}`} />
-              <span className="text-xs">{statusIndicator.text}</span>
-            </span>
-          </>
-        }
-      >
-        <div className="flex flex-col items-end gap-3">
-          <RadioGroup
-            value={languageDetection.mode}
-            onValueChange={(value: string) => {
-              if (value !== "basic" && value !== "llm") return
-
-              const nextConfig = resolveLanguageDetectionConfigForModeChange(
-                languageDetection,
-                value,
-                providersConfig,
-                status,
-              )
-
-              // No provider can run LLM detection for this account, so arming
-              // the mode would only produce an inert setting.
-              if (!nextConfig) return
-
-              void setLanguageDetection(nextConfig)
+    <ConfigSection id="language-detection" title="Language detection">
+      <p className="text-sm text-muted-foreground">
+        Local detection works without an API key. Optional OpenAI detection falls back locally when
+        unavailable, including for Microsoft TTS.
+      </p>
+      <div className="flex gap-6">
+        <label className="flex gap-2">
+          <input
+            type="radio"
+            name="language-detection-mode"
+            checked={config.mode === "basic"}
+            onChange={() => {
+              void setConfig({ mode: "basic" })
             }}
-            className="flex flex-row gap-4"
-          >
-            <div className="flex items-center gap-2">
-              <RadioGroupItem value="basic" id="lang-detection-basic" />
-              <Label htmlFor="lang-detection-basic">
-                {i18n.t("options.apiProviders.languageDetection.mode.basic")}
-              </Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <RadioGroupItem value="llm" id="lang-detection-llm" disabled={!hasProviders} />
-              <Label htmlFor="lang-detection-llm">
-                {i18n.t("options.apiProviders.languageDetection.mode.llm")}
-              </Label>
-            </div>
-          </RadioGroup>
-
-          {isLLMMode && (
-            <ProviderSelector
-              providers={providerOptions}
-              value={languageDetection.providerId ?? ""}
-              onChange={(providerId) => void setLanguageDetection({ providerId })}
-              placeholder={i18n.t("options.apiProviders.languageDetection.provider.placeholder")}
-              triggerSize="sm"
-              selectContentProps={SELECT_CONTENT_PROPS}
-            />
-          )}
-        </div>
-      </ConfigItem>
+          />
+          Local
+        </label>
+        <label className="flex gap-2">
+          <input
+            type="radio"
+            name="language-detection-mode"
+            checked={config.mode === "llm"}
+            onChange={() => {
+              void setConfig({ mode: "llm", providerId: OPENAI_PROVIDER_ID })
+            }}
+          />
+          OpenAI
+        </label>
+      </div>
     </ConfigSection>
   )
 }

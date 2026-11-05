@@ -2,9 +2,9 @@ import type { Config } from "@/types/config/config"
 import type { ProviderConfig } from "@/types/config/provider"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { parseBatchResult } from "@/entrypoints/background/translation-queues"
+import { executeTranslate } from "@/entrypoints/background/translation/execute-translate"
 import { BATCH_SEPARATOR } from "@/utils/constants/prompt"
 import { Sha256Hex } from "@/utils/hash"
-import { executeTranslate } from "@/utils/host/translate/execute-translate"
 import { BatchQueue } from "../batch-queue"
 import { RequestQueue } from "../request-queue"
 
@@ -13,7 +13,7 @@ const mockPromptResolver = vi
   .mockResolvedValue({ systemPrompt: "", prompt: "" })
 
 // Mock dependencies
-vi.mock("@/utils/host/translate/execute-translate", () => ({
+vi.mock("@/entrypoints/background/translation/execute-translate", () => ({
   executeTranslate: vi.fn<(...args: any[]) => any>(),
 }))
 
@@ -47,11 +47,10 @@ const sampleLangConfig: Config["language"] = {
 }
 
 const sampleProviderConfig: ProviderConfig = {
-  id: "test-provider",
+  id: "openai-default",
   name: "Test Provider",
   provider: "openai",
   enabled: true,
-  apiKey: "test-key",
   model: { model: "gpt-4o-mini", isCustomModel: false, customModel: null },
 }
 

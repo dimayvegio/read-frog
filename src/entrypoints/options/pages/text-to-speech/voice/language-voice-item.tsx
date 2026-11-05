@@ -6,7 +6,6 @@ import { useState } from "react"
 import { LanguageCombobox } from "@/components/language-combobox"
 import { Button } from "@/components/ui/base-ui/button"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
-import { ANALYTICS_SURFACE } from "@/types/analytics"
 import { getDefaultTTSVoiceForLanguage } from "@/types/config/tts"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { i18n } from "@/utils/i18n"
@@ -20,7 +19,7 @@ import { TTSVoiceCombobox } from "./voice-combobox"
 export function LanguageVoiceItem() {
   const [ttsConfig, setTtsConfig] = useAtom(configFieldsAtomMap.tts)
   const [selectedLanguage, setSelectedLanguage] = useState<LangCodeISO6393>("eng")
-  const { play, isFetching, isPlaying } = useTextToSpeech(ANALYTICS_SURFACE.TTS_SETTINGS)
+  const { play, isFetching, isPlaying } = useTextToSpeech()
   const isFetchingOrPlaying = isFetching || isPlaying
 
   const selectedLanguageVoice = ttsConfig.languageVoices[selectedLanguage] ?? ttsConfig.defaultVoice

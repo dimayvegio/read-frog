@@ -8,9 +8,8 @@ import { consumeCustomActionDeepLink } from "@/utils/navigation"
 import { ConfigItem } from "../../components/config-item"
 import { EntityEditorLayout } from "../../components/entity-editor-layout"
 import { CustomActionConfigForm } from "./action-config-form"
-import { customActionEditorTabAtom, selectedCustomActionIdAtom } from "./atoms"
+import { selectedCustomActionIdAtom } from "./atoms"
 import { CustomActionCardList } from "./components/action-card-list"
-import { IntroVideoButton } from "./components/intro-video-button"
 
 /**
  * Applies `?actionId=…&tab=…` once, then strips it. Lives in the parent on purpose: a parent's
@@ -21,7 +20,6 @@ import { IntroVideoButton } from "./components/intro-video-button"
 function useCustomActionDeepLink() {
   const store = useStore()
   const setSelectedCustomActionId = useSetAtom(selectedCustomActionIdAtom)
-  const setEditorTab = useSetAtom(customActionEditorTabAtom)
   const { search } = useLocation()
   const navigate = useNavigate()
 
@@ -29,21 +27,16 @@ function useCustomActionDeepLink() {
     const deepLink = consumeCustomActionDeepLink(search)
     if (!deepLink) return
 
-    const { actionId, tab } = deepLink
+    const { actionId } = deepLink
     if (actionId) {
       const actions = store.get(configFieldsAtomMap.selectionToolbar).customActions
       if (isBuiltInActionId(actionId) || actions.some((action) => action.id === actionId)) {
-        // A link to an action without a tab lands on its first tab.
-        void setSelectedCustomActionId(actionId).then((proceeded) => {
-          if (proceeded) setEditorTab(tab ?? "config")
-        })
+        void setSelectedCustomActionId(actionId)
       }
-    } else if (tab) {
-      setEditorTab(tab)
     }
 
     void navigate({ search: deepLink.remainingSearch }, { replace: true })
-  }, [search, navigate, store, setSelectedCustomActionId, setEditorTab])
+  }, [search, navigate, store, setSelectedCustomActionId])
 }
 
 export function CustomActionsConfig() {
@@ -57,7 +50,6 @@ export function CustomActionsConfig() {
       description={
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {i18n.t("options.selectionToolbar.customActions.description")}
-          <IntroVideoButton />
         </span>
       }
     >

@@ -6,7 +6,6 @@ import {
   getBuiltInDictionaryAction,
   getSelectionToolbarActions,
   replaceSelectionToolbarAction,
-  resolveNoteSuggestionAction,
   resolveWordLookupAction,
 } from "@/utils/custom-actions"
 
@@ -46,7 +45,7 @@ describe("selection toolbar built-in actions", () => {
       id: "default-sentence-analysis",
       enabled: false,
       providerId: "openai-default",
-      icon: "streamline-color:search-visual-flat",
+      icon: "tabler:search",
     })
     expect(action?.outputSchema.map((field) => field.id)).toEqual([
       "default-sentence-analysis-sentence",
@@ -64,7 +63,7 @@ describe("selection toolbar built-in actions", () => {
       id: "default-improve-writing",
       enabled: true,
       providerId: DEFAULT_CONFIG.selectionToolbar.builtInActions.improveWriting.providerId,
-      icon: "streamline-color:ai-edit-spark-flat",
+      icon: "tabler:sparkles",
     })
     expect(action?.outputSchema.map((field) => field.id)).toEqual([
       "default-improve-writing-original",
@@ -97,16 +96,6 @@ describe("selection toolbar built-in actions", () => {
       enabled: false,
     })
 
-    expect(next.builtInActions).toEqual({
-      dictionary: selectionToolbar.builtInActions.dictionary,
-      sentenceAnalysis: {
-        enabled: false,
-        providerId: "openai-default",
-        notebaseConnection: undefined,
-        shortcut: "Alt+Shift+G",
-      },
-      improveWriting: selectionToolbar.builtInActions.improveWriting,
-    })
     expect(next.customActions).toBe(selectionToolbar.customActions)
     expect(findSelectionToolbarAction(next, "default-sentence-analysis")).toMatchObject({
       name: action.name,
@@ -118,17 +107,6 @@ describe("selection toolbar built-in actions", () => {
   it("persists only mutable state when replacing the built-in Dictionary", () => {
     const selectionToolbar = cloneSelectionToolbar()
     const dictionary = getBuiltInDictionaryAction(selectionToolbar)
-    const connection = {
-      notebaseId: "notebase-1",
-      notebaseNameSnapshot: "Words",
-      connectedAccount: {
-        id: "account-1",
-        name: "Reader",
-        email: "reader@example.com",
-        image: null,
-      },
-      mappings: [],
-    }
 
     const next = replaceSelectionToolbarAction(selectionToolbar, {
       ...dictionary,
@@ -136,23 +114,8 @@ describe("selection toolbar built-in actions", () => {
       prompt: "Attempted prompt edit",
       enabled: false,
       providerId: "openai-default",
-      notebaseConnection: connection,
     })
 
-    expect(next.builtInActions.dictionary).toEqual({
-      enabled: false,
-      providerId: "openai-default",
-      notebaseConnection: connection,
-      shortcut: "Alt+Shift+D",
-    })
-    expect(getBuiltInDictionaryAction(next)).toMatchObject({
-      id: "default-dictionary",
-      name: dictionary.name,
-      prompt: dictionary.prompt,
-      enabled: false,
-      providerId: "openai-default",
-      notebaseConnection: connection,
-    })
     expect(next.customActions).toEqual([])
   })
 
@@ -203,24 +166,6 @@ describe("selection toolbar built-in actions", () => {
     selectionToolbar.builtInActions.dictionary = {
       enabled: false,
       providerId: "openai-default",
-      notebaseConnection: {
-        notebaseId: "notebase-1",
-        notebaseNameSnapshot: "Words",
-        connectedAccount: {
-          id: "account-1",
-          name: "Reader",
-          email: "reader@example.com",
-          image: null,
-        },
-        mappings: [
-          {
-            id: "mapping-1",
-            localFieldId: "default-dictionary-term",
-            notebaseColumnId: "column-1",
-            notebaseColumnNameSnapshot: "Term",
-          },
-        ],
-      },
     }
     const dictionary = getBuiltInDictionaryAction(selectionToolbar)
     const duplicate = duplicateSelectionToolbarAction(dictionary, [
@@ -237,8 +182,6 @@ describe("selection toolbar built-in actions", () => {
     })
     expect(duplicate).not.toHaveProperty("shortcut")
     expect(duplicate.id).not.toBe(dictionary.id)
-    expect(duplicate.notebaseConnection).not.toBe(dictionary.notebaseConnection)
-    expect(duplicate.notebaseConnection?.mappings).not.toBe(dictionary.notebaseConnection?.mappings)
   })
 
   it("reads a built-in action's key from its state, and its default key without one", () => {
@@ -273,29 +216,6 @@ describe("selection toolbar built-in actions", () => {
       shortcut: "Alt+Shift+K",
     })
     expect(keyChanged.builtInActions.dictionary.shortcut).toBe("Alt+Shift+K")
-  })
-
-  it("resolves the configured Note suggestion action even when it is disabled", () => {
-    const selectionToolbar = cloneSelectionToolbar()
-    const customAction = {
-      ...getBuiltInDictionaryAction(selectionToolbar),
-      id: "custom-save-action",
-      name: "Custom Save",
-      enabled: false,
-    }
-    selectionToolbar.customActions = [customAction]
-    selectionToolbar.noteSuggestion.actionId = customAction.id
-
-    expect(resolveNoteSuggestionAction(selectionToolbar)).toBe(customAction)
-  })
-
-  it("fails fast when the configured Note suggestion action violates the config invariant", () => {
-    const selectionToolbar = cloneSelectionToolbar()
-    selectionToolbar.noteSuggestion.actionId = "deleted-action"
-
-    expect(() => resolveNoteSuggestionAction(selectionToolbar)).toThrow(
-      'Note suggestion action "deleted-action" is missing from the validated configuration.',
-    )
   })
 })
 

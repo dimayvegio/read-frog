@@ -2,7 +2,6 @@ import type {
   SelectionToolbarCustomAction,
   SelectionToolbarCustomActionOutputField,
 } from "@/types/config/selection-toolbar"
-import { Icon } from "@iconify/react"
 import { LAYOUT_RESERVED_FIELD_NAMES } from "@read-frog/layout-engine/contract"
 import { renameLayoutFieldRefs } from "@read-frog/layout-engine/editor"
 import { useForm } from "@tanstack/react-form"
@@ -12,6 +11,7 @@ import { InputField } from "@/components/form/input-field"
 import { QuickInsertableTextareaField } from "@/components/form/quick-insertable-textarea-field"
 import { SelectField } from "@/components/form/select-field"
 import { useAutosaveContext } from "@/components/form/use-autosave"
+import { Icon } from "@/components/local-icon"
 import { SortableList } from "@/components/sortable-list"
 import {
   AlertDialog,
@@ -54,7 +54,6 @@ import {
 } from "@/utils/constants/custom-action"
 import { i18n } from "@/utils/i18n"
 import { CUSTOM_ACTION_LAYOUT_HOST } from "@/utils/layout-host/host"
-import { sanitizeCustomActionNotebaseConnection } from "@/utils/notebase/connection"
 import { withForm } from "./form"
 
 type CustomActionFormKey =
@@ -493,15 +492,6 @@ export const OutputSchemaField = withForm({
                         const nextOutputSchema = field.state.value.filter(
                           (item) => item.id !== deletingFieldId,
                         )
-                        const connection = form.state.values.notebaseConnection
-                        if (connection) {
-                          // Drop references before field validation runs; the persistence
-                          // sanitizer cannot repair a draft rejected by handleSubmit.
-                          form.setFieldValue(
-                            "notebaseConnection",
-                            sanitizeCustomActionNotebaseConnection(connection, nextOutputSchema),
-                          )
-                        }
                         field.handleChange(nextOutputSchema)
                       },
                       { immediate: true },

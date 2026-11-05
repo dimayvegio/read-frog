@@ -33,14 +33,7 @@ vi.mock("@/utils/atoms/config", () => ({
 }))
 vi.mock("@/utils/host/translate/translate-variants", () => ({ translateTextForInput: translate }))
 vi.mock("@/components/ui/base-ui/toast", () => ({ toastManager: { add: vi.fn<() => void>() } }))
-vi.mock("@/utils/analytics", () => ({
-  createFeatureUsageContext: () => ({}),
-  trackFeatureUsed: trackFeatureUsedMock,
-}))
-vi.mock("@/utils/analytics-provider", () => ({
-  UNKNOWN_FEATURE_PROVIDER: { provider: "unknown", backend_kind: "unknown" },
-  classifyResolvedProvider: () => ({ provider: "openai", backend_kind: "llm" }),
-}))
+
 vi.mock("@/utils/providers/provider-registry", () => ({
   resolveProviderRefForCapability: () => ({}),
 }))
@@ -110,7 +103,7 @@ describe("input translation across editors", () => {
       space(element)
       space(element)
     })
-    expect(translate).toHaveBeenCalledWith("你好", "cmn", "eng", expect.any(Function))
+    expect(translate).toHaveBeenCalledWith("你好", "cmn", "eng")
   })
 
   it("reports the resolved target after cycling the input direction", async () => {
@@ -127,10 +120,7 @@ describe("input translation across editors", () => {
       space(element)
     })
 
-    expect(translate).toHaveBeenCalledWith("你好", "eng", "cmn", expect.any(Function))
-    expect(trackFeatureUsedMock).toHaveBeenCalledWith(
-      expect.objectContaining({ target_language: "cmn", char_count: 2, outcome: "success" }),
-    )
+    expect(translate).toHaveBeenCalledWith("你好", "eng", "cmn")
   })
 
   it.each([1, 2])("translates a focused textarea inside %i shadow roots", async (depth) => {
@@ -141,7 +131,7 @@ describe("input translation across editors", () => {
       space(element)
       space(element)
     })
-    expect(translate).toHaveBeenCalledWith("你好", "cmn", "eng", expect.any(Function))
+    expect(translate).toHaveBeenCalledWith("你好", "cmn", "eng")
   })
 
   it("preserves rich-text paragraph breaks when requesting translation", async () => {
@@ -152,7 +142,7 @@ describe("input translation across editors", () => {
       space(element)
       space(element)
     })
-    expect(translate).toHaveBeenCalledWith("你好\n\n谢谢分享", "cmn", "eng", expect.any(Function))
+    expect(translate).toHaveBeenCalledWith("你好\n\n谢谢分享", "cmn", "eng")
   })
 
   it("targets the original reply when focus changes during translation", async () => {

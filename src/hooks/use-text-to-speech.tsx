@@ -1,17 +1,8 @@
-import type {
-  FeatureProviderAnalytics,
-  FeatureUsageContext,
-  SurfaceByFeature,
-} from "@/types/analytics"
 import type { TTSConfig } from "@/types/config/tts"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
 import { useRef, useState } from "react"
 import { toastManager } from "@/components/ui/base-ui/toast"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { createFeatureUsageContext, trackFeatureUsed } from "@/utils/analytics"
-import { classifyFailureReason } from "@/utils/analytics-failure-reason"
-import { EDGE_TTS_FEATURE_PROVIDER } from "@/utils/analytics-provider"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { detectLanguage } from "@/utils/content/language"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
@@ -23,7 +14,6 @@ import { splitTextByUtf8Bytes } from "@/utils/server/edge-tts/chunk"
 interface PlayAudioParams {
   text: string
   ttsConfig: TTSConfig
-  analyticsContext: FeatureUsageContext<"text_to_speech"> & FeatureProviderAnalytics
   forcedVoice?: string
   // A run nobody pressed for (a layout reading a field as the answer arrives)
   // fails without a toast; pressing the trigger tries again and reports it.
@@ -137,9 +127,7 @@ async function synthesizeEdgeTTSAudioChunk(
   }
 }
 
-export function useTextToSpeech(
-  surface: SurfaceByFeature["text_to_speech"] = ANALYTICS_SURFACE.SELECTION_TOOLBAR,
-) {
+export function useTextToSpeech() {
   const queryClient = useQueryClient()
   const languageDetection = useAtomValue(configFieldsAtomMap.languageDetection)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -166,7 +154,7 @@ export function useTextToSpeech(
     meta: {
       suppressToast: true,
     },
-    mutationFn: async ({ text, ttsConfig, analyticsContext, forcedVoice }) => {
+    mutationFn: async ({ text, ttsConfig, forcedVoice }) => {
       stop()
       shouldStopRef.current = false
 
@@ -180,7 +168,7 @@ export function useTextToSpeech(
         await runPlayback(requestId, isSuperseded, {
           text,
           ttsConfig,
-          analyticsContext,
+
           forcedVoice,
         })
       } catch (error) {
@@ -190,11 +178,6 @@ export function useTextToSpeech(
       }
     },
     onError: (error, variables) => {
-      void trackFeatureUsed({
-        ...variables.analyticsContext,
-        outcome: "failure",
-        failure_reason: classifyFailureReason(error),
-      })
       if (!variables.quiet) {
         toastManager.add({
           type: "error",
@@ -213,10 +196,8 @@ export function useTextToSpeech(
   async function runPlayback(
     requestId: string,
     isSuperseded: () => boolean,
-    { text, ttsConfig, analyticsContext, forcedVoice }: PlayAudioParams,
+    { text, ttsConfig, forcedVoice }: PlayAudioParams,
   ) {
-    let didStartPlayback = false
-
     const selectedVoice = await resolveVoiceForText(
       text,
       ttsConfig,
@@ -271,7 +252,6 @@ export function useTextToSpeech(
           contentType: audioChunk.contentType,
         })
         if (playbackResult.ok) {
-          didStartPlayback = true
         }
         return playbackResult.ok
       } finally {
@@ -309,23 +289,13 @@ export function useTextToSpeech(
       setCurrentChunk(0)
       setTotalChunks(0)
     }
-
-    if (didStartPlayback) {
-      void trackFeatureUsed({
-        ...analyticsContext,
-        outcome: "success",
-      })
-    }
   }
 
-  // `options.surface` reports a play started from somewhere other than the
-  // hook's own surface (a keyboard shortcut for the toolbar's reader).
   const play = (
     text: string,
     ttsConfig: TTSConfig,
     options?: {
       forcedVoice?: string
-      surface?: SurfaceByFeature["text_to_speech"]
       quiet?: boolean
     },
   ) => {
@@ -334,10 +304,6 @@ export function useTextToSpeech(
       ttsConfig,
       forcedVoice: options?.forcedVoice,
       quiet: options?.quiet,
-      analyticsContext: {
-        ...createFeatureUsageContext(ANALYTICS_FEATURE.TEXT_TO_SPEECH, options?.surface ?? surface),
-        ...EDGE_TTS_FEATURE_PROVIDER,
-      },
     })
   }
 

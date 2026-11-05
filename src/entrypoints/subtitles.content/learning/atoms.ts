@@ -1,6 +1,5 @@
 import { atom } from "jotai"
 import { customActionRequestAtom } from "@/components/custom-action/atoms"
-import { ANALYTICS_SURFACE } from "@/types/analytics"
 import { configAtom } from "@/utils/atoms/config"
 import { resolveWordLookupAction } from "@/utils/custom-actions"
 import { segmentWords } from "@/utils/subtitles/segment-words"
@@ -50,10 +49,6 @@ export const lookUpAtom = atom(null, (get, set, index: number | null) => {
     selectionText: word.text,
     cleanSelection: word.text,
     contextText: [cue.text, cue.translation].filter(Boolean).join("\n\n"),
-    surface: ANALYTICS_SURFACE.VIDEO_SUBTITLES,
-    // The card reads the video, its link and playing time, when a save starts
-    // (WordLookupCard), where the platform's player can be reached.
-    noteOrigin: null,
     sessionKey: nextSessionKey,
     rerunNonce: 0,
   })

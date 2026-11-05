@@ -3,8 +3,9 @@ import type { Config } from "@/types/config/config"
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { createStore, Provider } from "jotai"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { storage } from "#imports"
 import { configAtom } from "@/utils/atoms/config"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from "@/utils/constants/config"
 import { BuiltInRules } from "../built-in-rules"
 
 vi.mock("@/utils/site-rules/built-in", () => ({
@@ -44,7 +45,8 @@ function renderBuiltInRules() {
 }
 
 describe("builtInRules", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await storage.setItem(`local:${CONFIG_STORAGE_KEY}`, cloneConfig(DEFAULT_CONFIG))
     writeText.mockClear()
   })
 
@@ -88,6 +90,10 @@ describe("builtInRules", () => {
       await Promise.resolve()
     })
     expect(store.get(configAtom).siteRules.disabledBuiltInRules).toEqual([])
+    expect(
+      (await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`))?.siteRules
+        .disabledBuiltInRules,
+    ).toEqual([])
   })
 
   it("copies the rule as pretty-printed JSON", async () => {

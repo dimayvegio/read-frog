@@ -5,6 +5,7 @@ import { i18n } from "@/utils/i18n"
 import { CONFIG_SCHEMA_VERSION } from "../constants/config"
 import { logger } from "../logger"
 import { ConfigVersionTooNewError } from "./errors"
+import { toPortableConfig } from "./portable"
 
 export const LATEST_SCHEMA_VERSION = CONFIG_SCHEMA_VERSION
 
@@ -109,6 +110,9 @@ export async function migrateConfig(
   originalConfig: unknown,
   originalConfigSchemaVersion: number,
 ): Promise<Config> {
+  if (!Number.isInteger(originalConfigSchemaVersion) || originalConfigSchemaVersion < 1) {
+    throw new Error("Invalid configuration schema version")
+  }
   if (originalConfigSchemaVersion > CONFIG_SCHEMA_VERSION) {
     throw new ConfigVersionTooNewError(i18n.t("options.configMigration.versionTooNew"))
   }
@@ -122,7 +126,7 @@ export async function migrateConfig(
     }
   }
 
-  const parseResult = configSchema.safeParse(originalConfig)
+  const parseResult = configSchema.safeParse(toPortableConfig(originalConfig))
   if (!parseResult.success) {
     throw new Error(
       `${i18n.t("options.configMigration.validationError")}: ${parseResult.error.message}`,

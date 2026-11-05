@@ -1,5 +1,11 @@
-import { describe, expect, it, vi } from "vitest"
+import { beforeEach, describe, expect, it, vi } from "vitest"
+import { storage } from "#imports"
+import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { TranslationCoordinator } from "../translation-coordinator"
+
+beforeEach(async () => {
+  await storage.setItem("local:config", structuredClone(DEFAULT_CONFIG))
+})
 
 describe("translation coordinator loading state", () => {
   it("sets loading for the active untranslated cue", () => {
@@ -196,6 +202,7 @@ describe("translation coordinator loading state", () => {
     await Promise.resolve()
     expect(onTranslated).toHaveBeenCalledWith([expect.objectContaining({ translation: "FRESH" })])
 
+    coordinator.stop()
     spy.mockRestore()
   })
 
@@ -291,6 +298,7 @@ describe("translation coordinator loading state", () => {
     // Empty translation fallbacks for still-valid cues are fine; identity-mismatched are not.
     expect(published.some((f) => f.start === 0 && f.end === 2000)).toBe(false)
 
+    coordinator.stop()
     spy.mockRestore()
     configSpy.mockRestore()
   })

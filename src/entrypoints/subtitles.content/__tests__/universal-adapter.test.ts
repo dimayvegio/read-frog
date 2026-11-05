@@ -452,7 +452,7 @@ describe("universalVideoAdapter", () => {
   // toast used to leave "Loading AI subtitles" pinned to the player forever.
   it("clears the loading state and anchors the AI wall to its trigger", async () => {
     const { adapter, subtitlesFetcher } = createAdapter([])
-    const action = { label: "action.upgrade", url: "https://readfrog.app/pricing" }
+    const action = { label: "settings", route: "/api-providers" as const }
     ;(adapter as any).source = SUBTITLES_SOURCE.AI
     subtitlesFetcher.fetch.mockRejectedValue(
       new ToastSubtitlesError("subtitles.errors.aiSubscriptionRequired", action),

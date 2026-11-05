@@ -1,7 +1,7 @@
-import { Icon } from "@iconify/react"
 import debounce from "debounce"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useEffect, useMemo } from "react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { detectLanguage } from "@/utils/content/language"

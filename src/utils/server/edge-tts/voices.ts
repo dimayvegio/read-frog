@@ -18,6 +18,8 @@ export async function listEdgeTTSVoices(): Promise<EdgeTTSVoice[]> {
 
   try {
     const response = await fetch(getEdgeTTSVoicesUrl(), {
+      credentials: "omit",
+      redirect: "error",
       headers: {
         "User-Agent": EDGE_TTS_USER_AGENT,
       },

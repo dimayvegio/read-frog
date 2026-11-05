@@ -44,27 +44,29 @@ export function SubtitlesAutoStartPage() {
           </span>
         }
       >
-        {subtitlesPlatformSchema.options.map((platform) => {
-          const name = PLATFORM_NAMES[platform]
-          return (
-            <ConfigItem
-              key={platform}
-              id={`subtitles-auto-start-${platform}`}
-              title={
-                <span className="flex items-center gap-2">
-                  <SubtitlesPlatformIcon platform={platform} className="size-4 shrink-0" />
-                  {name}
-                </span>
-              }
-            >
-              <Switch
-                checked={videoSubtitlesConfig.autoStart[platform]}
-                onCheckedChange={(enabled) => setPlatformAutoStart(platform, enabled)}
-                aria-label={name}
-              />
-            </ConfigItem>
-          )
-        })}
+        {subtitlesPlatformSchema.options
+          .filter((platform) => platform === "youtube")
+          .map((platform) => {
+            const name = PLATFORM_NAMES[platform]
+            return (
+              <ConfigItem
+                key={platform}
+                id={`subtitles-auto-start-${platform}`}
+                title={
+                  <span className="flex items-center gap-2">
+                    <SubtitlesPlatformIcon platform={platform} className="size-4 shrink-0" />
+                    {name}
+                  </span>
+                }
+              >
+                <Switch
+                  checked={videoSubtitlesConfig.autoStart[platform]}
+                  onCheckedChange={(enabled) => setPlatformAutoStart(platform, enabled)}
+                  aria-label={name}
+                />
+              </ConfigItem>
+            )
+          })}
       </ConfigDetailSection>
     </PageLayout>
   )

@@ -2,6 +2,7 @@ import type { StyleRoot } from "@/utils/dom/constructable-stylesheets"
 import customTranslationNodeCss from "@/assets/styles/custom-translation-node.css?raw"
 import hostThemeCss from "@/assets/styles/host-theme.css?raw"
 import translationNodePresetCss from "@/assets/styles/translation-node-preset.css?raw"
+import { sanitizeLocalCSS } from "@/utils/css/local-resource-policy"
 import {
   getRootDocument,
   isDocumentRoot,
@@ -82,6 +83,7 @@ const siteRuleCSSMap = new WeakMap<StyleRoot, CSSStyleSheet>()
  * removeOrShowNodeTranslation).
  */
 export async function ensureSiteRuleCSS(root: StyleRoot, cssText: string): Promise<void> {
+  cssText = sanitizeLocalCSS(cssText)
   if (supportsConstructableStyleSheets(root)) {
     let sheet = siteRuleCSSMap.get(root)
     if (!sheet) {
@@ -122,6 +124,7 @@ const subtitlesCustomCSSMap = new WeakMap<StyleRoot, CSSStyleSheet>()
  * picked font and colour reach the line as custom properties rather than as inline styles.
  */
 export async function ensureSubtitlesCustomCSS(root: StyleRoot, cssText: string): Promise<void> {
+  cssText = sanitizeLocalCSS(cssText)
   if (supportsConstructableStyleSheets(root)) {
     let sheet = subtitlesCustomCSSMap.get(root)
     if (!sheet) {
@@ -159,6 +162,7 @@ export async function clearCustomCSS(root: StyleRoot): Promise<void> {
 
 /** Inject custom CSS into the given root */
 export async function ensureCustomCSS(root: StyleRoot, cssText: string): Promise<void> {
+  cssText = sanitizeLocalCSS(cssText)
   // Ensure preset styles are injected first (provides CSS variables)
   ensurePresetStyles(root)
 

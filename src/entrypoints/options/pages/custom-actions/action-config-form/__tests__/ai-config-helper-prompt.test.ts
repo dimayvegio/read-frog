@@ -130,31 +130,6 @@ describe("buildAiConfigHelperPrompt", () => {
     expect(prompt).toContain("**Prompt:**\n(empty)")
   })
 
-  it("names the Notebase-mapped fields without revealing the connected account", () => {
-    const prompt = buildAiConfigHelperPrompt({
-      ...input,
-      action: createAction({
-        notebaseConnection: {
-          notebaseId: "notebase-1",
-          notebaseNameSnapshot: "Vocabulary",
-          connectedAccount: { id: "user-1", name: "Reader", email: "reader@example.com" },
-          mappings: [
-            {
-              id: "mapping-1",
-              localFieldId: "field-2",
-              notebaseColumnId: "column-1",
-              notebaseColumnNameSnapshot: "Score",
-            },
-          ],
-        },
-      }),
-    })
-
-    expect(prompt).toContain("saves results to a Notebase, from these fields: `Score`")
-    expect(prompt).not.toContain("reader@example.com")
-    expect(prompt).not.toContain("user-1")
-  })
-
   it("maps the English labels it uses to the interface's, except in English", () => {
     const action = createAction()
     const localized = buildAiConfigHelperPrompt({ ...input, action })

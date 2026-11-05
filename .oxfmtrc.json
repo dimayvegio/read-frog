@@ -18,6 +18,7 @@
     ".agents/**",
     ".claude/**",
     ".codex/**",
+    ".codex-*",
     ".cursor/**",
     "pnpm-lock.yaml",
     "CHANGELOG.md",

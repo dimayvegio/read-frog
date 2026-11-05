@@ -1,7 +1,7 @@
 import type { TranslatePromptObj } from "@/types/config/translate"
-import { Icon } from "@iconify/react"
 import { useAtom, useAtomValue } from "jotai"
 import { useState } from "react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/base-ui/field"
 import { Input } from "@/components/ui/base-ui/input"

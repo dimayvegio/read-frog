@@ -133,35 +133,6 @@ describe("WordLookupCard", () => {
     expect(popover.root?.anchor).toEqual({ x: 300, y: 240, above: true })
   })
 
-  it("saves notes with the video's page and its time when the save starts", () => {
-    window.history.replaceState(null, "", "/watch?v=abc")
-    document.title = "A talk"
-    const video = document.createElement("video")
-    renderCard(video)
-    lookUp(2)
-
-    Object.defineProperty(video, "currentTime", { value: 42.5, configurable: true })
-    expect(panel.props?.getNoteOrigin?.()).toEqual({
-      kind: "video",
-      url: `${window.location.origin}/watch?v=abc`,
-      title: "A talk",
-      seconds: 42.5,
-    })
-  })
-
-  it("links a note to the platform's video when the page URL does not name it", () => {
-    const video = document.createElement("video")
-    renderCard(video, "https://x.com/i/status/1234567890")
-    lookUp(2)
-
-    Object.defineProperty(video, "currentTime", { value: 3, configurable: true })
-    expect(panel.props?.getNoteOrigin?.()).toEqual({
-      kind: "video",
-      url: "https://x.com/i/status/1234567890",
-      seconds: 3,
-    })
-  })
-
   it("drops the pin when the lookup is closed from outside the card", () => {
     renderCard()
     lookUp(0)

@@ -17,19 +17,20 @@ vi.mock("@/utils/message", () => ({
   sendMessage: vi.fn<(...args: any[]) => any>(),
 }))
 
-// Non-LLM provider so hash building stays prompt-free and the pipeline needs
-// no config storage; the memory tier itself is provider-agnostic.
+import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
+
+vi.mock("@/utils/prompts/translate", () => ({
+  getTranslatePrompt: vi.fn<(...args: any[]) => any>(async () => ({
+    systemPrompt: "Translate",
+    prompt: "Input",
+  })),
+}))
 const googleProviderConfig = {
   kind: "local" as const,
-  id: "google-translate-default",
-  name: "Google Translate",
-  config: {
-    id: "google-translate-default",
-    enabled: true,
-    name: "Google Translate",
-    provider: "google-translate" as const,
-  },
-} as never
+  id: "openai-default",
+  name: "OpenAI",
+  config: DEFAULT_OPENAI_CONFIG,
+}
 
 const langConfig = {
   sourceCode: "eng" as const,
@@ -51,7 +52,6 @@ function setup() {
       text,
       langConfig,
       providerConfig: googleProviderConfig,
-      hostedFeature: "pageTranslation",
       sessionId,
       ...overrides,
     })

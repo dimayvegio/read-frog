@@ -3,8 +3,9 @@ import type { Config } from "@/types/config/config"
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { createStore, Provider } from "jotai"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { storage } from "#imports"
 import { configAtom } from "@/utils/atoms/config"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from "@/utils/constants/config"
 import { UserRulesEditor } from "../user-rules-editor"
 
 vi.mock("@/components/ui/json-code-editor", () => ({
@@ -46,7 +47,8 @@ async function advanceDebounce() {
 }
 
 describe("userRulesEditor", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await storage.setItem(`local:${CONFIG_STORAGE_KEY}`, cloneConfig(DEFAULT_CONFIG))
     vi.useFakeTimers()
   })
 
@@ -116,6 +118,9 @@ describe("userRulesEditor", () => {
     })
 
     expect(store.get(configAtom).siteRules.userRules).toEqual(rules)
+    expect(
+      (await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`))?.siteRules.userRules,
+    ).toEqual(rules)
     expect(store.get(configAtom).siteRules.disabledBuiltInRules).toEqual([])
     expect(
       screen.getByRole("button", { name: "options.siteRules.userRules.savedButton" }),
@@ -161,6 +166,9 @@ describe("userRulesEditor", () => {
     })
 
     expect(store.get(configAtom).siteRules.userRules).toEqual(canonicalRules)
+    expect(
+      (await storage.getItem<Config>(`local:${CONFIG_STORAGE_KEY}`))?.siteRules.userRules,
+    ).toEqual(canonicalRules)
     expect(editor).toHaveValue(JSON.stringify(canonicalRules, null, 2))
     expect(editor).not.toHaveValue(expect.stringContaining("forceBlockSelectors"))
     expect(editor).not.toHaveValue(expect.stringContaining("forceInlineSelectors"))

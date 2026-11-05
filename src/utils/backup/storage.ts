@@ -2,6 +2,8 @@ import type { ConfigBackup, ConfigBackupMetadata, ConfigBackupWithMetadata } fro
 import type { Config } from "@/types/config/config"
 import { dequal } from "dequal"
 import { storage } from "#imports"
+import { migrateConfig } from "@/utils/config/migration"
+import { toPortableConfig } from "@/utils/config/portable"
 import { BACKUP_ID_PREFIX, MAX_BACKUPS_COUNT } from "@/utils/constants/backup"
 import { CONFIG_SCHEMA_VERSION } from "@/utils/constants/config"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
@@ -28,7 +30,8 @@ export async function getAllBackupsWithMetadata(): Promise<Array<ConfigBackupWit
     const metadata = await storage.getMeta<ConfigBackupMetadata>(`local:${id}`)
 
     if (backup && metadata) {
-      backups.push({ ...backup, metadata, id })
+      const config = await migrateConfig(backup.config, backup.schemaVersion)
+      backups.push({ schemaVersion: CONFIG_SCHEMA_VERSION, config, metadata, id })
     }
   }
 
@@ -70,7 +73,7 @@ export async function addBackup(config: Config, extensionVersion: string): Promi
 
     const backup: ConfigBackup = {
       schemaVersion: CONFIG_SCHEMA_VERSION,
-      config,
+      config: toPortableConfig(config),
     }
 
     // Get current backup IDs

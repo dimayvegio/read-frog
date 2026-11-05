@@ -91,6 +91,8 @@ async function synthesizeChunk(request: EdgeTTSSynthesizeRequest): Promise<EdgeT
 
   const response = await fetch(url, {
     method: "POST",
+    credentials: "omit",
+    redirect: "error",
     headers: {
       Authorization: endpointInfo.endpoint.t,
       "Content-Type": "application/ssml+xml",

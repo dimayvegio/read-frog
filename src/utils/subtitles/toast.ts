@@ -51,7 +51,7 @@ function show(title: string, action: ErrorAction | undefined, anchor: HTMLElemen
         onClick: () => {
           manager.close(toastId)
           // Content scripts cannot use chrome.tabs — route through the background.
-          void sendMessage("openPage", { url: action.url, active: true })
+          void sendMessage("openOptionsPage", { route: action.route })
         },
       },
     }),

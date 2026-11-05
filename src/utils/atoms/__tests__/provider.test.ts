@@ -1,100 +1,31 @@
-import type { PartialDeep } from "type-fest"
-import type { ProviderConfig } from "@/types/config/provider"
 import { createStore } from "jotai"
 import { describe, expect, it } from "vitest"
-import { configAtom } from "@/utils/atoms/config"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
-import { BUILT_IN_AI_PROVIDER_ID } from "@/utils/constants/provider-ids"
-import { DEFAULT_PROVIDER_CONFIG } from "@/utils/constants/providers"
+import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 import { featureProviderRefAtom, updateLLMProviderConfig, updateProviderConfig } from "../provider"
-
-type OpenAIProviderConfig = Extract<ProviderConfig, { provider: "openai" }>
-type BedrockProviderConfig = Extract<ProviderConfig, { provider: "bedrock" }>
-
-describe("provider config updates", () => {
-  it("merges nested LLM model updates without changing untouched fields", () => {
-    const result = updateLLMProviderConfig(DEFAULT_PROVIDER_CONFIG.openai, {
-      model: {
-        customModel: "gpt-5-custom",
-        isCustomModel: true,
-      },
-    })
-
-    expect(result.model).toEqual({
-      ...DEFAULT_PROVIDER_CONFIG.openai.model,
-      customModel: "gpt-5-custom",
-      isCustomModel: true,
-    })
-    expect(result.provider).toBe("openai")
+describe("public provider updates", () => {
+  it("merges model fields while retaining the built-in model", () => {
+    expect(
+      updateLLMProviderConfig(DEFAULT_OPENAI_CONFIG, {
+        model: { isCustomModel: true, customModel: "custom-id" },
+      }).model,
+    ).toEqual({ ...DEFAULT_OPENAI_CONFIG.model, isCustomModel: true, customModel: "custom-id" })
   })
-
-  it("merges provider option objects and preserves the rest of the config", () => {
-    const result = updateProviderConfig(DEFAULT_PROVIDER_CONFIG.openai, {
-      providerOptions: {
-        reasoningEffort: "minimal",
-      },
-    }) as OpenAIProviderConfig
-
-    expect(result.providerOptions).toEqual({ reasoningEffort: "minimal" })
-    expect(result.model).toEqual(DEFAULT_PROVIDER_CONFIG.openai.model)
-    expect(result.provider).toBe("openai")
+  it("rejects secret and endpoint overrides", () => {
+    for (const changes of [
+      { apiKey: "sentinel" },
+      { baseURL: "https://proxy.invalid" },
+      { headers: { Authorization: "sentinel" } },
+      { providerOptions: { x: true } },
+    ])
+      expect(() =>
+        updateProviderConfig(DEFAULT_OPENAI_CONFIG, { ...DEFAULT_OPENAI_CONFIG, ...changes }),
+      ).toThrow("Unrecognized key")
   })
-
-  it("merges provider headers and preserves the rest of the config", () => {
-    const result = updateProviderConfig(DEFAULT_PROVIDER_CONFIG.openai, {
-      headers: {
-        "X-Test": "1",
-      },
-    }) as OpenAIProviderConfig
-
-    expect(result.headers).toEqual({ "X-Test": "1" })
-    expect(result.model).toEqual(DEFAULT_PROVIDER_CONFIG.openai.model)
-    expect(result.provider).toBe("openai")
-  })
-
-  it("merges provider-specific settings for providers that define them", () => {
-    const result = updateProviderConfig(DEFAULT_PROVIDER_CONFIG.bedrock, {
-      providerSpecificSettings: {
-        region: "us-west-2",
-      },
-    }) as BedrockProviderConfig
-
-    expect(result.providerSpecificSettings).toEqual({ region: "us-west-2" })
-    expect(result.model).toEqual(DEFAULT_PROVIDER_CONFIG.bedrock.model)
-    expect(result.provider).toBe("bedrock")
-  })
-
-  it("rejects merged configs that no longer match the provider schema", () => {
-    const invalidUpdates = {
-      provider: "openai",
-    } as PartialDeep<ProviderConfig>
-
-    expect(() =>
-      updateProviderConfig(DEFAULT_PROVIDER_CONFIG["google-translate"], invalidUpdates),
-    ).toThrow(/Invalid/)
-  })
-})
-
-describe("feature provider refs", () => {
-  it("resolves Built-in AI without requiring a persisted provider config row", () => {
-    const store = createStore()
-    const config = structuredClone(DEFAULT_CONFIG)
-    config.pageTranslation.providerId = BUILT_IN_AI_PROVIDER_ID
-    store.set(configAtom, config)
-
-    expect(store.get(featureProviderRefAtom("pageTranslation"))).toMatchObject({
-      kind: "system",
-      id: BUILT_IN_AI_PROVIDER_ID,
-      modelTier: "normal",
-    })
-  })
-
-  it("continues to resolve persisted providers as local refs", () => {
-    const store = createStore()
-
-    expect(store.get(featureProviderRefAtom("pageTranslation"))).toMatchObject({
+  it("resolves the canonical local snapshot", () => {
+    expect(createStore().get(featureProviderRefAtom("pageTranslation"))).toMatchObject({
       kind: "local",
-      id: DEFAULT_CONFIG.pageTranslation.providerId,
+      id: "openai-default",
+      config: DEFAULT_OPENAI_CONFIG,
     })
   })
 })

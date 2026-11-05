@@ -1,10 +1,6 @@
 import { langCodeISO6393Schema, langLevel } from "@read-frog/definitions"
 import { z } from "zod"
-import {
-  BUILT_IN_ACTION_IDS,
-  BUILT_IN_ACTION_KEYS,
-  isBuiltInActionId,
-} from "@/utils/constants/custom-action"
+import { BUILT_IN_ACTION_IDS, BUILT_IN_ACTION_KEYS } from "@/utils/constants/custom-action"
 import { FEATURE_KEYS, FEATURE_PROVIDER_DEFS } from "@/utils/constants/feature-providers"
 import {
   MAX_SELECTION_OVERLAY_OPACITY,
@@ -20,6 +16,7 @@ import { normalizeSelectionToolbarLists } from "@/utils/selection-toolbar-order"
 import { floatingButtonSchema } from "./floating-button"
 import { glossaryConfigSchema } from "./glossary"
 import { languageDetectionConfigSchema } from "./language-detection"
+import { OPENAI_PROVIDER_ID } from "./openai"
 import { providersConfigSchema } from "./provider"
 import {
   selectionToolbarBuiltInActionsSchema,
@@ -93,25 +90,6 @@ const selectionToolbarSchema = z
     // Every other item is pinned. Independent of an item's enabled switch,
     // so a pin survives the item being turned off and on.
     unpinned: z.array(z.string().min(1)).default([]),
-    noteSuggestion: z.object({
-      enabled: z.boolean(),
-      actionId: z.string().nonempty(),
-      providerId: z.string().nonempty(),
-    }),
-  })
-  .superRefine((selectionToolbar, ctx) => {
-    const actionId = selectionToolbar.noteSuggestion.actionId
-    const actionExists =
-      isBuiltInActionId(actionId) ||
-      selectionToolbar.customActions.some((action) => action.id === actionId)
-
-    if (!actionExists) {
-      ctx.addIssue({
-        code: "custom",
-        message: `Note suggestion action "${actionId}" not found.`,
-        path: ["noteSuggestion", "actionId"],
-      })
-    }
   })
   // Every parse brings `order` and `unpinned` in step with the actions there
   // are, so adding or deleting an action never has to update them itself.
@@ -129,7 +107,7 @@ const sideContentSchema = z.object({
 const translationHubSchema = z
   .object({
     shortcut: shortcutSchema,
-    selectedProviderIds: z.array(z.string().min(1)).nullable().default(null),
+    selectedProviderIds: z.tuple([z.literal(OPENAI_PROVIDER_ID)]).default([OPENAI_PROVIDER_ID]),
     sourceCode: langCodeISO6393Schema.or(z.literal("auto")).nullable().default(null),
     targetCode: langCodeISO6393Schema.nullable().default(null),
     // A missing ID in a pre-migration config must stay unset until v102 copies
@@ -138,7 +116,7 @@ const translationHubSchema = z
   })
   .default({
     shortcut: DEFAULT_TRANSLATION_HUB_SHORTCUT_KEY,
-    selectedProviderIds: null,
+    selectedProviderIds: [OPENAI_PROVIDER_ID],
     sourceCode: null,
     targetCode: null,
     promptId: null,

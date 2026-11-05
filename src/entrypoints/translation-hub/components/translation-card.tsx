@@ -1,36 +1,22 @@
-import { Icon } from "@iconify/react"
 import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { useMutation } from "@tanstack/react-query"
-import { useAtom, useAtomValue, useSetAtom } from "jotai"
+import { useAtomValue } from "jotai"
 import { useEffect, useEffectEvent, useRef } from "react"
+import { Icon } from "@/components/local-icon"
 import ProviderIcon from "@/components/provider-icon"
-import { useTheme } from "@/components/providers/theme-provider"
 import { Button } from "@/components/ui/base-ui/button"
 import { anchoredToastManager } from "@/components/ui/base-ui/toast"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { isLLMProviderConfig } from "@/types/config/provider"
-import { createFeatureUsageContext, trackFeatureAttempt } from "@/utils/analytics"
-import { classifyResolvedProvider } from "@/utils/analytics-provider"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { PROVIDER_ITEMS } from "@/utils/constants/providers"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
-import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { resolveGlossaryTerms } from "@/utils/glossary/active-matcher"
-import { executeTranslate } from "@/utils/host/translate/execute-translate"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { i18n } from "@/utils/i18n"
 import { getTranslatePromptFromConfig } from "@/utils/prompts/translate"
-import {
-  BUILT_IN_AI_PROVIDER_LOGO,
-  resolveProviderRefForCapability,
-} from "@/utils/providers/provider-registry"
+import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { cn } from "@/utils/styles/utils"
-import {
-  selectedProviderIdsAtom,
-  translateRequestAtom,
-  translationCardExpandedStateAtom,
-} from "../atoms"
+import { translateRequestAtom } from "../atoms"
 
 interface TranslationCardProps {
   providerId: string
@@ -43,23 +29,14 @@ export function TranslationCard({
   isExpanded,
   onExpandedChange,
 }: TranslationCardProps) {
-  const { theme } = useTheme()
   const request = useAtomValue(translateRequestAtom)
-  const language = useAtomValue(configFieldsAtomMap.language)
   const glossary = useAtomValue(configFieldsAtomMap.glossary)
   const ttsConfig = useAtomValue(configFieldsAtomMap.tts)
   const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
-  const [selectedProviderIds, setSelectedProviderIds] = useAtom(selectedProviderIdsAtom)
-  const setExpandedById = useSetAtom(translationCardExpandedStateAtom)
-  const { play, stop, isFetching, isPlaying } = useTextToSpeech(ANALYTICS_SURFACE.TRANSLATION_HUB)
+  const { play, stop, isFetching, isPlaying } = useTextToSpeech()
 
   const provider = resolveProviderRefForCapability("pageTranslation", providersConfig, providerId)
-  const providerLogo =
-    provider?.kind === "system"
-      ? BUILT_IN_AI_PROVIDER_LOGO
-      : provider?.kind === "local"
-        ? PROVIDER_ITEMS[provider.config.provider].logo(theme)
-        : undefined
+  const providerLogo = provider ? PROVIDER_ITEMS.openai.logo() : undefined
 
   // Track request IDs to ignore stale responses from slow providers
   const requestIdRef = useRef(0)
@@ -77,79 +54,41 @@ export function TranslationCard({
       const abortController = new AbortController()
       abortControllerRef.current = abortController
 
-      return await trackFeatureAttempt(
-        {
-          ...createFeatureUsageContext(
-            ANALYTICS_FEATURE.TRANSLATION_HUB,
-            ANALYTICS_SURFACE.TRANSLATION_HUB,
-          ),
-          ...classifyResolvedProvider(provider),
-          char_count: req.inputText.length,
-          target_language: req.targetLanguage,
-        },
-        async () => {
-          if (!provider) throw new Error("Provider not found")
+      if (!provider) throw new Error("Provider not found")
 
-          const langConfig = {
-            sourceCode: req.sourceLanguage,
-            targetCode: req.targetLanguage,
-            level: language.level,
-          }
-          const preparedText = prepareTranslationText(req.inputText)
-          const glossaryTerms =
-            provider.kind === "system" || isLLMProviderConfig(provider.config)
-              ? (await resolveGlossaryTerms(preparedText, glossary.enabled, req.targetLanguage))
-                  .terms
-              : []
-          if (abortController.signal.aborted) return undefined
+      const preparedText = prepareTranslationText(req.inputText)
+      const glossaryTerms = (
+        await resolveGlossaryTerms(preparedText, glossary.enabled, req.targetLanguage)
+      ).terms
+      if (abortController.signal.aborted) return undefined
 
-          const promptResolver = async (targetLang: string, input: string) =>
-            getTranslatePromptFromConfig(
-              { customPromptsConfig: req.promptConfig },
-              targetLang,
-              input,
-              { glossaryTerms },
-            )
+      const promptResolver = async (targetLang: string, input: string) =>
+        getTranslatePromptFromConfig({ customPromptsConfig: req.promptConfig }, targetLang, input, {
+          glossaryTerms,
+        })
 
-          let result: string
-          if (provider.kind === "system") {
-            const { systemPrompt, prompt } = await promptResolver(
-              LANG_CODE_TO_EN_NAME[req.targetLanguage],
-              preparedText,
-            )
-            const response = await streamBackgroundText(
-              {
-                providerKind: "system",
-                providerId: provider.id,
-                modelTier: provider.modelTier,
-                requestId: getRandomUUID(),
-                hostedFeature: "pageTranslation",
-                instructions: systemPrompt,
-                prompt,
-              },
-              { signal: abortController.signal },
-            )
-            result = response.output.trim()
-          } else {
-            result = await executeTranslate(
-              preparedText,
-              langConfig,
-              provider.config,
-              promptResolver,
-              {
-                signal: abortController.signal,
-              },
-            )
-          }
-
-          // Ignore stale responses - return undefined to silently discard
-          if (requestIdRef.current !== myRequestId) {
-            return undefined
-          }
-
-          return result
-        },
+      const { systemPrompt, prompt } = await promptResolver(
+        LANG_CODE_TO_EN_NAME[req.targetLanguage],
+        preparedText,
       )
+      const response = await streamBackgroundText(
+        {
+          providerKind: "local",
+          providerId: provider.config.id,
+          providerConfig: provider.config,
+          instructions: systemPrompt,
+          prompt,
+        },
+        { signal: abortController.signal },
+      )
+      const result = response.output.trim()
+
+      // Ignore stale responses - return undefined to silently discard
+      if (requestIdRef.current !== myRequestId) {
+        return undefined
+      }
+
+      return result
     },
   })
 
@@ -183,18 +122,6 @@ export function TranslationCard({
         title: i18n.t("translationHub.copiedToClipboard"),
       })
     }
-  }
-
-  const handleRemove = () => {
-    stop()
-    void setSelectedProviderIds(selectedProviderIds.filter((id) => id !== providerId))
-    setExpandedById((prev) => {
-      if (!(providerId in prev)) return prev
-
-      const next = { ...prev }
-      delete next[providerId]
-      return next
-    })
   }
 
   if (!provider) return null
@@ -299,15 +226,6 @@ export function TranslationCard({
               />
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRemove}
-            className="h-7 w-7"
-            title={i18n.t("translationHub.deleteCard")}
-          >
-            <Icon icon="tabler:x" className="h-3.5 w-3.5" />
-          </Button>
         </div>
       </div>
 

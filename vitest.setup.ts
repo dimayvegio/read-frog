@@ -80,14 +80,24 @@ vi.mock("@/utils/i18n/locale-boundary", () => ({
 // unhandled error attributed to whichever file runs next. Render an inert placeholder
 // instead; no test exercises real icon loading. iconify-internal-api.test.ts opts back
 // in via vi.unmock to keep its _api canary pointed at the real package.
-vi.mock("@iconify/react", async () => {
+vi.mock("@/components/local-icon", async () => {
   const { createElement } = await import("react")
   return {
-    Icon: ({ className, icon }: { className?: string; icon: string }) =>
-      createElement("span", { "aria-hidden": true, className, "data-icon": icon }),
+    Icon: ({ icon, ...props }: { className?: string; icon: string }) =>
+      createElement("span", { ...props, "aria-hidden": true, "data-icon": icon }),
     _api: {
       setFetch: () => {},
     },
+  }
+})
+
+// UI unit tests start with initialized settings; barrier/bootstrap tests opt back
+// into the real module and exercise the message handshake and failure states.
+vi.mock("@/utils/config/readiness", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/utils/config/readiness")>()
+  return {
+    ...actual,
+    awaitConfigReady: async () => (await import("@/utils/constants/config")).DEFAULT_CONFIG,
   }
 })
 

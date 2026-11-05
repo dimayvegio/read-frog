@@ -1,15 +1,12 @@
 import type { HotkeyChord } from "@tanstack/hotkeys"
 import { HotkeyManager } from "@tanstack/hotkeys"
-import { browser } from "#imports"
 import { getLocalConfig } from "@/utils/config/storage"
-import { TRANSLATION_HUB_PAGE_PATH } from "@/utils/constants/translation-hub"
 import { sendMessage } from "@/utils/message"
 import { isShortcutEmpty, isValidShortcut } from "@/utils/shortcut"
 
 /**
  * Opens the Translation Hub from any page. A content script cannot create a
- * tab itself, so the background does it — the same `openPage` route the popup
- * button and the options sidebar link already use.
+ * tab itself, so the background does it — a dedicated local navigation message.
  */
 export async function bindTranslationHubShortcutKey() {
   const config = await getLocalConfig()
@@ -25,10 +22,7 @@ export async function bindTranslationHubShortcutKey() {
   const registration = HotkeyManager.getInstance().register(
     shortcut as HotkeyChord,
     () => {
-      void sendMessage("openPage", {
-        url: browser.runtime.getURL(TRANSLATION_HUB_PAGE_PATH),
-        active: true,
-      })
+      void sendMessage("openTranslationHub", undefined)
     },
     {
       ignoreInputs: true,

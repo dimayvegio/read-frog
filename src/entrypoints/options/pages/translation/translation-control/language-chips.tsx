@@ -1,5 +1,5 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
-import { Icon } from "@iconify/react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { getLanguageLabel } from "@/utils/language-labels"
 import { cn } from "@/utils/styles/utils"

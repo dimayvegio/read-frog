@@ -38,7 +38,7 @@ import {
 } from "./parser"
 import { extractPotToken } from "./pot-token"
 import { youtubeSubtitlesResponseSchema } from "./types"
-import { buildSubtitleUrl } from "./url-builder"
+import { buildSubtitleUrl, isYoutubeCaptionUrl } from "./url-builder"
 
 function hasSelectedTrack(playerData: PlayerData): boolean {
   return Boolean(playerData.selectedTrackVssId || playerData.selectedTrackLanguageCode)
@@ -420,11 +420,12 @@ export class YoutubeSubtitlesFetcher implements SubtitlesFetcher {
   }
 
   private async fetchWithRetry(url: string): Promise<YoutubeTimedText[]> {
+    if (!isYoutubeCaptionUrl(url)) throw new Error("Unsupported YouTube caption URL")
     let lastError: Error | null = null
 
     for (let i = 0; i < MAX_FETCH_RETRIES; i++) {
       try {
-        const response = await fetch(url)
+        const response = await fetch(url, { redirect: "error" })
 
         if (!response.ok) {
           const status = response.status

@@ -153,7 +153,6 @@ export function SelectionToolbarFooterContent({
   children,
   className,
   paragraphsText,
-  onProviderChange,
   onRegenerate,
   providers,
   titleText,
@@ -184,7 +183,7 @@ export function SelectionToolbarFooterContent({
         <ProviderSelector
           providers={providers}
           value={value}
-          onChange={onProviderChange}
+
           className="max-w-full"
           triggerNameClassName={SELECTION_TOOLBAR_FOOTER_COMPACT_CLASSES.label}
           triggerSize="sm"

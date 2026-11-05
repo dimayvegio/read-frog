@@ -1,5 +1,5 @@
-import { Icon } from "@iconify/react"
 import { Link } from "react-router"
+import { Icon } from "@/components/local-icon"
 import { buttonVariants } from "@/components/ui/base-ui/button"
 import { i18n } from "@/utils/i18n"
 import { cn } from "@/utils/styles/utils"

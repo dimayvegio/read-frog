@@ -2,7 +2,6 @@ import type { NavigateToSubpage } from "."
 import { IconFileDownload, IconLoader2, IconSettings } from "@tabler/icons-react"
 import { useAtomValue } from "jotai"
 import { translatedSubtitlesDownloadStatusAtom } from "../../../atoms"
-import { RequestAiSubtitlesItem } from "../components/request-ai-subtitles-item"
 import { SubtitlesSidebarItem } from "../components/subtitles-sidebar-item"
 import { SubtitlesToggle } from "../components/subtitles-toggle"
 import { isTranslatedDownloadRunning } from "../components/use-download-translated-subtitles"
@@ -31,7 +30,6 @@ export function MainMenu({ onNavigate }: { onNavigate: NavigateToSubpage }) {
   return (
     <div className="p-1">
       <div className="space-y-0.5">
-        <RequestAiSubtitlesItem />
         <SubtitlesToggle />
         <DownloadLink onNavigate={onNavigate} />
         <SubtitlesSidebarItem />

@@ -6,12 +6,12 @@ import type {
 } from "@/types/config/selection-toolbar"
 import type { PageTranslateRange } from "@/types/config/translate"
 import { DEFAULT_LAYOUT } from "@read-frog/layout-engine/presets"
+import { DEFAULT_OPENAI_CONFIG, OPENAI_PROVIDER_ID } from "@/types/config/openai"
 import {
   buildDictionaryActionLayout,
   buildImproveWritingActionLayout,
   buildSentenceAnalysisActionLayout,
 } from "@/utils/layout-host/slots"
-import { BUILT_IN_AI_PROVIDER_ID } from "@/utils/providers/provider-registry"
 import {
   BUILT_IN_ACTION_DEFAULT_SHORTCUTS,
   BUILT_IN_ACTION_IDS,
@@ -30,12 +30,6 @@ import {
   DEFAULT_SUBTITLE_TRANSLATE_PROMPTS_CONFIG,
   DEFAULT_TRANSLATE_PROMPTS_CONFIG,
 } from "./prompt"
-import {
-  buildDefaultProviderConfigList,
-  DEFAULT_PROVIDER_CONFIG,
-  DEFAULT_PROVIDER_CONFIG_LIST,
-  MICROSOFT_TRANSLATE_PROVIDER_ID,
-} from "./providers"
 import {
   DEFAULT_ANNOTATION_MODE_SHORTCUT_KEY,
   DEFAULT_SELECTION_ANNOTATION_SHORTCUT_KEY,
@@ -77,7 +71,7 @@ export const GOOGLE_DRIVE_TOKEN_STORAGE_KEY = "__googleDriveToken"
 
 export const THEME_STORAGE_KEY = "theme"
 export const DEFAULT_DETECTED_CODE = "eng" as const
-export const CONFIG_SCHEMA_VERSION = 120
+export const CONFIG_SCHEMA_VERSION = 121
 
 export const DEFAULT_FLOATING_BUTTON_POSITION = 0.66
 export const DEFAULT_FLOATING_BUTTON_SIDE: FloatingButtonSide = "right"
@@ -108,7 +102,7 @@ const getBuiltInImproveWritingLayout = memoizeBuiltInLayout(buildImproveWritingA
  * (never persisted), so it always follows the current locale's field names.
  */
 export function createDefaultDictionaryAction(): SelectionToolbarCustomAction {
-  const action = createDictionaryDefinition(BUILT_IN_AI_PROVIDER_ID)
+  const action = createDictionaryDefinition(OPENAI_PROVIDER_ID)
   const outputSchema = action.outputSchema.map((field) => ({
     ...field,
     id: field.id.startsWith("dictionary-")
@@ -132,7 +126,7 @@ export function createDefaultDictionaryAction(): SelectionToolbarCustomAction {
  * enabled/provider/Notebase state persisted.
  */
 export function createDefaultSentenceAnalysisAction(): SelectionToolbarCustomAction {
-  const action = createSentenceAnalysisDefinition(BUILT_IN_AI_PROVIDER_ID)
+  const action = createSentenceAnalysisDefinition(OPENAI_PROVIDER_ID)
   const outputSchema = action.outputSchema.map((field) => ({
     ...field,
     id: `default-${field.id}`,
@@ -152,7 +146,7 @@ export function createDefaultSentenceAnalysisAction(): SelectionToolbarCustomAct
  * config without its state reads it as off, as the schema does.
  */
 export function createDefaultImproveWritingAction(): SelectionToolbarCustomAction {
-  const action = createImproveWritingDefinition(BUILT_IN_AI_PROVIDER_ID)
+  const action = createImproveWritingDefinition(OPENAI_PROVIDER_ID)
   const outputSchema = action.outputSchema.map((field) => ({
     ...field,
     id: `default-${field.id}`,
@@ -172,9 +166,9 @@ export const DEFAULT_CONFIG: Config = {
     targetCode: "cmn",
     level: "intermediate",
   },
-  providersConfig: DEFAULT_PROVIDER_CONFIG_LIST,
+  providersConfig: [DEFAULT_OPENAI_CONFIG],
   pageTranslation: {
-    providerId: MICROSOFT_TRANSLATE_PROVIDER_ID,
+    providerId: OPENAI_PROVIDER_ID,
     mode: "bilingual",
     modeShortcut: DEFAULT_TRANSLATION_MODE_SHORTCUT_KEY,
     node: {
@@ -234,7 +228,7 @@ export const DEFAULT_CONFIG: Config = {
     features: {
       translate: {
         enabled: true,
-        providerId: MICROSOFT_TRANSLATE_PROVIDER_ID,
+        providerId: OPENAI_PROVIDER_ID,
         shortcut: DEFAULT_SELECTION_TRANSLATION_SHORTCUT_KEY,
       },
       speak: {
@@ -250,31 +244,23 @@ export const DEFAULT_CONFIG: Config = {
     builtInActions: {
       dictionary: {
         enabled: true,
-        providerId: BUILT_IN_AI_PROVIDER_ID,
+        providerId: OPENAI_PROVIDER_ID,
         shortcut: BUILT_IN_ACTION_DEFAULT_SHORTCUTS[BUILT_IN_DICTIONARY_ACTION_ID],
       },
       sentenceAnalysis: {
         enabled: true,
-        providerId: BUILT_IN_AI_PROVIDER_ID,
+        providerId: OPENAI_PROVIDER_ID,
         shortcut: BUILT_IN_ACTION_DEFAULT_SHORTCUTS[BUILT_IN_SENTENCE_ANALYSIS_ACTION_ID],
       },
       improveWriting: {
         enabled: true,
-        providerId: BUILT_IN_AI_PROVIDER_ID,
+        providerId: OPENAI_PROVIDER_ID,
         shortcut: BUILT_IN_ACTION_DEFAULT_SHORTCUTS[BUILT_IN_IMPROVE_WRITING_ACTION_ID],
       },
     },
     customActions: [],
     order: [...SELECTION_TOOLBAR_FEATURE_IDS, ...BUILT_IN_ACTION_IDS],
     unpinned: [BUILT_IN_IMPROVE_WRITING_ACTION_ID],
-    noteSuggestion: {
-      enabled: true,
-      actionId: BUILT_IN_DICTIONARY_ACTION_ID,
-      // Fresh installs always carry the OpenAI default provider; suggestions
-      // start working the moment the user adds their key, with no hosted plan
-      // requirement attached.
-      providerId: DEFAULT_PROVIDER_CONFIG.openai.id,
-    },
   },
   sideContent: {
     width: DEFAULT_SIDE_CONTENT_WIDTH,
@@ -287,7 +273,7 @@ export const DEFAULT_CONFIG: Config = {
   },
   inputTranslation: {
     enabled: true,
-    providerId: MICROSOFT_TRANSLATE_PROVIDER_ID,
+    providerId: OPENAI_PROVIDER_ID,
     fromLang: "targetCode",
     toLang: "sourceCode",
     enableCycle: false,
@@ -297,7 +283,7 @@ export const DEFAULT_CONFIG: Config = {
     enabled: true,
     autoStart: { youtube: false, xcom: false, netflix: false },
     toggleShortcut: DEFAULT_SUBTITLES_TOGGLE_SHORTCUT_KEY,
-    providerId: MICROSOFT_TRANSLATE_PROVIDER_ID,
+    providerId: OPENAI_PROVIDER_ID,
     style: {
       displayMode: DEFAULT_DISPLAY_MODE,
       translationPosition: DEFAULT_TRANSLATION_POSITION,
@@ -344,7 +330,7 @@ export const DEFAULT_CONFIG: Config = {
   uiLanguage: "auto",
   translationHub: {
     shortcut: DEFAULT_TRANSLATION_HUB_SHORTCUT_KEY,
-    selectedProviderIds: null,
+    selectedProviderIds: [OPENAI_PROVIDER_ID],
     sourceCode: null,
     targetCode: null,
     promptId: DEFAULT_TRANSLATE_PROMPTS_CONFIG.promptId,
@@ -352,29 +338,25 @@ export const DEFAULT_CONFIG: Config = {
   glossary: { ...DEFAULT_GLOSSARY_CONFIG },
 }
 
-/**
- * Translate features start on Microsoft Translate, which is reachable everywhere; a fresh
- * install is moved onto Google Translate afterwards where that endpoint answers — see
- * `selectFreshTranslateProviders`.
- */
+/** Build defaults without network probes or credentials. */
 export function buildFreshDefaultConfig(): Config {
   return {
     ...DEFAULT_CONFIG,
-    providersConfig: buildDefaultProviderConfigList(),
+    providersConfig: [structuredClone(DEFAULT_OPENAI_CONFIG)],
     selectionToolbar: {
       ...DEFAULT_CONFIG.selectionToolbar,
       builtInActions: {
         dictionary: {
           enabled: true,
-          providerId: BUILT_IN_AI_PROVIDER_ID,
+          providerId: OPENAI_PROVIDER_ID,
         },
         sentenceAnalysis: {
           enabled: true,
-          providerId: BUILT_IN_AI_PROVIDER_ID,
+          providerId: OPENAI_PROVIDER_ID,
         },
         improveWriting: {
           enabled: true,
-          providerId: BUILT_IN_AI_PROVIDER_ID,
+          providerId: OPENAI_PROVIDER_ID,
         },
       },
       customActions: [],

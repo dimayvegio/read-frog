@@ -40,7 +40,7 @@ describe("v101 to v102 migration", () => {
     expect(parsed.uiLanguage).toBe("zh-CN")
     expect(parsed.translationHub).toMatchObject({
       shortcut: "Alt+Shift+H",
-      selectedProviderIds: null,
+      selectedProviderIds: ["openai-default"],
       sourceCode: null,
       targetCode: null,
       promptId: null,

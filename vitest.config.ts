@@ -14,7 +14,7 @@ export default defineConfig({
     dedupe: isLocalPackagesEnabled(process.env) ? LOCAL_PACKAGES_DEDUPE : [],
   },
   test: {
-    exclude: [...configDefaults.exclude, "**/.claude/**", "**/repos/**"],
+    exclude: [...configDefaults.exclude, "**/.claude/**", "**/.codex/**", "**/repos/**"],
     environment: "node",
     environmentOptions: {
       // jsdom defaults to http://localhost:3000/, which built-in site rules

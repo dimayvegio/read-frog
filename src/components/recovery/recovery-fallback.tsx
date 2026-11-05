@@ -15,7 +15,7 @@ import {
 import { Button } from "@/components/ui/base-ui/button"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { useExportConfig } from "@/hooks/use-export-config"
-import { configAtom, writeConfigAtom } from "@/utils/atoms/config"
+import { configAtom, replaceConfigAtom } from "@/utils/atoms/config"
 import { buildFreshDefaultConfig, CONFIG_SCHEMA_VERSION } from "@/utils/constants/config"
 import { i18n } from "@/utils/i18n"
 import { Alert, AlertDescription, AlertTitle } from "../ui/base-ui/alert"
@@ -27,7 +27,7 @@ interface RecoveryFallbackProps {
 
 export function RecoveryFallback({ error, onRecovered }: RecoveryFallbackProps) {
   const config = useAtomValue(configAtom)
-  const setConfig = useSetAtom(writeConfigAtom)
+  const setConfig = useSetAtom(replaceConfigAtom)
   const [isResetting, setIsResetting] = useState(false)
 
   const { mutate: exportConfig, isPending: isExporting } = useExportConfig({
@@ -69,17 +69,10 @@ export function RecoveryFallback({ error, onRecovered }: RecoveryFallbackProps) 
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              onClick={() => exportConfig(true)}
+              onClick={() => exportConfig()}
               disabled={isExporting || isResetting}
             >
-              {i18n.t("errorRecovery.exportWithApiKeys")}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => exportConfig(false)}
-              disabled={isExporting || isResetting}
-            >
-              {i18n.t("errorRecovery.exportWithoutApiKeys")}
+              {i18n.t("options.preference.config.manualSync.export")}
             </Button>
           </div>
         </div>

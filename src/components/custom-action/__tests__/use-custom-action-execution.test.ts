@@ -3,7 +3,6 @@ import type { CachedWebPageContext } from "@/utils/host/translate/webpage-contex
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react"
 import { createElement } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { ANALYTICS_SURFACE } from "@/types/analytics"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { CUSTOM_ACTION_CONTEXT_CHAR_LIMIT } from "@/utils/custom-action-prompt"
 import { findSelectionToolbarAction, getBuiltInDictionaryAction } from "@/utils/custom-actions"
@@ -26,11 +25,6 @@ vi.mock("@/utils/content-script/background-stream-client", async () => {
     streamBackgroundStructuredObject: (...args: unknown[]) =>
       streamBackgroundStructuredObjectMock(...args),
   }
-})
-
-vi.mock("@/utils/analytics", async () => {
-  const actual = await vi.importActual<typeof import("@/utils/analytics")>("@/utils/analytics")
-  return { ...actual, trackFeatureUsed: vi.fn<(...args: any[]) => any>() }
 })
 
 const getOrCreateWebPageContextMock = vi.fn<(...args: any[]) => any>()
@@ -231,6 +225,41 @@ describe("buildCustomActionExecutionPlan", () => {
 })
 
 describe("useCustomActionExecution", () => {
+  it("resolves selection-only actions locally, including a new run", async () => {
+    streamBackgroundStructuredObjectMock.mockReset()
+    const request = createCustomActionRequest()
+    const action = {
+      ...request.action,
+      outputSchema: [
+        {
+          id: "selection",
+          name: "text",
+          type: "string" as const,
+          description: "",
+          source: "selection" as const,
+        },
+      ],
+    }
+    const { result, rerender } = renderHook(
+      ({ selection, rerunNonce }) => {
+        const plan = buildCustomActionExecutionPlan({ ...request, action }, selection, "", null)
+        return useCustomActionExecution({
+          bodyRef: { current: null },
+          executionContext: plan.executionContext,
+          open: true,
+          popoverSessionKey: 1,
+          rerunNonce,
+        })
+      },
+      { initialProps: { selection: "First selection", rerunNonce: 0 } },
+    )
+    await waitFor(() => expect(result.current.result).toEqual({ text: "First selection" }))
+    rerender({ selection: "Next selection", rerunNonce: 1 })
+    await waitFor(() => expect(result.current.result).toEqual({ text: "Next selection" }))
+    expect(result.current).toMatchObject({ isRunning: false, thinking: null, error: null })
+    expect(streamBackgroundStructuredObjectMock).not.toHaveBeenCalled()
+  })
+
   it("never asks the model for a selection field, and fills it into every answer", async () => {
     const action = findSelectionToolbarAction(
       DEFAULT_CONFIG.selectionToolbar,
@@ -259,7 +288,6 @@ describe("useCustomActionExecution", () => {
 
     const { result } = renderHook(() => {
       const execution = useCustomActionExecution({
-        analyticsSurface: ANALYTICS_SURFACE.SELECTION_TOOLBAR,
         bodyRef: { current: null },
         executionContext: {
           action,

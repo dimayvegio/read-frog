@@ -249,7 +249,6 @@ describe("subtitles translator", () => {
         name: "OpenAI",
         provider: "openai",
         enabled: true,
-        apiKey: "sk-test",
         model: { model: "gpt-5-mini", isCustomModel: false, customModel: null },
       } as never,
     }
@@ -276,7 +275,7 @@ describe("subtitles translator", () => {
       {
         subtitlesTextContent: "same transcript",
       },
-      { kind: "local", config: { ...baseProviderRef.config, id: "other-provider" } } as never,
+      { kind: "local", config: { ...baseProviderRef.config, temperature: 0.4 } } as never,
     )
 
     expect(first).toBe(sameTextDifferentTitle)
@@ -294,7 +293,6 @@ describe("subtitles translator", () => {
         name: "OpenAI",
         provider: "openai",
         enabled: true,
-        apiKey: "sk-test",
         model: { model: "gpt-5-mini", isCustomModel: false, customModel: null },
       } as never,
     }

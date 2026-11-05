@@ -1,14 +1,11 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
-import type { HostedAiTextStreamRoute } from "@/types/background-stream"
 import type { Config, InputTranslationLang } from "@/types/config/config"
-import type { TranslateProviderConfig } from "@/types/config/provider"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type { ResolvedProviderRef } from "@/utils/providers/provider-registry"
 import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/languages"
 import { logger } from "@/utils/logger"
 import {
   canResolvedProviderRefGenerateText,
-  HostedAiProviderUnavailableError,
   resolvePageTranslationProvider,
 } from "@/utils/providers/provider-ref"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
@@ -34,10 +31,10 @@ async function getConfigOrThrow(): Promise<Config> {
 }
 
 async function getWebPagePromptContext(
-  providerConfig: ResolvedProviderRef<TranslateProviderConfig>,
+  providerConfig: ResolvedProviderRef,
   enableAIContentAware: boolean,
   includeSummary: boolean,
-  hostedFeature: HostedAiTextStreamRoute,
+  feature: string,
 ): Promise<
   { webTitle: string; webDescription?: string; webContent: string; webSummary?: string } | undefined
 > {
@@ -61,19 +58,11 @@ async function getWebPagePromptContext(
     try {
       webSummary = await getOrGenerateWebPageSummary(
         webPageContext,
-        await resolvePageProviderRef(providerConfig, undefined, hostedFeature),
+        await resolvePageProviderRef(providerConfig, undefined, feature),
         enableAIContentAware,
-        hostedFeature,
+        feature,
       )
-    } catch (error) {
-      // The summary is optional context, so a hosted denial must not abort the
-      // run from inside it. Routes with no page-translation session (input
-      // translation) always resolve here first, so rethrowing would kill the
-      // request before the translation itself — which resolves the same ref —
-      // could surface the error against the feature the user actually invoked.
-      if (!(error instanceof HostedAiProviderUnavailableError)) {
-        throw error
-      }
+    } catch {
       webSummary = undefined
     }
   }
@@ -136,7 +125,6 @@ async function translateTextUsingPageConfig(
     text: preparedText,
     langConfig: config.language,
     providerConfig,
-    hostedFeature: "pageTranslation",
     enableAIContentAware: config.pageTranslation.enableAIContentAware,
     glossaryEnabled: config.glossary.enabled,
     extraHashTags: options.extraHashTags,
@@ -269,7 +257,6 @@ export async function translateTextForInput(
     },
     extraHashTags: [`inputTranslation:${fromLang}->${toLang}`],
     providerConfig: resolved,
-    hostedFeature: "inputTranslation",
     enableAIContentAware: config.pageTranslation.enableAIContentAware,
     glossaryEnabled: config.glossary.enabled,
     webPageContext,

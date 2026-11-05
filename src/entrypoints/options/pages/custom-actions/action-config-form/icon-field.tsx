@@ -1,8 +1,8 @@
 import type { SelectionToolbarCustomAction } from "@/types/config/selection-toolbar"
-import { Icon } from "@iconify/react"
 import { useSelector } from "@tanstack/react-store"
 import { useState } from "react"
 import { useAutosaveContext } from "@/components/form/use-autosave"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Field, FieldTitle } from "@/components/ui/base-ui/field"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/base-ui/input-group"
@@ -13,8 +13,8 @@ import {
   PopoverTitle,
   PopoverTrigger,
 } from "@/components/ui/base-ui/popover"
-import { ICON_PATTERN } from "@/utils/constants/custom-action"
 import { i18n } from "@/utils/i18n"
+import { isActionIcon } from "@/utils/iconify/action-icons"
 import { cn } from "@/utils/styles/utils"
 import { withForm } from "./form"
 import { CURATED_ICON_OPTIONS } from "./icon-field-options"
@@ -108,28 +108,7 @@ function IconHelpPopover() {
             {i18n.t("options.selectionToolbar.customActions.form.iconField.helpTitle")}
           </PopoverTitle>
         </PopoverHeader>
-        <ol className="flex flex-col gap-1">
-          <li>
-            <span className="font-medium">1.</span>{" "}
-            {i18n.t("options.selectionToolbar.customActions.form.iconField.helpStepBrowsePrefix")}
-            <a
-              href="https://icon-sets.iconify.design/"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-0.5 text-link hover:underline"
-            >
-              Iconify
-              <Icon icon="tabler:external-link" className="size-3.5" />
-            </a>
-            {i18n.t("options.selectionToolbar.customActions.form.iconField.helpStepBrowseSuffix")}
-          </li>
-          <li>
-            <span className="font-medium">2.</span>{" "}
-            {i18n.t("options.selectionToolbar.customActions.form.iconField.helpStepCopyPrefix")}
-            <code className="rounded-sm bg-muted px-1 py-0.5 text-[13px]">tabler:book-2</code>
-            {i18n.t("options.selectionToolbar.customActions.form.iconField.helpStepCopySuffix")}
-          </li>
-        </ol>
+        <p>Choose one of the bundled icons. Icons work offline.</p>
       </PopoverContent>
     </Popover>
   )
@@ -144,7 +123,7 @@ export const IconField = withForm({
     const autosave = useAutosaveContext()
     const iconValue = useSelector(form.store, (state) => state.values.icon)
     const [iconPickerOpen, setIconPickerOpen] = useState(false)
-    const hasError = !ICON_PATTERN.test(iconValue?.trim() ?? "")
+    const hasError = !isActionIcon(iconValue?.trim() ?? "")
     const previewIcon = iconValue?.trim() ?? ""
 
     return (
@@ -152,7 +131,7 @@ export const IconField = withForm({
         name="icon"
         validators={{
           onChange: ({ value }) => {
-            if (!ICON_PATTERN.test(value.trim())) {
+            if (!isActionIcon(value.trim())) {
               return i18n.t("options.selectionToolbar.customActions.errors.invalidIcon")
             }
             return undefined

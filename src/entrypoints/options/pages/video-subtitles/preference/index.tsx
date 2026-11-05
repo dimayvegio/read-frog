@@ -46,9 +46,11 @@ export function PreferenceSection() {
           <span className="flex items-center gap-2">
             {i18n.t("options.videoSubtitles.preference.autoStart.title")}
             <span className="flex items-center gap-1.5">
-              {subtitlesPlatformSchema.options.map((platform) => (
-                <SubtitlesPlatformIcon key={platform} platform={platform} className="size-3.5" />
-              ))}
+              {subtitlesPlatformSchema.options
+                .filter((platform) => platform === "youtube")
+                .map((platform) => (
+                  <SubtitlesPlatformIcon key={platform} platform={platform} className="size-3.5" />
+                ))}
             </span>
           </span>
         }

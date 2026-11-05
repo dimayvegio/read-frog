@@ -10,8 +10,8 @@ import { AnchoredToastProvider, ToastProvider } from "@/components/ui/base-ui/to
 import { TooltipProvider } from "@/components/ui/base-ui/tooltip"
 import { configAtom } from "@/utils/atoms/config"
 import { baseThemeModeAtom } from "@/utils/atoms/theme"
+import { showConfigRecovery } from "@/utils/config/readiness"
 import { getLocalConfig } from "@/utils/config/storage"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { initI18n } from "@/utils/i18n"
 import { LocaleBoundary } from "@/utils/i18n/locale-boundary"
 import { renderPersistentReactRoot } from "@/utils/react-root"
@@ -36,7 +36,7 @@ async function initApp() {
   root.className = "text-base antialiased min-h-screen bg-background"
 
   const [configValue, themeMode] = await Promise.all([getLocalConfig(), getLocalThemeMode()])
-  const config = configValue ?? DEFAULT_CONFIG
+  const config = configValue
 
   await initI18n(config.uiLanguage)
 
@@ -72,4 +72,6 @@ async function initApp() {
   )
 }
 
-void initApp()
+void initApp().catch((error: unknown) =>
+  showConfigRecovery(document.getElementById("root")!, error),
+)

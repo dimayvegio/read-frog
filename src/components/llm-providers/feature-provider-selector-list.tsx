@@ -26,7 +26,7 @@ function FeatureProviderField({
   providerSelectorClassName?: string
   providerSelectorTriggerSize?: ProviderSelectorTriggerSize
 }) {
-  const { providers, providerId, providerConfig, setProviderId } = useFeatureProvider(featureKey)
+  const { providers, providerId, providerConfig } = useFeatureProvider(featureKey)
 
   return (
     <Field>
@@ -37,7 +37,7 @@ function FeatureProviderField({
       <ProviderSelector
         providers={providers}
         value={providerId}
-        onChange={setProviderId}
+
         className={providerSelectorClassName}
         triggerSize={providerSelectorTriggerSize}
       />
@@ -52,7 +52,7 @@ function CustomActionProviderFields({
   providerSelectorClassName?: string
   providerSelectorTriggerSize?: ProviderSelectorTriggerSize
 }) {
-  const { actions, providers, getProviderConfig, setActionProviderId } = useCustomActionProviders()
+  const { actions, providers, getProviderConfig } = useCustomActionProviders()
 
   if (actions.length === 0) {
     return null
@@ -72,7 +72,7 @@ function CustomActionProviderFields({
           <ProviderSelector
             providers={providers}
             value={action.providerId}
-            onChange={(id) => setActionProviderId(action.id, id)}
+
             className={providerSelectorClassName}
             triggerSize={providerSelectorTriggerSize}
             placeholder={i18n.t("options.selectionToolbar.customActions.form.selectProvider")}

@@ -128,7 +128,8 @@ async function flushAsyncWork(): Promise<void> {
 }
 
 describe("bootstrapHostContent URL changes", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await storage.setItem(`local:${CONFIG_STORAGE_KEY}`, structuredClone(DEFAULT_CONFIG))
     vi.clearAllMocks()
     messageHandlers.clear()
     managerInstances.length = 0

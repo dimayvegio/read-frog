@@ -51,7 +51,7 @@ export function AnnotationSection() {
         <ProviderSelector
           providers={translateProvider.providers}
           value={translateProvider.providerId}
-          onChange={translateProvider.setProviderId}
+
           triggerSize="sm"
         />
       </ConfigItem>

@@ -36,7 +36,7 @@ export function SelectionToolbarErrorAlert({
             variant="outline"
             className="col-start-3 row-span-2 row-start-1 self-center"
             // Content scripts cannot use chrome.tabs — route through the background.
-            onClick={() => void sendMessage("openPage", { url: action.url, active: true })}
+            onClick={() => void sendMessage("openOptionsPage", { route: action.route })}
           >
             {action.label}
           </Button>

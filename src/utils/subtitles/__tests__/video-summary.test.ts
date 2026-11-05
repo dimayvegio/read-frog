@@ -2,6 +2,7 @@ import type { SubtitlesFragment } from "../types"
 import type { VideoSummaryProviderRef } from "../video-summary"
 import { hashKey } from "@tanstack/react-query"
 import { describe, expect, it } from "vitest"
+import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 import {
   buildTranscript,
   sampleTranscript,
@@ -47,29 +48,19 @@ describe("stripLeadingHeading", () => {
   })
 })
 
-function localRef(model: string) {
+function localRef(model: string): VideoSummaryProviderRef {
   return {
     kind: "local",
-    id: "deepseek",
-    name: "DeepSeek",
+    id: "openai-default",
+    name: "OpenAI",
     config: {
-      id: "deepseek",
-      name: "DeepSeek",
-      enabled: true,
-      provider: "deepseek",
-      apiKey: "test-key",
-      model: { model, isCustomModel: false, customModel: null },
+      ...DEFAULT_OPENAI_CONFIG,
+      model: { ...DEFAULT_OPENAI_CONFIG.model, isCustomModel: true, customModel: model },
     },
-  } as unknown as VideoSummaryProviderRef
+  }
 }
-
-function systemRef(providerId: string) {
-  return {
-    kind: "system",
-    id: providerId,
-    name: providerId,
-    modelTier: "standard",
-  } as unknown as VideoSummaryProviderRef
+function systemRef(model: string) {
+  return localRef(model)
 }
 
 describe("videoSummaryQueryKey", () => {
@@ -93,18 +84,12 @@ describe("videoSummaryQueryKey", () => {
   })
 
   it("hashes the same regardless of the order fields were written in", () => {
-    const a = videoSummaryQueryKey("video-1", "cmn", {
-      kind: "system",
-      id: "built-in-ai",
-      name: "built-in-ai",
-      modelTier: "standard",
-    } as unknown as VideoSummaryProviderRef)
+    const ref = localRef("custom-model")!
+    const a = videoSummaryQueryKey("video-1", "cmn", ref)
     const b = videoSummaryQueryKey("video-1", "cmn", {
-      modelTier: "standard",
-      name: "built-in-ai",
-      id: "built-in-ai",
-      kind: "system",
-    } as unknown as VideoSummaryProviderRef)
+      ...ref,
+      config: { ...ref.config, name: "Other label" },
+    })
 
     expect(hashKey(a)).toBe(hashKey(b))
   })

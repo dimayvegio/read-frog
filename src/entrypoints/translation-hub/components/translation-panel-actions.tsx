@@ -1,5 +1,5 @@
-import { Icon } from "@iconify/react"
 import { useAtom, useAtomValue } from "jotai"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { i18n } from "@/utils/i18n"
 import { selectedProviderIdsAtom, translationCardExpandedStateAtom } from "../atoms"
@@ -7,8 +7,6 @@ import { selectedProviderIdsAtom, translationCardExpandedStateAtom } from "../at
 export function TranslationPanelActions() {
   const selectedProviderIds = useAtomValue(selectedProviderIdsAtom)
   const [expandedById, setExpandedById] = useAtom(translationCardExpandedStateAtom)
-
-  if (selectedProviderIds.length === 0) return null
 
   const expandedCount = selectedProviderIds.filter((id) => expandedById[id] ?? true).length
   const areAllExpanded = expandedCount === selectedProviderIds.length

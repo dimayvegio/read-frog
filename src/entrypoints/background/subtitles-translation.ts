@@ -1,8 +1,8 @@
 import type { SubtitlePromptContext } from "@/types/content"
+import { executeTranslate } from "@/entrypoints/background/translation/execute-translate"
 import { cleanText } from "@/utils/content/utils"
 import { db } from "@/utils/db/dexie/db"
 import { Sha256Hex } from "@/utils/hash"
-import { executeTranslate } from "@/utils/host/translate/execute-translate"
 import { normalizePromptContextValue } from "@/utils/host/translate/translate-text"
 import { onMessage } from "@/utils/message"
 import { getSubtitlesTranslatePrompt } from "@/utils/prompts/subtitles"
@@ -16,10 +16,10 @@ import {
 
 /** Register handlers synchronously while queue initialization runs in the background. */
 export function setupSubtitlesTranslationHandlers(): void {
-  const queuesPromise = createSubtitlesTranslationQueues()
+  const queues = createSubtitlesTranslationQueues()
 
   onMessage("enqueueSubtitlesTranslateRequest", async (message) => {
-    const { requestQueue, batchQueue } = await queuesPromise
+    const { requestQueue, batchQueue } = await queues.queuesPromise
     const {
       data: {
         text,
@@ -54,7 +54,6 @@ export function setupSubtitlesTranslationHandlers(): void {
         text,
         langConfig,
         provider: providerRef,
-        hostedFeature: "videoSubtitles" as const,
         hash,
         scheduleAt,
         context,
@@ -92,7 +91,7 @@ export function setupSubtitlesTranslationHandlers(): void {
   })
 
   onMessage("getSubtitlesSummary", async (message) => {
-    const { requestQueue } = await queuesPromise
+    const { requestQueue } = await queues.queuesPromise
     const { videoTitle, subtitlesContext, providerRef } = message.data
 
     // Guarded on both sides: the content script should not send this for a
@@ -106,7 +105,6 @@ export function setupSubtitlesTranslationHandlers(): void {
       title: videoTitle,
       textContent: subtitlesContext,
       providerRef,
-      hostedFeature: "videoSubtitles",
       // Deliberately without the title, matching the previous key: a video's
       // transcript identifies it, and including a title that players mutate
       // would miss the cache on every re-render.

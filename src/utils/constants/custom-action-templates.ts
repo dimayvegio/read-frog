@@ -13,7 +13,7 @@ import { createOutputSchemaField, createSelectionOutputField } from "./custom-ac
 const T_PREFIX = "options.selectionToolbar.customActions.templates"
 const SA_PREFIX = `${T_PREFIX}.sentenceAnalysis`
 const IW_PREFIX = `${T_PREFIX}.improveWriting`
-const IMPROVE_WRITING_ICON = "streamline-color:ai-edit-spark-flat"
+const IMPROVE_WRITING_ICON = "tabler:sparkles"
 type I18nKey = keyof GeneratedI18nStructure
 
 export interface CustomActionTemplate {
@@ -38,7 +38,7 @@ export function createDictionaryDefinition(providerId: string): CustomActionDefi
     id: getRandomUUID(),
     name: i18n.t(`${T_PREFIX}.dictionary.name`),
     enabled: true,
-    icon: "streamline-color:dictionary-language-book-flat",
+    icon: "tabler:book-2",
     providerId,
     systemPrompt: i18n.t(`${T_PREFIX}.dictionary.systemPrompt`),
     prompt: i18n.t(`${T_PREFIX}.dictionary.prompt`),
@@ -119,7 +119,7 @@ export function createSentenceAnalysisDefinition(providerId: string): CustomActi
     id: getRandomUUID(),
     name: i18n.t(`${SA_PREFIX}.name`),
     enabled: true,
-    icon: "streamline-color:search-visual-flat",
+    icon: "tabler:search",
     providerId,
     systemPrompt: i18n.t(`${SA_PREFIX}.systemPrompt`, [annotations, translation]),
     prompt: i18n.t(`${SA_PREFIX}.prompt`),
@@ -208,7 +208,7 @@ export const CUSTOM_ACTION_TEMPLATES: CustomActionTemplate[] = [
     id: "dictionary",
     nameKey: `${T_PREFIX}.dictionary.name`,
     descriptionKey: `${T_PREFIX}.dictionary.description`,
-    icon: "streamline-color:dictionary-language-book-flat",
+    icon: "tabler:book-2",
     createAction: (providerId: string): SelectionToolbarCustomAction => {
       const action = createDictionaryDefinition(providerId)
       // The card names its fields, so it is built from this schema; the
@@ -223,7 +223,7 @@ export const CUSTOM_ACTION_TEMPLATES: CustomActionTemplate[] = [
     id: "sentence-analysis",
     nameKey: `${SA_PREFIX}.name`,
     descriptionKey: `${SA_PREFIX}.description`,
-    icon: "streamline-color:search-visual-flat",
+    icon: "tabler:search",
     createAction: (providerId: string): SelectionToolbarCustomAction => {
       const action = createSentenceAnalysisDefinition(providerId)
       // Built from this schema like the dictionary card; the preset always

@@ -1,7 +1,6 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { LayoutStatus } from "@read-frog/layout-engine/contract"
 import type { LayoutRenderReport, LayoutWarnCode } from "@read-frog/layout-engine/dom"
-import type { SurfaceByFeature } from "@/types/analytics"
 import type { SelectionToolbarCustomActionOutputField } from "@/types/config/selection-toolbar"
 import { DEFAULT_LAYOUT } from "@read-frog/layout-engine/presets"
 import { LayoutView } from "@read-frog/layout-engine/react"
@@ -33,7 +32,6 @@ interface CustomActionLayoutViewProps {
   targetCode: LangCodeISO6393
   status: LayoutStatus
   theme: "light" | "dark"
-  speakSurface?: SurfaceByFeature["text_to_speech"]
   // Reads the trigger the layout marks `data-speak-autoplay` once the answer
   // is done. Off in the options preview, which only shows the layout.
   autoplay?: boolean
@@ -65,7 +63,6 @@ export function CustomActionLayoutView({
   targetCode,
   status,
   theme,
-  speakSurface,
   autoplay = false,
   className,
   onRenderInfo,
@@ -74,7 +71,7 @@ export function CustomActionLayoutView({
     () => buildCustomActionLayoutScope({ outputSchema, value, selection, targetCode, status }),
     [outputSchema, value, selection, targetCode, status],
   )
-  const speak = useExtensionSpeakAdapter(speakSurface, autoplay)
+  const speak = useExtensionSpeakAdapter(autoplay)
 
   // The layout reports whenever anything about the render changes; callers
   // only hear about changes to what they are shown. LayoutView always calls

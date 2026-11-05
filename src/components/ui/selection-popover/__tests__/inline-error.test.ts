@@ -4,7 +4,7 @@ import { browser } from "#imports"
 import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
 import { createSelectionToolbarRuntimeError } from "../inline-error"
 
-const UPGRADE = { label: "Upgrade", url: "https://www.readfrog.app/pricing" }
+const UPGRADE = { label: "Upgrade", route: "/api-providers" as const }
 
 /** A port whose background answers the start message with `error`. */
 function connectPortFailingWith(error: Extract<StreamPortResponse, { type: "error" }>["error"]) {

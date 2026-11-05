@@ -1,5 +1,5 @@
-import { Icon } from "@iconify/react"
 import { useAtom } from "jotai"
+import { Icon } from "@/components/local-icon"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { patchSelectionToolbarAction } from "@/utils/custom-actions"
 import { i18n } from "@/utils/i18n"

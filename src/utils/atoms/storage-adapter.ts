@@ -11,6 +11,7 @@ export const storageAdapter = {
         return parsedValue.data
       }
     }
+    if (key === "config") throw new Error("Settings require recovery")
     return fallback
   },
   async set<T>(key: string, value: T, schema: ZodSchema<T>) {

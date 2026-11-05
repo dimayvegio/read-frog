@@ -1,10 +1,11 @@
 import type { WebPagePromptContext } from "@/types/content"
 import { browser } from "#imports"
+import { executeTranslate } from "@/entrypoints/background/translation/execute-translate"
+import { publicProviderRefSchema } from "@/types/config/openai"
 import { isNoTranslationSentinel } from "@/utils/constants/prompt"
 import { cleanText } from "@/utils/content/utils"
 import { db } from "@/utils/db/dexie/db"
 import { Sha256Hex } from "@/utils/hash"
-import { executeTranslate } from "@/utils/host/translate/execute-translate"
 import {
   assertHtmlAttributeMarkerIntegrity,
   hasHtmlAttributeMarkerProtocol,
@@ -15,7 +16,6 @@ import {
   hasInlineAtomTokens,
 } from "@/utils/host/translate/inline-atom-tokens"
 import { normalizePromptContextValue } from "@/utils/host/translate/translate-text"
-import { validateProviderHostedFeature } from "@/utils/hosted-ai/routing"
 import { logger } from "@/utils/logger"
 import { onMessage } from "@/utils/message"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
@@ -53,11 +53,12 @@ async function getValidatedCachedTranslation(
 
 /** Register handlers synchronously while queue initialization runs in the background. */
 export function setupPageTranslationHandlers(): void {
-  const { queuesPromise, cancelledScopes } = createWebPageTranslationQueues()
+  const queues = createWebPageTranslationQueues()
+  const { cancelledScopes } = queues
 
   onMessage("enqueueTranslateRequest", async (message) => {
     const routing = getQueuedTranslationRouting(message.data)
-    const { requestQueue, batchQueue } = await queuesPromise
+    const { requestQueue, batchQueue } = await queues.queuesPromise
     const {
       data: {
         text,
@@ -174,8 +175,8 @@ export function setupPageTranslationHandlers(): void {
   })
 
   onMessage("getOrGenerateWebPageSummary", async (message) => {
-    validateProviderHostedFeature(message.data.providerRef, message.data.hostedFeature)
-    const { requestQueue } = await queuesPromise
+    publicProviderRefSchema.parse(message.data.providerRef)
+    const { requestQueue } = await queues.queuesPromise
     const { webTitle, webContent, providerRef } = message.data
 
     if (!webTitle || !webContent) {
@@ -206,7 +207,7 @@ export function setupPageTranslationHandlers(): void {
     // Remember the scope BEFORE any await so enqueue handlers suspended on
     // the cache lookup refuse to enqueue after this drain.
     cancelledScopes.markScope(scope)
-    const { requestQueue, batchQueue } = await queuesPromise
+    const { requestQueue, batchQueue } = await queues.queuesPromise
     // Batch queue first so pending batches cannot flush new request-queue
     // tasks between the two drains.
     const cancelledBatch = batchQueue.cancelByScope(scope)
@@ -223,9 +224,13 @@ export function setupPageTranslationHandlers(): void {
   browser.tabs.onRemoved.addListener((tabId) => {
     const prefix = `${tabId}:`
     cancelledScopes.markPrefix(prefix)
-    void queuesPromise.then(({ requestQueue, batchQueue }) => {
-      batchQueue.cancelWhere((scope) => scope.startsWith(prefix))
-      requestQueue.cancelWhere((scope) => scope.startsWith(prefix))
-    })
+    void queues.queuesPromise
+      .then(({ requestQueue, batchQueue }) => {
+        batchQueue.cancelWhere((scope) => scope.startsWith(prefix))
+        requestQueue.cancelWhere((scope) => scope.startsWith(prefix))
+      })
+      .catch(() => {
+        logger.warn("Translation queues await settings recovery")
+      })
   })
 }

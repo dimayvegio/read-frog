@@ -1,7 +1,7 @@
 import type { InputTranslationLang } from "@/types/config/config"
-import { Icon } from "@iconify/react"
 import { useAtom, useAtomValue } from "jotai"
 import { Activity } from "react"
+import { Icon } from "@/components/local-icon"
 import { Switch } from "@/components/ui/base-ui/switch"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { i18n } from "@/utils/i18n"

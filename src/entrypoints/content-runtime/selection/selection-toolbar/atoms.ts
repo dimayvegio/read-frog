@@ -1,18 +1,13 @@
-import type { NoteOriginInput } from "@read-frog/definitions"
 import type { ContextSnapshot, SelectionSnapshot } from "../utils"
 import type { SelectionToolbarCustomActionRequestSlice } from "@/components/custom-action/use-custom-action-execution"
 import type { Config } from "@/types/config/config"
-import type {
-  ProviderRefForCapability,
-  SelectionTranslationProviderRef,
-} from "@/utils/providers/provider-registry"
+import type { SelectionTranslationProviderRef } from "@/utils/providers/provider-registry"
 import { dequal } from "dequal"
 import { atom } from "jotai"
 import { atomFamily } from "jotai-family"
 import { selectAtom } from "jotai/utils"
 import { configAtom } from "@/utils/atoms/config"
 import { findSelectionToolbarAction } from "@/utils/custom-actions"
-import { getWebPageNoteOrigin } from "@/utils/note-origin"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { buildContextSnapshot } from "../utils"
 
@@ -26,7 +21,6 @@ export interface SelectionSession {
    * when the selection is made, since a save can finish after the page is gone.
    * Null when the note gets no origin.
    */
-  noteOrigin: NoteOriginInput | null
 }
 
 let nextSelectionSessionId = 0
@@ -38,7 +32,6 @@ let nextSelectionSessionId = 0
 export function createSelectionSession(
   selection: SelectionSnapshot | null,
   context: ContextSnapshot | null,
-  noteOrigin?: NoteOriginInput | null,
 ): SelectionSession | null {
   if (!selection) {
     return null
@@ -54,7 +47,6 @@ export function createSelectionSession(
     createdAt: Date.now(),
     selectionSnapshot: selection,
     contextSnapshot: nextContext,
-    noteOrigin: noteOrigin === undefined ? getWebPageNoteOrigin() : noteOrigin,
   }
 }
 
@@ -79,7 +71,7 @@ export const contextAtom = atom(
     const current = get(selectionSessionAtom)
     set(
       selectionSessionAtom,
-      createSelectionSession(current?.selectionSnapshot ?? null, nextContext, current?.noteOrigin),
+      createSelectionSession(current?.selectionSnapshot ?? null, nextContext),
     )
   },
 )
@@ -96,13 +88,9 @@ export const setSelectionStateAtom = atom(
       selection: SelectionSnapshot | null
       context: ContextSnapshot | null
       /** Omitted for a selection in this frame's page. */
-      noteOrigin?: NoteOriginInput | null
     },
   ) => {
-    set(
-      selectionSessionAtom,
-      createSelectionSession(nextState.selection, nextState.context, nextState.noteOrigin),
-    )
+    set(selectionSessionAtom, createSelectionSession(nextState.selection, nextState.context))
   },
 )
 
@@ -162,25 +150,6 @@ function createSelectionToolbarCustomActionRequestSliceAtom(actionId: string) {
 
 export const selectionToolbarTranslateRequestAtom =
   createSelectionToolbarTranslateRequestSliceAtom()
-
-export type NoteSuggestionProviderRef = ProviderRefForCapability<"noteSuggestion">
-
-/**
- * Deliberately separate from the translate request slice: the translate slice's
- * JSON stringification keys translation re-runs, so folding the suggestion
- * provider in would retranslate the selection whenever only the suggestion
- * provider changes.
- */
-export const noteSuggestionProviderAtom = selectAtom(
-  configAtom,
-  (config): NoteSuggestionProviderRef | null =>
-    resolveProviderRefForCapability(
-      "noteSuggestion",
-      config.providersConfig,
-      config.selectionToolbar.noteSuggestion.providerId,
-    ),
-  dequal,
-)
 
 export const selectionToolbarCustomActionRequestAtomFamily = atomFamily((actionId: string) =>
   createSelectionToolbarCustomActionRequestSliceAtom(actionId),

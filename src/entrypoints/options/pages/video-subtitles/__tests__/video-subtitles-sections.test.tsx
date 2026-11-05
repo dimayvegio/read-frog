@@ -95,14 +95,14 @@ describe("video subtitles page sections", () => {
     renderInRouter(<SubtitlesAutoStartPage />)
 
     expect(screen.getByRole("switch", { name: "YouTube" })).toBeChecked()
-    expect(screen.getByRole("switch", { name: "Netflix" })).not.toBeChecked()
+    expect(screen.queryByRole("switch", { name: "Netflix" })).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole("switch", { name: "X" }))
+    fireEvent.click(screen.getByRole("switch", { name: "YouTube" }))
 
     const update = setVideoSubtitlesMock.mock.lastCall?.[0]
     expect(typeof update).toBe("function")
     expect(typeof update === "function" && update(testState.videoSubtitles!)).toEqual({
-      autoStart: { youtube: true, xcom: true, netflix: false },
+      autoStart: { youtube: false, xcom: false, netflix: false },
     })
   })
 })

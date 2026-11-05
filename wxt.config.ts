@@ -13,9 +13,7 @@ import {
 const WXT_API_KEY_PATTERN = /^WXT_.*API_KEY/
 // entrypoints/content-runtime, the ES module behind every page's content scripts
 const CONTENT_RUNTIME_NAME = "content-runtime"
-const ALLOWED_BUNDLED_API_KEYS = new Set(["WXT_POSTHOG_API_KEY"])
 const useLocalPackages = isLocalPackagesEnabled(process.env)
-const shouldSkipEnvValidation = process.env.WXT_SKIP_ENV_VALIDATION === "true"
 // Root of the read-frog monorepo whose source is aliased in when developing
 // with local packages. Defaults to the sibling checkout; override with
 // WXT_MONOREPO_PATH to point at a git worktree (relative or absolute).
@@ -33,12 +31,13 @@ export default defineConfig({
   alias: useLocalPackages
     ? {
         "@read-frog/definitions": path.resolve(monorepoRoot, "packages/definitions/src"),
-        "@read-frog/api-contract": path.resolve(monorepoRoot, "packages/api-contract/src"),
         "@read-frog/layout-engine": path.resolve(monorepoRoot, "packages/layout-engine/src"),
       }
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
+    version: "1.57.0.1",
+    version_name: "1.57.0A",
     description: "__MSG_extDescription__",
     default_locale: "en",
     // Fixed extension ID for development
@@ -56,9 +55,7 @@ export default defineConfig({
       "unlimitedStorage",
       "tabs",
       "alarms",
-      "cookies",
       "contextMenus",
-      "identity",
       "scripting",
       "webNavigation",
       ...(browser !== "firefox" ? ["offscreen", "sidePanel"] : []),
@@ -108,8 +105,15 @@ export default defineConfig({
     }),
   }),
   zip: {
-    includeSources: ["**/*", ".env.production"],
-    excludeSources: ["docs/**/*", "assets/**/*", "repos/**/*", "readmes/**/*"],
+    includeSources: ["**/*"],
+    excludeSources: [
+      "**/.env*",
+      "**/.codex*",
+      "docs/**/*",
+      "assets/**/*",
+      "repos/**/*",
+      "readmes/**/*",
+    ],
   },
   hooks: {
     // With local packages the bundle holds @read-frog/layout-engine's readable
@@ -197,16 +201,11 @@ export default defineConfig({
             {
               name: "check-api-key-env",
               buildStart() {
-                z.object(
-                  createExtensionClientEnvSchema(
-                    configEnv.mode === "production",
-                    shouldSkipEnvValidation,
-                  ),
-                ).parse(resolveExtensionEnv(process.env))
+                z.object(createExtensionClientEnvSchema()).parse(resolveExtensionEnv(process.env))
 
-                const apiKeyVars = Object.keys(process.env)
-                  .filter((key) => WXT_API_KEY_PATTERN.test(key))
-                  .filter((key) => !ALLOWED_BUNDLED_API_KEYS.has(key))
+                const apiKeyVars = Object.keys(process.env).filter((key) =>
+                  WXT_API_KEY_PATTERN.test(key),
+                )
 
                 if (apiKeyVars.length > 0) {
                   throw new Error(

@@ -1,8 +1,6 @@
 import type { Browser } from "#imports"
 import type { Config } from "@/types/config/config"
 import { browser, storage } from "#imports"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { createFeatureUsageContext } from "@/utils/analytics"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
 import {
   getTranslationStateKey,
@@ -222,12 +220,6 @@ async function handleTranslateClick(tabId: number, tabUrl?: string) {
     "askManagerToTogglePageTranslation",
     {
       enabled: newState,
-      analyticsContext: newState
-        ? createFeatureUsageContext(
-            ANALYTICS_FEATURE.PAGE_TRANSLATION,
-            ANALYTICS_SURFACE.CONTEXT_MENU,
-          )
-        : undefined,
     },
     tabId,
   )

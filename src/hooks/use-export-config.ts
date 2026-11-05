@@ -3,8 +3,9 @@ import { useMutation } from "@tanstack/react-query"
 import { kebabCase } from "case-anything"
 import { saveAs } from "file-saver"
 import { toastManager } from "@/components/ui/base-ui/toast"
-import { getObjectWithoutAPIKeys } from "@/utils/config/api"
+import { migrateConfig } from "@/utils/config/migration"
 import { APP_NAME } from "@/utils/constants/app"
+import { CONFIG_SCHEMA_VERSION } from "@/utils/constants/config"
 import { buildGlossaryDocument } from "@/utils/glossary/sync/document"
 import { readLocalGlossary } from "@/utils/glossary/sync/local-store"
 import { i18n } from "@/utils/i18n"
@@ -31,12 +32,8 @@ export function useExportConfig({
   includeGlossary = true,
 }: UseExportConfigOptions) {
   return useMutation({
-    mutationFn: async (includeApiKeys: boolean) => {
-      let exportConfig = config
-
-      if (!includeApiKeys) {
-        exportConfig = getObjectWithoutAPIKeys(config)
-      }
+    mutationFn: async () => {
+      const exportConfig = await migrateConfig(config, schemaVersion)
 
       // Best effort, and deliberately so: this hook is also what the recovery
       // screen offers when the extension is already broken, and a database that
@@ -60,7 +57,7 @@ export function useExportConfig({
       const json = JSON.stringify(
         {
           config: exportConfig,
-          schemaVersion,
+          schemaVersion: CONFIG_SCHEMA_VERSION,
           // Its own top-level key, in the same shape the Drive sync writes, so
           // one reader handles both routes and a file from either can be
           // imported by either. Older builds simply ignore it.
@@ -70,7 +67,7 @@ export function useExportConfig({
         2,
       )
       const blob = new Blob([json], { type: "text/json" })
-      saveAs(blob, `${kebabCase(APP_NAME)}-config-v${schemaVersion}.json`)
+      saveAs(blob, `${kebabCase(APP_NAME)}-config-v${CONFIG_SCHEMA_VERSION}.json`)
       return { glossaryFailed }
     },
     onSuccess: ({ glossaryFailed }) => {

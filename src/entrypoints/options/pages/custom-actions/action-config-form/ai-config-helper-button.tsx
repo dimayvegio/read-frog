@@ -1,7 +1,7 @@
 import type { SelectionToolbarCustomAction } from "@/types/config/selection-toolbar"
-import { Icon } from "@iconify/react"
 import { useStore } from "jotai"
 import { useEffect, useRef, useState } from "react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Popover,

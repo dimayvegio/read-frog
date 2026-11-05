@@ -1,9 +1,8 @@
 import type { ReactNode } from "react"
-import { Icon } from "@iconify/react"
 import { useState } from "react"
 import { Link, useLocation } from "react-router"
 import { browser } from "#imports"
-import { NewBadge } from "@/components/badges/new-badge"
+import { Icon } from "@/components/local-icon"
 import {
   Collapsible,
   CollapsibleContent,
@@ -20,7 +19,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/base-ui/sidebar"
-import { env } from "@/env"
 import { TRANSLATION_HUB_PAGE_PATH } from "@/utils/constants/translation-hub"
 import { i18n } from "@/utils/i18n"
 
@@ -102,20 +100,6 @@ export function FeaturesNav() {
                       isActive={pathname === "/input-translation"}
                     >
                       <span>{i18n.t("options.inputTranslation.title")}</span>
-                    </SidebarMenuSubButton>
-                  </SidebarMenuSubItem>
-                  <SidebarMenuSubItem>
-                    <SidebarMenuSubButton
-                      render={
-                        <a
-                          href={`${env.WXT_WEBSITE_URL}/pdf-translation`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        />
-                      }
-                    >
-                      <span className="truncate">{i18n.t("options.tools.pdfTranslation")}</span>
-                      <NewBadge size="sm" className="ml-auto" />
                     </SidebarMenuSubButton>
                   </SidebarMenuSubItem>
                 </SidebarMenuSub>

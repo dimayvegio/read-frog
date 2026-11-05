@@ -1,7 +1,7 @@
 import type { PromptConfigList } from "./utils/prompt-file"
-import { Icon } from "@iconify/react/dist/iconify.js"
 import { useAtom } from "jotai"
 import { useId, useRef } from "react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Input } from "@/components/ui/base-ui/input"
 import { Label } from "@/components/ui/base-ui/label"

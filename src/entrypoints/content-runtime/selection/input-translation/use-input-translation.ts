@@ -1,24 +1,16 @@
-import type { LangCodeISO6393 } from "@read-frog/definitions"
 import { useAtomValue } from "jotai"
 import { useCallback, useEffect, useRef } from "react"
 import { toastManager } from "@/components/ui/base-ui/toast"
-import { ANALYTICS_FEATURE, ANALYTICS_SURFACE } from "@/types/analytics"
-import { createFeatureUsageContext, trackFeatureUsed } from "@/utils/analytics"
-import { classifyFailureReason } from "@/utils/analytics-failure-reason"
-import { classifyResolvedProvider, UNKNOWN_FEATURE_PROVIDER } from "@/utils/analytics-provider"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { INPUT_REPLACE_REQUEST_TYPE } from "@/utils/constants/input-injector"
 import { getDeepActiveElement } from "@/utils/dom/active-element"
 import { translateTextForInput } from "@/utils/host/translate/translate-variants"
-import { HostedAiProviderUnavailableError } from "@/utils/providers/provider-ref"
-import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 
 const SPACE_KEY = " "
 const TRIGGER_COUNT = 3
 const LAST_CYCLE_SWAPPED_KEY = "read-frog-input-translation-last-cycle-swapped"
 const SPINNER_ID = "read-frog-input-translation-spinner"
 /** Hammering the hotkey must stack one toast, not one per attempt. */
-const HOSTED_UNAVAILABLE_TOAST_ID = "input-translation-hosted-unavailable"
 
 function getLastCycleSwapped(): boolean {
   try {
@@ -130,7 +122,6 @@ function setTextWithUndo(
 
 export function useInputTranslation() {
   const inputTranslationConfig = useAtomValue(configFieldsAtomMap.inputTranslation)
-  const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
   const spaceTimestampsRef = useRef<number[]>([])
   const isTranslatingRef = useRef(false)
 
@@ -191,34 +182,9 @@ export function useInputTranslation() {
 
       // Store original text to detect if user edited during translation
       const originalText = text
-      const analyticsContext = createFeatureUsageContext(
-        ANALYTICS_FEATURE.INPUT_TRANSLATION,
-        ANALYTICS_SURFACE.INPUT_TRANSLATION,
-      )
-      let providerAnalytics = UNKNOWN_FEATURE_PROVIDER
-      let targetLanguage: LangCodeISO6393 | undefined
 
       try {
-        // Capability-resolved so Built-in AI is not reported as unknown.
-        providerAnalytics = classifyResolvedProvider(
-          resolveProviderRefForCapability(
-            "inputTranslation",
-            providersConfig,
-            inputTranslationConfig.providerId,
-          ),
-        )
-        const translatedText = await translateTextForInput(text, fromLang, toLang, (resolved) => {
-          targetLanguage = resolved
-        })
-        if (targetLanguage) {
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            char_count: text.length,
-            target_language: targetLanguage,
-            outcome: "success",
-          })
-        }
+        const translatedText = await translateTextForInput(text, fromLang, toLang)
 
         // Check if element content changed during translation (user input)
         let currentText: string
@@ -234,28 +200,12 @@ export function useInputTranslation() {
         if (element.isConnected && currentText.trim() === originalText && translatedText) {
           setTextWithUndo(element, translatedText)
         }
-      } catch (error) {
-        if (targetLanguage) {
-          void trackFeatureUsed({
-            ...analyticsContext,
-            ...providerAnalytics,
-            char_count: text.length,
-            target_language: targetLanguage,
-            outcome: "failure",
-            failure_reason: classifyFailureReason(error),
-          })
-        }
-        // A hosted plan/quota denial is a state the user can act on, not a
-        // defect: without this the spinner just appears and disappears and
-        // the feature reads as broken.
-        if (error instanceof HostedAiProviderUnavailableError) {
-          toastManager.add({
-            type: "error",
-            title: error.message,
-            id: HOSTED_UNAVAILABLE_TOAST_ID,
-          })
-        }
-        console.error("Input translation error:", error)
+      } catch {
+        toastManager.add({
+          type: "error",
+          title: "OpenAI translation failed. Check your settings and try again.",
+          id: "input-translation-failed",
+        })
       } finally {
         hideSpinner()
         isTranslatingRef.current = false
@@ -265,8 +215,6 @@ export function useInputTranslation() {
       inputTranslationConfig.fromLang,
       inputTranslationConfig.toLang,
       inputTranslationConfig.enableCycle,
-      inputTranslationConfig.providerId,
-      providersConfig,
     ],
   )
 

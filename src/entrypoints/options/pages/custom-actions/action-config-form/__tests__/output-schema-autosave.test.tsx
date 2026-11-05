@@ -19,7 +19,7 @@ import { selectedCustomActionIdAtom } from "../../atoms"
 // Keep remote discovery/auth out of this test. The schema editor, parent form,
 // validation, autosave controller, entity writer and navigation are all real.
 vi.mock("../provider-field", () => ({ ProviderField: () => null }))
-vi.mock("../notebase-connection-field", () => ({ NotebaseConnectionField: () => null }))
+
 // The layout's CodeMirror editor and shadow-DOM preview are verified in a browser; the rename
 // and delete paths below only touch the form's `layout` value.
 vi.mock("../layout-field", () => ({ LayoutField: () => null, ReadOnlyLayoutField: () => null }))
@@ -28,8 +28,8 @@ function createAction(): SelectionToolbarCustomAction {
   return {
     id: "mapped-action",
     name: "Vocabulary",
-    icon: "tabler:book",
-    providerId: "read-frog-free-ai",
+    icon: "tabler:book-2",
+    providerId: "openai-default",
     systemPrompt: "Explain the selected text.",
     prompt: "{{selection}}",
     outputSchema: ["meaning", "example"].map((id) => ({
@@ -42,17 +42,6 @@ function createAction(): SelectionToolbarCustomAction {
       selection: "A word",
       targetCode: "eng",
       values: { meaning: "Its meaning", example: "An example" },
-    },
-    notebaseConnection: {
-      notebaseId: "words",
-      notebaseNameSnapshot: "Words",
-      connectedAccount: { id: "reader", name: "Reader", email: "reader@example.com" },
-      mappings: ["meaning", "example"].map((id) => ({
-        id: `${id}-mapping`,
-        localFieldId: id,
-        notebaseColumnId: `${id}-column`,
-        notebaseColumnNameSnapshot: id,
-      })),
     },
   }
 }
@@ -131,10 +120,6 @@ describe("output schema autosave", () => {
       outputSchema: [action.outputSchema[1]!],
       // The deleted field's sample value goes in the same write.
       sampleData: { ...action.sampleData!, values: { example: "An example" } },
-      notebaseConnection: {
-        ...action.notebaseConnection!,
-        mappings: [action.notebaseConnection!.mappings[1]!],
-      },
     }
 
     await deleteMeaning()
@@ -157,22 +142,8 @@ describe("output schema autosave", () => {
     expect(screen.queryByText("options.autosave.leaveTitle")).not.toBeInTheDocument()
   })
 
-  it("preserves the connection and remaining mapping when deleting an unmapped field", async () => {
-    const action = createAction()
-    action.notebaseConnection!.mappings = [action.notebaseConnection!.mappings[1]!]
-    await setup(action)
-
-    await deleteMeaning()
-
-    await waitFor(async () =>
-      expect((await getPersistedAction()).outputSchema).toEqual([action.outputSchema[1]!]),
-    )
-    expect((await getPersistedAction()).notebaseConnection).toEqual(action.notebaseConnection)
-  })
-
   it("deletes a field normally when no Notebase is connected", async () => {
     const action = createAction()
-    delete action.notebaseConnection
     await setup(action)
 
     await deleteMeaning()
@@ -180,7 +151,6 @@ describe("output schema autosave", () => {
     await waitFor(async () =>
       expect((await getPersistedAction()).outputSchema).toEqual([action.outputSchema[1]!]),
     )
-    expect((await getPersistedAction()).notebaseConnection).toBeUndefined()
   })
 
   it("moves the layout's references in the same write as a field rename", async () => {

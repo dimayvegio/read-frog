@@ -18,10 +18,7 @@ vi.mock("@/utils/content/language", () => ({
   detectLanguage: (text: string, options?: DetectLanguageOptions) =>
     detectLanguageMock(text, options),
 }))
-vi.mock("@/utils/analytics", () => ({
-  createFeatureUsageContext: () => ({}),
-  trackFeatureUsed: vi.fn<() => Promise<void>>(async () => {}),
-}))
+
 vi.mock("@/components/ui/base-ui/toast", () => ({
   toastManager: { add: vi.fn<(options: unknown) => void>() },
 }))

@@ -1,4 +1,3 @@
-// @vitest-environment jsdom
 import type { ReactElement, ReactNode } from "react"
 import type {
   BackgroundStructuredObjectStreamSnapshot,
@@ -10,13 +9,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { createStore, Provider } from "jotai"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing/fake-browser"
-import { customActionRequestAtom } from "@/components/custom-action/atoms"
 import { TooltipProvider } from "@/components/ui/base-ui/tooltip"
-import { isLLMProviderConfig } from "@/types/config/provider"
 import { configAtom } from "@/utils/atoms/config"
 import { CONFIG_STORAGE_KEY, DEFAULT_CONFIG } from "@/utils/constants/config"
 import { getBuiltInDictionaryAction } from "@/utils/custom-actions"
-import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
+// @vitest-environment jsdom
+import { sendMessage } from "@/utils/message"
 import { buildContextSnapshot, createRangeSnapshot, normalizeSelectedText } from "../../utils"
 import { setSelectionStateAtom } from "../atoms"
 import { SelectionCustomActionProvider } from "../custom-action-button/provider"
@@ -28,12 +26,11 @@ import { SelectionTranslationProvider } from "../translate-button/provider"
 
 const streamBackgroundTextMock = vi.fn<(...args: any[]) => any>()
 const streamBackgroundStructuredObjectMock = vi.fn<(...args: any[]) => any>()
-const translateTextCoreMock = vi.fn<(...args: any[]) => any>()
 const getOrCreateWebPageContextMock = vi.fn<(...args: any[]) => any>().mockResolvedValue(null)
 const getOrGenerateWebPageSummaryMock = vi.fn<(...args: any[]) => any>()
 const toastAddMock = vi.fn<(...args: any[]) => any>()
 const onMessageMock = vi.fn<(...args: any[]) => any>()
-const maybeFireNoteSuggestionMock = vi.fn<(...args: any[]) => any>()
+
 const originalGetSelection = window.getSelection
 const DEFAULT_DICTIONARY_ACTION = getBuiltInDictionaryAction(DEFAULT_CONFIG.selectionToolbar)
 
@@ -65,15 +62,6 @@ vi.mock("../../annotation/toolbar-slot", () => ({
     scheduleClose: vi.fn<() => void>(),
     cancelClose: vi.fn<() => void>(),
   }),
-}))
-
-vi.mock("@/utils/auth/auth-client", () => ({
-  authClient: {
-    useSession: () => ({
-      data: null,
-      isPending: false,
-    }),
-  },
 }))
 
 vi.mock("@/components/ui/selection-popover", async () => {
@@ -362,7 +350,7 @@ vi.mock("@/utils/content-script/background-stream-client", () => ({
 }))
 
 vi.mock("@/utils/host/translate/translate-text", () => ({
-  translateTextCore: (...args: unknown[]) => translateTextCoreMock(...args),
+  translateTextCore: (...args: unknown[]) => streamBackgroundTextMock(...args),
 }))
 
 vi.mock("@/utils/host/translate/webpage-context", () => ({
@@ -375,18 +363,6 @@ vi.mock("@/utils/host/translate/webpage-summary", () => ({
 
 // The note suggestion's own request is not under test here, only what a
 // translation run hands it.
-vi.mock("../note-suggestion/use-note-suggestion", () => {
-  const noop = () => {}
-  return {
-    useNoteSuggestion: () => ({
-      suggestion: null,
-      maybeFire: (...args: unknown[]) => maybeFireNoteSuggestionMock(...args),
-      cancel: noop,
-      resetSession: noop,
-      markShownOnce: noop,
-    }),
-  }
-})
 
 vi.mock("@/components/ui/base-ui/toast", () => ({
   toastManager: {
@@ -604,12 +580,6 @@ function createStructuredObjectSnapshot(
   }
 }
 
-function findAlternateLLMProviderId(config: Config, currentProviderId: string) {
-  return config.providersConfig.find(
-    (provider) => provider.id !== currentProviderId && isLLMProviderConfig(provider),
-  )?.id
-}
-
 function setSelectionToolbarTranslateProvider(config: Config, providerId: string) {
   config.selectionToolbar.features.translate.providerId = providerId
 }
@@ -667,7 +637,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("does not rerun translation on passive config refresh, but reruns when request values change", async () => {
-    translateTextCoreMock.mockResolvedValue("translated once")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("translated once"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const store = createStore()
@@ -678,7 +648,7 @@ describe("selection toolbar requests", () => {
     fireEvent.click(screen.getByRole("button", { name: "action.translation" }))
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     const refreshedConfig = cloneConfig(store.get(configAtom))
@@ -703,7 +673,7 @@ describe("selection toolbar requests", () => {
       await Promise.resolve()
     })
 
-    expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+    expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
 
     const updatedConfig = cloneConfig(store.get(configAtom))
     updatedConfig.language.targetCode = "jpn"
@@ -713,13 +683,11 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
-    expect(translateTextCoreMock.mock.calls[1]?.[0]).toMatchObject({
-      langConfig: expect.objectContaining({
-        targetCode: "jpn",
-      }),
+    expect(streamBackgroundTextMock.mock.calls[1]?.[0]).toMatchObject({
+      instructions: "Japanese",
     })
 
     await waitFor(() => {
@@ -728,7 +696,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("renders the translation tooltip as non-interactive and closes it on hover leave", async () => {
-    translateTextCoreMock.mockResolvedValue("translated once")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("translated once"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const store = createStore()
@@ -751,7 +719,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("opts out of focus restoration when closing the translation popover", async () => {
-    translateTextCoreMock.mockResolvedValue("translated once")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("translated once"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const store = createStore()
@@ -770,10 +738,10 @@ describe("selection toolbar requests", () => {
   })
 
   it("reruns standard translation from the footer and ignores stale results from older runs", async () => {
-    const firstRun = createDeferredPromise<string>()
-    const secondRun = createDeferredPromise<string>()
+    const firstRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    const secondRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
 
-    translateTextCoreMock
+    streamBackgroundTextMock
       .mockImplementationOnce(() => firstRun.promise)
       .mockImplementationOnce(() => secondRun.promise)
     getOrCreateWebPageContextMock.mockResolvedValue(null)
@@ -786,17 +754,17 @@ describe("selection toolbar requests", () => {
     fireEvent.click(screen.getByRole("button", { name: "action.translation" }))
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Regenerate" }))
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
     await act(async () => {
-      firstRun.resolve("stale result")
+      firstRun.resolve(textSnapshot("stale result"))
       await Promise.resolve()
     })
 
@@ -804,7 +772,7 @@ describe("selection toolbar requests", () => {
     expect(screen.getByTestId("translation-status").textContent).toBe("true")
 
     await act(async () => {
-      secondRun.resolve("fresh result")
+      secondRun.resolve(textSnapshot("fresh result"))
       await Promise.resolve()
     })
 
@@ -815,7 +783,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("keeps the original page selection session when selecting text inside the translation popover", async () => {
-    translateTextCoreMock.mockResolvedValue("Overlay panel content")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Overlay panel content"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -840,7 +808,7 @@ describe("selection toolbar requests", () => {
     fireEvent.click(toolbarTranslateButton)
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
     await waitFor(() => {
       expect(screen.getByTestId("translation-result").textContent).toBe("Overlay panel content")
@@ -874,14 +842,14 @@ describe("selection toolbar requests", () => {
     fireEvent.click(toolbarTranslateButton)
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
-    expect(translateTextCoreMock.mock.calls[0]?.[0]).toMatchObject({
-      text: "Original page selection",
+    expect(streamBackgroundTextMock.mock.calls[0]?.[0]).toMatchObject({
+      prompt: "Original page selection",
     })
-    expect(translateTextCoreMock.mock.calls[1]?.[0]).toMatchObject({
-      text: "Original page selection",
+    expect(streamBackgroundTextMock.mock.calls[1]?.[0]).toMatchObject({
+      prompt: "Original page selection",
     })
     expect(screen.getByTestId("footer-paragraphs").textContent).toBe(
       "Original page paragraph with surrounding context.",
@@ -893,7 +861,7 @@ describe("selection toolbar requests", () => {
       signal?: AbortSignal
       onChunk?: (data: BackgroundTextStreamSnapshot) => void
     }> = []
-    translateTextCoreMock.mockResolvedValue("")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot(""))
 
     streamBackgroundTextMock.mockImplementation(
       (
@@ -990,9 +958,9 @@ describe("selection toolbar requests", () => {
   })
 
   it("renders translate errors inline and clears them after a successful rerun", async () => {
-    translateTextCoreMock
+    streamBackgroundTextMock
       .mockRejectedValueOnce(new Error("Standard translation failed"))
-      .mockResolvedValueOnce("Recovered translation")
+      .mockResolvedValueOnce(textSnapshot("Recovered translation"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const store = createStore()
@@ -1019,7 +987,7 @@ describe("selection toolbar requests", () => {
     fireEvent.click(screen.getByRole("button", { name: "Regenerate" }))
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
     await waitFor(() => {
@@ -1029,7 +997,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("replaces the raw stale-context error with a reload hint", async () => {
-    translateTextCoreMock.mockRejectedValueOnce(new Error("Extension context invalidated."))
+    streamBackgroundTextMock.mockRejectedValueOnce(new Error("Extension context invalidated."))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const store = createStore()
@@ -1058,12 +1026,12 @@ describe("selection toolbar requests", () => {
     const alert = await screen.findByRole("alert")
     expect(alert).toHaveTextContent("translationHub.translationFailed")
     expect(alert).toHaveTextContent("options.selectionToolbar.errors.providerUnavailable")
-    expect(translateTextCoreMock).not.toHaveBeenCalled()
+    expect(streamBackgroundTextMock).not.toHaveBeenCalled()
     expect(streamBackgroundTextMock).not.toHaveBeenCalled()
   })
 
   it("shows translations identical to the original text", async () => {
-    translateTextCoreMock.mockResolvedValue("Selected text")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Selected text"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const store = createStore()
@@ -1074,7 +1042,7 @@ describe("selection toolbar requests", () => {
     fireEvent.click(screen.getByRole("button", { name: "action.translation" }))
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     await waitFor(() => {
@@ -1087,30 +1055,9 @@ describe("selection toolbar requests", () => {
   // A note keeps the selection as a custom action run keeps it. Translation
   // prepares its own copy, which drops invisible joiners such as the one that
   // holds an emoji sequence together.
-  it("hands the note suggestion the selection as a custom action run saves it", async () => {
-    translateTextCoreMock.mockResolvedValue("I am a coder.")
-    const coder = String.fromCodePoint(0x1f469, 0x200d, 0x1f4bb)
-    const selected = `I am a ${coder}.`
-    const config = cloneConfig(DEFAULT_CONFIG)
-    const store = createStore()
-    store.set(configAtom, config)
-    setSelectionState(store, { text: selected })
-    renderWithProviders(<TranslateButton />, store)
-
-    fireEvent.click(screen.getByRole("button", { name: "action.translation" }))
-
-    await waitFor(() => {
-      expect(maybeFireNoteSuggestionMock).toHaveBeenCalledTimes(1)
-    })
-    const input = maybeFireNoteSuggestionMock.mock.calls[0]![0]
-    expect(input.savedSelectionText).toBe(normalizeSelectedText(selected))
-    expect(input.savedSelectionText).toContain(coder)
-    expect(input.selectionText).toBe(prepareTranslationText(selected))
-    expect(input.selectionText).not.toContain(coder)
-  })
 
   it("opens selection translation from the context menu and tracks the context-menu surface", async () => {
-    translateTextCoreMock.mockResolvedValue("Context menu result")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Context menu result"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -1141,26 +1088,16 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     await waitFor(() => {
       expect(screen.getByTestId("translation-result").textContent).toBe("Context menu result")
     })
-
-    const { sendMessage } = await import("@/utils/message")
-    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith(
-      "trackFeatureUsedEvent",
-      expect.objectContaining({
-        feature: "selection_translation",
-        surface: "context_menu",
-        outcome: "success",
-      }),
-    )
   })
 
   it("reuses the same captured session for cross-node context-menu translation", async () => {
-    translateTextCoreMock.mockResolvedValue("Cross-node result")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Cross-node result"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const container = document.createElement("div")
@@ -1208,7 +1145,7 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     expect(screen.getByTestId("translation-selection").textContent).toBe(
@@ -1236,11 +1173,11 @@ describe("selection toolbar requests", () => {
       type: "error",
       title: "options.selectionToolbar.errors.missingSelection",
     })
-    expect(translateTextCoreMock).not.toHaveBeenCalled()
+    expect(streamBackgroundTextMock).not.toHaveBeenCalled()
   })
 
   it("opens selection translation from the shortcut and tracks the shortcut surface", async () => {
-    translateTextCoreMock.mockResolvedValue("Shortcut result")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Shortcut result"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -1260,26 +1197,16 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     await waitFor(() => {
       expect(screen.getByTestId("translation-result").textContent).toBe("Shortcut result")
     })
-
-    const { sendMessage } = await import("@/utils/message")
-    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith(
-      "trackFeatureUsedEvent",
-      expect.objectContaining({
-        feature: "selection_translation",
-        surface: "shortcut",
-        outcome: "success",
-      }),
-    )
   })
 
   it("opens selection translation from the shortcut when the toolbar UI is disabled", async () => {
-    translateTextCoreMock.mockResolvedValue("Toolbar disabled shortcut result")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Toolbar disabled shortcut result"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -1304,7 +1231,7 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     expect(screen.getByTestId("translation-result").textContent).toBe(
@@ -1323,7 +1250,7 @@ describe("selection toolbar requests", () => {
       event = pressShortcut()
     })
 
-    expect(translateTextCoreMock).not.toHaveBeenCalled()
+    expect(streamBackgroundTextMock).not.toHaveBeenCalled()
     expect(toastAddMock).not.toHaveBeenCalled()
     // The page gets the key as if there were no shortcut on it.
     expect(event.defaultPrevented).toBe(false)
@@ -1348,7 +1275,7 @@ describe("selection toolbar requests", () => {
     await act(() => Promise.resolve())
 
     expect(event.defaultPrevented).toBe(false)
-    expect(translateTextCoreMock).not.toHaveBeenCalled()
+    expect(streamBackgroundTextMock).not.toHaveBeenCalled()
   })
 
   it("binds no key for an empty or invalid selection translation shortcut", () => {
@@ -1375,11 +1302,11 @@ describe("selection toolbar requests", () => {
     renderWithProviders(<TranslateButton />, invalidStore)
 
     expect(pressShortcutInAct("T").defaultPrevented).toBe(false)
-    expect(translateTextCoreMock).not.toHaveBeenCalled()
+    expect(streamBackgroundTextMock).not.toHaveBeenCalled()
   })
 
   it("positions shortcut selection translation near the selected range", async () => {
-    translateTextCoreMock.mockResolvedValue("Range anchor result")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Range anchor result"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -1423,7 +1350,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("falls back to the viewport center when shortcut range anchoring fails", async () => {
-    translateTextCoreMock.mockResolvedValue("Viewport center result")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("Viewport center result"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -1468,9 +1395,9 @@ describe("selection toolbar requests", () => {
   })
 
   it("reuses a pinned translation popover in place when translating a new selection from the toolbar", async () => {
-    const firstRun = createDeferredPromise<string>()
-    const secondRun = createDeferredPromise<string>()
-    translateTextCoreMock
+    const firstRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    const secondRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    streamBackgroundTextMock
       .mockReturnValueOnce(firstRun.promise)
       .mockReturnValueOnce(secondRun.promise)
     getOrCreateWebPageContextMock.mockResolvedValue(null)
@@ -1483,11 +1410,11 @@ describe("selection toolbar requests", () => {
     fireEvent.click(screen.getByRole("button", { name: "action.translation" }))
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     await act(async () => {
-      firstRun.resolve("first translation")
+      firstRun.resolve(textSnapshot("first translation"))
       await Promise.resolve()
     })
 
@@ -1514,14 +1441,14 @@ describe("selection toolbar requests", () => {
     expect(screen.getByTestId("translation-result").textContent).toBe("")
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
-    expect(translateTextCoreMock.mock.calls[1]?.[0]).toMatchObject({
-      text: "Second selection",
+    expect(streamBackgroundTextMock.mock.calls[1]?.[0]).toMatchObject({
+      prompt: "Second selection",
     })
 
     await act(async () => {
-      secondRun.resolve("second translation")
+      secondRun.resolve(textSnapshot("second translation"))
       await Promise.resolve()
     })
 
@@ -1531,9 +1458,9 @@ describe("selection toolbar requests", () => {
   })
 
   it("reuses a pinned translation popover in place from the context menu without moving it", async () => {
-    const firstRun = createDeferredPromise<string>()
-    const secondRun = createDeferredPromise<string>()
-    translateTextCoreMock
+    const firstRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    const secondRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    streamBackgroundTextMock
       .mockReturnValueOnce(firstRun.promise)
       .mockReturnValueOnce(secondRun.promise)
     getOrCreateWebPageContextMock.mockResolvedValue(null)
@@ -1566,11 +1493,11 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     await act(async () => {
-      firstRun.resolve("first translation")
+      firstRun.resolve(textSnapshot("first translation"))
       await Promise.resolve()
     })
 
@@ -1606,7 +1533,7 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
     expect(screen.getByTestId("selection-popover-content")).toBe(content)
@@ -1619,7 +1546,7 @@ describe("selection toolbar requests", () => {
     expect(screen.getByTestId("translation-selection").textContent).toBe("inside a paragraph")
 
     await act(async () => {
-      secondRun.resolve("second translation")
+      secondRun.resolve(textSnapshot("second translation"))
       await Promise.resolve()
     })
 
@@ -1629,9 +1556,9 @@ describe("selection toolbar requests", () => {
   })
 
   it("reuses a pinned translation popover in place from the shortcut", async () => {
-    const firstRun = createDeferredPromise<string>()
-    const secondRun = createDeferredPromise<string>()
-    translateTextCoreMock
+    const firstRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    const secondRun = createDeferredPromise<BackgroundTextStreamSnapshot>()
+    streamBackgroundTextMock
       .mockReturnValueOnce(firstRun.promise)
       .mockReturnValueOnce(secondRun.promise)
     getOrCreateWebPageContextMock.mockResolvedValue(null)
@@ -1651,11 +1578,11 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     await act(async () => {
-      firstRun.resolve("first translation")
+      firstRun.resolve(textSnapshot("first translation"))
       await Promise.resolve()
     })
 
@@ -1676,7 +1603,7 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
     expect(screen.getByTestId("selection-popover-content")).toBe(content)
@@ -1687,7 +1614,7 @@ describe("selection toolbar requests", () => {
     expect(screen.getByTestId("translation-selection").textContent).toBe("inside a paragraph")
 
     await act(async () => {
-      secondRun.resolve("second translation")
+      secondRun.resolve(textSnapshot("second translation"))
       await Promise.resolve()
     })
 
@@ -1697,7 +1624,7 @@ describe("selection toolbar requests", () => {
   })
 
   it("reruns the translation when a pinned popover is retriggered with the same selection", async () => {
-    translateTextCoreMock.mockResolvedValue("same selection translation")
+    streamBackgroundTextMock.mockResolvedValue(textSnapshot("same selection translation"))
     getOrCreateWebPageContextMock.mockResolvedValue(null)
 
     const paragraph = document.createElement("p")
@@ -1717,7 +1644,7 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(1)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
     })
 
     fireEvent.click(screen.getByRole("button", { name: "Pin popover" }))
@@ -1728,7 +1655,7 @@ describe("selection toolbar requests", () => {
     })
 
     await waitFor(() => {
-      expect(translateTextCoreMock).toHaveBeenCalledTimes(2)
+      expect(streamBackgroundTextMock).toHaveBeenCalledTimes(2)
     })
 
     await waitFor(() => {
@@ -1739,6 +1666,8 @@ describe("selection toolbar requests", () => {
   })
 
   it("reuses a pinned custom action popover in place for a new selection", async () => {
+    const action = DEFAULT_DICTIONARY_ACTION
+
     const firstRun = createDeferredPromise<BackgroundStructuredObjectStreamSnapshot>()
     const secondRun = createDeferredPromise<BackgroundStructuredObjectStreamSnapshot>()
     streamBackgroundStructuredObjectMock
@@ -1753,8 +1682,6 @@ describe("selection toolbar requests", () => {
     store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
     setSelectionState(store, { text: "Selected text", range: createRangeFor(paragraph) })
     renderWithProviders(<SelectionToolbarPinnedItems />, store)
-
-    const action = DEFAULT_DICTIONARY_ACTION
 
     act(() => {
       paragraph.dispatchEvent(
@@ -1778,9 +1705,7 @@ describe("selection toolbar requests", () => {
       expect(streamBackgroundStructuredObjectMock).toHaveBeenCalledTimes(1)
     })
     expect(streamBackgroundStructuredObjectMock.mock.calls[0]?.[0]).toMatchObject({
-      providerId: "read-frog-free-ai",
-      modelTier: "normal",
-      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      providerId: "openai-default",
     })
 
     await act(async () => {
@@ -1813,8 +1738,8 @@ describe("selection toolbar requests", () => {
     await waitFor(() => {
       expect(streamBackgroundStructuredObjectMock).toHaveBeenCalledTimes(2)
     })
-    expect(streamBackgroundStructuredObjectMock.mock.calls[1]?.[0].requestId).not.toBe(
-      streamBackgroundStructuredObjectMock.mock.calls[0]?.[0].requestId,
+    expect(streamBackgroundStructuredObjectMock.mock.calls[1]?.[0].providerConfig).toEqual(
+      DEFAULT_CONFIG.providersConfig[0],
     )
 
     expect(screen.getByTestId("selection-popover-content")).toBe(content)
@@ -1835,6 +1760,8 @@ describe("selection toolbar requests", () => {
   })
 
   it("opens a custom action from the context menu with the captured selection session", async () => {
+    const action = DEFAULT_DICTIONARY_ACTION
+
     streamBackgroundStructuredObjectMock.mockResolvedValue(
       createStructuredObjectSnapshot({ summary: "Context menu result" }),
     )
@@ -1847,8 +1774,6 @@ describe("selection toolbar requests", () => {
     store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
     setSelectionState(store, { text: "Selected text", range: createRangeFor(paragraph) })
     renderWithProviders(<SelectionToolbarPinnedItems />, store)
-
-    const action = DEFAULT_DICTIONARY_ACTION
 
     act(() => {
       paragraph.dispatchEvent(
@@ -1885,60 +1810,6 @@ describe("selection toolbar requests", () => {
       "Selected text inside a paragraph.",
     )
     expect(toastAddMock).not.toHaveBeenCalled()
-
-    const { sendMessage } = await import("@/utils/message")
-    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith(
-      "trackFeatureUsedEvent",
-      expect.objectContaining({
-        feature: "custom_ai_action",
-        surface: "context_menu",
-        outcome: "success",
-        action_id: action.id,
-        action_name: action.name,
-      }),
-    )
-  })
-
-  it("carries the note origin recorded with the selection into the custom action request", async () => {
-    streamBackgroundStructuredObjectMock.mockResolvedValue(
-      createStructuredObjectSnapshot({ summary: "Context menu result" }),
-    )
-    const paragraph = document.createElement("p")
-    paragraph.textContent = "Selected text inside a paragraph."
-    document.body.appendChild(paragraph)
-    const store = createStore()
-    store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
-    const selection = {
-      text: "Selected text",
-      ranges: [createRangeSnapshot(createRangeFor(paragraph))],
-    }
-    const noteOrigin = {
-      kind: "ebook",
-      ebookId: "55555555-5555-4555-8555-555555555555",
-      cfi: "epubcfi(/6/2)",
-    } as const
-    store.set(setSelectionStateAtom, {
-      selection,
-      context: buildContextSnapshot(selection),
-      noteOrigin,
-    })
-    renderWithProviders(<SelectionToolbarPinnedItems />, store)
-
-    act(() => {
-      paragraph.dispatchEvent(
-        new MouseEvent("contextmenu", { bubbles: true, button: 2, clientX: 140, clientY: 180 }),
-      )
-    })
-    await act(async () => {
-      getRegisteredMessageHandler("openSelectionCustomActionFromContextMenu")({
-        data: { actionId: DEFAULT_DICTIONARY_ACTION.id, selectionText: "Selected text" },
-      })
-      await Promise.resolve()
-    })
-
-    await waitFor(() => {
-      expect(store.get(customActionRequestAtom)?.noteOrigin).toEqual(noteOrigin)
-    })
   })
 
   it("opens a custom action from its shortcut and tracks the shortcut surface", async () => {
@@ -1955,7 +1826,6 @@ describe("selection toolbar requests", () => {
     setSelectionState(store, { text: "Selected text", range: createRangeFor(paragraph) })
     renderWithProviders(<SelectionToolbarPinnedItems />, store)
 
-    const action = DEFAULT_DICTIONARY_ACTION
     let event!: KeyboardEvent
 
     await act(async () => {
@@ -1967,17 +1837,6 @@ describe("selection toolbar requests", () => {
     await waitFor(() => {
       expect(screen.getByText('{"summary":"Shortcut result"}')).toBeInTheDocument()
     })
-
-    const { sendMessage } = await import("@/utils/message")
-    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith(
-      "trackFeatureUsedEvent",
-      expect.objectContaining({
-        feature: "custom_ai_action",
-        surface: "shortcut",
-        outcome: "success",
-        action_id: action.id,
-      }),
-    )
   })
 
   it("claims a key it runs ahead of the page's own handlers", () => {
@@ -2083,6 +1942,8 @@ describe("selection toolbar requests", () => {
   })
 
   it("renders a custom action footer tool button that opens the action options", async () => {
+    const action = DEFAULT_DICTIONARY_ACTION
+
     streamBackgroundStructuredObjectMock.mockResolvedValue(
       createStructuredObjectSnapshot({ summary: "done" }),
     )
@@ -2091,8 +1952,6 @@ describe("selection toolbar requests", () => {
     store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
     setSelectionState(store, { text: "Selected text" })
     renderWithProviders(<SelectionToolbarPinnedItems />, store)
-
-    const action = DEFAULT_DICTIONARY_ACTION
 
     fireEvent.click(screen.getByRole("button", { name: action.name }))
 
@@ -2103,8 +1962,6 @@ describe("selection toolbar requests", () => {
     const customizeButton = screen.getByRole("button", { name: "action.customizeCustomAction" })
 
     expect(customizeButton).toHaveClass("size-7")
-
-    const { sendMessage } = await import("@/utils/message")
     vi.mocked(sendMessage).mockClear()
 
     fireEvent.click(customizeButton)
@@ -2141,11 +1998,11 @@ describe("selection toolbar requests", () => {
   })
 
   it("shows a toast when a custom action context menu request cannot recover a selection snapshot", async () => {
+    const action = DEFAULT_DICTIONARY_ACTION
+
     const store = createStore()
     store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
     renderWithProviders(<SelectionToolbarPinnedItems />, store)
-
-    const action = DEFAULT_DICTIONARY_ACTION
 
     const handler = getRegisteredMessageHandler("openSelectionCustomActionFromContextMenu")
 
@@ -2163,18 +2020,6 @@ describe("selection toolbar requests", () => {
       title: "options.selectionToolbar.errors.missingSelection",
     })
     expect(streamBackgroundStructuredObjectMock).not.toHaveBeenCalled()
-
-    const { sendMessage } = await import("@/utils/message")
-    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith(
-      "trackFeatureUsedEvent",
-      expect.objectContaining({
-        feature: "custom_ai_action",
-        surface: "context_menu",
-        outcome: "failure",
-        action_id: action.id,
-        action_name: action.name,
-      }),
-    )
   })
 
   it("does not rerun custom action requests on passive config refresh, but reruns when request values change", async () => {
@@ -2210,15 +2055,7 @@ describe("selection toolbar requests", () => {
     expect(streamBackgroundStructuredObjectMock).toHaveBeenCalledTimes(1)
 
     const updatedConfig = cloneConfig(store.get(configAtom))
-    const currentProviderId = updatedConfig.selectionToolbar.builtInActions.dictionary.providerId
-    const nextProviderId = findAlternateLLMProviderId(updatedConfig, currentProviderId)
-    if (!nextProviderId) {
-      throw new Error("No alternate LLM provider available for custom action test")
-    }
-    updatedConfig.selectionToolbar.builtInActions.dictionary = {
-      ...updatedConfig.selectionToolbar.builtInActions.dictionary,
-      providerId: nextProviderId,
-    }
+    updatedConfig.providersConfig[0]!.temperature = 0.3
 
     act(() => {
       store.set(configAtom, updatedConfig)
@@ -2230,6 +2067,13 @@ describe("selection toolbar requests", () => {
   })
 
   it("does not rerun a custom action when only its layout changes", async () => {
+    const action = {
+      ...structuredClone(DEFAULT_DICTIONARY_ACTION),
+      id: "layout-action",
+      name: "Layout Action",
+      layout: "<p>first layout</p>",
+    }
+
     streamBackgroundStructuredObjectMock.mockResolvedValue(
       createStructuredObjectSnapshot({ summary: "done" }),
     )
@@ -2238,12 +2082,6 @@ describe("selection toolbar requests", () => {
     paragraph.textContent = "Selected text inside a paragraph."
     document.body.appendChild(paragraph)
 
-    const action = {
-      ...structuredClone(DEFAULT_DICTIONARY_ACTION),
-      id: "layout-action",
-      name: "Layout Action",
-      layout: "<p>first layout</p>",
-    }
     const config = cloneConfig(DEFAULT_CONFIG)
     config.selectionToolbar.customActions = [action]
     // The layout editor saves through storage, which the content script's
@@ -2393,78 +2231,6 @@ describe("selection toolbar requests", () => {
     })
   })
 
-  it("switches a custom action provider from the footer without aborting the replacement request", async () => {
-    const firstRun = createDeferredPromise<BackgroundStructuredObjectStreamSnapshot>()
-    const secondRun = createDeferredPromise<BackgroundStructuredObjectStreamSnapshot>()
-    const signals: AbortSignal[] = []
-
-    streamBackgroundStructuredObjectMock
-      .mockImplementationOnce((_payload, options: { signal?: AbortSignal }) => {
-        signals.push(options.signal as AbortSignal)
-        options.signal?.addEventListener("abort", () => {
-          firstRun.reject(new DOMException("aborted", "AbortError"))
-        })
-        return firstRun.promise
-      })
-      .mockImplementationOnce((_payload, options: { signal?: AbortSignal }) => {
-        signals.push(options.signal as AbortSignal)
-        return secondRun.promise
-      })
-
-    const paragraph = document.createElement("p")
-    paragraph.textContent = "Selected text inside a paragraph."
-    document.body.appendChild(paragraph)
-
-    const store = createStore()
-    store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
-    setSelectionState(store, { text: "Selected text", range: createRangeFor(paragraph) })
-    renderWithProviders(<SelectionToolbarPinnedItems />, store)
-
-    const action = DEFAULT_DICTIONARY_ACTION
-    const nextProviderId = findAlternateLLMProviderId(store.get(configAtom), action.providerId)
-    if (!nextProviderId) {
-      throw new Error("No alternate LLM provider available for custom action provider switch test")
-    }
-
-    fireEvent.click(screen.getByRole("button", { name: action.name }))
-
-    await waitFor(() => {
-      expect(streamBackgroundStructuredObjectMock).toHaveBeenCalledTimes(1)
-    })
-
-    fireEvent.click(screen.getByRole("button", { name: "Change provider" }))
-
-    await waitFor(() => {
-      expect(streamBackgroundStructuredObjectMock).toHaveBeenCalledTimes(2)
-    })
-
-    expect(streamBackgroundStructuredObjectMock.mock.calls[1]?.[0]).toMatchObject({
-      providerId: nextProviderId,
-    })
-    expect(signals[0]?.aborted).toBe(true)
-
-    await act(async () => {
-      await Promise.resolve()
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-
-    expect(signals[1]?.aborted).toBe(false)
-
-    await act(async () => {
-      secondRun.resolve(createStructuredObjectSnapshot({ summary: "provider switched" }))
-      await Promise.resolve()
-    })
-
-    await waitFor(() => {
-      expect(screen.getByText('{"summary":"provider switched"}')).toBeInTheDocument()
-    })
-    expect(screen.queryByRole("alert")).toBeNull()
-    expect(store.get(configAtom).selectionToolbar.builtInActions.dictionary.providerId).toBe(
-      nextProviderId,
-    )
-  })
-
   it("shows a precheck alert when a custom action has no selected text", async () => {
     const paragraph = document.createElement("p")
     paragraph.textContent = "Selected text inside a paragraph."
@@ -2483,18 +2249,6 @@ describe("selection toolbar requests", () => {
     expect(alert).toHaveTextContent("options.selectionToolbar.errors.customActionFailed")
     expect(alert).toHaveTextContent("options.selectionToolbar.errors.missingSelection")
     expect(streamBackgroundStructuredObjectMock).not.toHaveBeenCalled()
-
-    const { sendMessage } = await import("@/utils/message")
-    expect(vi.mocked(sendMessage)).toHaveBeenCalledWith(
-      "trackFeatureUsedEvent",
-      expect.objectContaining({
-        feature: "custom_ai_action",
-        surface: "selection_toolbar",
-        outcome: "failure",
-        action_id: DEFAULT_DICTIONARY_ACTION.id,
-        action_name: DEFAULT_DICTIONARY_ACTION.name,
-      }),
-    )
   })
 
   it("renders custom action errors inline and clears them after a successful rerun", async () => {
@@ -2531,3 +2285,14 @@ describe("selection toolbar requests", () => {
     expect(screen.queryByRole("alert")).toBeNull()
   })
 })
+
+function textSnapshot(output: string): BackgroundTextStreamSnapshot {
+  return { output, thinking: { status: "complete", text: "" } }
+}
+
+vi.mock("@/utils/prompts/translate", () => ({
+  getTranslatePromptFromConfig: (_config: unknown, targetLanguage: string, text: string) => ({
+    systemPrompt: targetLanguage,
+    prompt: text,
+  }),
+}))

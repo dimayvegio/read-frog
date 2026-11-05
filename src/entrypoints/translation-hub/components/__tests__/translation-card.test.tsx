@@ -197,7 +197,7 @@ vi.mock("@/utils/providers/provider-registry", async (importOriginal) => ({
   BUILT_IN_AI_PROVIDER_LOGO: "built-in-logo",
   resolveProviderRefForCapability: () =>
     providerRefState.kind === "system"
-      ? { kind: "system", id: "read-frog-free-ai", name: "Built-in AI", modelTier: "normal" }
+      ? { kind: "system", id: "openai-default", name: "Built-in AI", modelTier: "normal" }
       : {
           kind: "local",
           id: "provider-1",
@@ -210,7 +210,7 @@ vi.mock("@/utils/content-script/background-stream-client", () => ({
   streamBackgroundText: streamBackgroundTextMock,
 }))
 
-vi.mock("@/utils/host/translate/execute-translate", () => ({
+vi.mock("@/entrypoints/background/translation/execute-translate", () => ({
   executeTranslate: executeTranslateMock,
 }))
 
@@ -273,88 +273,9 @@ describe("TranslationCard built-in translation", () => {
     streamBackgroundTextMock.mockReset()
   })
 
-  it("calls hosted page translation directly without the translation queue", async () => {
-    providerRefState.kind = "system"
-    streamBackgroundTextMock.mockResolvedValueOnce({ output: "Translated by built-in AI" })
-    render(
-      <TranslationCard
-        providerId="read-frog-free-ai"
-        isExpanded
-        onExpandedChange={vi.fn<(expanded: boolean) => void>()}
-      />,
-    )
-
-    const result = await mutationFnState.current!({
-      inputText: "Hello",
-      sourceLanguage: "eng",
-      targetLanguage: "cmn",
-      timestamp: 1,
-      promptConfig: { promptId: "default", patterns: [] },
-    })
-
-    expect(result).toBe("Translated by built-in AI")
-    expect(streamBackgroundTextMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        providerKind: "system",
-        providerId: "read-frog-free-ai",
-        modelTier: "normal",
-        hostedFeature: "pageTranslation",
-        requestId: expect.any(String),
-        instructions: expect.any(String),
-        prompt: expect.any(String),
-      }),
-      { signal: expect.any(AbortSignal) },
-    )
-  })
-
-  it("uses the Hub prompt snapshot and a fresh hosted request ID each time", async () => {
-    providerRefState.kind = "system"
-    streamBackgroundTextMock.mockResolvedValue({ output: " result " })
-    render(
-      <TranslationCard
-        providerId="read-frog-free-ai"
-        isExpanded
-        onExpandedChange={vi.fn<(expanded: boolean) => void>()}
-      />,
-    )
-    const request = {
-      inputText: "Hello",
-      sourceLanguage: "eng",
-      targetLanguage: "cmn",
-      timestamp: 1,
-      promptConfig: {
-        promptId: "hub-custom",
-        patterns: [
-          {
-            id: "hub-custom",
-            name: "Hub custom",
-            systemPrompt: "Hub system",
-            prompt: "Hub prompt",
-          },
-        ],
-      },
-    }
-
-    expect(await mutationFnState.current!(request)).toBe("result")
-    expect(await mutationFnState.current!({ ...request, timestamp: 2 })).toBe("result")
-
-    const first = streamBackgroundTextMock.mock.calls[0] as unknown as [
-      { requestId: string; instructions: string; prompt: string },
-      { signal: AbortSignal },
-    ]
-    const second = streamBackgroundTextMock.mock.calls[1] as unknown as [
-      { requestId: string },
-      { signal: AbortSignal },
-    ]
-    expect(first[0]).toMatchObject({ instructions: "Hub system", prompt: "Hub prompt" })
-    expect(first[0].requestId).not.toBe(second[0].requestId)
-    expect(first[1].signal.aborted).toBe(true)
-    expect(second[1].signal.aborted).toBe(false)
-  })
-
   it("passes the independent Hub prompt to local LLMs", async () => {
     providerRefState.kind = "local"
-    executeTranslateMock.mockResolvedValueOnce("Local result")
+    streamBackgroundTextMock.mockResolvedValueOnce({ output: "Local result" })
     render(
       <TranslationCard
         providerId="provider-1"
@@ -381,14 +302,10 @@ describe("TranslationCard built-in translation", () => {
       },
     })
 
-    const resolver = executeTranslateMock.mock.calls[0]?.[3] as (
-      language: string,
-      input: string,
-    ) => Promise<{ systemPrompt: string; prompt: string }>
-    await expect(resolver("Chinese", "Hello")).resolves.toMatchObject({
-      systemPrompt: "Hub system",
-      prompt: "Hub prompt",
-    })
+    expect(streamBackgroundTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({ instructions: "Hub system", prompt: "Hub prompt" }),
+      expect.any(Object),
+    )
   })
 })
 

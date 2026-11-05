@@ -31,7 +31,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/base-ui/popover"
 import { Textarea } from "@/components/ui/base-ui/textarea"
-import { ANALYTICS_SURFACE } from "@/types/analytics"
 import { MAX_CUSTOM_ACTION_SAMPLE_TEXT_LENGTH } from "@/types/config/selection-toolbar"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { isSelectionOutputField } from "@/utils/constants/custom-action"
@@ -379,7 +378,6 @@ export function LayoutPreview({
               targetCode={sampleData.targetCode}
               status={status}
               theme={theme}
-              speakSurface={ANALYTICS_SURFACE.TTS_SETTINGS}
               onRenderInfo={setRenderInfo}
             />
           </div>

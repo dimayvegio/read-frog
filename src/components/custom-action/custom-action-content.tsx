@@ -1,6 +1,5 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { LayoutStatus } from "@read-frog/layout-engine/contract"
-import type { SurfaceByFeature } from "@/types/analytics"
 import type { ThinkingSnapshot } from "@/types/background-stream"
 import type { SelectionToolbarCustomAction } from "@/types/config/selection-toolbar"
 import { IconAlertTriangle } from "@tabler/icons-react"
@@ -22,7 +21,6 @@ interface CustomActionContentProps {
   selectionContent: string | null | undefined
   value: Record<string, unknown> | null
   thinking: ThinkingSnapshot | null
-  speakSurface: SurfaceByFeature["text_to_speech"]
 }
 
 export function CustomActionContent({
@@ -33,7 +31,6 @@ export function CustomActionContent({
   selectionContent,
   value,
   thinking,
-  speakSurface,
 }: CustomActionContentProps) {
   // The selection content script always renders inside ThemeProvider; the
   // light fallback only covers harnesses that mount the popover without it.
@@ -68,7 +65,6 @@ export function CustomActionContent({
               targetCode={targetCode}
               status={status}
               theme={theme}
-              speakSurface={speakSurface}
               autoplay
               onRenderInfo={(info) => setLayoutFellBack(info.fellBack)}
             />

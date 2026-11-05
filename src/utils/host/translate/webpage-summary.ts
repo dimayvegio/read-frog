@@ -1,5 +1,4 @@
 import type { CachedWebPageContext } from "./webpage-context"
-import type { HostedAiTextStreamRoute } from "@/types/background-stream"
 import type { PromptableProviderRef } from "@/utils/providers/provider-ref"
 import { sendMessage } from "@/utils/message"
 
@@ -12,7 +11,7 @@ export async function getOrGenerateWebPageSummary(
   webPageContext: CachedWebPageContext | null,
   providerRef: PromptableProviderRef,
   enableAIContentAware: boolean,
-  hostedFeature: HostedAiTextStreamRoute,
+  _feature?: string,
 ): Promise<string | null> {
   if (!enableAIContentAware || !webPageContext) {
     return null
@@ -23,12 +22,15 @@ export async function getOrGenerateWebPageSummary(
     return null
   }
 
-  const summary = await sendMessage("getOrGenerateWebPageSummary", {
-    webTitle,
-    webContent,
-    providerRef,
-    hostedFeature,
-  })
-
-  return summary || null
+  try {
+    const summary = await sendMessage("getOrGenerateWebPageSummary", {
+      webTitle,
+      webContent,
+      providerRef,
+    })
+    return summary || null
+  } catch {
+    // Smart context is optional; retain the original page text when it is unavailable.
+    return null
+  }
 }

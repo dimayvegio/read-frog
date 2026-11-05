@@ -25,6 +25,7 @@ import {
   SELECTION_TOOLBAR_CUSTOM_ACTION_TOKENS,
 } from "@/utils/constants/custom-action"
 import { i18n, translateIn } from "@/utils/i18n"
+import { ACTION_ICON_IDS } from "@/utils/iconify/action-icons"
 import { langCodeOfLocale } from "@/utils/layout-host/labels"
 import { resolveActionLayout } from "@/utils/layout-host/resolve"
 
@@ -132,7 +133,6 @@ const UI_LABEL_KEYS = [
   `${TEMPLATES}.sentenceAnalysis.name`,
   `${TEMPLATES}.improveWriting.name`,
   "options.selectionToolbar.customActions.tabs.config",
-  "options.selectionToolbar.customActions.tabs.notebase",
   `${FORM}.name`,
   `${FORM}.icon`,
   `${FORM}.provider`,
@@ -189,16 +189,6 @@ function buildCurrentAction(
     })
     .join("\n")
 
-  const fieldNameById = new Map(action.outputSchema.map((field) => [field.id, field.name]))
-  const mappedFields = (action.notebaseConnection?.mappings ?? []).flatMap((mapping) => {
-    const name = fieldNameById.get(mapping.localFieldId)
-    return name === undefined ? [] : [`\`${name}\``]
-  })
-  const notebase =
-    mappedFields.length > 0
-      ? `\nThis action saves results to a Notebase, from these fields: ${mappedFields.join(", ")}. Deleting one of them, or changing its type, breaks that mapping and I'd have to map it again in the Notebase tab. Renaming is fine.`
-      : ""
-
   const others =
     otherActionNames.length > 0
       ? `My other custom actions are named ${quoteList(otherActionNames)}; a new name must differ from these.`
@@ -222,7 +212,7 @@ ${fields}
 
 **Layout**${layoutNote}:
 ${fence(layout, "html")}
-${notebase}
+
 ${others}
 `
 }
@@ -296,7 +286,7 @@ The editor has two tabs: Config (every setting below, in this order) and Notebas
 The tooltip of the action's button in the selection toolbar. Required, and unique among my custom actions.
 
 ### Icon
-An Iconify icon id, \`prefix:name\`, e.g. \`tabler:bulb\`, \`tabler:language\`, \`tabler:school\`. Any icon from https://icon-sets.iconify.design works; prefer the Tabler set (\`tabler:\`), and only suggest ids you're confident exist.
+Choose one of these bundled icons: ${ACTION_ICON_IDS.join(", ")}.
 
 ### Provider
 Which AI model runs the action: Read Frog's built-in AI, or one of the providers I've set up with my own API key. The model must support structured output. I pick it myself; if the task needs a strong model (careful reasoning, long JSON inside a string), tell me.

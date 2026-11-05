@@ -1,6 +1,6 @@
 import type Glossary from "@/utils/db/dexie/tables/glossary"
-import { Icon } from "@iconify/react"
 import { Link } from "react-router"
+import { Icon } from "@/components/local-icon"
 import { Switch } from "@/components/ui/base-ui/switch"
 import { i18n } from "@/utils/i18n"
 import { ConfigItem } from "../../../components/config-item"

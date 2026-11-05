@@ -1,11 +1,9 @@
 import type { LayoutSpeakOptions, SpeakAdapter, SpeakLabels } from "@read-frog/layout-engine/dom"
-import type { SurfaceByFeature } from "@/types/analytics"
 import type { TTSConfig } from "@/types/config/tts"
 import { speechLanguageFromTag } from "@read-frog/definitions"
 import { useAtomValue } from "jotai"
 import { useLayoutEffect, useMemo, useRef } from "react"
 import { selectTTSVoice, useTextToSpeech } from "@/hooks/use-text-to-speech"
-import { ANALYTICS_SURFACE } from "@/types/analytics"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { i18n } from "@/utils/i18n"
 
@@ -24,12 +22,9 @@ interface LatestTTS {
 
 // `autoplay` reads the trigger the layout marks `data-speak-autoplay` once the
 // layout is done. Where a layout is only previewed, it stays off.
-export function useExtensionSpeakAdapter(
-  surface: SurfaceByFeature["text_to_speech"] = ANALYTICS_SURFACE.SELECTION_TOOLBAR,
-  autoplay = false,
-): LayoutSpeakOptions {
+export function useExtensionSpeakAdapter(autoplay = false): LayoutSpeakOptions {
   const ttsConfig = useAtomValue(configFieldsAtomMap.tts)
-  const { play, stop, isPlaying } = useTextToSpeech(surface)
+  const { play, stop, isPlaying } = useTextToSpeech()
   const latestRef = useRef<LatestTTS>({ play, stop, ttsConfig })
   // The run waiting for its audio to start: a trigger shows "loading" until
   // useTextToSpeech reports the first chunk playing.

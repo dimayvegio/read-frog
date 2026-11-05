@@ -3,6 +3,7 @@ import type { ProviderConfig } from "@/types/config/provider"
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { describe, expect, it, vi } from "vitest"
 import { TooltipProvider } from "@/components/ui/base-ui/tooltip"
+import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 import { i18n } from "@/utils/i18n"
 import { SelectionToolbarFooterContent } from "../selection-toolbar-footer-content"
 
@@ -38,21 +39,7 @@ vi.mock("@/components/llm-providers/provider-selector", () => ({
 }))
 
 describe("selectionToolbarFooterContent", () => {
-  const providers: ProviderConfig[] = [
-    {
-      id: "google-translate-default",
-      name: "Google Translate",
-      enabled: true,
-      provider: "google-translate",
-    },
-    {
-      id: "deepl-default",
-      name: "DeepL",
-      enabled: true,
-      provider: "deepl",
-      apiKey: "test-key",
-    },
-  ]
+  const providers: ProviderConfig[] = [DEFAULT_OPENAI_CONFIG]
 
   it("renders the provider selector and forwards footer actions", async () => {
     const onProviderChange = vi.fn<(...args: any[]) => any>()
@@ -64,11 +51,11 @@ describe("selectionToolbarFooterContent", () => {
           paragraphsText="Context text"
           providers={providers}
           titleText="Page Title"
-          value="google-translate-default"
+          value="openai-default"
           onProviderChange={onProviderChange}
           onRegenerate={onRegenerate}
         >
-          <button type="button">Save to Notebase</button>
+          <button type="button">Extra action</button>
         </SelectionToolbarFooterContent>
       </TooltipProvider>,
     )
@@ -79,12 +66,12 @@ describe("selectionToolbarFooterContent", () => {
       await Promise.resolve()
     })
 
-    expect(onProviderChange).toHaveBeenCalledWith("deepl-default")
+    expect(onProviderChange).not.toHaveBeenCalled()
     expect(screen.getByText(i18n.t("action.contextDetailsTitleLabel"))).toBeInTheDocument()
     expect(screen.getByText(i18n.t("action.contextDetailsParagraphsLabel"))).toBeInTheDocument()
     expect(screen.getByText("Page Title")).toBeInTheDocument()
     expect(screen.getByText("Context text")).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: "Save to Notebase" })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "Extra action" })).toBeInTheDocument()
     const contextPreview = screen
       .getByText("Context text")
       .closest("[data-slot='selection-toolbar-footer-preview-value']")
@@ -107,7 +94,7 @@ describe("selectionToolbarFooterContent", () => {
           paragraphsText={null}
           providers={providers}
           titleText=""
-          value="google-translate-default"
+          value="openai-default"
           onProviderChange={vi.fn<(...args: any[]) => any>()}
           onRegenerate={vi.fn<(...args: any[]) => any>()}
         />

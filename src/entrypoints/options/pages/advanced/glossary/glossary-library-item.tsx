@@ -1,6 +1,6 @@
-import { Icon } from "@iconify/react"
 import { Fragment } from "react"
 import { useNavigate } from "react-router"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { MAX_GLOSSARIES, MAX_GLOSSARY_TERMS } from "@/utils/constants/glossary"

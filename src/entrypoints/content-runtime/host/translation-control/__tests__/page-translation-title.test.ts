@@ -134,18 +134,6 @@ describe("pageTranslationManager title handling", () => {
     mockSendMessage.mockResolvedValue(undefined)
   })
 
-  it("does not prime webpage context on start for non-llm translation", async () => {
-    mockTranslateTextForPageTitle.mockResolvedValue("Translated Title")
-
-    const manager = new PageTranslationManager()
-    await manager.start()
-    await flushDomUpdates()
-
-    expect(mockGetOrCreateWebPageContext).not.toHaveBeenCalled()
-
-    manager.stop()
-  })
-
   it("primes webpage context on start for AI-aware llm translation", async () => {
     mockGetLocalConfig.mockResolvedValue({
       ...DEFAULT_CONFIG,

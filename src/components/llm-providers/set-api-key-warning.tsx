@@ -1,25 +1,14 @@
 import type { ProviderConfig } from "@/types/config/provider"
+import { useQuery } from "@tanstack/react-query"
 import { Link, useInRouterContext } from "react-router"
-import { isAPIProviderConfig, isPureAPIProvider } from "@/types/config/provider"
 import { i18n } from "@/utils/i18n"
+import { sendMessage } from "@/utils/message"
 import { buildProviderConfigRoute, openOptionsPage } from "@/utils/navigation"
 
 const LINK_CLASS = "cursor-pointer text-link hover:underline"
 
 /** Stands in for the link while the sentence is translated, then marks where to split it. */
 const LINK_SLOT = "\u0000"
-
-/** Only providers that authenticate with a key of the user's own can be missing one. */
-function needsApiKeyWarning(
-  providerConfig: ProviderConfig | null,
-): providerConfig is ProviderConfig {
-  return (
-    !!providerConfig &&
-    isAPIProviderConfig(providerConfig) &&
-    !isPureAPIProvider(providerConfig.provider) &&
-    !providerConfig.apiKey
-  )
-}
 
 /**
  * Renders next to a feature's label when the provider it runs on has no key yet, and nothing
@@ -32,7 +21,13 @@ function needsApiKeyWarning(
 export function SetApiKeyWarning({ providerConfig }: { providerConfig: ProviderConfig | null }) {
   const inRouterContext = useInRouterContext()
 
-  if (!needsApiKeyWarning(providerConfig)) {
+  const status = useQuery({
+    queryKey: ["openai-key-status"],
+    queryFn: () => sendMessage("getOpenAIKeyStatus", undefined),
+    retry: false,
+  })
+
+  if (!providerConfig || !status.data || status.data.configured) {
     return null
   }
 

@@ -1,6 +1,5 @@
 import type { BackgroundGenerateTextPayload } from "@/types/background-generate-text"
-import type { ProviderRequestRouting } from "@/types/hosted-request"
-import type { PromptableProviderRef } from "@/utils/providers/provider-ref"
+import type { ProviderRequestRouting } from "@/types/provider-request"
 import { logger } from "@/utils/logger"
 import { getArticleSummaryPrompt } from "@/utils/prompts/summary"
 import { MAX_TEXT_LENGTH } from "./utils"
@@ -20,7 +19,7 @@ const MAX_TITLE_LENGTH = 200
 export async function generateArticleSummary(
   title: string,
   textContent: string,
-  routing: ProviderRequestRouting<PromptableProviderRef>,
+  routing: ProviderRequestRouting,
   options: {
     signal?: AbortSignal
     generate: (
@@ -41,19 +40,15 @@ export async function generateArticleSummary(
       preparedText,
     )
 
-    const payload: BackgroundGenerateTextPayload =
-      routing.hostedFeature === undefined
-        ? { providerRef: routing.providerRef, instructions: systemPrompt, prompt }
-        : {
-            providerRef: routing.providerRef,
-            hostedFeature: routing.hostedFeature,
-            instructions: systemPrompt,
-            prompt,
-          }
+    const payload: BackgroundGenerateTextPayload = {
+      providerRef: routing.providerRef,
+      instructions: systemPrompt,
+      prompt,
+    }
     const summary = await options.generate(payload, { signal: options.signal })
 
     const cleanedSummary = summary.trim()
-    logger.info("Generated article summary:", `${cleanedSummary.slice(0, 100)}...`)
+    logger.info("Generated article summary")
 
     return cleanedSummary
   } catch (error) {

@@ -1,6 +1,7 @@
 import type { ContentRuntime, ContentRuntimePart } from "./parts"
 import type { Config } from "@/types/config/config"
 import { browser } from "#imports"
+import { awaitConfigReady } from "@/utils/config/readiness"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config-storage-key"
 import { getEffectiveSiteControlUrl, isSiteEnabled } from "@/utils/site-control"
 import { shouldSkipDocument } from "./page-guards"
@@ -28,6 +29,7 @@ async function isSiteEnabledByStoredConfig() {
  */
 export async function runContentLoader(parts: readonly ContentRuntimePart[]) {
   if (parts.length === 0 || shouldSkipDocument(document)) return
+  await awaitConfigReady()
   if (!(await isSiteEnabledByStoredConfig())) return
 
   const runtimeModule = await import(

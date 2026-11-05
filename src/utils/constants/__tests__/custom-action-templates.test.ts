@@ -1,10 +1,11 @@
 import { readFile } from "node:fs/promises"
-import { HostedAiStreamStructuredObjectInputSchema } from "@read-frog/api-contract"
 import { compileLayout } from "@read-frog/layout-engine/core"
 import { lintLayout } from "@read-frog/layout-engine/editor"
 import { DEFAULT_LAYOUT } from "@read-frog/layout-engine/presets"
 import { describe, expect, it } from "vitest"
+import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 import { selectionToolbarCustomActionsSchema } from "@/types/config/selection-toolbar"
+import { openAIStructuredPayloadSchema } from "@/types/openai-execution"
 import {
   buildSelectionToolbarCustomActionSystemPrompt,
   replaceSelectionToolbarCustomActionPromptTokens,
@@ -29,7 +30,10 @@ function createFromTemplate(id: string) {
 // A locale's `blank.prompt` block, its indentation removed. i18n is mocked in
 // tests, so the text is read from the locale file.
 async function readBlankPrompt(locale: string): Promise<string | undefined> {
-  const text = await readFile(new URL(`../../../locales/${locale}.yml`, import.meta.url), "utf8")
+  const text = await readFile(
+    new URL(`../../../locales/${locale}.yml`, import.meta.url),
+    "utf8",
+  ).then((localeText) => localeText.replaceAll("\r\n", "\n"))
   const block = /^ {8}blank:\n(?: {10}.*\n)*? {10}prompt: \|-\n((?: {12}.*\n)+)/m.exec(text)?.[1]
   return block?.replace(/^ {12}/gm, "").trimEnd()
 }
@@ -37,7 +41,10 @@ async function readBlankPrompt(locale: string): Promise<string | undefined> {
 // A locale's dictionary preset as text: the system prompt (indentation
 // removed) and the Memory Tips field's name.
 async function readDictionaryMemoryTips(locale: string) {
-  const text = await readFile(new URL(`../../../locales/${locale}.yml`, import.meta.url), "utf8")
+  const text = await readFile(
+    new URL(`../../../locales/${locale}.yml`, import.meta.url),
+    "utf8",
+  ).then((localeText) => localeText.replaceAll("\r\n", "\n"))
   const block = /^ {8}dictionary:\n((?: {10}.*\n|\n)+)/m.exec(text)?.[1] ?? ""
   const systemPrompt = /^ {10}systemPrompt: \|-\n((?: {12}.*\n|\n)+)/m
     .exec(block)?.[1]
@@ -84,7 +91,10 @@ describe("blank custom action template prompt", () => {
       webContent: "",
     }
 
-    const input = HostedAiStreamStructuredObjectInputSchema.safeParse({
+    const input = openAIStructuredPayloadSchema.safeParse({
+      providerKind: "local",
+      providerId: "openai-default",
+      providerConfig: DEFAULT_OPENAI_CONFIG,
       instructions: buildSelectionToolbarCustomActionSystemPrompt(
         action.systemPrompt,
         tokens,
@@ -117,7 +127,7 @@ describe("custom action template layouts", () => {
   it("gives the improve writing preset its card, built for its stable fields", () => {
     const action = createFromTemplate("improve-writing")
 
-    expect(action.icon).toBe("streamline-color:ai-edit-spark-flat")
+    expect(action.icon).toBe("tabler:sparkles")
     expect(action.outputSchema.map((field) => [field.id, field.type])).toEqual([
       ["improve-writing-original", "string"],
       ["improve-writing-setting", "string"],
@@ -160,7 +170,7 @@ describe("custom action template layouts", () => {
   it("gives the sentence analysis preset its card, built for its stable fields", () => {
     const action = createFromTemplate("sentence-analysis")
 
-    expect(action.icon).toBe("streamline-color:search-visual-flat")
+    expect(action.icon).toBe("tabler:search")
     expect(action.outputSchema.map((field) => [field.id, field.type])).toEqual([
       ["sentence-analysis-sentence", "string"],
       ["sentence-analysis-annotations", "string"],
@@ -206,7 +216,7 @@ describe("custom action template layouts", () => {
       const builtIn = createBuiltIn()
 
       expect(builtIn.id).toBe(actionId)
-      expect(builtIn.providerId).toBe("read-frog-free-ai")
+      expect(builtIn.providerId).toBe("openai-default")
       expect(builtIn.systemPrompt).toBe(preset.systemPrompt)
       expect(builtIn.outputSchema.map((field) => field.id)).toEqual(
         preset.outputSchema.map((field) => `default-${field.id}`),
