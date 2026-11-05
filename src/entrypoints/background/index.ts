@@ -24,6 +24,7 @@ import { setupEdgeTTSMessageHandlers } from "./edge-tts"
 import { setupGlossaryMessageHandlers } from "./glossary"
 import { setupIframeInjection } from "./iframe-injection"
 import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
+import { setupNativeSelectionHandlers } from "./native-selection"
 import { setupOpenAISettingsHandlers } from "./openai-settings"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { setupSidePanelMessageHandler } from "./side-panel"
@@ -69,6 +70,7 @@ export default defineBackground({
     translationMessage()
     registerActionIconListeners()
     registerContextMenuListeners()
+    setupNativeSelectionHandlers()
     setupPageTranslationHandlers()
     setupSubtitlesTranslationHandlers()
     setupVideoSummaryHandlers()

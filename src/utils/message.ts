@@ -16,6 +16,7 @@ import type {
   EdgeTTSSynthesizeRequest,
   EdgeTTSSynthesizeWireResponse,
 } from "@/types/edge-tts"
+import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { ProviderRequestRouting } from "@/types/provider-request"
 import type {
   TTSPlaybackStartRequest,
@@ -82,6 +83,7 @@ interface ProtocolMap {
   // ask host to start page translation
   askManagerToTogglePageTranslation: (data: { enabled: boolean }) => void
   openSelectionTranslationFromContextMenu: (data: { selectionText: string }) => void
+  getNativeSelection: (data: { sourceTabId: number }) => NativeSelectionRequest | null
   openSelectionCustomActionFromContextMenu: (data: {
     actionId: string
     selectionText: string

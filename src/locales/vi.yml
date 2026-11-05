@@ -1958,3 +1958,17 @@ languages:
   wls: Tiếng Wallis
   rar: Tiếng Rarotongan
   hif: Tiếng Hindi Fiji
+
+selectionResult:
+  title: Dịch đoạn được chọn
+  targetLanguage: Dịch sang
+  source: Văn bản đã chọn
+  translation: Bản dịch
+  stop: Dừng dịch
+  retry: Dịch lại
+  settings: Cài đặt OpenAI
+  translating: Đang dịch
+  failed: Không thể dịch. Hãy kiểm tra cài đặt OpenAI rồi thử lại.
+  tooLong: Hãy chọn đoạn ngắn hơn (tối đa $1 ký tự).
+  empty: Vùng chọn đã hết hạn. Hãy bôi đen văn bản trong PDF rồi chọn Read Frog → Translate lần nữa.
+  hint: Để dịch đoạn khác, bôi đen trong PDF, bấm chuột phải rồi chọn Read Frog → Translate. Chỉ văn bản đã chọn được gửi đi dịch.

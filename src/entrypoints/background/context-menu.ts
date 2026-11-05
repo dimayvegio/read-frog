@@ -9,8 +9,10 @@ import {
 } from "@/utils/constants/storage-keys"
 import { getSelectionToolbarActions } from "@/utils/custom-actions"
 import { i18n } from "@/utils/i18n"
+import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
+import { openNativeSelectionResult } from "./native-selection"
 import { getPageTranslationEnabled, setPageTranslationEnabled } from "./page-translation-state"
 
 export const MENU_ID_TRANSLATE = "read-frog-translate"
@@ -239,13 +241,17 @@ async function handleSelectionTranslateClick(
 
   const target = typeof info.frameId === "number" ? { tabId, frameId: info.frameId } : tabId
 
-  void sendMessage(
-    "openSelectionTranslationFromContextMenu",
-    {
-      selectionText,
-    },
-    target,
-  )
+  try {
+    await sendMessage("openSelectionTranslationFromContextMenu", { selectionText }, target)
+  } catch {
+    // Native PDF readers and other protected documents cannot host our content
+    // UI. The browser still supplies selectionText through its trusted menu.
+    try {
+      await openNativeSelectionResult(selectionText, tabId)
+    } catch {
+      logger.warn("Unable to open the selection translation window")
+    }
+  }
 }
 
 async function handleSelectionReadAloudClick(

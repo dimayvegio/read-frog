@@ -13,10 +13,13 @@ import {
 
 // vi.mock factories run during the static imports above, before this module's
 // own top-level code, so the mocks they return must be hoisted with them.
-const { sendMessageMock, ensureInitializedConfigMock } = vi.hoisted(() => ({
-  sendMessageMock: vi.fn<(...args: any[]) => any>(),
-  ensureInitializedConfigMock: vi.fn<(...args: any[]) => any>(),
-}))
+const { sendMessageMock, ensureInitializedConfigMock, openNativeSelectionMock } = vi.hoisted(
+  () => ({
+    sendMessageMock: vi.fn<(...args: any[]) => any>(),
+    ensureInitializedConfigMock: vi.fn<(...args: any[]) => any>(),
+    openNativeSelectionMock: vi.fn<(...args: any[]) => any>(),
+  }),
+)
 const storageSetItemMock = vi.fn<(...args: any[]) => any>()
 const contextMenuClickListeners: Array<(info: any, tab?: any) => Promise<void> | void> = []
 
@@ -27,6 +30,8 @@ vi.mock("@/utils/message", () => ({
 vi.mock("../config", () => ({
   ensureInitializedConfig: ensureInitializedConfigMock,
 }))
+
+vi.mock("../native-selection", () => ({ openNativeSelectionResult: openNativeSelectionMock }))
 
 function createConfig(enabled: boolean): Config {
   return {
@@ -53,6 +58,8 @@ describe("background context menu", () => {
   beforeEach(() => {
     contextMenuClickListeners.length = 0
     vi.clearAllMocks()
+    sendMessageMock.mockReset()
+    openNativeSelectionMock.mockReset().mockResolvedValue(undefined)
 
     browser.contextMenus.create = vi.fn<(...args: any[]) => any>()
     browser.contextMenus.removeAll = vi.fn<(...args: any[]) => any>().mockResolvedValue(undefined)
@@ -218,6 +225,54 @@ describe("background context menu", () => {
       { selectionText: "Selected text" },
       { tabId: 5, frameId: 7 },
     )
+  })
+
+  it("opens an extension result when the native PDF has no content receiver", async () => {
+    sendMessageMock.mockRejectedValueOnce(
+      new Error("Could not establish connection. Receiving end does not exist."),
+    )
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!(
+      {
+        menuItemId: MENU_ID_SELECTION_TRANSLATE,
+        selectionText: "  Only this PDF paragraph  ",
+        frameId: 3,
+      },
+      { id: 8, url: "file:///private/document.pdf" },
+    )
+    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("Only this PDF paragraph", 8)
+  })
+
+  it("keeps ordinary selection translation in the existing in-page UI", async () => {
+    sendMessageMock.mockResolvedValueOnce(undefined)
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!(
+      { menuItemId: MENU_ID_SELECTION_TRANSLATE, selectionText: "HTML selection" },
+      { id: 8 },
+    )
+    expect(openNativeSelectionMock).not.toHaveBeenCalled()
+  })
+
+  it("ignores empty selections without opening a result or making a request", async () => {
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!(
+      { menuItemId: MENU_ID_SELECTION_TRANSLATE, selectionText: " \n " },
+      { id: 8 },
+    )
+    expect(openNativeSelectionMock).not.toHaveBeenCalled()
+    expect(sendMessageMock).not.toHaveBeenCalled()
+  })
+
+  it("handles a result-window failure without an unhandled rejection", async () => {
+    sendMessageMock.mockRejectedValueOnce(new Error("No receiver"))
+    openNativeSelectionMock.mockRejectedValueOnce(new Error("Window unavailable"))
+    registerContextMenuListeners()
+    await expect(
+      contextMenuClickListeners[0]!(
+        { menuItemId: MENU_ID_SELECTION_TRANSLATE, selectionText: "PDF selection" },
+        { id: 8 },
+      ),
+    ).resolves.toBeUndefined()
   })
 
   it("routes read aloud menu clicks to the matching tab and frame", async () => {

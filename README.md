@@ -15,8 +15,24 @@ YouTube dùng lại engine và giao diện phụ đề nguyên bản: tải trac
 dịch trước theo cửa sổ look-ahead, batch/cache, sidebar transcript, xuất SRT và đầy đủ
 thiết lập hiển thị/style. Phần dịch và phân tích vẫn qua OpenAI hiện tại. Nút Read Frog
 có trên watch, embed và Shorts như bản gốc; video cần có track phụ đề. Tạo phụ đề bằng
-dịch vụ hosted của Read Frog không được khôi phục. PDF local và ani.pm thuộc
-roadmap sau, chưa được triển khai ở bản refactor nền.
+dịch vụ hosted của Read Frog không được khôi phục. ani.pm và trình đọc PDF riêng
+thuộc roadmap sau.
+
+## Dịch đoạn bôi đen trong PDF trên Edge
+
+Bôi đen văn bản trong trình đọc PDF của Edge, bấm chuột phải và chọn
+Read Frog → Translate. Khi tài liệu không có content-script receiver, extension
+mở cửa sổ kết quả, dùng lại giao diện dịch bôi đen trên web: chọn ngôn ngữ,
+streaming, copy, đọc thành tiếng, xem vùng chọn và dịch lại. Chọn đoạn khác trong
+cùng tab sẽ cập nhật cửa sổ đó; yêu cầu dịch cũ bị hủy.
+
+Chỉ đoạn được chọn đi qua runtime OpenAI hiện có. Extension không tải lại hoặc
+upload file PDF, không cần can thiệp vào canvas/text layer của trình đọc. Áp dụng
+glossary chung; không áp dụng glossary theo website cho PDF. Vùng chọn tối đa
+20.000 ký tự, lưu tạm trong storage.session, tách khỏi config/export. Dữ liệu được
+xóa khi đóng cửa sổ kết quả hoặc tab nguồn; vùng chọn quá 30 phút không được dùng
+lại và được dọn khi có yêu cầu tiếp theo. PDF scan không có text chưa được hỗ trợ
+OCR.
 
 ## Chạy và đóng gói
 
