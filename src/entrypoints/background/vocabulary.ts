@@ -3,6 +3,7 @@ import { generateText, Output } from "ai"
 import { browser } from "#imports"
 import { safeOpenAIErrorMessage } from "@/utils/error/openai"
 import { onMessage } from "@/utils/message"
+import { compressVocabularyAudio } from "@/utils/vocabulary/audio"
 import {
   findCapturedVocabulary,
   getNotebookCard,
@@ -100,7 +101,12 @@ export async function saveVocabulary(
       )
       const bytes = Uint8Array.from(atob(audioResult.audioBase64), (c) => c.charCodeAt(0))
       if (bytes.length > MAX_AUDIO_BYTES) throw new Error("Audio exceeded the vocabulary limit")
-      audio.push({ id: await sha256(bytes), bytes, contentType: "audio/wav" })
+      audio.push(
+        await compressVocabularyAudio(
+          { id: await sha256(bytes), bytes, contentType: "audio/wav" },
+          signal,
+        ),
+      )
     }
     signal.throwIfAborted()
     const now = Date.now()

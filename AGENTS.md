@@ -7,6 +7,7 @@
 - Preserve the ani.pm subtitle adapter and its passive player/iframe constraints documented in [ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md).
 - Preserve restored X/Twitter and Netflix native captions, the Netflix MAIN-world bridge and track restoration documented in [X_NETFLIX_SUBTITLES.md](X_NETFLIX_SUBTITLES.md), without reintroducing hosted services.
 - Preserve named vocabulary notebooks, the frozen IndexedDB v1-to-v2 migration, ZIP v1/v2 compatibility and the standalone mobile review page documented in [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md). Each notebook keeps its own content/progress and export; vocabulary audio generation has independent cancellation from TTS playback.
+- Preserve portable ZIP v3 MP3/WAV compression, legacy ZIP v1/v2 readers, and the self-contained HTML working on file URLs and HTTP(S). Compression must not change card/notebook identity, review histories or the independent TTS playback path. Published migrations remain frozen.
 - Mark upstream-based local releases with the `A` suffix in `manifest.version_name` (for example `1.58.0A`), while keeping package and manifest numeric versions valid.
 - Published fork migrations are frozen; upstream migration numbers may conflict and must be adapted as a new fork schema step.
 

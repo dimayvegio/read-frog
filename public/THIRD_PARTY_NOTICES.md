@@ -37,3 +37,14 @@ All icons and fonts used by the extension are bundled locally.
 Temml 0.14.0, Copyright (c) 2020 Ron Kok, is used under the MIT license
 (the permission grant, conditions, and warranty disclaimer reproduced above).
 Formula rendering uses the system's math font without fetching remote fonts.
+
+Vocabulary MP3 compression uses the unmodified `@breezystack/lamejs` 1.2.7,
+a JavaScript port of LAME, under LGPL-3.0 (LAME project / Alex Zhukov).
+Source and build instructions: https://github.com/gideonstele/lamejs
+Pinned package source: https://registry.npmjs.org/@breezystack/lamejs/-/lamejs-1.2.7.tgz
+LAME project: https://lame.sourceforge.io/
+LGPL-3.0 text: https://www.gnu.org/licenses/lgpl-3.0.html
+The application remains GPL-3.0; its source, lockfile and build scripts allow
+rebuilding the HTML/extension with a replacement encoder. No encoder is loaded
+from a CDN at runtime. The standalone HTML includes these notices and the
+package's license notice.

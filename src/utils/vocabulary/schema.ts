@@ -65,7 +65,7 @@ export type VocabularyCard = z.infer<typeof cardSchema>
 export interface AudioAsset {
   id: string
   bytes: Uint8Array
-  contentType: "audio/wav"
+  contentType: "audio/wav" | "audio/mpeg"
 }
 
 const stateSchema = z.strictObject({

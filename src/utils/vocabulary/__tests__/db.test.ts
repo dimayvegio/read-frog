@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { createVocabularyZip, readVocabularyZip } from "../archive"
 import {
   vocabularyDB,
   importLibrary,
@@ -23,6 +24,25 @@ beforeEach(async () => {
   for (const table of vocabularyDB.tables) await table.clear()
 })
 describe("vocabulary persistence", () => {
+  it("persists a compressed v3 notebook and restores all histories in a fresh library", async () => {
+    await importLibrary(await vocabularyFixture())
+    const before = await exportLibrary(),
+      notebookId = before.notebook!.id,
+      cardId = before.cards[0]!.id
+    await reviewCard(cardId, "flash", "easy", notebookId)
+    await reviewCard(cardId, "choice", "good", notebookId)
+    await reviewCard(cardId, "type", "again", notebookId)
+    const original = await exportLibrary(notebookId),
+      compressed = await readVocabularyZip(await createVocabularyZip(original))
+    for (const table of vocabularyDB.tables) await table.clear()
+    await importLibrary(compressed)
+    const restored = await exportLibrary(notebookId)
+    expect(restored).toEqual(compressed)
+    expect(restored.audio.every((asset) => asset.contentType === "audio/mpeg")).toBe(true)
+    expect(restored.progress).toEqual(original.progress)
+    expect(restored.cards[0]!.id).toBe(cardId)
+    expect(restored.notebook).toEqual(original.notebook)
+  })
   it("cannot create orphan progress after a word was deleted in another window", async () => {
     const bundle = await vocabularyFixture()
     await importLibrary(bundle)

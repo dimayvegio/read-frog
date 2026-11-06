@@ -1,6 +1,11 @@
 import JSZip from "jszip"
 import { describe, expect, it, vi } from "vitest"
-import { createVocabularyZip, readVocabularyZip, inspectZip } from "../archive"
+import {
+  createVocabularyZip as createCompressedVocabularyZip,
+  readVocabularyZip,
+  inspectZip,
+} from "../archive"
+import { compressVocabularyBundle, isMp3 } from "../audio"
 import {
   normalizeAnswer,
   safeSourceUrl,
@@ -9,9 +14,67 @@ import {
   mergeProgress,
   sha256,
 } from "../schema"
-import { vocabularyFixture } from "./fixtures"
+import { vocabularyFixture, legacyVocabularyZip as createVocabularyZip } from "./fixtures"
 
 describe("portable vocabulary archive", () => {
+  it("exports smaller v3 MP3 archives without changing the original cards, notebook or histories", async () => {
+    const original = await vocabularyFixture(),
+      snapshot = structuredClone(original)
+    original.notebook = {
+      id: "5a4f50d2-4765-4317-bfa2-61448a31045e",
+      name: "Tiếng Anh",
+      createdAt: 1,
+      updatedAt: 2,
+    }
+    const bytes = await createCompressedVocabularyZip(original),
+      result = await readVocabularyZip(bytes)
+    expect(result).toEqual(await compressVocabularyBundle(original))
+    expect(result.notebook).toEqual(original.notebook)
+    expect(result.cards[0]!.id).toBe(original.cards[0]!.id)
+    expect(result.cards[0]!.updatedAt).toBe(original.cards[0]!.updatedAt)
+    expect(result.progress).toEqual(original.progress)
+    expect(original.cards).toEqual(snapshot.cards)
+    expect(original.audio).toEqual(snapshot.audio)
+    expect(
+      result.audio.every((asset) => asset.contentType === "audio/mpeg" && isMp3(asset.bytes)),
+    ).toBe(true)
+    expect(bytes.length).toBeLessThan((await createVocabularyZip(original)).length)
+    const zip = await JSZip.loadAsync(bytes)
+    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(3)
+    // Re-exporting an imported MP3 does not compound lossy compression.
+    expect((await readVocabularyZip(await createCompressedVocabularyZip(result))).audio).toEqual(
+      result.audio,
+    )
+  })
+  it("rejects truncated, wrong-hash MP3, duplicate formats and MP3 hidden in a legacy version", async () => {
+    const source = await createCompressedVocabularyZip(await vocabularyFixture()),
+      zip = await JSZip.loadAsync(source)
+    const name = Object.keys(zip.files).find((entryName) => entryName.endsWith(".mp3"))!,
+      good = await zip.file(name)!.async("uint8array")
+    zip.file(name, good.subarray(0, good.length - 1), { createFolders: false })
+    await expect(
+      readVocabularyZip(await zip.generateAsync({ type: "uint8array" })),
+    ).rejects.toThrow("Audio")
+    zip.file(name, good, { createFolders: false })
+    const altered = new Uint8Array(good)
+    altered[10] = altered[10]! ^ 1
+    zip.file(name, altered, { createFolders: false })
+    await expect(
+      readVocabularyZip(await zip.generateAsync({ type: "uint8array" })),
+    ).rejects.toThrow("Audio")
+    zip.file(name, good, { createFolders: false })
+    zip.file(name.replace(".mp3", ".wav"), good, { createFolders: false })
+    await expect(
+      readVocabularyZip(await zip.generateAsync({ type: "uint8array" })),
+    ).rejects.toThrow("Số file")
+    zip.remove(name.replace(".mp3", ".wav"))
+    const manifest = JSON.parse(await zip.file("manifest.json")!.async("string"))
+    manifest.version = 1
+    zip.file("manifest.json", JSON.stringify(manifest))
+    await expect(
+      readVocabularyZip(await zip.generateAsync({ type: "uint8array" })),
+    ).rejects.toThrow("v1/v2")
+  })
   it("round trips content, original Vietnamese accents, real WAV bytes and all three schedules", async () => {
     const bundle = await vocabularyFixture()
     bundle.progress[0]!.type = scheduleReview(bundle.progress[0]!.type, "good", 2000)

@@ -26,6 +26,9 @@ const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta n
 const notices = await Promise.all(
   [
     "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "node_modules/@breezystack/lamejs/LICENSE",
+    "public/licenses/lamejs-LGPL-3.0.txt",
     "node_modules/jszip/LICENSE.markdown",
     "node_modules/dexie/LICENSE",
     "node_modules/dexie/NOTICE",

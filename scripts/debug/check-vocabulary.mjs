@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
+import { createHash } from "node:crypto"
 import fs from "node:fs/promises"
+import { createServer } from "node:http"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import JSZip from "jszip"
@@ -47,7 +49,7 @@ const wait = async (fn) => {
   }
   throw new Error("Timed out waiting for fixture state")
 }
-let page
+let page, reviewServer
 try {
   const id = await browser.installExtension(path.resolve(".output/edge-mv3"))
   const worker = await (
@@ -58,8 +60,8 @@ try {
   const options = await browser.newPage()
   await options.goto(`chrome-extension://${id}/options.html#/api-providers`)
   await options.waitForSelector("#openai-key")
-  const wav = new Uint8Array(24044),
-    view = new DataView(wav.buffer)
+  let wav = new Uint8Array(24044)
+  const view = new DataView(wav.buffer)
   const ascii = (offset, text) => {
     for (let i = 0; i < text.length; i++) wav[offset + i] = text.charCodeAt(i)
   }
@@ -78,6 +80,11 @@ try {
   view.setUint32(40, wav.length - 44, true)
   for (let i = 44; i < wav.length; i += 2)
     view.setInt16(i, Math.round(Math.sin(i / 12) * 1000), true)
+  if (process.env.VOCAB_WAV_FIXTURE)
+    wav = new Uint8Array(await fs.readFile(process.env.VOCAB_WAV_FIXTURE))
+  evidence.fixtureAudio = process.env.VOCAB_WAV_FIXTURE
+    ? "local system speech fixture, not OpenAI"
+    : "synthetic tone"
   await worker.evaluate(
     async (samples) => {
       const { config } = await chrome.storage.local.get("config")
@@ -402,19 +409,58 @@ try {
   const bundleBytes = await fs.readFile(path.join(scratch, zipFile)),
     zip = await JSZip.loadAsync(bundleBytes)
   const cards = JSON.parse(await zip.file("vocabulary.json").async("string"))
-  const legacyArchive = await JSZip.loadAsync(bundleBytes)
-  const legacyManifest = JSON.parse(await legacyArchive.file("manifest.json").async("string"))
+  const legacyArchive = new JSZip()
+  const legacyManifest = JSON.parse(await zip.file("manifest.json").async("string"))
+  const notebookMetadata = legacyManifest.notebook
   delete legacyManifest.notebook
   legacyManifest.version = 1
   legacyManifest.title = "Từ vựng của tôi"
   legacyArchive.file("manifest.json", JSON.stringify(legacyManifest))
+  const legacyCards = structuredClone(cards),
+    wavHash = createHash("sha256").update(wav).digest("hex")
+  for (const card of legacyCards) card.audio = { word: wavHash, example: wavHash }
+  legacyArchive.file("vocabulary.json", JSON.stringify(legacyCards))
+  legacyArchive.file("progress.json", await zip.file("progress.json").async("string"))
+  legacyArchive.file(`audio/${wavHash}.wav`, wav, { createFolders: false })
   const legacyPath = path.join(scratch, "legacy-v1.zip")
   await fs.writeFile(legacyPath, await legacyArchive.generateAsync({ type: "nodebuffer" }))
+  legacyArchive.file(
+    "manifest.json",
+    JSON.stringify({
+      ...legacyManifest,
+      version: 2,
+      notebook: notebookMetadata,
+      title: notebookMetadata.name,
+    }),
+  )
+  const legacyV2Path = path.join(scratch, "legacy-v2.zip"),
+    legacyV2Bytes = await legacyArchive.generateAsync({
+      type: "nodebuffer",
+      compression: "DEFLATE",
+      compressionOptions: { level: 3 },
+    })
+  await fs.writeFile(legacyV2Path, legacyV2Bytes)
   check(
-    "ZIP carries a named notebook v2 plus WAV assets and no API credential",
-    JSON.parse(await zip.file("manifest.json").async("string")).version === 2 &&
-      Object.keys(zip.files).filter((n) => n.endsWith(".wav")).length >= 1 &&
+    "ZIP carries a named notebook v3 plus compressed MP3 assets and no API credential",
+    JSON.parse(await zip.file("manifest.json").async("string")).version === 3 &&
+      Object.keys(zip.files).filter((n) => n.endsWith(".mp3")).length >= 1 &&
       !(await zip.file("vocabulary.json").async("string")).includes("vocabulary-test-sentinel"),
+  )
+  evidence.compression = {
+    sourceAudioBytes: wav.length,
+    exportedAudioBytes: (
+      await Promise.all(
+        Object.keys(zip.files)
+          .filter((name) => name.startsWith("audio/"))
+          .map((name) => zip.file(name).async("nodebuffer")),
+      )
+    ).reduce((size, bytes) => size + bytes.length, 0),
+    legacyZipBytes: legacyV2Bytes.length,
+    optimizedZipBytes: bundleBytes.length,
+  }
+  check(
+    "Compressed notebook ZIP is smaller than the legacy WAV ZIP for the same fixture",
+    bundleBytes.length < legacyV2Bytes.length,
   )
   const standaloneContext = await browser.createBrowserContext()
   const standalone = await standaloneContext.newPage()
@@ -878,6 +924,125 @@ try {
   } finally {
     await persistentBrowser?.close()
   }
+  // Serve exactly the downloaded HTML, without an application backend/CDN.
+  // Disable SubtleCrypto as on an insecure HTTP origin; portable hashes remain.
+  const hostedHtml = await fs.readFile(standalonePath)
+  reviewServer = createServer((req, res) => {
+    if (req.url === "/favicon.ico") {
+      res.writeHead(204)
+      res.end()
+      return
+    }
+    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" })
+    res.end(hostedHtml)
+  })
+  await new Promise((resolve) => reviewServer.listen(0, "127.0.0.1", resolve))
+  const hostedContext = await browser.createBrowserContext(),
+    hosted = await hostedContext.newPage(),
+    hostedRequests = [],
+    hostedErrors = []
+  await hosted.evaluateOnNewDocument(() => {
+    Object.defineProperty(crypto, "subtle", { value: undefined })
+    const NativeAudio = window.Audio
+    window.__vocabAudio = []
+    window.Audio = function (...args) {
+      const audio = new NativeAudio(...args)
+      window.__vocabAudio.push(audio)
+      return audio
+    }
+    window.Audio.prototype = NativeAudio.prototype
+  })
+  hosted.on("pageerror", (error) => hostedErrors.push(error.message))
+  await hosted.goto(`http://127.0.0.1:${reviewServer.address().port}/review.html`)
+  await hosted.waitForSelector("#import-file")
+  hosted.on("request", (req) => {
+    if (/^https?:/.test(req.url()) && !req.url().endsWith("/favicon.ico"))
+      hostedRequests.push(req.url())
+  })
+  await hosted.setOfflineMode(true)
+  await (await hosted.$("#import-file")).uploadFile(legacyV2Path)
+  await hosted.waitForSelector(".word")
+  check(
+    "HTTP-hosted HTML imports ZIP v2 offline with no SubtleCrypto",
+    await hosted.evaluate(
+      () => !crypto.subtle && document.querySelector(".word").textContent === "reverse",
+    ),
+  )
+  const hostedDir = path.join(scratch, "hosted-export")
+  await fs.mkdir(hostedDir, { recursive: true })
+  const hostedSession = await hosted.createCDPSession()
+  await hostedSession.send("Page.setDownloadBehavior", {
+    behavior: "allow",
+    downloadPath: hostedDir,
+  })
+  await hosted.click('[data-action="export"]')
+  const hostedFile = await wait(async () =>
+    (await fs.readdir(hostedDir)).find((name) => name.endsWith(".zip")),
+  )
+  const hostedZip = await JSZip.loadAsync(await fs.readFile(path.join(hostedDir, hostedFile)))
+  check(
+    "Hosted HTML transcodes legacy WAV to MP3 ZIP v3 using only bundled JavaScript",
+    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 3 &&
+      Object.keys(hostedZip.files).some((name) => name.endsWith(".mp3")),
+  )
+  check(
+    "Hosted export preserves notebook identity and all three schedules",
+    JSON.stringify(JSON.parse(await hostedZip.file("manifest.json").async("string")).notebook) ===
+      JSON.stringify(notebookMetadata) &&
+      (await hostedZip.file("progress.json").async("string")) ===
+        (await zip.file("progress.json").async("string")),
+  )
+  for (const name of Object.keys(hostedZip.files).filter((entryName) => entryName.endsWith(".mp3")))
+    assert.equal(
+      createHash("sha256")
+        .update(await hostedZip.file(name).async("nodebuffer"))
+        .digest("hex"),
+      path.basename(name, ".mp3"),
+    )
+  check(
+    "Hosted export uses content-addressed MP3 assets with valid SHA-256",
+    Object.keys(hostedZip.files).some((name) => name.endsWith(".mp3")),
+  )
+  // A fresh hosted origin context imports the new ZIP, so playback is MP3.
+  await hostedContext.close()
+  const mp3Context = await browser.createBrowserContext(),
+    hostedMp3 = await mp3Context.newPage()
+  await hostedMp3.evaluateOnNewDocument(() => {
+    const NativeAudio = window.Audio
+    window.__vocabAudio = []
+    window.Audio = function (...args) {
+      const audio = new NativeAudio(...args)
+      window.__vocabAudio.push(audio)
+      return audio
+    }
+    window.Audio.prototype = NativeAudio.prototype
+  })
+  hostedMp3.on("pageerror", (error) => hostedErrors.push(error.message))
+  await hostedMp3.goto(`http://127.0.0.1:${reviewServer.address().port}/review.html`)
+  await hostedMp3.waitForSelector("#import-file")
+  hostedMp3.on("request", (req) => {
+    if (/^https?:/.test(req.url()) && !req.url().endsWith("/favicon.ico"))
+      hostedRequests.push(req.url())
+  })
+  await hostedMp3.setOfflineMode(true)
+  await (await hostedMp3.$("#import-file")).uploadFile(path.join(hostedDir, hostedFile))
+  await hostedMp3.waitForSelector(".word")
+  await hostedMp3.click('[data-action="audio"]')
+  await hostedMp3.waitForFunction(() =>
+    window.__vocabAudio.some(
+      (audio) =>
+        audio.readyState >= 2 && audio.duration > 0 && audio.currentSrc.startsWith("blob:"),
+    ),
+  )
+  check(
+    "HTTP-hosted HTML imports and plays MP3 ZIP v3 offline",
+    await hostedMp3.evaluate(() => window.__vocabAudio.some((audio) => audio.duration > 0)),
+  )
+  check(
+    "Hosted study, compression and audio need no server API or CDN requests",
+    hostedRequests.length === 0 && hostedErrors.length === 0,
+  )
+  await mp3Context.close()
   check("Standalone makes no network requests while studying and listening", requests.length === 0)
   check("No browser JavaScript errors", errors.length === 0 && standaloneErrors.length === 0)
   evidence.cardCount = cards.length
@@ -901,4 +1066,5 @@ try {
 } finally {
   await fs.writeFile(path.join(scratch, "evidence.json"), JSON.stringify(evidence, null, 2))
   await browser.close()
+  if (reviewServer) await new Promise((resolve) => reviewServer.close(resolve))
 }

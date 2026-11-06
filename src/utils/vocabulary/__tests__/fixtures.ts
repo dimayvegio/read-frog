@@ -1,4 +1,32 @@
+import JSZip from "jszip"
 import { sha256, emptyProgress, type VocabularyBundle, type VocabularyCard } from "../schema"
+
+// Frozen writer for published v1/v2 archives; do not use the current exporter
+// to produce backward-compatibility fixtures.
+export async function legacyVocabularyZip(bundle: VocabularyBundle) {
+  const zip = new JSZip()
+  zip.file(
+    "manifest.json",
+    JSON.stringify({
+      format: "read-frog-vocabulary",
+      version: bundle.notebook ? 2 : 1,
+      title: bundle.notebook?.name ?? "Từ vựng của tôi",
+      exportedAt: 1,
+      cardCount: bundle.cards.length,
+      ...(bundle.notebook ? { notebook: bundle.notebook } : {}),
+    }),
+  )
+  zip.file("vocabulary.json", JSON.stringify(bundle.cards))
+  zip.file("progress.json", JSON.stringify(bundle.progress))
+  const used = new Set(bundle.cards.flatMap((card) => [card.audio.word, card.audio.example]))
+  for (const asset of bundle.audio)
+    if (used.has(asset.id)) zip.file(`audio/${asset.id}.wav`, asset.bytes, { createFolders: false })
+  return zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 3 },
+  })
+}
 
 export function wavFixture(sample = 1) {
   const bytes = new Uint8Array(2444)

@@ -488,7 +488,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       busy = true
       renderNotebookBar()
       button.setAttribute("disabled", "")
-      notice("Đang đóng gói từ, audio và tiến độ…")
+      notice("Đang tối ưu audio và nén ZIP… Có thể mất một lúc với sổ lớn.")
       try {
         const selected = notebook
         const bytes = await createVocabularyZip(await exportLibrary(selected.id))
@@ -731,7 +731,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     })()
       .catch(() =>
         notice(
-          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1 hoặc 2 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
+          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1, 2 hoặc 3 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
           true,
         ),
       )

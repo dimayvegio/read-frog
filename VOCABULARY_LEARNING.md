@@ -1,5 +1,99 @@
 # Sổ từ vựng và HTML ôn tập
 
+## Nén portable: 1.58.0-a.6 / manifest 1.58.0.7
+
+Tiếp tục từ `2d9c8dfa`, nhánh `codex/vocabulary-review`; tên hiển thị vẫn
+**1.58.0A**. Database từ vựng giữ version **2**, cấu hình giữ schema **124**;
+không sửa snapshot migration đã phát hành hoặc kho credential/TTS playback.
+
+- Audio mới do OpenAI tạo được mã hóa **MP3 mono 64 kbps** ngay trên máy trước
+  khi lưu. Giữ model/giọng đã chọn; transport OpenAI/Microsoft hiện tại không đổi.
+- Khi xuất sổ cũ, chuyển PCM16 WAV mono/stereo có sample rate được hỗ trợ sang
+  MP3 trong bản xuất. Chỉ chọn MP3 khi cả dung lượng raw và DEFLATE nhỏ hơn WAV.
+  WAV nhỏ/khác encoding được giữ; ZIP có thể chứa cả WAV lẫn MP3.
+- MP3 không bị tái mã hóa khi nhập/xuất lại. Định dạng lossy 64 kbps nhằm giữ
+  lời đọc rõ và giảm dung lượng; không tuyên bố bảo toàn waveform như WAV.
+- JSON vẫn gọn; ZIP tăng DEFLATE từ **3 lên 9**; chỉ đưa audio đang được dùng
+  vào gói và gộp các byte trùng theo SHA-256. Encode chạy tuần tự và nhường UI
+  giữa các nhóm frame, trước khi ghi transaction. Tác vụ lưu vẫn hủy được.
+- Xuất không sửa dữ liệu gốc, nghĩa/IPA/ví dụ, ID/timestamp thẻ, ID/tên sổ hoặc
+  ba lịch ôn. Thư viện WAV đã lưu vẫn giữ nguyên; xuất lại sẽ tối ưu bản ZIP.
+
+### Hợp đồng ZIP v3
+
+```text
+Tu-vung-<ten-so>-YYYY-MM-DD.zip
+├── manifest.json
+├── vocabulary.json
+├── progress.json
+└── audio/<sha256>.mp3 hoặc audio/<sha256>.wav
+```
+
+ZIP32, STORE/DEFLATE chuẩn, không mã hóa mật khẩu hoặc format độc quyền.
+Manifest giữ các field v1/v2, `version: 3`; `notebook` giữ UUID/tên/timestamp
+nếu có (mọi export từ Sổ từ đều có). Không thêm field vào thẻ/progress đã
+phát hành. Audio reference luôn là SHA-256 **byte của file xuất thực tế**;
+đổi WAV sang MP3 chỉ đổi reference tương ứng trong bản sao dùng để đóng gói.
+Tên file quyết định MIME: `.mp3` = `audio/mpeg`, `.wav` = `audio/wav`.
+MP3 do encoder tạo là chuỗi MPEG Layer III frames đầy đủ, không ID3; reader
+kiểm tra frame, kích thước, CRC32 ZIP và SHA-256 trước khi lưu. Giữ giới hạn
+64 MiB, 2.000 thẻ, 3 MiB/audio và 4 MiB/JSON như trước.
+
+Reader tiếp tục nhận ZIP v1/v2 chỉ có WAV. Reader cũ không đọc được v3 nên
+cần cập nhật HTML/extension trước khi chuyển bộ mới. Dữ liệu DB version 2
+không cần thay index hoặc chạy lại migration; audio store hỗ trợ thêm MIME.
+Đóng các tab HTML/extension cũ khi cập nhật, không dùng mã cũ để xuất dữ liệu
+đã lưu bằng bản mới. Snapshot v1-to-v2 giữ nguyên.
+
+### Đưa HTML lên server
+
+Upload nguyên `ReadFrog-OnTuVung.html` lên web server, trả
+`Content-Type: text/html; charset=utf-8`. HTML đã nhúng JSZip, encoder MP3,
+CSS và notices; không cần cài codec trên server, FFmpeg, WASM, Node API hay CDN.
+JavaScript giải nén ZIP và trình duyệt phát audio qua Blob. Không cần key để
+nhập, xuất hoặc học. Phục vụ HTTPS khi triển khai; hash cũng có fallback khi
+HTTP/file viewer không cung cấp SubtleCrypto. Không áp thêm CSP chặn inline
+script/style nếu chưa tách chúng thành file ngoài; CSP bên trong HTML hiện
+chặn network khi học. Hosting gzip/Brotli cho HTML là tối ưu transport tùy chọn.
+
+Storage gắn với origin: HTML trên server không tự đọc dữ liệu của bản file://.
+Lần đầu chuyển sang server cần nhập ZIP; sau đó cùng origin giữ dữ liệu qua
+IndexedDB. Việc này chưa phải sync Drive/OneDrive. Khi thêm sync, nên tách audio
+bất biến theo hash khỏi dữ liệu sổ/lịch ôn để chỉ truyền phần thay đổi, còn ZIP
+là snapshot portable. Không đưa API key hoặc OAuth token vào bộ từ.
+
+### Kiểm chứng bản nén — 06/11/2026
+
+- **Đã sửa:** encoder MP3 offline độc lập với playback, ZIP v3/DEFLATE 9,
+  đọc ZIP v1/v2, tối ưu bản xuất sổ cũ, HTML tự chứa chạy từ file và HTTP.
+- **Đã kiểm thử:** 4.001 test đạt, 1 test bỏ qua; `SKIP_FREE_API=true`, loại
+  free-api live. Format/lint/type-check và 49 assertion Edge production đạt,
+  gồm các luồng nhiều sổ trước đó, nhập v1/v2/v3, MP3 Blob playback offline,
+  HTTP import/export/re-encode bằng chính HTML tải từ extension, SHA-256 khi
+  không có SubtleCrypto, không gọi server API/CDN khi học. Giữ kiểm tra nâng
+  cấp HTML a.4 thật, đóng/mở Edge, ba lịch ôn, popup web/PDF và UI phone.
+- **Đo mẫu giọng đọc:** WAV 409.702 byte → MP3 68.736 byte; ZIP cùng sổ từ
+  **295.053 → 52.799 byte (giảm 82,1%)**. Mẫu Windows TTS được tạo cục bộ,
+  không phải giọng OpenAI; đây là kết quả mẫu, không cam kết mọi sổ giảm như vậy.
+  Mẫu tone riêng cũng giảm ZIP 9.488 → 5.452 byte. Gói cài/HTML tăng nhẹ vì
+  nhúng encoder; đây là tối ưu dữ liệu sổ, không phải làm gói cài nhỏ hơn.
+- **Chưa kiểm thử:** API OpenAI live/chất lượng giọng thật, điện thoại vật lý,
+  server public/HTTPS production. HTTP được thử bằng server loopback trả đúng
+  HTML, không backend; thiếu SubtleCrypto được mô phỏng trong trang kiểm thử.
+- **Bị chặn:** không có. Chưa triển khai sync cloud hoặc publish HTML lên web.
+
+Artifact cuối đã đối chiếu từng file với production build kiểm thử bằng Edge
+và HTML tải thực tế từ nút Tải HTML, không chứa credential/profile/fixture:
+
+- `ReadFrog-Edge-1.58.0A-Compressed.zip`: 205 file, 6.233.886 byte,
+  manifest `1.58.0.7` / `1.58.0A`.
+  SHA-256: `54119BBEF5BC4441FC803CF840DA7EE349F01A941F6554A3E43ECEED59FDA20D`.
+- `ReadFrog-OnTuVung.html`: 604.812 byte.
+  SHA-256: `15BFBD358403FC816A312F1BDFFEA1B72C0CB2B25C24359493CDA14BFC1B2AF5`.
+- Khi cập nhật: đóng các tab cũ, thay HTML **đúng tên/vị trí cũ** để giữ vùng
+  IndexedDB, giải nén extension đè thư mục cũ rồi Reload. Lần đầu chuyển HTML
+  sang origin server khác cần nhập ZIP một lần.
+
 ## Bản nhiều sổ: 1.58.0-a.5 / manifest 1.58.0.6
 
 Tiếp tục từ `d9504205` trên nhánh `codex/vocabulary-review`. Cấu hình extension

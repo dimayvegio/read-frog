@@ -1,5 +1,6 @@
 import JSZip from "jszip"
 import { z } from "zod"
+import { compressVocabularyBundle, isMp3 } from "./audio"
 import {
   cardSchema,
   progressSchema,
@@ -39,6 +40,7 @@ const manifestV1Schema = z.strictObject({
 const manifestSchema = z.discriminatedUnion("version", [
   manifestV1Schema,
   manifestV1Schema.extend({ version: z.literal(2), notebook: notebookSchema }),
+  manifestV1Schema.extend({ version: z.literal(3), notebook: notebookSchema.optional() }),
 ])
 
 // Bound expanded data BEFORE a ZIP library inflates anything. We accept only
@@ -95,7 +97,9 @@ export function inspectZip(bytes: Uint8Array, metadata?: Map<string, EntryInfo>)
       bytes.subarray(cursor + 46, cursor + 46 + nameLength),
     )
     if (
-      !/^(manifest\.json|vocabulary\.json|progress\.json|audio\/[a-f0-9]{64}\.wav)$/.test(name) ||
+      !/^(manifest\.json|vocabulary\.json|progress\.json|audio\/[a-f0-9]{64}\.(wav|mp3))$/.test(
+        name,
+      ) ||
       names.has(name)
     )
       throw new Error("ZIP chứa tên file không được hỗ trợ.")
@@ -169,12 +173,13 @@ function readCheckedEntry(zip: JSZip, name: string, info: EntryInfo): Promise<Ui
 }
 
 export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uint8Array> {
+  bundle = await compressVocabularyBundle(bundle)
   const zip = new JSZip()
   zip.file(
     "manifest.json",
     JSON.stringify({
       format: FORMAT,
-      version: bundle.notebook ? 2 : 1,
+      version: 3,
       title: bundle.notebook?.name ?? "Từ vựng của tôi",
       exportedAt: Date.now(),
       cardCount: bundle.cards.length,
@@ -185,11 +190,16 @@ export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uin
   zip.file("progress.json", JSON.stringify(bundle.progress))
   const used = new Set(bundle.cards.flatMap((c) => [c.audio.word, c.audio.example]))
   for (const asset of bundle.audio)
-    if (used.has(asset.id)) zip.file(`audio/${asset.id}.wav`, asset.bytes, { createFolders: false })
+    if (used.has(asset.id))
+      zip.file(
+        `audio/${asset.id}.${asset.contentType === "audio/mpeg" ? "mp3" : "wav"}`,
+        asset.bytes,
+        { createFolders: false },
+      )
   const bytes = await zip.generateAsync({
     type: "uint8array",
     compression: "DEFLATE",
-    compressionOptions: { level: 3 },
+    compressionOptions: { level: 9 },
   })
   inspectZip(bytes)
   return bytes
@@ -207,6 +217,8 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
       ),
     ) as unknown
   const manifest = manifestSchema.parse(await read("manifest.json"))
+  if (manifest.version !== 3 && [...names].some((name) => name.endsWith(".mp3")))
+    throw new Error("ZIP v1/v2 chỉ hỗ trợ WAV.")
   const cards = z
     .array(cardSchema)
     .max(MAX_CARDS)
@@ -229,17 +241,19 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
     card.acceptedAnswers = validateLearningContent(learningContentFromCard(card)).acceptedAnswers
   const audio: VocabularyBundle["audio"] = []
   for (const id of audioIds) {
-    const entry = zip.file(`audio/${id}.wav`)
+    const name = names.has(`audio/${id}.mp3`) ? `audio/${id}.mp3` : `audio/${id}.wav`
+    const entry = zip.file(name)
     if (!entry) throw new Error("Bộ từ thiếu audio.")
-    const data = await readCheckedEntry(zip, `audio/${id}.wav`, metadata.get(`audio/${id}.wav`)!)
-    if (!isWav(data) || (await sha256(data)) !== id)
+    const data = await readCheckedEntry(zip, name, metadata.get(name)!)
+    const mp3 = name.endsWith(".mp3")
+    if (!(mp3 ? isMp3(data) : isWav(data)) || (await sha256(data)) !== id)
       throw new Error("Audio bị hỏng hoặc không khớp mã kiểm tra.")
-    audio.push({ id, bytes: data, contentType: "audio/wav" })
+    audio.push({ id, bytes: data, contentType: mp3 ? "audio/mpeg" : "audio/wav" })
   }
   return {
     cards,
     progress,
     audio,
-    ...(manifest.version === 2 ? { notebook: manifest.notebook } : {}),
+    ...("notebook" in manifest && manifest.notebook ? { notebook: manifest.notebook } : {}),
   }
 }
