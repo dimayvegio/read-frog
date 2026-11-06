@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest"
-import { PROCESS_LOOK_AHEAD_MS } from "@/utils/constants/subtitles"
+import { PROCESS_LOOK_AHEAD_MS, TRANSLATE_LOOK_AHEAD_MS } from "@/utils/constants/subtitles"
 import { SegmentationPipeline } from "../segmentation-pipeline"
 
 vi.mock("@/utils/subtitles/processor/ai-segmentation", () => ({
@@ -52,11 +52,11 @@ describe("segmentation pipeline", () => {
     // The window ahead of the playhead is segmented...
     expect(segmentedStarts.has(0)).toBe(true)
 
-    // ...and nothing beyond it. Chunks are kept a whole PROCESS_LOOK_AHEAD_MS wide and are
-    // only started while their first fragment is within the look-ahead window, so the buffer
-    // reaches at most two windows ahead of the playhead — not the rest of the video.
+    // Supply cues through the two-minute translation boundary, retaining
+    // one-minute chunks and stopping before the rest of the video.
+    expect(segmentedStarts.has(120_000)).toBe(true)
     const furthestSegmented = Math.max(...segmentedStarts)
-    expect(furthestSegmented).toBeLessThan(2 * PROCESS_LOOK_AHEAD_MS)
+    expect(furthestSegmented).toBeLessThan(TRANSLATE_LOOK_AHEAD_MS + PROCESS_LOOK_AHEAD_MS)
     expect(pipeline.hasUnprocessedChunks()).toBe(true)
   })
 
@@ -82,9 +82,9 @@ describe("segmentation pipeline", () => {
     const furthestSegmented = Math.max(...segmentedStarts)
 
     // At 3x the window is 3x wider, so the buffer reaches past the 1x bound...
-    expect(furthestSegmented).toBeGreaterThan(2 * PROCESS_LOOK_AHEAD_MS)
-    // ...but still stays within two 3x-wide windows, not the rest of the video.
-    expect(furthestSegmented).toBeLessThan(2 * 3 * PROCESS_LOOK_AHEAD_MS)
+    expect(furthestSegmented).toBeGreaterThan(TRANSLATE_LOOK_AHEAD_MS + PROCESS_LOOK_AHEAD_MS)
+    // The last admitted chunk may extend by one processing window.
+    expect(furthestSegmented).toBeLessThan(3 * (TRANSLATE_LOOK_AHEAD_MS + PROCESS_LOOK_AHEAD_MS))
     expect(pipeline.hasUnprocessedChunks()).toBe(true)
   })
 
@@ -119,7 +119,29 @@ describe("segmentation pipeline", () => {
     const afterAdvance = Math.max(...((pipeline as any).segmentedRawStarts as Set<number>))
 
     expect(afterAdvance).toBeGreaterThan(afterStart)
-    expect(afterAdvance).toBeLessThan(150_000 + 2 * PROCESS_LOOK_AHEAD_MS)
+    expect(afterAdvance).toBeLessThan(150_000 + TRANSLATE_LOOK_AHEAD_MS + PROCESS_LOOK_AHEAD_MS)
+  })
+
+  it("keeps AI segmentation requests to one-minute chunks while feeding the two-minute buffer", async () => {
+    const { aiSegmentBlock } = await import("@/utils/subtitles/processor/ai-segmentation")
+    vi.mocked(aiSegmentBlock).mockClear()
+    const rawFragments = Array.from({ length: 600 }, (_, i) => ({
+      text: `w${i}`,
+      start: i * 1000,
+      end: (i + 1) * 1000,
+    }))
+    const pipeline = new SegmentationPipeline({
+      rawFragments,
+      getVideoElement: () => ({ currentTime: 0, playbackRate: 1 }) as HTMLVideoElement,
+      getSourceLanguage: () => "en",
+      providerRef: LOCAL_REF,
+    })
+    await (pipeline as any).runLoop()
+    const batches = vi.mocked(aiSegmentBlock).mock.calls.map(([batch]) => batch)
+    expect(batches).toHaveLength(3)
+    expect(batches.every((batch) => batch.at(-1)!.end - batch[0]!.start <= 60_000)).toBe(true)
+    expect(pipeline.processedFragments.some((fragment) => fragment.start === 120_000)).toBe(true)
+    expect(pipeline.hasUnprocessedChunks()).toBe(true)
   })
 
   it("notifies onChunkSegmented after replacing a processed chunk", async () => {

@@ -1,6 +1,6 @@
 import type { PromptableProviderRef } from "@/utils/providers/provider-ref"
 import type { SubtitlesFragment } from "@/utils/subtitles/types"
-import { PROCESS_LOOK_AHEAD_MS } from "@/utils/constants/subtitles"
+import { PROCESS_LOOK_AHEAD_MS, TRANSLATE_LOOK_AHEAD_MS } from "@/utils/constants/subtitles"
 import { effectiveLookAheadMs } from "@/utils/subtitles/lookahead"
 import { aiSegmentBlock } from "@/utils/subtitles/processor/ai-segmentation"
 import { optimizeSubtitles } from "@/utils/subtitles/processor/optimizer"
@@ -178,7 +178,14 @@ export class SegmentationPipeline {
       PROCESS_LOOK_AHEAD_MS,
       this.getVideoElement()?.playbackRate,
     )
-    if (firstUnprocessed.start > currentTimeMs + lookAheadMs) return []
+    // Supply the entire translation horizon without increasing the size of
+    // each AI segmentation request. Otherwise a larger translation buffer
+    // would be starved by the old, shorter segmentation admission window.
+    const admissionMs = effectiveLookAheadMs(
+      Math.max(PROCESS_LOOK_AHEAD_MS, TRANSLATE_LOOK_AHEAD_MS),
+      this.getVideoElement()?.playbackRate,
+    )
+    if (firstUnprocessed.start > currentTimeMs + admissionMs) return []
 
     const windowEnd = firstUnprocessed.start + lookAheadMs
     return this.rawFragments.filter(

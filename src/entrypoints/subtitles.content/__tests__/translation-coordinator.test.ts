@@ -218,7 +218,7 @@ describe("translation coordinator loading state", () => {
         // near cue (in the 1x window) + far cue (only reachable at higher rates)
         getFragments: () => [
           { text: "near", start: 1000, end: 2000 },
-          { text: "far", start: 60_000, end: 61_000 },
+          { text: "far", start: 240_000, end: 241_000 },
         ],
         getVideoElement: () =>
           ({
@@ -242,10 +242,47 @@ describe("translation coordinator loading state", () => {
       return batch.map((f) => f.start)
     }
 
-    // 1x: 30s window excludes the 60s cue.
+    // 1x: the two-minute window excludes the four-minute cue.
     expect(await firstBatchStartsAtRate(1)).toEqual([1000])
-    // 3x: 90s window now reaches the 60s cue.
-    expect(await firstBatchStartsAtRate(3)).toEqual([1000, 60_000])
+    // 3x: the six-minute window reaches the four-minute cue.
+    expect(await firstBatchStartsAtRate(3)).toEqual([1000, 240_000])
+  })
+
+  it("fills two minutes ahead at 1x in successive batches of five without translating beyond the window", async () => {
+    const translator = await import("@/utils/subtitles/processor/translator")
+    const spy = vi
+      .spyOn(translator, "translateSubtitles")
+      .mockImplementation(async (batch) =>
+        batch.map((fragment) => ({ ...fragment, translation: "Translated" })),
+      )
+    const starts = [0, 20_000, 40_000, 60_000, 80_000, 100_000, 120_000, 121_000]
+    const onTranslated = vi.fn<(...args: any[]) => any>()
+    const coordinator = new TranslationCoordinator({
+      getFragments: () =>
+        starts.map((start) => ({ start, end: start + 1000, text: `Cue ${start}` })),
+      getVideoElement: () =>
+        ({
+          currentTime: 0,
+          playbackRate: 1,
+          addEventListener: vi.fn<(...args: any[]) => any>(),
+          removeEventListener: vi.fn<(...args: any[]) => any>(),
+        }) as unknown as HTMLVideoElement,
+      getCurrentState: () => "idle",
+      segmentationPipeline: null,
+      onTranslated,
+      onStateChange: vi.fn<(...args: any[]) => any>(),
+    })
+    try {
+      coordinator.start()
+      await vi.waitFor(() => expect(onTranslated).toHaveBeenCalledTimes(2))
+      expect(spy.mock.calls.map(([batch]) => batch.length)).toEqual([5, 2])
+      expect(spy.mock.calls.flatMap(([batch]) => batch.map((fragment) => fragment.start))).toEqual(
+        starts.slice(0, -1),
+      )
+    } finally {
+      coordinator.stop()
+      spy.mockRestore()
+    }
   })
 
   it("does not publish stale batch cues on translation failure after a recut", async () => {
