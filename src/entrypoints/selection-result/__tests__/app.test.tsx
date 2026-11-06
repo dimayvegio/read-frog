@@ -6,9 +6,10 @@ import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { initI18n } from "@/utils/i18n"
 import App from "../app"
 
-const { send, translate } = vi.hoisted(() => ({
+const { send, translate, speechReleased } = vi.hoisted(() => ({
   send: vi.fn<(...args: any[]) => any>(),
   translate: vi.fn<(...args: any[]) => any>(),
+  speechReleased: vi.fn<() => void>(),
 }))
 vi.mock("@/utils/message", () => ({ sendMessage: send }))
 vi.mock("@/utils/selection-result/translate", () => ({ translateNativeSelection: translate }))
@@ -18,8 +19,39 @@ vi.mock("@/utils/config/storage", () => ({
 vi.mock("@/components/ui/selection-popover/copy-button", () => ({
   CopyButton: () => <button type="button">Copy</button>,
 }))
-vi.mock("@/components/ui/selection-popover/speak-button", () => ({
-  SpeakButton: () => <button type="button">Speak</button>,
+vi.mock("@/components/ui/selection-popover/speak-button", async () => {
+  const { useEffect } = await import("react")
+  return {
+    SpeakButton: () => {
+      useEffect(() => () => speechReleased(), [])
+      return <button type="button">Speak</button>
+    },
+  }
+})
+vi.mock("../pdf-history-panel", () => ({
+  pdfLanguageName: (code: string) => code,
+  PdfHistoryPanel: ({ document, onSelect }: any) => (
+    <button
+      type="button"
+      onClick={() =>
+        onSelect({
+          id: "b".repeat(64),
+          documentId: document.id,
+          original: "Older paragraph",
+          prepared: "Older paragraph",
+          output: "Older translation",
+          targetLanguage: "vie",
+          model: "fixture",
+          clean: true,
+          joinHyphenatedWords: false,
+          createdAt: 1,
+          updatedAt: 1,
+        })
+      }
+    >
+      View history fixture
+    </button>
+  ),
 }))
 vi.mock("@/components/thinking", () => ({ Thinking: () => null }))
 vi.mock(
@@ -98,7 +130,9 @@ describe("native selection result window", () => {
       previous.onChunk({ output: "Stale result", thinking: { status: "complete", text: "" } }),
     )
     expect(screen.getByTestId("native-selection-output").textContent).not.toContain("Stale result")
-    expect(screen.getByText("Another PDF paragraph")).toBeDefined()
+    expect(screen.getByTestId("native-selection-output").textContent).toContain(
+      "Another PDF paragraph",
+    )
   })
 
   it("stops the stream and retries with a fresh snapshot", async () => {
@@ -145,5 +179,25 @@ describe("native selection result window", () => {
     const previous = translate.mock.calls[0]?.[0]
     view.unmount()
     expect(previous.signal.aborted).toBe(true)
+  })
+  it("releases speech for the previous result when an older history passage is opened", async () => {
+    const request = {
+      id: "history-selection",
+      text: "Current paragraph",
+      tooLong: false,
+      createdAt: Date.now(),
+      document: { id: "a".repeat(64), title: "Book.pdf" },
+    }
+    send.mockImplementation(async (name) =>
+      name === "getVocabularyNotebooks" ? { notebooks: [], activeNotebookId: null } : request,
+    )
+    translate.mockResolvedValue({ output: "Current translation", thinking: null })
+    render(<App />)
+    await screen.findByText("Current translation")
+    speechReleased.mockClear()
+    fireEvent.click(screen.getByRole("button", { name: "View history fixture" }))
+    await screen.findByText("Older translation")
+    await waitFor(() => expect(speechReleased).toHaveBeenCalled())
+    expect(translate).toHaveBeenCalledOnce()
   })
 })

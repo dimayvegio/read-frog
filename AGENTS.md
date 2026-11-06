@@ -4,6 +4,7 @@
 
 - Before integrating an upstream release, read [UPSTREAM_UPGRADE_GUIDE.md](UPSTREAM_UPGRADE_GUIDE.md).
 - Preserve the local OpenAI-only runtime, private credentials, PDF selection, Microsoft/OpenAI TTS, Vietnamese typography, and two-minute subtitle buffer.
+- Preserve the fixed PDF panel, conservative text cleanup and document-local history/cache in [PDF_LOCAL_READING.md](PDF_LOCAL_READING.md). Keep user-gesture-safe sidebar opening with popup fallback, path-free provider payloads, configuration/credential-aware cache identities and clear-epoch cancellation; PDF history DB v1 remains separate from credentials and vocabulary.
 - Preserve the ani.pm subtitle adapter and its passive player/iframe constraints documented in [ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md).
 - Preserve restored X/Twitter and Netflix native captions, the Netflix MAIN-world bridge and track restoration documented in [X_NETFLIX_SUBTITLES.md](X_NETFLIX_SUBTITLES.md), without reintroducing hosted services.
 - Preserve named vocabulary notebooks, the frozen IndexedDB v1-to-v2 migration, ZIP v1/v2 compatibility and the standalone mobile review page documented in [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md). Each notebook keeps its own content/progress and export; vocabulary audio generation has independent cancellation from TTS playback.

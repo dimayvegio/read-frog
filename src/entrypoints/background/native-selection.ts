@@ -18,7 +18,11 @@ let openQueue: Promise<unknown> = Promise.resolve()
 const selectionKey = (selectionId: string) => `${NATIVE_SELECTION_STORAGE_PREFIX}${selectionId}`
 const resultURL = () => browser.runtime.getURL("/selection-result.html")
 
-async function openResult(selectionText: string, sourceTabId?: number) {
+async function openResult(
+  selectionText: string,
+  sourceTabId?: number,
+  document?: NativeSelectionRequest["document"],
+) {
   const text = selectionText.trim()
   if (!text) return
   const stored = await browser.storage.session.get(null)
@@ -37,6 +41,7 @@ async function openResult(selectionText: string, sourceTabId?: number) {
     text: text.length > MAX_NATIVE_SELECTION_LENGTH ? "" : text,
     tooLong: text.length > MAX_NATIVE_SELECTION_LENGTH,
     createdAt: Date.now(),
+    ...(document ? { document } : {}),
     sourceTabId:
       typeof sourceTabId === "number" && Number.isSafeInteger(sourceTabId) && sourceTabId >= 0
         ? sourceTabId
@@ -87,8 +92,12 @@ async function openResult(selectionText: string, sourceTabId?: number) {
   }
 }
 
-export function openNativeSelectionResult(text: string, sourceTabId?: number): Promise<void> {
-  const task = openQueue.then(() => openResult(text, sourceTabId))
+export function openNativeSelectionResult(
+  text: string,
+  sourceTabId?: number,
+  document?: NativeSelectionRequest["document"],
+): Promise<void> {
+  const task = openQueue.then(() => openResult(text, sourceTabId, document))
   openQueue = task.catch(() => {})
   return task
 }
@@ -111,8 +120,8 @@ export function setupNativeSelectionHandlers() {
       await browser.storage.session.remove(key)
       return null
     }
-    const { id, text, createdAt, tooLong } = stored
-    return { id, text, createdAt, tooLong }
+    const { id, text, createdAt, tooLong, document } = stored
+    return { id, text, createdAt, tooLong, ...(document ? { document } : {}) }
   })
   browser.tabs.onRemoved.addListener((tabId) => {
     void (async () => {

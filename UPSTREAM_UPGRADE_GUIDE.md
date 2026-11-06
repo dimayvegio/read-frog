@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.9` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.10` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.10` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.11` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.11`, giữ sidebar PDF, làm sạch bảo thủ và lịch sử/cache riêng
+theo tài liệu trong [PDF_LOCAL_READING.md](PDF_LOCAL_READING.md). Giữ gesture
+trước await, popup fallback, hash tài liệu không gửi path và cache theo prompt/
+model/glossary/credential. PDF history DB1 độc lập; giữ cancellation/clear epoch
+và kiểm thử production Edge. Không upload toàn file hoặc sửa migration cũ.
 
 Từ build `1.58.0.10`, giữ luyện gõ/sửa/gợi ý/nghe/điền câu, Học hôm nay,
 buổi đang dở local (DB4 thêm `learningRuns`), save từ Dictionary và log hỗ trợ

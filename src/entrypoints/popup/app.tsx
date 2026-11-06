@@ -8,6 +8,7 @@ import { AlwaysTranslate } from "./components/always-translate"
 import LanguageOptionsSelector from "./components/language-options-selector"
 import { MoreMenu } from "./components/more-menu"
 import Hotkey from "./components/node-translation-hotkey-selector"
+import { PdfPanelButton } from "./components/pdf-panel-button"
 import ProvidersField from "./components/providers-field"
 import { SiteControlToggle } from "./components/site-control-toggle"
 import TranslateButton from "./components/translate-button"
@@ -26,6 +27,7 @@ function App() {
           <div className="flex items-center justify-between gap-2">
             <span className="font-semibold">Read Frog</span>
             <div className="flex shrink-0 items-center">
+              <PdfPanelButton />
               <button
                 type="button"
                 className="rounded-md px-2 py-1 text-xs hover:bg-muted"

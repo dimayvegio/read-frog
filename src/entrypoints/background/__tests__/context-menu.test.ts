@@ -8,6 +8,7 @@ import {
   MENU_ID_SELECTION_READ_ALOUD,
   MENU_ID_SELECTION_TRANSLATE,
   MENU_ID_TRANSLATE,
+  MENU_ID_PDF_PANEL,
   registerContextMenuListeners,
 } from "../context-menu"
 
@@ -98,6 +99,11 @@ describe("background context menu", () => {
     await initializeContextMenu()
 
     expect(browser.contextMenus.removeAll).toHaveBeenCalledOnce()
+    expect(browser.contextMenus.create).toHaveBeenCalledWith({
+      id: MENU_ID_PDF_PANEL,
+      title: "Dịch trong khung cố định (PDF)",
+      contexts: ["selection"],
+    })
     expect(browser.contextMenus.create).toHaveBeenNthCalledWith(1, {
       id: MENU_ID_TRANSLATE,
       title: "Translate",
@@ -240,7 +246,10 @@ describe("background context menu", () => {
       },
       { id: 8, url: "file:///private/document.pdf" },
     )
-    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("Only this PDF paragraph", 8)
+    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("Only this PDF paragraph", 8, {
+      id: expect.any(String),
+      title: "document.pdf",
+    })
   })
 
   it("keeps ordinary selection translation in the existing in-page UI", async () => {

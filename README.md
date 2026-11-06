@@ -57,9 +57,15 @@ Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
 
 ## Dịch đoạn bôi đen trong PDF trên Edge
 
+PDF local có sidebar cố định, làm sạch dòng và lịch sử/cache theo tài liệu.
+Bấm **PDF** trong popup để mở khung, rồi chọn đoạn → Read Frog → Translate hoặc
+**Dịch trong khung cố định (PDF)**. Xem/tải JSON/xóa lịch sử riêng từng file;
+chọn lại đoạn trùng dùng bản lưu, Regenerate chủ động dịch mới. Xem
+[PDF_LOCAL_READING.md](PDF_LOCAL_READING.md) để dùng và bảo trì.
+
 Bôi đen văn bản trong trình đọc PDF của Edge, bấm chuột phải và chọn
 Read Frog → Translate. Khi tài liệu không có content-script receiver, extension
-mở cửa sổ kết quả, dùng lại giao diện dịch bôi đen trên web: chọn ngôn ngữ,
+mở khung PDF hoặc cửa sổ kết quả dự phòng, dùng lại giao diện dịch bôi đen trên web: chọn ngôn ngữ,
 streaming, copy, đọc thành tiếng, xem vùng chọn và dịch lại. Chọn đoạn khác trong
 cùng tab sẽ cập nhật cửa sổ đó; yêu cầu dịch cũ bị hủy.
 

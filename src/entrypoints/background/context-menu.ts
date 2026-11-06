@@ -12,11 +12,13 @@ import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
+import { isPdfContext, openNativePdfPanel } from "./native-panel"
 import { openNativeSelectionResult } from "./native-selection"
 import { getPageTranslationEnabled, setPageTranslationEnabled } from "./page-translation-state"
 
 export const MENU_ID_TRANSLATE = "read-frog-translate"
 export const MENU_ID_SELECTION_TRANSLATE = "read-frog-selection-translate"
+export const MENU_ID_PDF_PANEL = "read-frog-pdf-panel"
 export const MENU_ID_SELECTION_READ_ALOUD = "read-frog-selection-read-aloud"
 export const MENU_ID_SELECTION_CUSTOM_ACTION_PREFIX = "read-frog-selection-custom-action:"
 
@@ -129,6 +131,11 @@ async function updateContextMenuItems(config: Config) {
         })
       })
     }
+    browser.contextMenus.create({
+      id: MENU_ID_PDF_PANEL,
+      title: "Dịch trong khung cố định (PDF)",
+      contexts: ["selection"],
+    })
   }
 
   // Update translate menu title for current tab
@@ -173,6 +180,19 @@ async function handleContextMenuClick(
   info: Browser.contextMenus.OnClickData,
   tab?: Browser.tabs.Tab,
 ) {
+  if (
+    info.menuItemId === MENU_ID_PDF_PANEL ||
+    (info.menuItemId === MENU_ID_SELECTION_TRANSLATE && isPdfContext(info, tab))
+  ) {
+    if (info.selectionText?.trim()) {
+      try {
+        await openNativePdfPanel(info.selectionText.trim(), info, tab)
+      } catch {
+        logger.warn("Unable to open PDF translation")
+      }
+    }
+    return
+  }
   // Native PDF viewers can report a guest tab with id -1 (or no tab).
   // selectionText is still supplied by the browser's trusted context menu.
   if (info.menuItemId === MENU_ID_SELECTION_TRANSLATE) {
