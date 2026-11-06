@@ -55,6 +55,16 @@ interface YoutubeSession {
  * watch page) mounts the same as a cold load of that URL would.
  */
 export function initYoutubeSubtitles(ctx: ContentScriptContext) {
+  // The shared runtime also runs in other players' /embed/... frames. A path
+  // alone must not start a second adapter, bind shortcuts or look for #movie_player.
+  const { hostname } = window.location
+  if (
+    !["youtube.com", "youtube-nocookie.com"].some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+    )
+  )
+    return
+
   let session: YoutubeSession | null = null
   // Navigations are applied one at a time: a session still waiting for its player
   // must not be torn down underneath, or a second one started beside it.

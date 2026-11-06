@@ -7,8 +7,9 @@
 2. Mở tập phim, bật CC của player và chọn một track phụ đề text có sẵn, ví dụ
    **English CC (Dub)** hoặc **English**. Đợi phụ đề gốc xuất hiện.
 3. Bấm logo Read Frog ngay trước nút CC, bật **Read Frog Video Subtitles**.
-   Dùng lại menu kiểu chữ, song ngữ/chỉ bản dịch, vị trí, tải phụ đề và Learning
-   hiện có của YouTube. Kéo phụ đề để đổi vị trí như trước.
+   Menu tự đóng sau khi bật để không che video. Bấm logo lại để dùng menu kiểu
+   chữ, song ngữ/chỉ bản dịch, vị trí, tải phụ đề và Learning hiện có của YouTube.
+   Kéo phụ đề để đổi vị trí như trước.
 4. Khi tắt dịch, phụ đề gốc hiện lại. Có thể bật tự dịch riêng cho **ani.pm**
    trong Video Subtitles → Translate on open; mặc định tắt.
 
@@ -56,6 +57,11 @@ có 252 cue. Extension reset về OFF theo cấu hình và không giữ bản d�
   và ancestry trực tiếp. Không nhận iframe trên site khác, tên miền gần giống,
   URL chứa chuỗi ani.pm hoặc embed mở riêng. Edge đã thử; không nới guard chỉ
   để thêm badge hỗ trợ browser khác.
+- Runtime gọi initializer của nhiều nền tảng. `initYoutubeSubtitles` phải kiểm
+  tra hostname thuộc `youtube.com` hoặc `youtube-nocookie.com` trước khi nhận
+  diện đường dẫn. `/embed/v1` trên Settlar không phải video YouTube. Không để
+  adapter YouTube thứ hai đăng ký shortcut, dùng chung store hoặc chờ
+  `#movie_player` rồi báo thiếu video trên ani.pm.
 - `TextTrackFetcher` của ani.pm đặt `allowTrackActivation: false` và
   `manageNativeTrackModes: false`. Chỉ ẩn DOM phụ đề gốc bằng CSS khi dịch;
   Settlar sở hữu mode/CC của track. Việc đổi mode từ showing sang hidden có thể
@@ -71,6 +77,9 @@ có 252 cue. Extension reset về OFF theo cấu hình và không giữ bản d�
 - Menu nằm trong overlay của **player**, ngoài controls bị scale của Settlar,
   để nút Skip Intro không đè menu. Giữ menu/caption trong cây fullscreen.
   `controls.findVideoContainer` phải trỏ về `.settlar-player`.
+  Giữ `closeSettingsOnEnable: true` cho ani.pm để menu tự đóng sau khi bật;
+  các nền tảng khác vẫn giữ hành vi cũ. Đây là policy runtime, không phải trường
+  cấu hình lưu trữ và không cần thêm migration.
 - Schema **124**, migration `v123-to-v124.ts` là snapshot bất biến, thêm
   `autoStart.anipm = false`. Portable import/export và bootstrap journal phải
   hiểu schema mới nhưng vẫn dùng DB credential hiện có. Không đổi ID DB/journal.
@@ -135,3 +144,35 @@ chuột trên site; bản thử không sửa cơ chế quảng cáo của site.
 Manifest `1.58.0.2` / `1.58.0A`; đã kiểm tra entrypoint, không production key,
 không profile/test key/`.pem`/CRX trong gói.
 SHA-256: `6A4024DC308E55AAC1637D11B2D0365A7067915FA420FA1264222D0D33A10FD5`.
+
+## Bản sửa tiếp theo: 1.58.0.3 / popup 1.58.0-a.2
+
+**Đã sửa:** adapter YouTube trước đây nhận nhầm đường dẫn `/embed/v1` của
+Settlar, rồi báo `Video element not found` dù adapter ani.pm đang dịch bình
+thường. Thêm guard tên miền ngay đầu initializer YouTube để ngăn chạy nhầm
+adapter và đăng ký shortcut trùng. Không ẩn lỗi thiếu video hợp lệ của YouTube.
+Menu ani.pm tự đóng sau khi bật dịch; vẫn mở lại để chỉnh style được. Các site
+khác không bị đổi hành vi menu. Schema vẫn 124, credential DB không đổi.
+
+**Đã kiểm thử:**
+
+- Tái hiện bản cũ trên ani.pm live: toast xuất hiện sau khoảng 17,5 giây tính
+  từ lúc bắt đầu lấy mẫu, trong khi video và logo vẫn tồn tại.
+- Cùng phép thử trên bản sửa: **65 mẫu trong hơn 32 giây**, không xuất hiện
+  toast; video và đúng một logo còn nguyên trong mọi mẫu.
+- **15 assertion ani.pm live đạt**, gồm tự đóng menu khi bật và mở lại chỉnh
+  style, dịch cue thật qua API mock, tắt để hiện phụ đề gốc, đổi tập và fullscreen.
+  Harness vẫn chỉ chặn script quảng cáo đã mô tả; không sửa DOM/player của site.
+- **3.920 test đạt, 1 test bị gate bỏ qua**; `SKIP_FREE_API=true`, free-api live
+  được loại có chủ đích. Test mới bắt trường hợp nhầm host, domain giả mạo,
+  URL chứa chữ youtube.com, và giữ các embed YouTube/youtube-nocookie thật.
+- Lint/type-check, format và build ZIP đạt. Smoke YouTube kiểm tra menu gốc,
+  bộ đệm hai phút; các platform 1.58 và cập nhật ZIP tại chỗ cũng được chạy lại.
+
+**Chưa kiểm thử:** URL phim/Naruto chính xác trong ảnh của người dùng chưa
+được cung cấp; OpenAI live và các giới hạn player/server khác vẫn như trên.
+**Bị chặn:** không có blocker phát hành.
+
+**ZIP mới:** `ReadFrog-Edge-1.58.0A-AniPM-Fix.zip`, 195 file, 5.923.740 byte.
+Manifest `1.58.0.3` / `1.58.0A`; popup hiển thị `1.58.0-a.2`.
+SHA-256: `9CFD79D58495768D8011A1B8171CF93AEBEE7BFF39768965DE843F826B7B1D0C`.

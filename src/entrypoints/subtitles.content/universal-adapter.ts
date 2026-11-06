@@ -230,6 +230,10 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
   toggleSubtitlesManually = (enabled: boolean) => {
     this.toggleSubtitlesWithSource(enabled, "manual")
+    if (enabled && this.config.closeSettingsOnEnable) {
+      subtitlesStore.set(subtitlesSettingsPanelOpenAtom, false)
+      subtitlesStore.set(subtitlesSettingsPanelViewAtom, ROOT_VIEW)
+    }
   }
 
   toggleSubtitlesByShortcut = (enabled: boolean) => {

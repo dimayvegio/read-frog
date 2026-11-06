@@ -136,6 +136,52 @@ describe("initYoutubeSubtitles", () => {
 
   afterEach(() => {
     for (const callback of invalidationCallbacks.splice(0)) callback()
+    vi.unstubAllGlobals()
+  })
+
+  it.each([
+    "https://embed.settlar.io/embed/v1?t=synthetic",
+    "https://ani.pm/embed/v1",
+    "https://courses.edx.org/embed/video",
+    "https://notyoutube.com/embed/video",
+    "https://youtube.com.evil.invalid/embed/video",
+    "https://www.youtube-nocookie.com.evil.invalid/embed/video",
+    "https://foreign.invalid/youtube.com/watch?v=synthetic",
+    "https://foreign.invalid/shorts/video",
+    "https://foreign.invalid/live/video",
+  ])("does not start a YouTube session or listen for its events on %s", async (url) => {
+    const addEventListener = vi.fn<() => void>()
+    vi.stubGlobal("window", {
+      location: new URL(url),
+      addEventListener,
+      removeEventListener: vi.fn<() => void>(),
+    })
+    init()
+    await flush()
+    expect(mocks.createAdapter).not.toHaveBeenCalled()
+    expect(mocks.mountSubtitlesUI).not.toHaveBeenCalled()
+    expect(mocks.bindToggleShortcut).not.toHaveBeenCalled()
+    expect(addEventListener).not.toHaveBeenCalled()
+    expect(invalidationCallbacks).toHaveLength(0)
+  })
+
+  it.each([
+    "https://youtube.com/embed/video",
+    "https://www.youtube.com/embed/video",
+    "https://m.youtube.com/embed/video",
+    "https://youtube-nocookie.com/embed/video",
+    "https://www.youtube-nocookie.com/embed/video",
+  ])("keeps genuine YouTube embeds working on %s", async (url) => {
+    vi.stubGlobal("window", {
+      location: new URL(url),
+      addEventListener: vi.fn<() => void>(),
+      removeEventListener: vi.fn<() => void>(),
+    })
+    init()
+    await flush()
+    expect(mocks.createAdapter).toHaveBeenCalledOnce()
+    expect(adapters()[0]?.config.mode).toBe("embed")
+    expect(adapters()[0]?.initialize).toHaveBeenCalledOnce()
   })
 
   it("mounts the Shorts button when a navigation enters Shorts from the feed", async () => {

@@ -16,8 +16,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Bản local ngay trước lần nâng cấp này    | `d2e7656ec87837fad331a5e3cda3eaa5b8284d76` |
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
-| `package.json`                           | `1.58.0-a.1` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.2` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.58.0-a.2` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.3` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -37,6 +37,11 @@ Không xoá chúng vì handoff ban đầu từng ghi chúng là ngoài phạm vi
 giữ guard iframe chính xác, chỉ đọc cue đang tải sẵn, không đổi mode track
 của Settlar, menu ngoài controls bị scale và reset khi nguồn video thay đổi
 trong cùng iframe. Migration v124 đã phát hành phải giữ nguyên.
+
+Từ build `1.58.0.3`, giữ cả guard hostname đầu `initYoutubeSubtitles`: đường
+dẫn `/embed/v1` của Settlar từng bị nhận nhầm là YouTube, gây toast thiếu video
+và shortcut trùng sau khi trang đã chạy. Giữ menu ani.pm tự đóng khi bật dịch;
+không áp hành vi mới này lên menu các nền tảng khác.
 
 | Phần phải giữ                                                                                                                      | Điểm kiểm tra trong source                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |

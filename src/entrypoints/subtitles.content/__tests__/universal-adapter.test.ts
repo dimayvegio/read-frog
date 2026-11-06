@@ -14,6 +14,8 @@ import {
   adPlayingAtom,
   currentTimeMsAtom,
   sourceTrackAtom,
+  subtitlesSettingsPanelOpenAtom,
+  subtitlesSettingsPanelViewAtom,
   subtitlesSidebarOpenAtom,
   subtitlesSourceAtom,
   subtitlesStore,
@@ -121,6 +123,8 @@ describe("universalVideoAdapter", () => {
     subtitlesStore.set(translatedTrackAtom, [])
     subtitlesStore.set(currentTimeMsAtom, 0)
     subtitlesStore.set(subtitlesSidebarOpenAtom, false)
+    subtitlesStore.set(subtitlesSettingsPanelOpenAtom, false)
+    subtitlesStore.set(subtitlesSettingsPanelViewAtom, "main")
     vi.stubGlobal("document", {
       title: "Test video",
       querySelector: vi.fn<(...args: any[]) => any>(() => null),
@@ -138,8 +142,31 @@ describe("universalVideoAdapter", () => {
 
   afterEach(() => {
     subtitlesStore.set(adPlayingAtom, false)
+    subtitlesStore.set(subtitlesSettingsPanelOpenAtom, false)
+    subtitlesStore.set(subtitlesSettingsPanelViewAtom, "main")
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it.each([
+    { closeSettingsOnEnable: true, enabled: true, closes: true },
+    { closeSettingsOnEnable: true, enabled: false, closes: false },
+    { closeSettingsOnEnable: false, enabled: true, closes: false },
+    { closeSettingsOnEnable: undefined, enabled: true, closes: false },
+  ])("applies the platform menu policy without changing the toggle: %j", (settings) => {
+    const { adapter } = createAdapter([])
+    ;(adapter as any).config.closeSettingsOnEnable = settings.closeSettingsOnEnable
+    const toggle = vi.spyOn(adapter as any, "handleToggleSubtitles").mockImplementation(() => {})
+    subtitlesStore.set(subtitlesSettingsPanelOpenAtom, true)
+    subtitlesStore.set(subtitlesSettingsPanelViewAtom, "style")
+
+    adapter.toggleSubtitlesManually(settings.enabled)
+
+    expect(toggle).toHaveBeenCalledWith(settings.enabled, { quiet: false })
+    expect(subtitlesStore.get(subtitlesSettingsPanelOpenAtom)).toBe(!settings.closes)
+    expect(subtitlesStore.get(subtitlesSettingsPanelViewAtom)).toBe(
+      settings.closes ? "main" : "style",
+    )
   })
 
   it("tracks ad state and resyncs subtitles when an ad ends", () => {

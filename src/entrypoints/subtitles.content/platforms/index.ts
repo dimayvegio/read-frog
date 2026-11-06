@@ -35,6 +35,9 @@ export interface PlatformConfig {
 
   supportsSidebar?: boolean
 
+  /** Dismiss the player menu after the user turns subtitles on. */
+  closeSettingsOnEnable?: boolean
+
   getVideoId?: () => string | null
 
   /**

@@ -10,6 +10,7 @@ export function getAniPmConfig(): PlatformConfig {
     // our player overlay, so it stays full-sized and clickable above that button.
     embedded: false,
     supportsSidebar: true,
+    closeSettingsOnEnable: true,
     selectors: {
       video: `${ANI_PM_PLAYER_SELECTOR} video`,
       playerContainer: ANI_PM_PLAYER_SELECTOR,
