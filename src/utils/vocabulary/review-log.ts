@@ -1,10 +1,12 @@
 import { z } from "zod"
+import { exerciseLogSchema, isCorrection, isUnassisted, type ExerciseLog } from "./exercise"
 import { assessVocabulary, type StudyWord } from "./learning-assessment"
 
 export const MAX_REVIEW_EVENTS = 20000
 export const MAX_REVIEW_LOG_BYTES = 16 * 1024 * 1024
 const time = z.number().int().min(0).max(8_640_000_000_000_000)
-export const reviewEventSchema = z
+// Published ZIP v4 snapshot. Keep this strict schema unchanged.
+export const reviewEventV4Schema = z
   .strictObject({
     id: z.string().uuid(),
     sessionId: z.string().uuid(),
@@ -28,21 +30,29 @@ export const reviewEventSchema = z
     )
       ctx.addIssue({ code: "custom", message: "Invalid review assessment" })
   })
+export const reviewEventSchema = reviewEventV4Schema.safeExtend({
+  exercise: exerciseLogSchema.optional(),
+})
 export type ReviewEvent = z.infer<typeof reviewEventSchema>
 export interface ReviewAttempt {
   id: string
   sessionId: string
   elapsedMs: number
+  exercise?: ExerciseLog
 }
 export const sameReviewAnswer = (a: ReviewEvent, b: ReviewEvent) =>
   JSON.stringify({ ...a, grade: null, gradedAt: 0 }) ===
   JSON.stringify({ ...b, grade: null, gradedAt: 0 })
 
 export function summarizeReviewEvents(events: ReviewEvent[]) {
-  const correct = events.filter((e) => e.result === "correct").length,
-    incorrect = events.filter((e) => e.result === "incorrect").length,
+  const scored = events.filter(isUnassisted),
+    assisted = events.filter(
+      (event) => !isCorrection(event) && event.exercise?.assisted && event.result !== "revealed",
+    ).length
+  const correct = scored.filter((e) => e.result === "correct").length,
+    incorrect = scored.filter((e) => e.result === "incorrect").length,
     objective = correct + incorrect
-  const durations = events
+  const durations = scored
     .filter((e) => e.result === "correct" || e.result === "incorrect")
     .map((e) => e.elapsedMs)
     .sort((a, b) => a - b)
@@ -50,18 +60,26 @@ export function summarizeReviewEvents(events: ReviewEvent[]) {
     attempts: events.length,
     uniqueWords: new Set(events.map((e) => e.cardId)).size,
     uniqueScoredWords: new Set(
-      events.filter((e) => e.result === "correct" || e.result === "incorrect").map((e) => e.cardId),
+      scored.filter((e) => e.result === "correct" || e.result === "incorrect").map((e) => e.cardId),
     ).size,
     correct,
     incorrect,
-    revealed: events.filter((e) => e.result === "revealed").length,
+    revealed: events.filter((e) => !isCorrection(e) && e.result === "revealed").length,
+    assistedAttempts: assisted,
+    correctionAttempts: events.filter(isCorrection).length,
     selfRated: events.filter((e) => e.result === "self").length,
     graded: events.filter((e) => e.grade !== null).length,
     accuracyPercent: objective ? Math.round((correct / objective) * 1000) / 10 : null,
     unassistedRecallPercent:
-      objective + events.filter((e) => e.result === "revealed").length
+      objective +
+      events.filter((e) => !isCorrection(e) && e.result === "revealed").length +
+      assisted
         ? Math.round(
-            (correct / (objective + events.filter((e) => e.result === "revealed").length)) * 1000,
+            (correct /
+              (objective +
+                events.filter((e) => !isCorrection(e) && e.result === "revealed").length +
+                assisted)) *
+              1000,
           ) / 10
         : null,
     medianResponseMs: durations.length
@@ -112,7 +130,7 @@ export function createReviewReport(
   }
   return {
     format: "read-frog-review-report",
-    version: 2,
+    version: 3,
     exportedAt: now,
     timeZone,
     notebook,
@@ -124,10 +142,10 @@ export function createReviewReport(
     assessment: assessVocabulary(events, options.cards),
     interpretation: [
       "Counts are unique recorded attempts, not the number of times a card was displayed.",
-      "Accuracy includes only automatically checked first answers in choice/type modes. Revealed answers and flashcard self-ratings are separate.",
+      "Accuracy includes only unassisted automatically checked first answers in choice/type modes. Hints, pasted/revealed answers, corrections and flashcard self-ratings are separate.",
       "Response time measures visible study time up to the first answer, capped at one hour; it can include distractions.",
       "Older schedule counters are not reconstructed into logs. Missing logs do not mean no prior learning.",
-      "Unassisted recall counts revealed answers as not recalled. Meaning/answer snapshots can be truncated; source URLs and full source passages are excluded.",
+      "Unassisted recall counts assisted/revealed answers as not recalled and excludes correction drills. Meaning/answer snapshots can be truncated; source URLs and full source passages are excluded.",
       "Results describe this vocabulary set; they do not establish CEFR or overall language proficiency.",
     ],
     summary: summarizeReviewEvents(selected),
@@ -141,6 +159,17 @@ export function createReviewReport(
       language,
       ...summarizeReviewEvents(logs),
     })),
+    byExercise: Object.fromEntries(
+      ["recall", "dictation", "cloze", "correction"].map((kind) => [
+        kind,
+        summarizeReviewEvents(
+          selected.filter(
+            (event) =>
+              (event.exercise?.kind ?? (event.mode === "type" ? "recall" : event.mode)) === kind,
+          ),
+        ),
+      ]),
+    ),
     daily: [...days].map(([day, logs]) => ({ day, ...summarizeReviewEvents(logs) })),
     words: [...words]
       .map(([cardId, logs]) => ({

@@ -14,9 +14,39 @@ import {
   mergeProgress,
   sha256,
 } from "../schema"
-import { vocabularyFixture, legacyVocabularyZip as createVocabularyZip } from "./fixtures"
+import {
+  vocabularyFixture,
+  legacyVocabularyZip as createVocabularyZip,
+  vocabularyV4Zip,
+} from "./fixtures"
 
 describe("portable vocabulary archive", () => {
+  it("reads published v4 answer logs and schedules unchanged without inventing exercise metadata", async () => {
+    const bundle = await vocabularyFixture()
+    bundle.events = [
+      {
+        id: crypto.randomUUID(),
+        sessionId: crypto.randomUUID(),
+        cardId: bundle.cards[0]!.id,
+        occurredAt: 1000,
+        mode: "type",
+        result: "incorrect",
+        word: "reverse",
+        language: "en-US",
+        meaning: "đảo ngược",
+        answer: "revert",
+        elapsedMs: 1200,
+        grade: null,
+        gradedAt: 0,
+      },
+    ]
+    const restored = await readVocabularyZip(await vocabularyV4Zip(bundle))
+    expect(restored.events).toEqual(bundle.events)
+    expect(restored.progress).toEqual(bundle.progress)
+    expect(restored.cards).toEqual(bundle.cards)
+    expect(restored.audio).toEqual(bundle.audio)
+    expect(restored.events![0]!.exercise).toBeUndefined()
+  })
   it("exports smaller v4 MP3 archives without changing the original cards, notebook or histories", async () => {
     const original = await vocabularyFixture(),
       snapshot = structuredClone(original)
@@ -40,7 +70,7 @@ describe("portable vocabulary archive", () => {
     ).toBe(true)
     expect(bytes.length).toBeLessThan((await createVocabularyZip(original)).length)
     const zip = await JSZip.loadAsync(bytes)
-    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(4)
+    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(5)
     // Re-exporting an imported MP3 does not compound lossy compression.
     expect((await readVocabularyZip(await createCompressedVocabularyZip(result))).audio).toEqual(
       result.audio,

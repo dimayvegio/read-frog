@@ -1,5 +1,101 @@
 # Sổ từ vựng và HTML ôn tập
 
+## Luyện nhớ và sổ 1.000 từ: 1.58.0-a.9 / manifest 1.58.0.10
+
+Tiếp tục từ `c46ea0ba`, nhánh `codex/vocabulary-review`; vẫn hiển thị
+**1.58.0A**. Config schema **124** giữ nguyên; vocabulary DB **4**, ZIP mới
+**v5**, report JSON **v3**. Các mục bên dưới là lịch sử những bản đã phát hành.
+
+### Học và xuất tiến trình
+
+- **Học hôm nay** chọn tối đa 10 từ, gồm tối đa 5 từ mới, ưu tiên từ yếu và
+  đến lịch. Từ mới có bước xem mẫu rồi ẩn đáp án. Ba vòng xen kẽ gõ theo nghĩa,
+  nghe và gõ, điền từ trong câu; nếu thiếu câu chứa đúng từ thì dùng gõ theo
+  nghĩa, không tự tạo hoặc đoán dạng biến đổi của từ.
+- **Luyện từ hay sai** dùng cùng các vòng cho nhóm cần ôn. **Luyện riêng /
+  Tiếp tục** cho chọn gõ nhiều vòng, nghe và gõ hoặc điền câu. Tối đa 10 từ/lượt;
+  không đưa cả 1.000 từ vào một buổi.
+- Sai hoặc mở đáp án phải gõ sửa theo mẫu. Chữ khác được đánh dấu. Sau đó từ
+  quay lại khi mẫu đã ẩn, sau tối đa ba bước xen kẽ nếu hàng đợi còn đủ từ;
+  mỗi từ có tối đa hai lượt kiểm tra bổ sung để tránh vòng lặp vô hạn.
+- Gợi ý chữ đầu/một phần, dán đáp án, mở đáp án và gõ sửa đều có metadata
+  riêng. Chúng không làm tăng số lần tự nhớ đúng hoặc chuỗi nhớ liên tiếp.
+  Dictation giấu từ/IPA, phát audio đã lưu và chỉnh tốc độ; không gọi OpenAI.
+- Buổi đang dở lưu local, đóng/mở lại HTML rồi chọn **Luyện riêng / Tiếp tục**
+  để tiếp tục đúng bước. Đổi kiểu luyện rõ ràng có thể bắt đầu lượt mới.
+  Lịch ôn `type` cập nhật thận trọng tối đa một lần/từ/buổi, lấy kết quả yếu
+  nhất trong buổi; luyện lặp không nhân khoảng cách ôn. Thẻ lật/trắc nghiệm cũ
+  vẫn có lịch riêng. Gõ sửa không thay lịch hoặc ghi đè lượt sai đầu tiên.
+
+Trong **Nhật ký**, bấm **Tải báo cáo ngắn cho ChatGPT**, upload file `.md`.
+Mỗi từ được phân nhóm theo toàn bộ lịch sử hiện có, có số tự đúng/sai/hỗ trợ,
+kiểu bài còn yếu, lỗi và cách ôn tiếp. Với hơn 50 từ đã kiểm tra, báo cáo đưa
+chi tiết tối đa 15 từ đầu mỗi nhóm cần ôn/củng cố, rồi bảng gọn của **mọi từ đã
+kiểm tra** (ngôn ngữ, nhóm, đúng/sai/hỗ trợ, ngày cuối, cách ôn tiếp). Từ chưa
+có đủ dữ liệu nằm riêng. Không nhét hàng nghìn event thô vào Markdown.
+**Tải báo cáo JSON** và **Xuất ZIP** vẫn giữ toàn bộ lượt trả lời.
+
+Trong kết quả **Dictionary** mặc định cũng có **Lưu để học** và chọn sổ như
+dịch bôi đen. Tạo nội dung/audio tiếp tục dùng luồng OpenAI riêng hiện có,
+không đưa key vào từ vựng, HTML, báo cáo hoặc ZIP.
+
+### Dữ liệu và tương thích
+
+- DB v4 chỉ thêm store `learningRuns: &notebookId`. Giữ nguyên definition và
+  snapshot migration v1/v2/v3. Queue, đáp án đang hiện và cờ hỗ trợ lưu cùng
+  mỗi bước; ghi đáp án/lịch/event/run trong một transaction. Guard run/task ID
+  tránh cửa sổ cũ ghi sang bước mới; quota lỗi thì rollback toàn bộ.
+- Event v5 thêm `exercise`: kind, runId, parentAttemptId cho gõ sửa, assisted,
+  pasted, hintLevel, audioReplays, expectedAnswer. Không thêm đoạn nguồn hoặc
+  URL vào log. Gõ sửa liên kết event gốc bằng ID, không thay đáp án đầu tiên.
+- ZIP v5 giữ cấu trúc và nén MP3/WAV/DEFLATE 9 của v4. Reader **v1–v5**;
+  schema event v4 được đóng băng riêng, không âm thầm đổi nghĩa file cũ.
+  ID từ/sổ/event, audio, lịch và log được giữ khi export/import; không cộng
+  trùng ID. Queue đang dở là cache local, không nằm trong ZIP; kết quả đã ghi
+  và lịch ôn vẫn đi theo ZIP. Xóa sổ/nhật ký xóa cache buổi tương ứng.
+- Report v3 thêm thống kê theo bài và hỗ trợ/gõ sửa. Assessment dùng
+  `review-evidence-rules-v2`, vẫn cần nhiều lượt tự nhớ đúng qua ít nhất hai
+  phiên và 24 giờ; một lần đúng, gõ sửa hoặc tự chấm không xác nhận đã thuộc.
+- Giữ giới hạn 2.000 từ, tổng 64 MiB/sổ sau giải nén, 20.000 event/16 MiB log.
+  Số từ không thay thế giới hạn dung lượng: audio dài có thể cần chia sổ.
+  Khi log đầy, xuất JSON/ZIP rồi xóa nhật ký có xác nhận; không tự bỏ log cũ.
+
+### Kiểm chứng 07/11/2026
+
+Đã kiểm thử bằng production HTML trên Edge, profile riêng, dữ liệu mô phỏng:
+**1.000 từ, 2.000 MP3 có hash riêng, 50.688.000 byte audio, 9.000 lượt trả lời**.
+Kiểm tra nhập/mở/tìm từ cuối, phân trang 40 dòng, học ba vòng, khôi phục bước
+gõ sửa/gợi ý sau reload, paste, phát MP3 offline, xuất MD/JSON/ZIP, nhập ZIP
+lại không đếm trùng, heap sau GC qua 12 lần đổi tab và viewport 360/390/768/1280.
+Script tái lập: `scripts/debug/check-vocabulary-scale.mjs`; lưu evidence dưới
+`.codex/vocabulary-scale-*`. Chạy sau `pnpm build:edge`, có Puppeteer harness
+theo `scripts/debug/check-vocabulary.mjs`. Đây không phải 1.000 lượt gọi API.
+
+Đã sửa: các chế độ luyện và persistence nêu trên, save từ Dictionary, báo cáo
+gọn theo từng từ cho sổ lớn. Đã kiểm thử: **4.034 test đạt, 1 test bỏ qua**;
+`SKIP_FREE_API=true`, loại live free-api; format/lint/type-check đạt. Production
+Edge: **68 assertion** cho các luồng cũ và Dictionary, **25 assertion** cho
+sổ lớn/luyện có hướng dẫn; kiểm tra ảnh điện thoại mô phỏng sau khi DOM tải đủ.
+Fixture lớn nhập **9,014 giây**, tìm từ cuối **91 ms**, MD **189 ms**, ZIP
+**1,667 giây**; Markdown **75.304 byte** so với JSON thô khoảng 6,8 MB.
+Qua 12 lần đổi tab, heap sau GC chỉ tăng **34.516 byte** trong lần đo này.
+Đây là số đo trên máy kiểm thử, không phải cam kết tốc độ cho mọi điện thoại.
+
+Artifact đối chiếu CRC/từng file với build đã kiểm thử và HTML thực tải từ
+extension; cùng SHA HTML ở bài kiểm tra 1.000 từ:
+
+- `ReadFrog-Edge-1.58.0A-GuidedLearning.zip`: 205 file, **6.265.108 byte**,
+  manifest `1.58.0.10` / `1.58.0A`.
+  SHA-256: `BF137EB655111529CE5266B378EE8A41CE882D4C1617FD827691E0B0DE5035E2`.
+- `ReadFrog-OnTuVung.html`: **652.836 byte**.
+  SHA-256: `301315CED603BDCB46649DBC63E57B529AEA866414123FD1392BFEF55405DDFF`.
+
+Thay HTML tại cùng tên/vị trí, đóng tab cũ rồi mở lại để giữ dữ liệu. Extension
+ghi đè build vào thư mục unpacked hiện có và Reload; không cần cài thành ID mới.
+
+Chưa kiểm thử OpenAI live, điện thoại vật lý hoặc server public. Không có
+phần bị chặn; không publish site hoặc thêm cloud sync.
+
 ## Báo cáo cho ChatGPT: 1.58.0-a.8 / manifest 1.58.0.9
 
 Tiếp tục từ `5734cb32`, nhánh `codex/vocabulary-review`. DB **3**, ZIP **v4**,

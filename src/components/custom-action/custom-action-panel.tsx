@@ -1,10 +1,12 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useMemo, useRef } from "react"
 import { SelectionPopover } from "@/components/ui/selection-popover"
+import { SaveVocabularyButton } from "@/components/ui/selection-popover/save-vocabulary-button"
 import { SelectionToolbarErrorAlert } from "@/components/ui/selection-popover/selection-toolbar-error-alert"
 import { SelectionToolbarFooterContent } from "@/components/ui/selection-popover/selection-toolbar-footer-content"
 import { SelectionToolbarTitleContent } from "@/components/ui/selection-popover/selection-toolbar-title-content"
 import { configFieldsAtomMap, writeConfigAtom } from "@/utils/atoms/config"
+import { BUILT_IN_DICTIONARY_ACTION_ID } from "@/utils/constants/custom-action"
 import { getSourceDocumentTitle } from "@/utils/content/document-title"
 import { findSelectionToolbarAction, patchSelectionToolbarAction } from "@/utils/custom-actions"
 import {
@@ -105,6 +107,21 @@ export function CustomActionPanel() {
           thinking={executionContext ? execution.thinking : null}
         />
         <SelectionToolbarErrorAlert error={error} />
+        {action?.id === BUILT_IN_DICTIONARY_ACTION_ID &&
+          status === "done" &&
+          result &&
+          cleanSelection && (
+            <div className="px-4 pb-4" data-slot="dictionary-save-vocabulary">
+              <SaveVocabularyButton
+                capture={{
+                  word: cleanSelection,
+                  context: request.contextText.slice(0, 1800),
+                  sourceTitle: titleText ?? "",
+                  sourceUrl: webPageContext?.url ?? "",
+                }}
+              />
+            </div>
+          )}
       </SelectionPopover.Body>
       <SelectionToolbarFooterContent
         paragraphsText={request.contextText}

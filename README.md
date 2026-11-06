@@ -34,7 +34,7 @@ timeline. Không tự thu âm hoặc gọi dịch vụ nhận dạng giọng nó
 
 ## Sổ từ vựng và HTML ôn tập
 
-Sau khi dịch một từ/cụm từ trên web hoặc PDF, bấm **Lưu để học** để OpenAI tạo
+Sau khi dịch hoặc tra **Dictionary** một từ/cụm từ trên web/PDF, bấm **Lưu để học** để OpenAI tạo
 nghĩa theo câu, phiên âm, ví dụ và hai audio. Mở **Sổ từ** từ popup để quản lý,
 ôn tập hoặc xuất một ZIP chứa cả dữ liệu/audio/tiến độ. HTML độc lập hỗ trợ
 điện thoại và máy tính, ba kiểu thẻ lật/trắc nghiệm/gõ đáp án, học và nghe offline.
@@ -44,10 +44,14 @@ không cần nhập lại mỗi lần. ZIP nén audio MP3 và DEFLATE 9, giữ t
 vẫn nhập được ZIP v1/v2 cũ. Cùng HTML tự giải nén và phát audio khi mở từ file
 hoặc đặt trên server HTTP(S), không cần API giải nén hay CDN.
 Tab **Nhật ký** thống kê từ/lượt đã kiểm tra, đúng/sai, thời gian phản hồi và
-từ cần ôn thêm. **Tải báo cáo cho ChatGPT** xuất file Markdown với danh sách từ
-cần ôn, lý do và câu trả lời sai/đáp án; JSON v2 giữ thêm toàn bộ dữ liệu thô.
-Tách từ đang củng cố, có dấu hiệu nhớ và chưa đủ dữ liệu. ZIP v4 mang theo nhật ký
-khi chuyển thiết bị và vẫn nhập được v1/v2/v3. Nhật ký bắt đầu ghi từ bản mới,
+từ cần ôn thêm. **Tải báo cáo ngắn cho ChatGPT** xuất file Markdown với danh sách từ
+cần ôn, lý do và câu trả lời sai/đáp án; JSON v3 giữ thêm toàn bộ dữ liệu thô.
+Sổ lớn có bảng tiến trình gọn cho từng từ, không nhét toàn bộ log vào Markdown.
+**Học hôm nay** và luyện riêng hỗ trợ gõ nhiều vòng, gõ sửa lỗi, gợi ý,
+nghe và gõ, điền từ trong câu; tiếp tục buổi đang dở trên cùng trình duyệt.
+Gợi ý/dán đáp án/gõ sửa không tăng số lần tự nhớ đúng. Mỗi lượt tối đa 10 từ.
+Tách từ đang củng cố, có dấu hiệu nhớ và chưa đủ dữ liệu. ZIP v5 mang theo nhật ký
+khi chuyển thiết bị và vẫn nhập được v1/v2/v3/v4. Nhật ký bắt đầu ghi từ bản mới,
 không suy diễn kết quả đúng/sai từ lịch ôn cũ; thẻ lật được tính là tự đánh giá.
 Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
 

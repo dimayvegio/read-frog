@@ -34,6 +34,21 @@ const onMessageMock = vi.fn<(...args: any[]) => any>()
 const originalGetSelection = window.getSelection
 const DEFAULT_DICTIONARY_ACTION = getBuiltInDictionaryAction(DEFAULT_CONFIG.selectionToolbar)
 
+// These tests isolate selection/request lifecycle. The real save operation is
+// exercised through the production extension in check-vocabulary.mjs.
+vi.mock("@/components/ui/selection-popover/save-vocabulary-button", () => ({
+  SaveVocabularyButton: ({ capture }: { capture: { word: string; context: string } }) => (
+    <button
+      type="button"
+      data-testid="dictionary-save"
+      data-word={capture.word}
+      data-context={capture.context}
+    >
+      Lưu để học
+    </button>
+  ),
+}))
+
 // The slot follows its switch in the config, like the real hook.
 vi.mock("../../annotation/provider", async () => {
   const jotai = await import("jotai")

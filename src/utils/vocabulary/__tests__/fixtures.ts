@@ -51,6 +51,37 @@ export function wavFixture(sample = 1) {
     view.setInt16(i, Math.round(Math.sin(i / 10) * sample * 1000), true)
   return bytes
 }
+
+// Published v4 layout, independent of the current v5 writer and event schema.
+export async function vocabularyV4Zip(bundle: VocabularyBundle) {
+  const zip = new JSZip()
+  zip.file(
+    "manifest.json",
+    JSON.stringify({
+      format: "read-frog-vocabulary",
+      version: 4,
+      title: "Sổ cũ",
+      exportedAt: 1,
+      cardCount: bundle.cards.length,
+      reviewCount: bundle.events?.length ?? 0,
+      ...(bundle.notebook ? { notebook: bundle.notebook } : {}),
+    }),
+  )
+  zip.file("vocabulary.json", JSON.stringify(bundle.cards))
+  zip.file("progress.json", JSON.stringify(bundle.progress))
+  zip.file("reviews.json", JSON.stringify(bundle.events ?? []))
+  for (const asset of bundle.audio)
+    zip.file(
+      `audio/${asset.id}.${asset.contentType === "audio/mpeg" ? "mp3" : "wav"}`,
+      asset.bytes,
+      { createFolders: false },
+    )
+  return zip.generateAsync({
+    type: "uint8array",
+    compression: "DEFLATE",
+    compressionOptions: { level: 9 },
+  })
+}
 export async function vocabularyFixture(word = "reverse"): Promise<VocabularyBundle> {
   const wordAudio = wavFixture(),
     exampleAudio = wavFixture(2)

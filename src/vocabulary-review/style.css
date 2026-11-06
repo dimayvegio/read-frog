@@ -36,6 +36,73 @@ body {
 .notebook-bar select {
   min-width: 0;
 }
+.learning-entry {
+  margin: 0 0 22px;
+  padding: 18px 0;
+  border-block: 1px solid var(--line);
+}
+.learning-entry p {
+  margin: 5px 0 12px;
+  color: var(--muted);
+}
+.learning-actions,
+.learning-audio {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0;
+  align-items: center;
+}
+.learning-mode-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.learning-study form {
+  display: grid;
+  gap: 12px;
+  margin: 20px 0;
+}
+.learning-cue {
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.learning-hint {
+  font-size: 20px;
+  overflow-wrap: anywhere;
+}
+.learning-audio label,
+.learning-rate {
+  max-width: 120px;
+  margin: 0;
+}
+.spelling-original,
+.spelling-target {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.spelling-original mark {
+  color: var(--red);
+  background: transparent;
+  text-decoration: line-through;
+  font-weight: bold;
+}
+.spelling-target mark {
+  color: var(--green);
+  background: transparent;
+  text-decoration: underline;
+  font-weight: bold;
+}
+@media (max-width: 600px) {
+  .learning-entry .learning-actions > button {
+    flex: 1 1 140px;
+  }
+  .learning-study .study-header {
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+}
 .log-tools {
   display: flex;
   flex-wrap: wrap;

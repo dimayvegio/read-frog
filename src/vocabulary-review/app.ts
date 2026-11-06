@@ -1,3 +1,4 @@
+import type { LearningMode } from "../utils/vocabulary/guided-learning"
 import { getRandomUUID } from "../utils/crypto-polyfill"
 import { createVocabularyZip, readVocabularyZip } from "../utils/vocabulary/archive"
 import {
@@ -37,6 +38,7 @@ import {
   type VocabularySaveEvent,
   type VocabularyNotebook,
 } from "../utils/vocabulary/schema"
+import { mountGuidedLearning } from "./guided-learning-view"
 import style from "./style.css?inline"
 
 export interface VocabularyBridge {
@@ -143,6 +145,9 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     else activeStart = performance.now()
   })
   let playSequence = 0
+  let guidedView: ReturnType<typeof mountGuidedLearning> | null = null,
+    guidedBookId: string | null = null,
+    learningStartMode: LearningMode | undefined
   const stopAudio = () => {
     playSequence++
     if (playing) playing.onended = null
@@ -268,7 +273,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       self: "Tự đánh giá",
     }
     const rate = (value: number | null) => (value === null ? "—" : `${value}%`)
-    return `<div class="page-top"><h1>Nhật ký học</h1><p>Nhìn lại những từ đã kiểm tra và gửi báo cáo để phân tích tiến bộ.</p></div><div class="log-tools"><label>Khoảng thời gian<select id="log-days"><option value="0" ${logDays === 0 ? "selected" : ""}>Toàn bộ nhật ký</option><option value="7" ${logDays === 7 ? "selected" : ""}>7 ngày gần đây</option><option value="30" ${logDays === 30 ? "selected" : ""}>30 ngày gần đây</option></select></label><button class="primary" data-action="export-chatgpt-report" ${!cards.length && !report.events.length ? "disabled" : ""}>Tải báo cáo cho ChatGPT</button><button data-action="export-report" ${!cards.length && !report.events.length ? "disabled" : ""}>Tải báo cáo JSON</button></div><div class="log-overview" id="review-summary">${[
+    return `<div class="page-top"><h1>Nhật ký học</h1><p>Nhìn lại những từ đã kiểm tra và gửi báo cáo để phân tích tiến bộ.</p></div><div class="log-tools"><label>Khoảng thời gian<select id="log-days"><option value="0" ${logDays === 0 ? "selected" : ""}>Toàn bộ nhật ký</option><option value="7" ${logDays === 7 ? "selected" : ""}>7 ngày gần đây</option><option value="30" ${logDays === 30 ? "selected" : ""}>30 ngày gần đây</option></select></label><button class="primary" data-action="export-chatgpt-report" ${!cards.length && !report.events.length ? "disabled" : ""}>Tải báo cáo ngắn cho ChatGPT</button><button data-action="export-report" ${!cards.length && !report.events.length ? "disabled" : ""}>Tải báo cáo JSON</button></div><div class="log-overview" id="review-summary">${[
       [summary.uniqueWords, "Từ đã kiểm tra"],
       [summary.attempts, "Lượt kiểm tra"],
       [summary.correct, "Trả lời đúng"],
@@ -279,7 +284,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       .map(([value, label]) => `<div><strong>${value}</strong><span>${label}</span></div>`)
       .join(
         "",
-      )}</div><p class="hint">Tỷ lệ đúng chỉ tính câu trả lời đầu tiên ở trắc nghiệm và gõ đáp án. Thẻ lật là tự đánh giá; mở đáp án được tính riêng. ${report.period.firstRecordedAt ? `Bắt đầu ghi: ${date(report.period.firstRecordedAt)}.` : "Nhật ký bắt đầu từ bản cập nhật này, không suy ra đúng/sai từ lịch ôn cũ."}</p><section class="log-section"><h2>Theo kiểu học</h2><div class="log-table"><table><thead><tr><th>Kiểu học</th><th>Lượt</th><th>Đúng</th><th>Sai</th><th>Mở đáp án</th><th>Tỷ lệ</th></tr></thead><tbody>${REVIEW_MODES.map(
+      )}</div><p class="hint">Tỷ lệ đúng chỉ tính câu trả lời đầu tiên ở trắc nghiệm và gõ đáp án. ${summary.assistedAttempts} lượt có hỗ trợ và ${summary.correctionAttempts} lượt gõ sửa được tính riêng, không tăng số lần tự nhớ đúng. Thẻ lật là tự đánh giá; mở đáp án được tính riêng. ${report.period.firstRecordedAt ? `Bắt đầu ghi: ${date(report.period.firstRecordedAt)}.` : "Nhật ký bắt đầu từ bản cập nhật này, không suy ra đúng/sai từ lịch ôn cũ."}</p><section class="log-section"><h2>Theo kiểu học</h2><div class="log-table"><table><thead><tr><th>Kiểu học</th><th>Lượt</th><th>Đúng</th><th>Sai</th><th>Mở đáp án</th><th>Tỷ lệ</th></tr></thead><tbody>${REVIEW_MODES.map(
       (m) => {
         const s = report.byMode[m]!
         return `<tr><th>${modeLabels[m]}</th><td>${s.attempts}</td><td>${s.correct}</td><td>${s.incorrect}</td><td>${s.revealed}</td><td>${rate(s.accuracyPercent)}</td></tr>`
@@ -291,7 +296,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         .slice(0, 10)
         .map(
           (word) =>
-            `<div class="log-row"><div><strong>${esc(word.word)}</strong><p>${esc(word.meaning)}</p><small>${esc(word.reasons.join(" "))}</small></div><span>${word.evidence.incorrect} sai · ${word.evidence.revealed} mở đáp án</span></div>`,
+            `<div class="log-row"><div><strong>${esc(word.word)}</strong><p>${esc(word.meaning)}</p><small>${esc(word.reasons.join(" "))}</small></div><span>${word.evidence.incorrect} sai · ${word.evidence.revealed} mở đáp án · ${word.evidence.assisted} hỗ trợ</span></div>`,
         )
         .join("") ||
       '<p class="muted">Chưa có từ bị gắn cờ cần ôn lại. Điều này không có nghĩa là đã thuộc hết.</p>'
@@ -301,7 +306,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         .reverse()
         .map(
           (event) =>
-            `<article class="log-row"><div><strong>${esc(event.word)}</strong><small>${date(event.occurredAt)} · ${modeLabels[event.mode]} · ${(event.elapsedMs / 1000).toFixed(1)} giây</small><p>${event.answer ? `Bạn trả lời: ${esc(event.answer)}` : esc(event.meaning)}</p></div><span class="log-result ${event.result === "correct" ? "correct" : event.result === "incorrect" ? "wrong" : ""}">${resultLabels[event.result]}${event.grade ? `<small>${gradeLabels[event.grade]}</small>` : ""}</span></article>`,
+            `<article class="log-row"><div><strong>${esc(event.word)}</strong><small>${date(event.occurredAt)} · ${event.exercise ? { recall: "Gõ từ", dictation: "Nghe và gõ", cloze: "Điền câu", correction: "Gõ sửa" }[event.exercise.kind] : modeLabels[event.mode]}${event.exercise?.assisted ? " · Có hỗ trợ" : ""} · ${(event.elapsedMs / 1000).toFixed(1)} giây</small><p>${event.answer ? `Bạn trả lời: ${esc(event.answer)}` : esc(event.meaning)}</p></div><span class="log-result ${event.result === "correct" ? "correct" : event.result === "incorrect" ? "wrong" : ""}">${resultLabels[event.result]}${event.grade ? `<small>${gradeLabels[event.grade]}</small>` : ""}</span></article>`,
         )
         .join("") || '<p class="muted">Hoàn thành một câu kiểm tra để bắt đầu ghi nhật ký.</p>'
     }<p class="hint">Báo cáo chứa toàn bộ lượt trong khoảng đã chọn, theo ngày, ngôn ngữ và từng từ. Dữ liệu này phản ánh bộ từ đang học, chưa đủ để xếp trình độ CEFR.</p><button class="quiet danger" data-action="clear-logs" ${!events.length ? "disabled" : ""}>Xóa nhật ký sổ này</button></section>`
@@ -381,6 +386,49 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     const countDue = cards.filter((c) => getState(c.id)[mode].dueAt <= Date.now()).length
     const main = root.querySelector<HTMLElement>("#content")!
     main.dataset.tab = tab
+    if (tab !== "learn" && guidedView) {
+      guidedView.dispose()
+      guidedView = null
+      guidedBookId = null
+    }
+    if (tab === "learn" && notebook) {
+      root
+        .querySelectorAll<HTMLElement>(".nav [data-tab]")
+        .forEach((el) =>
+          el.setAttribute("aria-current", el.dataset.tab === "study" ? "page" : "false"),
+        )
+      if (guidedView && guidedBookId === notebook.id) return
+      guidedView?.dispose()
+      main.innerHTML = ""
+      guidedBookId = notebook.id
+      guidedView = mountGuidedLearning(main, {
+        notebook,
+        cards,
+        events,
+        progress: [...progress.values()],
+        sessionId,
+        initialMode: learningStartMode,
+        onBusy: (value) => {
+          busy = value
+          renderNotebookBar()
+        },
+        onRecorded: (event, row) => {
+          updateEvent(event)
+          if (row) progress.set(row.cardId, row)
+        },
+        onExit: () => {
+          tab = "study"
+          freshSession()
+          void refresh()
+            .then(render)
+            .catch(() => notice("Chưa mở lại được thư viện.", true))
+        },
+        play,
+        stopAudio,
+      })
+      learningStartMode = undefined
+      return
+    }
     if (tab === "history") {
       main.innerHTML = history()
       root
@@ -395,6 +443,12 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       .map((t) => `<option value="${esc(t)}" ${tag === t ? "selected" : ""}>${esc(t)}</option>`)
       .join("")}</select></div></div>${tab === "study" ? study() : library()}`
     const filters = main.querySelector<HTMLElement>(".filters")!
+    if (tab === "study") {
+      const learning = document.createElement("section")
+      learning.className = "learning-entry"
+      learning.innerHTML = `<div><strong>Luyện để nhớ lâu hơn</strong><p>Gõ nhiều vòng, sửa lỗi, nghe và điền từ.</p></div><div class="learning-actions"><button class="primary" data-action="learn-open" data-learning-mode="today" ${!cards.length ? "disabled" : ""}>Học hôm nay</button><button data-action="learn-open" data-learning-mode="weak" ${!cards.length ? "disabled" : ""}>Luyện từ hay sai</button><button data-action="learn-open" ${!cards.length ? "disabled" : ""}>Luyện riêng / Tiếp tục</button></div>`
+      main.querySelector(".controls")!.before(learning)
+    }
     filters.classList.toggle("is-open", filtersOpen || tab === "library")
     main.querySelector(".modes")?.setAttribute("role", "group")
     if (tab === "study") {
@@ -456,7 +510,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     root.querySelector<HTMLDialogElement>("#dialog")!.close()
     renderNotebookBar()
   }
-  async function play(id: string) {
+  async function play(id: string, playbackRate = speed) {
     stopAudio()
     const sequence = playSequence
     const asset = await vocabularyDB.audio.get(id)
@@ -466,7 +520,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       new Blob([new Uint8Array(asset.bytes)], { type: asset.contentType }),
     )
     playing = new Audio(audioUrl)
-    playing.playbackRate = speed
+    playing.playbackRate = playbackRate
     playing.onended = stopAudio
     try {
       await playing.play()
@@ -480,6 +534,12 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       `<h2>Dùng nhiều sổ từ</h2><p>Bấm <strong>+ Sổ</strong> để tạo Sổ 1, Sổ 2 hoặc đặt tên riêng. Chọn sổ trong danh sách để học, đổi tên hoặc xuất ZIP riêng. Trong Sổ từ, nút <strong>Chuyển</strong> mang một từ cùng audio và tiến độ sang sổ khác.</p><ol class="help-list"><li>Trong extension, bôi đen một từ/cụm từ rồi dịch.</li><li>Chọn <strong>Lưu vào sổ</strong> rồi bấm <strong>Lưu để học</strong>. OpenAI tạo nghĩa, ví dụ và hai audio; API chỉ dùng khi tạo nội dung.</li><li>Mở Sổ từ, chọn sổ muốn mang đi rồi <strong>Xuất ZIP</strong>.</li><li>Trong HTML, <strong>Nhập ZIP</strong>. ZIP mới có tên và ID sổ; nhập lại sẽ cập nhật đúng sổ đó. Với ZIP cũ không có thông tin sổ, hãy chọn sổ đích trước khi nhập.</li><li>Sau khi ôn, <strong>Xuất ZIP</strong> để sao lưu tiến độ của sổ đang chọn.</li></ol><p>Chỉ cần nhập một lần: những lần sau mở lại đúng HTML trên cùng trình duyệt/thiết bị sẽ tiếp tục học. Nhập lại khi có ZIP cập nhật từ mới, đổi máy/trình duyệt hoặc dữ liệu bị xóa. Mỗi sổ và tiến độ được lưu trên thiết bị, không tự đồng bộ qua mạng.</p><p>Điện thoại cần trình duyệt chạy JavaScript; trình xem trước file của hệ điều hành có thể không chạy HTML. Giữ ZIP để khôi phục dữ liệu khi cần.</p><div class="dialog-footer"><button data-action="close">Đã hiểu</button></div>`,
     )
   async function handleAction(action: string, button: HTMLElement) {
+    if (action === "learn-open" && notebook) {
+      learningStartMode = button.dataset.learningMode as LearningMode | undefined
+      tab = "learn"
+      render()
+      return
+    }
     if (action === "export-report" || action === "export-chatgpt-report") {
       const report = createReviewReport(notebook, events, { days: logDays || undefined, cards })
       const markdown = action === "export-chatgpt-report"
@@ -899,7 +959,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     })()
       .catch(() =>
         notice(
-          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1, 2 hoặc 3 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
+          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1–5 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
           true,
         ),
       )

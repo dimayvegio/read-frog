@@ -1,3 +1,4 @@
+import type { LearningRun } from "./guided-learning"
 import { Dexie, type Table } from "dexie"
 import { getRandomUUID } from "../crypto-polyfill"
 import { migrateVocabularyV1ToV2 } from "./migrations/v1-to-v2"
@@ -46,6 +47,7 @@ export class VocabularyDatabase extends Dexie {
   notebookProgress!: Table<StoredProgress, [string, string]>
   meta!: Table<{ key: string; value: string }, string>
   reviewEvents!: Table<ReviewEvent & { notebookId: string }, [string, string]>
+  learningRuns!: Table<LearningRun, string>
   constructor(name = "read-frog-vocabulary") {
     super(name)
     this.version(1).stores({
@@ -64,6 +66,7 @@ export class VocabularyDatabase extends Dexie {
     // New empty log store. Published v1/v2 stores and their migration are frozen.
     // Existing schedule counters cannot reconstruct historical answer outcomes.
     this.version(3).stores({ reviewEvents: "&[notebookId+id], notebookId, [notebookId+cardId]" })
+    this.version(4).stores({ learningRuns: "&notebookId" })
   }
 }
 export const vocabularyDB = new VocabularyDatabase()
@@ -88,6 +91,7 @@ const tables = () => [
   vocabularyDB.audio,
   vocabularyDB.meta,
   vocabularyDB.reviewEvents,
+  vocabularyDB.learningRuns,
 ]
 
 export async function loadReviewEvents(notebookId: string): Promise<ReviewEvent[]> {
@@ -112,7 +116,7 @@ async function resetLogBudget(notebookId: string) {
     value: JSON.stringify({ count: events.length, bytes }),
   })
 }
-async function putReviewEvent(notebookId: string, input: ReviewEvent) {
+export async function putReviewEvent(notebookId: string, input: ReviewEvent) {
   const event = reviewEventSchema.parse(input),
     previous = await vocabularyDB.reviewEvents.get([notebookId, event.id])
   if (previous) {
@@ -145,10 +149,17 @@ async function putReviewEvent(notebookId: string, input: ReviewEvent) {
   await vocabularyDB.meta.put({ key, value: JSON.stringify({ count, bytes }) })
 }
 export async function clearReviewEvents(notebookId: string) {
-  await vocabularyDB.transaction("rw", vocabularyDB.reviewEvents, vocabularyDB.meta, async () => {
-    await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).delete()
-    await vocabularyDB.meta.delete(`logBudget:${notebookId}`)
-  })
+  await vocabularyDB.transaction(
+    "rw",
+    vocabularyDB.reviewEvents,
+    vocabularyDB.meta,
+    vocabularyDB.learningRuns,
+    async () => {
+      await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).delete()
+      await vocabularyDB.meta.delete(`logBudget:${notebookId}`)
+      await vocabularyDB.learningRuns.delete(notebookId)
+    },
+  )
 }
 function eventFromCard(
   card: VocabularyCard,
@@ -527,6 +538,7 @@ export async function clearVocabularyLibrary(id?: string) {
     await vocabularyDB.notebookProgress.where("notebookId").equals(notebookId).delete()
     await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).delete()
     await vocabularyDB.meta.delete(`logBudget:${notebookId}`)
+    await vocabularyDB.learningRuns.delete(notebookId)
     await collectUnusedAudio()
   })
 }

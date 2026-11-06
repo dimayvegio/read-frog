@@ -110,7 +110,7 @@ describe("explainable vocabulary practice flags", () => {
       cards: [word, { ...word, id: "b".repeat(64), word: "unseen" }],
     })
     const markdown = reviewReportMarkdown(report)
-    expect(report.version).toBe(2)
+    expect(report.version).toBe(3)
     expect(markdown).toContain("Cần ôn lại")
     expect(markdown).toContain("reverse")
     expect(markdown).toContain("revert")

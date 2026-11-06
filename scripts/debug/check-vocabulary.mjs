@@ -153,25 +153,36 @@ try {
         if (req.url !== "https://api.openai.com/v1/responses")
           throw new Error("Unexpected fixture URL")
         const structured = body.text?.format?.type === "json_schema"
-        const output = structured
-          ? JSON.stringify({
-              word: "reverse",
-              language: "en-US",
-              ipa: "/rɪˈvɝːs/",
-              partOfSpeech: "Động từ",
-              meaning: "đảo ngược",
-              definition: "Làm thay đổi một xu hướng theo hướng ngược lại.",
-              pronunciationTip: "Nhấn âm tiết thứ hai.",
-              originalTranslation: "Cuộc bầu cử khó có thể đảo ngược nhu cầu mang tính cơ cấu.",
-              example: {
-                sentence: "They hope to reverse the decline.",
-                translation: "Họ hy vọng đảo ngược sự suy giảm.",
-              },
-              distractors: ["tiếp tục duy trì", "đẩy nhanh tiến độ", "đo lường kết quả"],
-              acceptedAnswers: ["reverse"],
-              tags: ["Kinh tế"],
-            })
-          : "đảo ngược"
+        const properties = body.text?.format?.schema?.properties ?? {}
+        const dictionary = structured && Object.keys(properties).length > 0 && !properties.word
+        const output = dictionary
+          ? JSON.stringify(
+              Object.fromEntries(
+                Object.keys(properties).map((key) => [
+                  key,
+                  /phonetic/i.test(key) ? "/rɪˈvɝːs/" : /term/i.test(key) ? "reverse" : "đảo ngược",
+                ]),
+              ),
+            )
+          : structured
+            ? JSON.stringify({
+                word: "reverse",
+                language: "en-US",
+                ipa: "/rɪˈvɝːs/",
+                partOfSpeech: "Động từ",
+                meaning: "đảo ngược",
+                definition: "Làm thay đổi một xu hướng theo hướng ngược lại.",
+                pronunciationTip: "Nhấn âm tiết thứ hai.",
+                originalTranslation: "Cuộc bầu cử khó có thể đảo ngược nhu cầu mang tính cơ cấu.",
+                example: {
+                  sentence: "They hope to reverse the decline.",
+                  translation: "Họ hy vọng đảo ngược sự suy giảm.",
+                },
+                distractors: ["tiếp tục duy trì", "đẩy nhanh tiến độ", "đo lường kết quả"],
+                acceptedAnswers: ["reverse"],
+                tags: ["Kinh tế"],
+              })
+            : "đảo ngược"
         const response = {
           id: "resp_vocabulary",
           object: "response",
@@ -325,6 +336,26 @@ try {
     "A normal web selection exposes the save action inside the actual shadow-DOM translation popover",
     true,
   )
+  await web.reload()
+  await web.waitForSelector("read-frog-selection")
+  await web.$eval("#term", (node) => {
+    const range = document.createRange()
+    range.selectNodeContents(node)
+    const selection = getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+    document.dispatchEvent(new Event("selectionchange"))
+    node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }))
+  })
+  await web.waitForSelector('body >>> [aria-label="Dictionary"]', { visible: true })
+  await web.click('body >>> [aria-label="Dictionary"]')
+  await web.waitForSelector('body >>> [data-slot="dictionary-save-vocabulary"]', { visible: true })
+  await web.locator("::-p-aria(Lưu để học)").click()
+  await web.waitForSelector("::-p-aria(Đã lưu)")
+  check(
+    "Built-in dictionary results save through the same private vocabulary port and notebook picker",
+    true,
+  )
   await web.close()
   page = manager
   const extensionFirstNotebook = await page.$eval("#notebook-select", (select) => select.value)
@@ -465,7 +496,7 @@ try {
   await fs.writeFile(legacyV2Path, legacyV2Bytes)
   check(
     "ZIP carries a named notebook v4 plus compressed MP3 assets and no API credential",
-    JSON.parse(await zip.file("manifest.json").async("string")).version === 4 &&
+    JSON.parse(await zip.file("manifest.json").async("string")).version === 5 &&
       Object.keys(zip.files).filter((n) => n.endsWith(".mp3")).length >= 1 &&
       !(await zip.file("vocabulary.json").async("string")).includes("vocabulary-test-sentinel"),
   )
@@ -686,7 +717,7 @@ try {
   const learningReport = JSON.parse(await fs.readFile(path.join(reviewedDir, reportFile), "utf8"))
   check(
     "The JSON report puts reverse in the review-first list with its real mistake and expected answer",
-    learningReport.version === 2 &&
+    learningReport.version === 3 &&
       learningReport.assessment.needsReview[0].word === "reverse" &&
       learningReport.assessment.needsReview[0].recentMistakes[0].answer === "not-the-answer" &&
       learningReport.assessment.needsReview[0].recentMistakes[0].expectedAnswer === "reverse",
@@ -1110,7 +1141,7 @@ try {
   const hostedZip = await JSZip.loadAsync(await fs.readFile(path.join(hostedDir, hostedFile)))
   check(
     "Hosted HTML transcodes legacy WAV to MP3 ZIP v4 using only bundled JavaScript",
-    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 4 &&
+    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 5 &&
       Object.keys(hostedZip.files).some((name) => name.endsWith(".mp3")),
   )
   check(

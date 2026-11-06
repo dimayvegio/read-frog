@@ -10,6 +10,55 @@ await vi.hoisted(async () => {
 })
 
 describe("frozen vocabulary v1 -> v2", () => {
+  it("opens a published v3 database at v4 without changing logs, cards or schedules", async () => {
+    const name = `v3-guided-${crypto.randomUUID()}`,
+      old = new Dexie(name),
+      bundle = await vocabularyFixture()
+    old.version(3).stores({
+      cards: "&id, captureKey, updatedAt",
+      audio: "&id",
+      progress: "&cardId",
+      notebooks: "&id, &nameKey, createdAt",
+      notebookCards: "&[notebookId+id], notebookId, id, captureKey",
+      notebookProgress: "&[notebookId+cardId], notebookId",
+      meta: "&key",
+      reviewEvents: "&[notebookId+id], notebookId, [notebookId+cardId]",
+    })
+    const notebookId = crypto.randomUUID(),
+      event = {
+        notebookId,
+        id: crypto.randomUUID(),
+        sessionId: crypto.randomUUID(),
+        cardId: bundle.cards[0]!.id,
+        occurredAt: 1000,
+        mode: "type",
+        result: "incorrect",
+        word: "reverse",
+        language: "en-US",
+        meaning: "đảo ngược",
+        answer: "revert",
+        elapsedMs: 1200,
+        grade: null,
+        gradedAt: 0,
+      }
+    const card = { ...bundle.cards[0]!, notebookId },
+      progress = { ...bundle.progress[0]!, notebookId }
+    await old.table("reviewEvents").put(event)
+    await old.table("notebookCards").put(card)
+    await old.table("notebookProgress").put(progress)
+    old.close()
+    const upgraded = new VocabularyDatabase(name)
+    try {
+      await upgraded.open()
+      expect(upgraded.verno).toBe(4)
+      expect(await upgraded.reviewEvents.toArray()).toEqual([event])
+      expect(await upgraded.notebookCards.toArray()).toEqual([card])
+      expect(await upgraded.notebookProgress.toArray()).toEqual([progress])
+      expect(await upgraded.learningRuns.count()).toBe(0)
+    } finally {
+      await upgraded.delete()
+    }
+  })
   it("opens a real v2 notebook with existing schedules at v3 without inventing answer logs", async () => {
     const name = `v2-review-logs-${crypto.randomUUID()}`,
       old = new Dexie(name),
@@ -42,7 +91,7 @@ describe("frozen vocabulary v1 -> v2", () => {
     const upgraded = new VocabularyDatabase(name)
     try {
       await upgraded.open()
-      expect(upgraded.verno).toBe(3)
+      expect(upgraded.verno).toBe(4)
       expect(await upgraded.notebooks.toArray()).toEqual([notebook])
       expect(await upgraded.notebookCards.toArray()).toEqual([card])
       expect(await upgraded.notebookProgress.toArray()).toEqual([progress])
@@ -69,7 +118,7 @@ describe("frozen vocabulary v1 -> v2", () => {
     const db = new VocabularyDatabase(name)
     try {
       await db.open()
-      expect(db.verno).toBe(3)
+      expect(db.verno).toBe(4)
       expect(await db.reviewEvents.count()).toBe(0)
       const notebooks = await db.notebooks.toArray()
       expect(notebooks).toHaveLength(1)

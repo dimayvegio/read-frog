@@ -1,5 +1,6 @@
 import type { ReviewEvent } from "./review-log"
 import type { VocabularyCard } from "./schema"
+import { isCorrection, isUnassisted } from "./exercise"
 
 export type StudyWord = Pick<VocabularyCard, "id" | "word" | "meaning" | "language">
 
@@ -22,26 +23,38 @@ export function assessVocabulary(events: ReviewEvent[], inventory?: readonly Stu
       language: history.at(-1)!.language,
     }))
   const assessments = words.map((word) => {
-    const history = histories.get(word.id) ?? [],
+    const history = (histories.get(word.id) ?? []).filter((event) => !isCorrection(event)),
       latest = history.at(-1)
     const objective = history.filter((event) => event.result !== "self"),
       recent = objective.slice(-5)
     const consecutive: ReviewEvent[] = []
-    for (let i = objective.length - 1; i >= 0 && objective[i]!.result === "correct"; i--)
+    for (
+      let i = objective.length - 1;
+      i >= 0 && objective[i]!.result === "correct" && isUnassisted(objective[i]!);
+      i--
+    )
       consecutive.push(objective[i]!)
     const sessions = new Set(consecutive.map((event) => event.sessionId)).size
     const spanDays = consecutive.length
       ? (consecutive[0]!.occurredAt - consecutive.at(-1)!.occurredAt) / 86_400_000
       : 0
-    const recentMisses = recent.filter((event) => event.result !== "correct").length
+    const recentMisses = recent.filter(
+      (event) => event.result !== "correct" || !isUnassisted(event),
+    ).length
     let status: "needsReview" | "developing" | "recallSignals" | "notAssessed" = "notAssessed"
     const reasons: string[] = []
-    if (latest?.result === "incorrect" || latest?.result === "revealed") {
+    if (
+      latest?.result === "incorrect" ||
+      latest?.result === "revealed" ||
+      latest?.exercise?.assisted
+    ) {
       status = "needsReview"
       reasons.push(
         latest.result === "incorrect"
           ? "Lượt gần nhất trả lời sai."
-          : "Lượt gần nhất phải mở đáp án.",
+          : latest.result === "revealed"
+            ? "Lượt gần nhất phải mở đáp án."
+            : "Lượt gần nhất cần gợi ý hoặc dán đáp án.",
       )
     } else if (latest?.result === "self" && (latest.grade === "again" || latest.grade === "hard")) {
       status = "needsReview"
@@ -51,7 +64,7 @@ export function assessVocabulary(events: ReviewEvent[], inventory?: readonly Stu
     } else if (recentMisses && consecutive.length < 3) {
       status = "needsReview"
       reasons.push(
-        `Trong ${recent.length} lượt chấm tự động gần nhất có ${recentMisses} lượt sai/mở đáp án; mới đúng liên tiếp ${consecutive.length} lượt.`,
+        `Trong ${recent.length} lượt chấm tự động gần nhất có ${recentMisses} lượt sai/mở đáp án/cần hỗ trợ; mới đúng liên tiếp ${consecutive.length} lượt.`,
       )
     } else if (
       consecutive.length >= 3 &&
@@ -79,6 +92,41 @@ export function assessVocabulary(events: ReviewEvent[], inventory?: readonly Stu
           ? "Mới tự đánh giá thẻ lật, chưa có câu trả lời được chấm tự động."
           : "Chưa có lượt kiểm tra trong nhật ký; không suy ra là đã thuộc hoặc chưa thuộc.",
       )
+    const practice = Object.fromEntries(
+      ["recall", "dictation", "cloze", "choice"].map((kind) => {
+        const rows = objective.filter(
+          (event) =>
+            (event.exercise?.kind ?? (event.mode === "type" ? "recall" : event.mode)) === kind,
+        )
+        return [
+          kind,
+          {
+            attempts: rows.length,
+            correct: rows.filter((event) => event.result === "correct" && isUnassisted(event))
+              .length,
+            incorrect: rows.filter((event) => event.result === "incorrect" && isUnassisted(event))
+              .length,
+            assisted: rows.filter((event) => !isUnassisted(event) || event.result === "revealed")
+              .length,
+            lastResult: rows.at(-1)?.result ?? null,
+            lastAt: rows.at(-1)?.occurredAt ?? null,
+          },
+        ]
+      }),
+    )
+    const latestMiss = objective
+      .filter((event) => event.result !== "correct" || !isUnassisted(event))
+      .at(-1)
+    const nextPractice =
+      status === "recallSignals"
+        ? "Kiểm tra lại ở buổi sau"
+        : status === "developing" && spanDays < 1
+          ? "Ôn lại vào ngày khác"
+          : latestMiss?.exercise?.kind === "dictation"
+            ? "Nghe và gõ"
+            : latestMiss?.exercise?.kind === "cloze"
+              ? "Điền từ trong câu"
+              : "Gõ từ không gợi ý"
     return {
       cardId: word.id,
       word: word.word,
@@ -86,19 +134,25 @@ export function assessVocabulary(events: ReviewEvent[], inventory?: readonly Stu
       language: word.language,
       status,
       reasons,
+      practice,
+      nextPractice,
       evidence: {
         attempts: history.length,
         checkedAttempts: objective.length,
-        correct: objective.filter((event) => event.result === "correct").length,
-        incorrect: objective.filter((event) => event.result === "incorrect").length,
+        correct: objective.filter((event) => event.result === "correct" && isUnassisted(event))
+          .length,
+        incorrect: objective.filter((event) => event.result === "incorrect" && isUnassisted(event))
+          .length,
         revealed: objective.filter((event) => event.result === "revealed").length,
+        assisted: objective.filter((event) => !isUnassisted(event) && event.result !== "revealed")
+          .length,
         consecutiveCorrect: consecutive.length,
         consecutiveCorrectSessions: sessions,
         consecutiveCorrectSpanDays: Math.round(spanDays * 100) / 100,
         lastAttemptAt: latest?.occurredAt ?? null,
       },
       recentMistakes: objective
-        .filter((event) => event.result !== "correct")
+        .filter((event) => event.result !== "correct" || !isUnassisted(event))
         .slice(-3)
         .reverse()
         .map((event) => ({
@@ -106,7 +160,10 @@ export function assessVocabulary(events: ReviewEvent[], inventory?: readonly Stu
           mode: event.mode,
           result: event.result,
           answer: event.answer,
-          expectedAnswer: event.mode === "type" ? event.word : event.meaning,
+          expectedAnswer:
+            event.exercise?.expectedAnswer ?? (event.mode === "type" ? event.word : event.meaning),
+          kind: event.exercise?.kind ?? event.mode,
+          assisted: !isUnassisted(event),
         })),
     }
   })
@@ -118,7 +175,7 @@ export function assessVocabulary(events: ReviewEvent[], inventory?: readonly Stu
       a.word.localeCompare(b.word),
   )
   return {
-    method: "review-evidence-rules-v1",
+    method: "review-evidence-rules-v2",
     scope: "all-recorded-history",
     inventoryProvided: inventory !== undefined,
     explanation:
