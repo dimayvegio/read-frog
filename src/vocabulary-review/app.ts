@@ -1,3 +1,4 @@
+import { getRandomUUID } from "../utils/crypto-polyfill"
 import { createVocabularyZip, readVocabularyZip } from "../utils/vocabulary/archive"
 import {
   loadLibrary,
@@ -10,7 +11,16 @@ import {
   renameNotebook,
   setActiveNotebook,
   moveVocabularyCard,
+  loadReviewEvents,
+  getReviewEvent,
+  recordReviewAnswer,
+  clearReviewEvents,
 } from "../utils/vocabulary/db"
+import {
+  createReviewReport,
+  type ReviewEvent,
+  type ReviewAttempt,
+} from "../utils/vocabulary/review-log"
 import {
   REVIEW_MODES,
   normalizeAnswer,
@@ -106,6 +116,31 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   let playing: HTMLAudioElement | null = null,
     audioUrl = ""
   let noticeTimer: ReturnType<typeof setTimeout> | undefined
+  let events: ReviewEvent[] = [],
+    logDays = 0
+  const updateEvent = (event: ReviewEvent) => {
+    const index = events.findIndex((row) => row.id === event.id)
+    if (index < 0) events.push(event)
+    else events[index] = event
+  }
+  const sessionId = getRandomUUID()
+  let attempt: ReviewAttempt | null = null,
+    activeElapsed = 0,
+    activeStart = performance.now()
+  const attemptSnapshot = (): ReviewAttempt => ({
+    ...attempt!,
+    elapsedMs: Math.min(
+      3_600_000,
+      Math.max(
+        0,
+        Math.round(activeElapsed + (document.hidden ? 0 : performance.now() - activeStart)),
+      ),
+    ),
+  })
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) activeElapsed += performance.now() - activeStart
+    else activeStart = performance.now()
+  })
   let playSequence = 0
   const stopAudio = () => {
     playSequence++
@@ -127,6 +162,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     const data = await loadLibrary(selectedNotebookId)
     notebooks = data.notebooks
     notebook = data.notebook
+    events = notebook ? await loadReviewEvents(notebook.id) : []
     selectedNotebookId = notebook?.id
     cards = data.cards
     progress = new Map(data.progress.map((p) => [p.cardId, p]))
@@ -147,6 +183,9 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         ),
     )
   const reset = () => {
+    attempt = null
+    activeElapsed = 0
+    activeStart = performance.now()
     activeId = ""
     revealed = false
     answered = null
@@ -172,6 +211,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       reset()
       if (selected) {
         activeId = selected.id
+        attempt = { id: getRandomUUID(), sessionId, elapsedMs: 0 }
         choices = shuffled([selected.meaning, ...selected.distractors])
       }
     }
@@ -189,6 +229,82 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     `<div class="answer"><p class="meaning">${esc(card.meaning)}</p><p>${esc(card.definition)}</p>${card.pronunciationTip ? `<p class="muted">Cách đọc: ${esc(card.pronunciationTip)}</p>` : ""}${card.context ? `<p class="muted">${esc(card.originalTranslation)}</p>` : ""}<div class="example"><div class="example-top"><label>Ví dụ</label>${audioButton(card.audio.example, "Nghe câu ví dụ")}</div><p lang="${esc(card.language)}">${esc(card.example.sentence)}</p><p class="muted">${esc(card.example.translation)}</p></div>${source(card)}</div>`
   const grades = (card: VocabularyCard) =>
     `<div class="grades" aria-label="Mức độ ghi nhớ">${(["again", "hard", "good", "easy"] as Grade[]).map((grade) => `<button data-grade="${grade}" ${answered === false && grade !== "again" ? "disabled" : ""}>${gradeLabels[grade]}<small>${intervalLabel(scheduleReview(getState(card.id)[mode], grade).intervalDays)}</small></button>`).join("")}</div>`
+  async function submitAnswer(
+    result: "correct" | "incorrect" | "revealed",
+    answerText: string,
+    selected = -1,
+  ) {
+    const card = current()
+    if (busy || !card || !notebook || !attempt || mode === "flash" || answered !== null) return
+    const captured = attemptSnapshot(),
+      bookId = notebook.id
+    busy = true
+    renderNotebookBar()
+    try {
+      const event = await recordReviewAnswer(card.id, mode, result, answerText, captured, bookId)
+      updateEvent(event)
+      if (attempt?.id === captured.id && notebook?.id === bookId) {
+        answered = result === "correct"
+        picked = selected
+        revealed = true
+        render()
+      }
+    } catch (error) {
+      notice(error instanceof Error ? error.message : "Chưa ghi được nhật ký. Hãy thử lại.", true)
+    } finally {
+      busy = false
+      renderNotebookBar()
+    }
+  }
+
+  function history() {
+    const report = createReviewReport(notebook, events, { days: logDays || undefined }),
+      summary = report.summary
+    const resultLabels = {
+      correct: "Đúng",
+      incorrect: "Sai",
+      revealed: "Đã mở đáp án",
+      self: "Tự đánh giá",
+    }
+    const rate = (value: number | null) => (value === null ? "—" : `${value}%`)
+    return `<div class="page-top"><h1>Nhật ký học</h1><p>Nhìn lại những từ đã kiểm tra và gửi báo cáo để phân tích tiến bộ.</p></div><div class="log-tools"><label>Khoảng thời gian<select id="log-days"><option value="0" ${logDays === 0 ? "selected" : ""}>Toàn bộ nhật ký</option><option value="7" ${logDays === 7 ? "selected" : ""}>7 ngày gần đây</option><option value="30" ${logDays === 30 ? "selected" : ""}>30 ngày gần đây</option></select></label><button class="primary" data-action="export-report" ${!report.events.length ? "disabled" : ""}>Tải báo cáo JSON</button></div><div class="log-overview" id="review-summary">${[
+      [summary.uniqueWords, "Từ đã kiểm tra"],
+      [summary.attempts, "Lượt kiểm tra"],
+      [summary.correct, "Trả lời đúng"],
+      [summary.incorrect, "Trả lời sai"],
+      [summary.revealed, "Mở đáp án"],
+      [rate(summary.accuracyPercent), "Đúng tự động"],
+    ]
+      .map(([value, label]) => `<div><strong>${value}</strong><span>${label}</span></div>`)
+      .join(
+        "",
+      )}</div><p class="hint">Tỷ lệ đúng chỉ tính câu trả lời đầu tiên ở trắc nghiệm và gõ đáp án. Thẻ lật là tự đánh giá; mở đáp án được tính riêng. ${report.period.firstRecordedAt ? `Bắt đầu ghi: ${date(report.period.firstRecordedAt)}.` : "Nhật ký bắt đầu từ bản cập nhật này, không suy ra đúng/sai từ lịch ôn cũ."}</p><section class="log-section"><h2>Theo kiểu học</h2><div class="log-table"><table><thead><tr><th>Kiểu học</th><th>Lượt</th><th>Đúng</th><th>Sai</th><th>Mở đáp án</th><th>Tỷ lệ</th></tr></thead><tbody>${REVIEW_MODES.map(
+      (m) => {
+        const s = report.byMode[m]!
+        return `<tr><th>${modeLabels[m]}</th><td>${s.attempts}</td><td>${s.correct}</td><td>${s.incorrect}</td><td>${s.revealed}</td><td>${rate(s.accuracyPercent)}</td></tr>`
+      },
+    ).join(
+      "",
+    )}</tbody></table></div><p class="hint">${summary.selfRated} lượt tự đánh giá · ${summary.sessions} phiên học · Thời gian phản hồi trung vị: ${summary.medianResponseMs === null ? "—" : `${(summary.medianResponseMs / 1000).toFixed(1)} giây`}.</p></section><section class="log-section"><h2>Từ cần ôn thêm</h2>${
+      report.words
+        .filter((word) => word.incorrect || word.revealed)
+        .slice(0, 10)
+        .map(
+          (word) =>
+            `<div class="log-row"><div><strong>${esc(word.word)}</strong><p>${esc(word.meaning)}</p></div><span>${word.incorrect} sai · ${word.revealed} mở đáp án</span></div>`,
+        )
+        .join("") || '<p class="muted">Chưa có từ trả lời sai hoặc mở đáp án trong khoảng này.</p>'
+    }</section><section class="log-section"><h2>Những lượt gần đây</h2>${
+      report.events
+        .slice(-30)
+        .reverse()
+        .map(
+          (event) =>
+            `<article class="log-row"><div><strong>${esc(event.word)}</strong><small>${date(event.occurredAt)} · ${modeLabels[event.mode]} · ${(event.elapsedMs / 1000).toFixed(1)} giây</small><p>${event.answer ? `Bạn trả lời: ${esc(event.answer)}` : esc(event.meaning)}</p></div><span class="log-result ${event.result === "correct" ? "correct" : event.result === "incorrect" ? "wrong" : ""}">${resultLabels[event.result]}${event.grade ? `<small>${gradeLabels[event.grade]}</small>` : ""}</span></article>`,
+        )
+        .join("") || '<p class="muted">Hoàn thành một câu kiểm tra để bắt đầu ghi nhật ký.</p>'
+    }<p class="hint">Báo cáo chứa toàn bộ lượt trong khoảng đã chọn, theo ngày, ngôn ngữ và từng từ. Dữ liệu này phản ánh bộ từ đang học, chưa đủ để xếp trình độ CEFR.</p><button class="quiet danger" data-action="clear-logs" ${!events.length ? "disabled" : ""}>Xóa nhật ký sổ này</button></section>`
+  }
   const empty = (title: string, description: string, actions: string) =>
     `<div class="study empty"><div class="empty-content"><div class="empty-mark">${book}</div><h2>${title}</h2><p>${description}</p><div class="tools">${actions}</div></div></div>`
   function study() {
@@ -264,6 +380,13 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     const countDue = cards.filter((c) => getState(c.id)[mode].dueAt <= Date.now()).length
     const main = root.querySelector<HTMLElement>("#content")!
     main.dataset.tab = tab
+    if (tab === "history") {
+      main.innerHTML = history()
+      root
+        .querySelectorAll<HTMLElement>(".nav [data-tab]")
+        .forEach((el) => el.setAttribute("aria-current", el.dataset.tab === tab ? "page" : "false"))
+      return
+    }
     main.innerHTML = `<div class="page-top"><h1>${tab === "study" ? "Ôn từ vựng" : "Sổ từ của bạn"}</h1><p>${tab === "study" ? "Nhớ cách dùng từ qua những câu bạn đã đọc." : "Từ, ví dụ và giọng đọc, luôn ở cùng một nơi."}</p><div class="numbers"><div class="number"><strong>${cards.length}</strong><span>Từ đã lưu</span></div><div class="number"><strong>${countDue}</strong><span>Đến lịch ôn</span></div><div class="number"><strong>${completed.size}</strong><span>Đã ôn lượt này</span></div></div></div><div class="controls"><div class="modes" aria-label="Kiểu ôn tập">${REVIEW_MODES.map((m) => `<button data-mode="${m}" aria-pressed="${mode === m}">${modeLabels[m]}</button>`).join("")}</div>${bridge ? `<button data-action="add">Thêm từ bằng OpenAI</button>` : ""}</div><div class="filters"><div><label for="search" hidden>Tìm từ hoặc nghĩa</label><input type="search" id="search" value="${esc(query)}" placeholder="Tìm từ, nghĩa hoặc câu đã gặp…"></div><div><label for="tag-filter" hidden>Lọc chủ đề</label><select id="tag-filter"><option value="">Tất cả chủ đề</option>${[
       ...new Set(cards.flatMap((c) => c.tags)),
     ]
@@ -356,6 +479,29 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       `<h2>Dùng nhiều sổ từ</h2><p>Bấm <strong>+ Sổ</strong> để tạo Sổ 1, Sổ 2 hoặc đặt tên riêng. Chọn sổ trong danh sách để học, đổi tên hoặc xuất ZIP riêng. Trong Sổ từ, nút <strong>Chuyển</strong> mang một từ cùng audio và tiến độ sang sổ khác.</p><ol class="help-list"><li>Trong extension, bôi đen một từ/cụm từ rồi dịch.</li><li>Chọn <strong>Lưu vào sổ</strong> rồi bấm <strong>Lưu để học</strong>. OpenAI tạo nghĩa, ví dụ và hai audio; API chỉ dùng khi tạo nội dung.</li><li>Mở Sổ từ, chọn sổ muốn mang đi rồi <strong>Xuất ZIP</strong>.</li><li>Trong HTML, <strong>Nhập ZIP</strong>. ZIP mới có tên và ID sổ; nhập lại sẽ cập nhật đúng sổ đó. Với ZIP cũ không có thông tin sổ, hãy chọn sổ đích trước khi nhập.</li><li>Sau khi ôn, <strong>Xuất ZIP</strong> để sao lưu tiến độ của sổ đang chọn.</li></ol><p>Chỉ cần nhập một lần: những lần sau mở lại đúng HTML trên cùng trình duyệt/thiết bị sẽ tiếp tục học. Nhập lại khi có ZIP cập nhật từ mới, đổi máy/trình duyệt hoặc dữ liệu bị xóa. Mỗi sổ và tiến độ được lưu trên thiết bị, không tự đồng bộ qua mạng.</p><p>Điện thoại cần trình duyệt chạy JavaScript; trình xem trước file của hệ điều hành có thể không chạy HTML. Giữ ZIP để khôi phục dữ liệu khi cần.</p><div class="dialog-footer"><button data-action="close">Đã hiểu</button></div>`,
     )
   async function handleAction(action: string, button: HTMLElement) {
+    if (action === "export-report") {
+      const report = createReviewReport(notebook, events, { days: logDays || undefined })
+      download(
+        new TextEncoder().encode(JSON.stringify(report, null, 2)),
+        `ReadFrog-NhatKy-${notebook?.id.slice(0, 8) ?? "so"}-${new Date().toISOString().slice(0, 10)}.json`,
+        "application/json",
+      )
+      notice("Đã tải báo cáo. Bạn có thể gửi file JSON này để phân tích việc học.")
+      return
+    }
+    if (action === "clear-logs") {
+      showDialog(
+        '<h2>Xóa nhật ký sổ này?</h2><p>Hãy tải báo cáo trước nếu cần giữ lịch sử. Từ, audio và lịch ôn vẫn được giữ.</p><div class="dialog-footer"><button data-action="close">Giữ nhật ký</button><button class="danger" data-action="confirm-clear-logs">Xóa nhật ký</button></div>',
+      )
+      return
+    }
+    if (action === "confirm-clear-logs" && notebook) {
+      await clearReviewEvents(notebook.id)
+      events = []
+      closeDialog()
+      render()
+      return
+    }
     if ((busy || generation) && ["new-library", "rename-notebook", "move"].includes(action)) return
     if (action === "filters") {
       filtersOpen = !filtersOpen
@@ -445,9 +591,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       return
     }
     if (action === "give-up") {
-      answered = false
-      revealed = true
-      render()
+      await submitAnswer("revealed", "")
       return
     }
     if (action === "add") {
@@ -521,9 +665,14 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   notebookBar.id = "notebook-bar"
   notebookBar.className = "notebook-bar"
   root.querySelector("#notice")!.before(notebookBar)
+  const historyTab = document.createElement("button")
+  historyTab.dataset.tab = "history"
+  historyTab.textContent = "Nhật ký"
+  root.querySelector(".nav")!.append(historyTab)
   root.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLElement>("button,[data-action]")
     if (!button || !root.contains(button) || button.hasAttribute("disabled")) return
+    if (busy) return
     if (button.dataset.tab) {
       tab = button.dataset.tab
       reset()
@@ -539,10 +688,10 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     if (button.dataset.choice !== undefined) {
       const card = current()
       if (!card || answered !== null) return
-      picked = Number(button.dataset.choice)
-      answered = choices[picked] === card.meaning
-      revealed = true
-      render()
+      const selected = Number(button.dataset.choice),
+        value = choices[selected]
+      if (value !== undefined)
+        void submitAnswer(value === card.meaning ? "correct" : "incorrect", value, selected)
       return
     }
     if (button.dataset.grade) {
@@ -551,8 +700,12 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       busy = true
       renderNotebookBar()
       button.setAttribute("disabled", "")
-      void reviewCard(card.id, mode, button.dataset.grade as Grade, notebook?.id)
-        .then((p) => {
+      const captured = attemptSnapshot(),
+        bookId = notebook!.id
+      void reviewCard(card.id, mode, button.dataset.grade as Grade, bookId, captured)
+        .then(async (p) => {
+          const savedEvent = await getReviewEvent(bookId, captured.id)
+          if (savedEvent) updateEvent(savedEvent)
           progress.set(p.cardId, p)
           completed.add(card.id)
           reset()
@@ -582,6 +735,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     }
   })
   root.addEventListener("input", (event) => {
+    if (busy) return
     if ((event.target as HTMLElement).id === "search") {
       query = (event.target as HTMLInputElement).value
       limit = 40
@@ -591,6 +745,11 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   })
   root.addEventListener("change", (event) => {
     const input = event.target as HTMLInputElement
+    if (input.id === "log-days") {
+      logDays = Number(input.value)
+      render()
+      return
+    }
     if (input.id === "notebook-select") {
       if (busy || generation || !input.value) return
       busy = true
@@ -651,9 +810,12 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       const card = current()
       if (!card || revealed) return
       const typed = root.querySelector<HTMLInputElement>("#typed-answer")!.value
-      answered = card.acceptedAnswers.some((a) => normalizeAnswer(a) === normalizeAnswer(typed))
-      revealed = true
-      render()
+      void submitAnswer(
+        card.acceptedAnswers.some((a) => normalizeAnswer(a) === normalizeAnswer(typed))
+          ? "correct"
+          : "incorrect",
+        typed,
+      )
     }
     if (form.id === "generate-form" && bridge && !generation) {
       const controller = new AbortController()

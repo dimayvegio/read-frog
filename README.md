@@ -40,9 +40,13 @@ nghĩa theo câu, phiên âm, ví dụ và hai audio. Mở **Sổ từ** từ po
 điện thoại và máy tính, ba kiểu thẻ lật/trắc nghiệm/gõ đáp án, học và nghe offline.
 Có thể tạo nhiều sổ có tên, chọn sổ khi lưu từ, đổi tên và chuyển từ giữa sổ.
 Mỗi sổ xuất ZIP riêng, giữ lịch ôn riêng; HTML mở lại trên cùng trình duyệt
-không cần nhập lại mỗi lần. ZIP v3 nén audio MP3 và DEFLATE 9, giữ tên/ID sổ,
+không cần nhập lại mỗi lần. ZIP nén audio MP3 và DEFLATE 9, giữ tên/ID sổ,
 vẫn nhập được ZIP v1/v2 cũ. Cùng HTML tự giải nén và phát audio khi mở từ file
 hoặc đặt trên server HTTP(S), không cần API giải nén hay CDN.
+Tab **Nhật ký** thống kê từ/lượt đã kiểm tra, đúng/sai, thời gian phản hồi và
+từ cần ôn thêm. **Tải báo cáo JSON** để gửi phân tích; ZIP v4 mang theo nhật ký
+khi chuyển thiết bị và vẫn nhập được v1/v2/v3. Nhật ký bắt đầu ghi từ bản mới,
+không suy diễn kết quả đúng/sai từ lịch ôn cũ; thẻ lật được tính là tự đánh giá.
 Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
 
 ## Dịch đoạn bôi đen trong PDF trên Edge

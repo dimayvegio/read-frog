@@ -1,3 +1,4 @@
+import type { ReviewEvent } from "./review-log"
 import { sha256 as portableSha256 } from "js-sha256"
 import { z } from "zod"
 
@@ -88,6 +89,7 @@ export interface VocabularyBundle {
   cards: VocabularyCard[]
   progress: CardProgress[]
   audio: AudioAsset[]
+  events?: ReviewEvent[]
 }
 export interface VocabularySaveEvent {
   stage: "text" | "word-audio" | "example-audio" | "saved"

@@ -1,6 +1,7 @@
 import JSZip from "jszip"
 import { z } from "zod"
 import { compressVocabularyBundle, isMp3 } from "./audio"
+import { reviewEventSchema, MAX_REVIEW_EVENTS, MAX_REVIEW_LOG_BYTES } from "./review-log"
 import {
   cardSchema,
   progressSchema,
@@ -41,6 +42,11 @@ const manifestSchema = z.discriminatedUnion("version", [
   manifestV1Schema,
   manifestV1Schema.extend({ version: z.literal(2), notebook: notebookSchema }),
   manifestV1Schema.extend({ version: z.literal(3), notebook: notebookSchema.optional() }),
+  manifestV1Schema.extend({
+    version: z.literal(4),
+    notebook: notebookSchema.optional(),
+    reviewCount: z.number().int().min(0).max(MAX_REVIEW_EVENTS),
+  }),
 ])
 
 // Bound expanded data BEFORE a ZIP library inflates anything. We accept only
@@ -64,7 +70,7 @@ export function inspectZip(bytes: Uint8Array, metadata?: Map<string, EntryInfo>)
     view.getUint16(end + 4, true) ||
     view.getUint16(end + 6, true) ||
     count !== view.getUint16(end + 8, true) ||
-    count > MAX_CARDS * 2 + 3 ||
+    count > MAX_CARDS * 2 + 4 ||
     offset + size !== end
   )
     throw new Error("Không hỗ trợ định dạng ZIP này.")
@@ -97,13 +103,20 @@ export function inspectZip(bytes: Uint8Array, metadata?: Map<string, EntryInfo>)
       bytes.subarray(cursor + 46, cursor + 46 + nameLength),
     )
     if (
-      !/^(manifest\.json|vocabulary\.json|progress\.json|audio\/[a-f0-9]{64}\.(wav|mp3))$/.test(
+      !/^(manifest\.json|vocabulary\.json|progress\.json|reviews\.json|audio\/[a-f0-9]{64}\.(wav|mp3))$/.test(
         name,
       ) ||
       names.has(name)
     )
       throw new Error("ZIP chứa tên file không được hỗ trợ.")
-    if (expanded > (name.startsWith("audio/") ? MAX_AUDIO_BYTES : 4 * 1024 * 1024))
+    if (
+      expanded >
+      (name === "reviews.json"
+        ? MAX_REVIEW_LOG_BYTES
+        : name.startsWith("audio/")
+          ? MAX_AUDIO_BYTES
+          : 4 * 1024 * 1024)
+    )
       throw new Error("Một file trong bộ từ quá lớn.")
     total += expanded
     if (total > MAX_ARCHIVE_BYTES) throw new Error("Dữ liệu giải nén vượt 64 MB.")
@@ -179,7 +192,8 @@ export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uin
     "manifest.json",
     JSON.stringify({
       format: FORMAT,
-      version: 3,
+      version: 4,
+      reviewCount: bundle.events?.length ?? 0,
       title: bundle.notebook?.name ?? "Từ vựng của tôi",
       exportedAt: Date.now(),
       cardCount: bundle.cards.length,
@@ -188,6 +202,7 @@ export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uin
   )
   zip.file("vocabulary.json", JSON.stringify(bundle.cards))
   zip.file("progress.json", JSON.stringify(bundle.progress))
+  zip.file("reviews.json", JSON.stringify(bundle.events ?? []))
   const used = new Set(bundle.cards.flatMap((c) => [c.audio.word, c.audio.example]))
   for (const asset of bundle.audio)
     if (used.has(asset.id))
@@ -217,8 +232,22 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
       ),
     ) as unknown
   const manifest = manifestSchema.parse(await read("manifest.json"))
-  if (manifest.version !== 3 && [...names].some((name) => name.endsWith(".mp3")))
+  if (manifest.version < 3 && [...names].some((name) => name.endsWith(".mp3")))
     throw new Error("ZIP v1/v2 chỉ hỗ trợ WAV.")
+  const events =
+    manifest.version === 4
+      ? z
+          .array(reviewEventSchema)
+          .max(MAX_REVIEW_EVENTS)
+          .parse(await read("reviews.json"))
+      : []
+  if (
+    (manifest.version !== 4 && names.has("reviews.json")) ||
+    (manifest.version === 4 &&
+      (manifest.reviewCount !== events.length ||
+        new Set(events.map((event) => event.id)).size !== events.length))
+  )
+    throw new Error("Nhật ký bị trùng hoặc sai phiên bản.")
   const cards = z
     .array(cardSchema)
     .max(MAX_CARDS)
@@ -236,7 +265,8 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
   )
     throw new Error("Dữ liệu hoặc tiến độ bị trùng/sai ID.")
   const audioIds = new Set(cards.flatMap((c) => [c.audio.word, c.audio.example]))
-  if (names.size !== audioIds.size + 3) throw new Error("Số file audio không khớp dữ liệu.")
+  if (names.size !== audioIds.size + (manifest.version === 4 ? 4 : 3))
+    throw new Error("Số file audio không khớp dữ liệu.")
   for (const card of cards)
     card.acceptedAnswers = validateLearningContent(learningContentFromCard(card)).acceptedAnswers
   const audio: VocabularyBundle["audio"] = []
@@ -254,6 +284,7 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
     cards,
     progress,
     audio,
+    ...(events.length ? { events } : {}),
     ...("notebook" in manifest && manifest.notebook ? { notebook: manifest.notebook } : {}),
   }
 }

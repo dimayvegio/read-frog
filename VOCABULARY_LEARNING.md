@@ -1,5 +1,101 @@
 # Sổ từ vựng và HTML ôn tập
 
+## Nhật ký học: 1.58.0-a.7 / manifest 1.58.0.8
+
+Tiếp tục từ `5d25ccd9`, nhánh `codex/vocabulary-review`; vẫn hiển thị **1.58.0A**.
+Config giữ schema **124**, vocabulary DB lên **3**, ZIP mới **v4** và report
+JSON **v1**. Giữ toàn bộ nén MP3/DEFLATE 9 và đọc ZIP v1/v2/v3.
+
+### Cách dùng và ý nghĩa số liệu
+
+Chọn sổ rồi mở tab **Nhật ký**. Có số từ duy nhất đã kiểm tra, tổng lượt,
+đúng/sai, mở đáp án, tỷ lệ đúng tự động; bảng theo từng kiểu học, số phiên,
+trung vị thời gian phản hồi, từ hay sai và 30 lượt gần nhất. Lọc toàn bộ/7/30
+ngày. **Tải báo cáo JSON** mang theo toàn bộ lượt trong khoảng đã chọn,
+tổng hợp theo ngày/ngôn ngữ/từ để gửi phân tích; không cần gửi cả audio ZIP.
+
+- Một lượt là đáp án đầu tiên được kiểm tra, một lần mở đáp án hoặc một lần
+  tự chấm thẻ lật; chỉ hiển thị từ chưa tạo lượt. Trắc nghiệm/gõ ghi ngay lúc
+  kiểm tra, kể cả khi bỏ qua trước khi chấm Nhớ/Khó/Chưa nhớ.
+- Đúng/sai tự động chỉ áp dụng trắc nghiệm/gõ. Thẻ lật là **tự đánh giá**, giữ
+  grade riêng và không làm tăng tỷ lệ đúng. Mở đáp án được đếm riêng.
+- `accuracyPercent` = đúng / (đúng + sai); `unassistedRecallPercent` tính cả
+  mở đáp án vào số câu chưa tự nhớ được. Không có câu tự động thì tỷ lệ là
+  `null`, UI hiển thị `—`; không dùng 0% hoặc 100% thay cho dữ liệu thiếu.
+- `elapsedMs` đo thời gian trang còn hiển thị đến câu trả lời đầu tiên; thẻ
+  lật đo đến lúc chấm. Tạm dừng khi tab ẩn, cap một giờ, vẫn có thể bao gồm
+  thời gian xao nhãng. Một lần mở/tải lại trang là một `sessionId` mới; số
+  phiên chỉ đếm các phiên có lượt trong khoảng được chọn.
+- Dữ liệu chỉ phản ánh bộ từ và kiểu bài đang học; chưa đủ để xếp CEFR hoặc
+  kết luận trình độ ngoại ngữ chung. Thời gian/độ chính xác trong bộ quen có
+  thể khác khi dùng từ ở ngữ cảnh mới.
+
+**Dữ liệu cũ:** giữ từ/audio/cả ba lịch ôn. Không thể suy ra đáp án/thời gian
+từng lượt trước đây từ các counter, nên không tạo nhật ký giả. Bắt đầu ghi
+khi học bằng bản mới. Thay HTML tại cùng tên/vị trí và đóng tab mã cũ trước
+khi mở lại; chuyển sang server/origin khác nhập ZIP một lần như trước.
+
+### Persistence, merge và định dạng
+
+`VocabularyDatabase.version(3)` thêm store rỗng
+`reviewEvents: &[notebookId+id], notebookId, [notebookId+cardId]`; giữ nguyên
+definition/snapshot v1/v2, không có bước viết lại dữ liệu cũ. Log cache trong
+trang được cập nhật từng event để không đọc lại toàn bộ lịch sử sau mỗi đáp án.
+
+Event public gồm `id` và `sessionId` (UUID), `cardId`, `occurredAt` (UTC ms),
+`mode`, `result` (`correct/incorrect/revealed/self`), snapshot `word`,
+`language`, `meaning` (tối đa 200 ký tự), `answer` (300), `elapsedMs`, `grade`
+(nullable) và `gradedAt` (0 khi chưa chấm). Không chứa API key, OAuth token,
+URL nguồn hoặc toàn bộ đoạn nguồn. Thời gian và snapshot là dữ liệu người học,
+không phải chứng chỉ hoặc kết quả kiểm tra có xác thực.
+
+Grade và lịch ôn ghi cùng transaction, retry cùng ID không tăng schedule/log
+hai lần. Merge ZIP theo ID, giữ nguyên câu trả lời đầu tiên, ghép grade mới hơn;
+ID trùng nhưng nội dung khác bị từ chối và rollback. Import ZIP cũ thiếu log
+không xóa log đang có. Chuyển từ mang theo event của từ đó; cùng từ trong hai
+sổ có lịch/log riêng. Xóa từ vẫn giữ snapshot lịch sử để báo cáo đúng quá khứ.
+
+ZIP v4 giữ cấu trúc v3, thêm `reviews.json` và `manifest.reviewCount`.
+JSON được nén DEFLATE 9; reader kiểm tra schema chặt, count và ID duy nhất,
+CRC32, cùng giới hạn tổng nén/giải nén 64 MiB. Log tối đa 20.000 event/16 MiB
+mỗi sổ; ledger local tính byte/count, không xuất ledger. Khi đầy, tải báo cáo
+rồi dùng **Xóa nhật ký sổ này** (có xác nhận); từ/audio/lịch ôn vẫn còn. Đây là
+xóa local, nhập lại ZIP có log cũ sẽ khôi phục log đó. Nếu tổng audio + log
+vượt giới hạn xuất ZIP, tải report riêng rồi xóa log hoặc chia nhỏ sổ.
+
+Report `format: read-frog-review-report`, `version: 1`: metadata sổ, timezone,
+khoảng thời gian, giải thích các metric, `summary`, `byMode`, `byLanguage`,
+`daily`, `words` và `events`. Không import report như một bộ từ; dùng ZIP v4
+để chuyển đầy đủ dữ liệu/audio/lịch/log. HTML tự tính report và ghi log trên
+file URL hoặc server HTTP(S), không gọi API và không tự gửi dữ liệu ra ngoài.
+
+### Kiểm chứng bản nhật ký — 06/11/2026
+
+- **Đã sửa:** ghi câu kiểm tra đầu tiên, giữ lượt sai bị bỏ qua, tách tự chấm,
+  thống kê/nhật ký responsive, report JSON thực tế tải xuống, ZIP v4 portable,
+  merge không đếm trùng và grade/schedule atomic. Di chuyển từ mang log; xóa
+  log có xác nhận và giữ từ/audio/lịch ôn.
+- **Đã kiểm thử:** 4.011 test đạt, 1 test bỏ qua; `SKIP_FREE_API=true` và loại
+  free-api live có chủ đích. Format/lint/type-check đạt. Production Edge có
+  64 assertion: luồng cũ, đáp án sai chưa chấm vẫn được ghi, JSON summary/raw
+  events tải thực tế, không làm tăng accuracy bằng thẻ lật, UI 360/390/768/1280,
+  ZIP/log round-trip, merge ZIP cũ không xóa log, chuyển sổ, đóng hẳn rồi mở
+  Edge, HTTP offline ghi log/xóa log mà không mất schedule. Unit kiểm tra DB
+  v2 thật lên v3 không tạo dữ liệu quá khứ giả, dedup/retry, rollback, limit,
+  schema strict, timezone, median và ba kiểu học. API/âm thanh dùng mock.
+- **Chưa kiểm thử:** điện thoại vật lý/iOS, server public/HTTPS production,
+  API OpenAI live. Thử HTTP bằng server loopback trả đúng HTML; selection PDF
+  dùng trang kết quả/fixture, không click context-menu native của hệ điều hành.
+- **Bị chặn:** không có. Chưa publish HTML hoặc triển khai cloud sync.
+
+Artifact đã đối chiếu từng file với production build và HTML tải từ extension:
+
+- `ReadFrog-Edge-1.58.0A-ReviewLogs.zip`: 205 file, 6.242.761 byte,
+  manifest `1.58.0.8` / `1.58.0A`.
+  SHA-256: `F8249DD9AEE0355F728AFD026BE85C531589C33CA6AED18CF58E9871CA899E41`.
+- `ReadFrog-OnTuVung.html`: 618.322 byte.
+  SHA-256: `8B50FC07F909E0E20C852C6F7ED78EBA459BAF8B37E030D558FB9F9EC1B50EA3`.
+
 ## Nén portable: 1.58.0-a.6 / manifest 1.58.0.7
 
 Tiếp tục từ `2d9c8dfa`, nhánh `codex/vocabulary-review`; tên hiển thị vẫn

@@ -37,7 +37,7 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.58.0.7",
+    version: "1.58.0.8",
     version_name: "1.58.0A",
     description: "__MSG_extDescription__",
     default_locale: "en",

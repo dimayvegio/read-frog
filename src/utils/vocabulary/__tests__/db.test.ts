@@ -24,7 +24,7 @@ beforeEach(async () => {
   for (const table of vocabularyDB.tables) await table.clear()
 })
 describe("vocabulary persistence", () => {
-  it("persists a compressed v3 notebook and restores all histories in a fresh library", async () => {
+  it("persists a compressed v4 notebook and restores all histories in a fresh library", async () => {
     await importLibrary(await vocabularyFixture())
     const before = await exportLibrary(),
       notebookId = before.notebook!.id,

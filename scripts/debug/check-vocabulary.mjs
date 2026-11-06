@@ -49,6 +49,28 @@ const wait = async (fn) => {
   }
   throw new Error("Timed out waiting for fixture state")
 }
+const readEvents = (target) =>
+  target.evaluate(
+    () =>
+      new Promise((resolve, reject) => {
+        const open = indexedDB.open("read-frog-vocabulary")
+        open.onerror = reject
+        open.onsuccess = () => {
+          const db = open.result,
+            request = db.transaction("reviewEvents").objectStore("reviewEvents").getAll(),
+            bookId = document.querySelector("#notebook-select").value
+          request.onsuccess = () => {
+            resolve(
+              request.result
+                .filter((row) => row.notebookId === bookId)
+                .map(({ notebookId: _notebookId, ...event }) => event),
+            )
+            db.close()
+          }
+          request.onerror = reject
+        }
+      }),
+  )
 let page, reviewServer
 try {
   const id = await browser.installExtension(path.resolve(".output/edge-mv3"))
@@ -412,6 +434,7 @@ try {
   const legacyArchive = new JSZip()
   const legacyManifest = JSON.parse(await zip.file("manifest.json").async("string"))
   const notebookMetadata = legacyManifest.notebook
+  delete legacyManifest.reviewCount
   delete legacyManifest.notebook
   legacyManifest.version = 1
   legacyManifest.title = "Từ vựng của tôi"
@@ -441,8 +464,8 @@ try {
     })
   await fs.writeFile(legacyV2Path, legacyV2Bytes)
   check(
-    "ZIP carries a named notebook v3 plus compressed MP3 assets and no API credential",
-    JSON.parse(await zip.file("manifest.json").async("string")).version === 3 &&
+    "ZIP carries a named notebook v4 plus compressed MP3 assets and no API credential",
+    JSON.parse(await zip.file("manifest.json").async("string")).version === 4 &&
       Object.keys(zip.files).filter((n) => n.endsWith(".mp3")).length >= 1 &&
       !(await zip.file("vocabulary.json").async("string")).includes("vocabulary-test-sentinel"),
   )
@@ -539,6 +562,7 @@ try {
     ),
   )
   await page.click(`[data-choice="${answerIndex}"]`)
+  await page.waitForSelector(".feedback.correct")
   check(
     "Multiple choice provides four saved options and recognizes the correct contextual meaning",
     await page.evaluate(
@@ -565,6 +589,7 @@ try {
   await page.waitForSelector("#typed-answer")
   await page.type("#typed-answer", "not-the-answer")
   await page.click("#type-form button")
+  await page.waitForSelector(".feedback.wrong")
   check(
     "An incorrect typed answer reveals the answer and only permits the lapse grade",
     await page.evaluate(
@@ -580,6 +605,7 @@ try {
   await page.waitForSelector("#typed-answer")
   await page.type("#typed-answer", " REVERSE ")
   await page.click("#type-form button")
+  await page.waitForSelector(".feedback.correct")
   check(
     "Typed answers normalize case and surrounding whitespace",
     await page.evaluate(() => !!document.querySelector(".feedback.correct")),
@@ -614,6 +640,15 @@ try {
         }),
     )
   const before = await readProgress()
+  const logged = await readEvents(page)
+  check(
+    "Every first checked answer is logged even if a wrong attempt is abandoned without grading",
+    logged.length === 4 &&
+      logged.some(
+        (event) =>
+          event.answer === "not-the-answer" && event.result === "incorrect" && event.grade === null,
+      ),
+  )
   check(
     "Each mode persists its own review schedule",
     before[0].flash.reviews === 1 && before[0].choice.reviews === 1 && before[0].type.reviews === 1,
@@ -625,6 +660,53 @@ try {
     downloadPath: reviewedDir,
     browserContextId: standaloneContext.id,
   })
+  await page.click('.nav [data-tab="history"]')
+  await page.waitForSelector("#review-summary")
+  check(
+    "Review history distinguishes one word, four attempts, two correct answers and one wrong answer",
+    await page.$eval("#review-summary", (summary) => {
+      const values = [...summary.querySelectorAll("strong")].map((node) => node.textContent)
+      return JSON.stringify(values) === JSON.stringify(["1", "4", "2", "1", "0", "66.7%"])
+    }),
+  )
+  for (const width of [360, 390, 768, 1280]) {
+    await page.setViewport({ width, height: 844, isMobile: true, hasTouch: true })
+    check(
+      `Review history has no page overflow at ${width}px`,
+      await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+    )
+  }
+  await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true })
+  await page.screenshot({ path: path.join(scratch, "phone-history.png"), fullPage: true })
+  evidence.screenshots.push(path.join(scratch, "phone-history.png"))
+  await page.click('[data-action="export-report"]')
+  const reportFile = await wait(async () =>
+    (await fs.readdir(reviewedDir)).find((name) => name.endsWith(".json")),
+  )
+  const learningReport = JSON.parse(await fs.readFile(path.join(reviewedDir, reportFile), "utf8"))
+  check(
+    "The actual downloaded JSON report includes summaries, daily stats, weak words and raw attempts",
+    learningReport.format === "read-frog-review-report" &&
+      learningReport.summary.attempts === 4 &&
+      learningReport.summary.uniqueWords === 1 &&
+      learningReport.daily.length >= 1 &&
+      learningReport.words[0].incorrect === 1 &&
+      learningReport.events.length === 4,
+  )
+  check(
+    "Flashcard self-ratings do not inflate objective accuracy and the report carries no source URL or API key",
+    learningReport.summary.selfRated === 1 &&
+      learningReport.byMode.flash.accuracyPercent === null &&
+      learningReport.summary.accuracyPercent === 66.7 &&
+      !/sourceUrl|apiKey|vocabulary-test-sentinel/.test(JSON.stringify(learningReport)),
+  )
+  await page.select("#log-days", "7")
+  check(
+    "The seven-day review filter retains today's attempts",
+    (await page.$eval("#review-summary", (node) => node.textContent.includes("Lượt kiểm tra"))) &&
+      (await page.$eval("#review-summary strong:nth-child(1)", (node) => node.textContent)) === "1",
+  )
+  await page.click('.nav [data-tab="study"]')
   await page.click("[data-action=export]")
   const progressFile = await wait(async () => {
     const names = await fs.readdir(reviewedDir)
@@ -636,6 +718,11 @@ try {
     JSON.stringify(JSON.parse(await progressZip.file("progress.json").async("string"))) ===
       JSON.stringify(before),
   )
+  check(
+    "ZIP v4 includes exactly the four recorded review attempts",
+    JSON.stringify(JSON.parse(await progressZip.file("reviews.json").async("string"))) ===
+      JSON.stringify(logged),
+  )
   await page.reload()
   await page.waitForSelector("#import-file")
   await (await page.$("#import-file")).uploadFile(path.join(scratch, zipFile))
@@ -645,6 +732,10 @@ try {
   check(
     "Reload and importing an older ZIP preserve newer local progress",
     JSON.stringify(await readProgress()) === JSON.stringify(before),
+  )
+  check(
+    "Reloading and importing an older ZIP do not reset review logs",
+    JSON.stringify(await readEvents(page)) === JSON.stringify(logged),
   )
   for (const width of [360, 390, 768, 1280]) {
     await page.setViewport({ width, height: 844, isMobile: true, hasTouch: true })
@@ -724,6 +815,10 @@ try {
   check(
     "The target notebook keeps the word's three review histories",
     JSON.stringify(await readProgress()) === JSON.stringify(before),
+  )
+  check(
+    "Moving a word carries its checked-answer logs into the target notebook",
+    JSON.stringify(await readEvents(page)) === JSON.stringify(logged),
   )
   const filesBefore = new Set(await fs.readdir(reviewedDir))
   await page.click('[data-action="export"]')
@@ -915,6 +1010,10 @@ try {
     )
     const reopenedProgress = await rawStore(persistentPage, "notebookProgress")
     check(
+      "Review attempt logs survive a full Edge restart and ZIP transfer",
+      (await readEvents(persistentPage)).length === 4,
+    )
+    check(
       "All three review schedules survive a full browser restart",
       reopenedProgress.length === 1 &&
         reopenedProgress[0].flash.reviews === 1 &&
@@ -981,8 +1080,8 @@ try {
   )
   const hostedZip = await JSZip.loadAsync(await fs.readFile(path.join(hostedDir, hostedFile)))
   check(
-    "Hosted HTML transcodes legacy WAV to MP3 ZIP v3 using only bundled JavaScript",
-    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 3 &&
+    "Hosted HTML transcodes legacy WAV to MP3 ZIP v4 using only bundled JavaScript",
+    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 4 &&
       Object.keys(hostedZip.files).some((name) => name.endsWith(".mp3")),
   )
   check(
@@ -1035,8 +1134,47 @@ try {
     ),
   )
   check(
-    "HTTP-hosted HTML imports and plays MP3 ZIP v3 offline",
+    "HTTP-hosted HTML imports and plays MP3 ZIP v4 offline",
     await hostedMp3.evaluate(() => window.__vocabAudio.some((audio) => audio.duration > 0)),
+  )
+  await hostedMp3.click('[data-mode="choice"]')
+  const hostAnswer = await hostedMp3.evaluate(() =>
+    [...document.querySelectorAll("[data-choice]")].findIndex((button) =>
+      button.textContent.includes("đảo ngược"),
+    ),
+  )
+  await hostedMp3.click(`[data-choice="${hostAnswer}"]`)
+  await hostedMp3.waitForSelector(".feedback.correct")
+  await hostedMp3.click('[data-grade="good"]')
+  await hostedMp3.waitForSelector('[data-action="check-due"]')
+  await hostedMp3.click('.nav [data-tab="history"]')
+  await hostedMp3.waitForSelector("#review-summary")
+  check(
+    "HTTP-hosted HTML records study logs fully offline without a server API",
+    (await readEvents(hostedMp3)).length === 1,
+  )
+  await hostedMp3.click('[data-action="clear-logs"]')
+  await hostedMp3.click('[data-action="confirm-clear-logs"]')
+  await hostedMp3.waitForFunction(() => !document.querySelector("#dialog").open)
+  check(
+    "Clearing logs through the UI keeps vocabulary and review schedules",
+    (await readEvents(hostedMp3)).length === 0 &&
+      (await hostedMp3.evaluate(
+        () =>
+          new Promise((resolve) => {
+            const open = indexedDB.open("read-frog-vocabulary")
+            open.onsuccess = () => {
+              const db = open.result,
+                tx = db.transaction(["notebookCards", "notebookProgress"]),
+                storedCards = tx.objectStore("notebookCards").getAll(),
+                progress = tx.objectStore("notebookProgress").getAll()
+              tx.oncomplete = () => {
+                resolve(storedCards.result.length === 1 && progress.result[0].choice.reviews === 1)
+                db.close()
+              }
+            }
+          }),
+      )),
   )
   check(
     "Hosted study, compression and audio need no server API or CDN requests",

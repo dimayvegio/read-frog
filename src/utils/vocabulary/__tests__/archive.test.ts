@@ -17,7 +17,7 @@ import {
 import { vocabularyFixture, legacyVocabularyZip as createVocabularyZip } from "./fixtures"
 
 describe("portable vocabulary archive", () => {
-  it("exports smaller v3 MP3 archives without changing the original cards, notebook or histories", async () => {
+  it("exports smaller v4 MP3 archives without changing the original cards, notebook or histories", async () => {
     const original = await vocabularyFixture(),
       snapshot = structuredClone(original)
     original.notebook = {
@@ -40,7 +40,7 @@ describe("portable vocabulary archive", () => {
     ).toBe(true)
     expect(bytes.length).toBeLessThan((await createVocabularyZip(original)).length)
     const zip = await JSZip.loadAsync(bytes)
-    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(3)
+    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(4)
     // Re-exporting an imported MP3 does not compound lossy compression.
     expect((await readVocabularyZip(await createCompressedVocabularyZip(result))).audio).toEqual(
       result.audio,
@@ -70,6 +70,7 @@ describe("portable vocabulary archive", () => {
     zip.remove(name.replace(".mp3", ".wav"))
     const manifest = JSON.parse(await zip.file("manifest.json")!.async("string"))
     manifest.version = 1
+    delete manifest.reviewCount
     zip.file("manifest.json", JSON.stringify(manifest))
     await expect(
       readVocabularyZip(await zip.generateAsync({ type: "uint8array" })),

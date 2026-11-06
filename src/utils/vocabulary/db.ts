@@ -2,6 +2,14 @@ import { Dexie, type Table } from "dexie"
 import { getRandomUUID } from "../crypto-polyfill"
 import { migrateVocabularyV1ToV2 } from "./migrations/v1-to-v2"
 import {
+  reviewEventSchema,
+  sameReviewAnswer,
+  MAX_REVIEW_EVENTS,
+  MAX_REVIEW_LOG_BYTES,
+  type ReviewEvent,
+  type ReviewAttempt,
+} from "./review-log"
+import {
   emptyProgress,
   mergeProgress,
   scheduleReview,
@@ -37,6 +45,7 @@ export class VocabularyDatabase extends Dexie {
   notebookCards!: Table<StoredCard, [string, string]>
   notebookProgress!: Table<StoredProgress, [string, string]>
   meta!: Table<{ key: string; value: string }, string>
+  reviewEvents!: Table<ReviewEvent & { notebookId: string }, [string, string]>
   constructor(name = "read-frog-vocabulary") {
     super(name)
     this.version(1).stores({
@@ -52,6 +61,9 @@ export class VocabularyDatabase extends Dexie {
         meta: "&key",
       })
       .upgrade(migrateVocabularyV1ToV2)
+    // New empty log store. Published v1/v2 stores and their migration are frozen.
+    // Existing schedule counters cannot reconstruct historical answer outcomes.
+    this.version(3).stores({ reviewEvents: "&[notebookId+id], notebookId, [notebookId+cardId]" })
   }
 }
 export const vocabularyDB = new VocabularyDatabase()
@@ -75,7 +87,125 @@ const tables = () => [
   vocabularyDB.notebookProgress,
   vocabularyDB.audio,
   vocabularyDB.meta,
+  vocabularyDB.reviewEvents,
 ]
+
+export async function loadReviewEvents(notebookId: string): Promise<ReviewEvent[]> {
+  return (await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).toArray()).map(
+    ({ notebookId: _notebookId, ...event }) => event,
+  )
+}
+export async function getReviewEvent(
+  notebookId: string,
+  id: string,
+): Promise<ReviewEvent | undefined> {
+  const row = await vocabularyDB.reviewEvents.get([notebookId, id])
+  if (!row) return undefined
+  const { notebookId: _notebookId, ...event } = row
+  return event
+}
+async function resetLogBudget(notebookId: string) {
+  const events = await loadReviewEvents(notebookId),
+    bytes = new TextEncoder().encode(JSON.stringify(events)).length
+  await vocabularyDB.meta.put({
+    key: `logBudget:${notebookId}`,
+    value: JSON.stringify({ count: events.length, bytes }),
+  })
+}
+async function putReviewEvent(notebookId: string, input: ReviewEvent) {
+  const event = reviewEventSchema.parse(input),
+    previous = await vocabularyDB.reviewEvents.get([notebookId, event.id])
+  if (previous) {
+    const { notebookId: _notebookId, ...old } = previous
+    if (!sameReviewAnswer(old, event)) throw new Error("Nhật ký trùng ID nhưng khác câu trả lời.")
+    if (event.gradedAt <= previous.gradedAt) return
+  }
+  const key = `logBudget:${notebookId}`
+  if (!(await vocabularyDB.meta.get(key))) await resetLogBudget(notebookId)
+  const budget = JSON.parse((await vocabularyDB.meta.get(key))!.value) as {
+    count: number
+    bytes: number
+  }
+  const encoder = new TextEncoder(),
+    old = previous
+      ? (() => {
+          const { notebookId: _notebookId, ...row } = previous
+          return row
+        })()
+      : null
+  const count = budget.count + (previous ? 0 : 1),
+    bytes =
+      budget.bytes +
+      encoder.encode(JSON.stringify(event)).length -
+      (old ? encoder.encode(JSON.stringify(old)).length : 0) +
+      (previous || budget.count === 0 ? 0 : 1)
+  if (count > MAX_REVIEW_EVENTS || bytes > MAX_REVIEW_LOG_BYTES)
+    throw new Error("Nhật ký đã đầy. Tải báo cáo rồi xóa nhật ký để tiếp tục ghi.")
+  await vocabularyDB.reviewEvents.put({ ...event, notebookId })
+  await vocabularyDB.meta.put({ key, value: JSON.stringify({ count, bytes }) })
+}
+export async function clearReviewEvents(notebookId: string) {
+  await vocabularyDB.transaction("rw", vocabularyDB.reviewEvents, vocabularyDB.meta, async () => {
+    await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).delete()
+    await vocabularyDB.meta.delete(`logBudget:${notebookId}`)
+  })
+}
+function eventFromCard(
+  card: VocabularyCard,
+  mode: ReviewMode,
+  attempt: ReviewAttempt,
+  result: ReviewEvent["result"],
+  answer: string,
+  grade: Grade | null = null,
+): ReviewEvent {
+  const now = Date.now()
+  return reviewEventSchema.parse({
+    ...attempt,
+    cardId: card.id,
+    occurredAt: now,
+    mode,
+    result,
+    word: card.word,
+    language: card.language,
+    meaning: card.meaning.slice(0, 200),
+    answer: answer.slice(0, 300),
+    grade,
+    gradedAt: grade ? Math.max(now, 1) : 0,
+  })
+}
+export async function recordReviewAnswer(
+  cardId: string,
+  mode: "choice" | "type",
+  result: "correct" | "incorrect" | "revealed",
+  answer: string,
+  attempt: ReviewAttempt,
+  notebookId: string,
+) {
+  return vocabularyDB.transaction(
+    "rw",
+    vocabularyDB.notebookCards,
+    vocabularyDB.reviewEvents,
+    vocabularyDB.meta,
+    async () => {
+      const card = await vocabularyDB.notebookCards.get([notebookId, cardId])
+      if (!card) throw new Error("Từ đã bị xóa ở cửa sổ khác.")
+      const existing = await vocabularyDB.reviewEvents.get([notebookId, attempt.id])
+      if (existing) {
+        if (
+          existing.cardId !== cardId ||
+          existing.mode !== mode ||
+          existing.sessionId !== attempt.sessionId
+        )
+          throw new Error("Invalid attempt ID")
+        const { notebookId: _notebookId, ...event } = existing
+        return event // Retry cannot count or replace the first answer twice.
+      }
+      const event = eventFromCard(card, mode, attempt, result, answer)
+      await putReviewEvent(notebookId, event)
+      return event
+    },
+  )
+}
 async function requireNotebook(id: string) {
   const notebook = await vocabularyDB.notebooks.get(id)
   if (!notebook) throw new Error("Sổ đã bị xóa hoặc không còn tồn tại.")
@@ -204,7 +334,11 @@ async function assertCapacity(notebookId: string) {
   const ids = [...new Set(cards.flatMap((c) => [c.audio.word, c.audio.example]))],
     audio = await vocabularyDB.audio.bulkGet(ids)
   if (audio.some((a) => !a)) throw new Error("Sổ thiếu audio.")
-  const size = audio.reduce((n, a) => n + (a?.bytes.length ?? 0), 0) + cardBytes + progressBytes
+  const logBytes = new TextEncoder().encode(
+    JSON.stringify(await loadReviewEvents(notebookId)),
+  ).length
+  const size =
+    audio.reduce((n, a) => n + (a?.bytes.length ?? 0), 0) + cardBytes + progressBytes + logBytes
   if (Math.ceil(size * 1.01) + 4096 + ids.length * 256 > MAX_ARCHIVE_BYTES)
     throw new Error("Sổ đã gần 64 MB. Hãy lưu sang sổ khác.")
 }
@@ -237,6 +371,7 @@ export async function importLibrary(bundle: VocabularyBundle, targetId?: string)
         notebookId: destination,
       })
     }
+    for (const event of bundle.events ?? []) await putReviewEvent(destination, event)
     await assertCapacity(destination)
     await collectUnusedAudio()
     await vocabularyDB.meta.put({ key: "activeNotebookId", value: destination })
@@ -277,21 +412,60 @@ export async function exportLibrary(id?: string): Promise<VocabularyBundle> {
       ...new Set(cards.flatMap((c) => [c.audio.word, c.audio.example])),
     ])
     if (audio.some((a) => !a)) throw new Error("Thiếu audio trong sổ.")
-    return { notebook, cards, progress, audio: audio as AudioAsset[] }
+    const events = await loadReviewEvents(notebookId)
+    return {
+      notebook,
+      cards,
+      progress,
+      audio: audio as AudioAsset[],
+      ...(events.length ? { events } : {}),
+    }
   })
 }
-export async function reviewCard(cardId: string, mode: ReviewMode, grade: Grade, id?: string) {
+export async function reviewCard(
+  cardId: string,
+  mode: ReviewMode,
+  grade: Grade,
+  id?: string,
+  attempt?: ReviewAttempt,
+) {
   const notebookId = await resolveNotebookId(id)
   return vocabularyDB.transaction(
     "rw",
     vocabularyDB.notebookCards,
     vocabularyDB.notebookProgress,
+    vocabularyDB.reviewEvents,
+    vocabularyDB.meta,
     async () => {
-      if (!(await vocabularyDB.notebookCards.get([notebookId, cardId])))
-        throw new Error("Từ này đã được xóa ở cửa sổ khác.")
+      const card = await vocabularyDB.notebookCards.get([notebookId, cardId])
+      if (!card) throw new Error("Từ này đã được xóa ở cửa sổ khác.")
       const row = (await vocabularyDB.notebookProgress.get([notebookId, cardId])) ?? {
         ...emptyProgress(cardId),
         notebookId,
+      }
+      if (attempt) {
+        const existing = await vocabularyDB.reviewEvents.get([notebookId, attempt.id])
+        if (
+          existing &&
+          (existing.cardId !== cardId ||
+            existing.mode !== mode ||
+            existing.sessionId !== attempt.sessionId)
+        )
+          throw new Error("Invalid attempt ID")
+        if (existing?.grade) return publicProgress(row)
+        if (
+          existing &&
+          (existing.result === "incorrect" || existing.result === "revealed") &&
+          grade !== "again"
+        )
+          throw new Error("Câu sai hoặc mở đáp án chỉ được chấm Chưa nhớ.")
+        const event = existing
+          ? (() => {
+              const { notebookId: _notebookId, ...value } = existing
+              return value
+            })()
+          : eventFromCard(card, mode, attempt, "self", "", grade)
+        await putReviewEvent(notebookId, { ...event, grade, gradedAt: Math.max(Date.now(), 1) })
       }
       row[mode] = scheduleReview(row[mode], grade)
       await vocabularyDB.notebookProgress.put(row)
@@ -334,6 +508,12 @@ export async function moveVocabularyCard(cardId: string, fromId: string, toId: s
       ...mergeProgress(targetProgress, sourceProgress),
       notebookId: toId,
     })
+    for (const event of await loadReviewEvents(fromId))
+      if (event.cardId === cardId) {
+        await putReviewEvent(toId, event)
+        await vocabularyDB.reviewEvents.delete([fromId, event.id])
+      }
+    await resetLogBudget(fromId)
     await assertCapacity(toId)
     await vocabularyDB.notebookCards.delete([fromId, cardId])
     await vocabularyDB.notebookProgress.delete([fromId, cardId])
@@ -345,6 +525,8 @@ export async function clearVocabularyLibrary(id?: string) {
   await vocabularyDB.transaction("rw", tables(), async () => {
     await vocabularyDB.notebookCards.where("notebookId").equals(notebookId).delete()
     await vocabularyDB.notebookProgress.where("notebookId").equals(notebookId).delete()
+    await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).delete()
+    await vocabularyDB.meta.delete(`logBudget:${notebookId}`)
     await collectUnusedAudio()
   })
 }
