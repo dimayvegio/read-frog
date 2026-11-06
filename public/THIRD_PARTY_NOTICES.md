@@ -33,3 +33,7 @@ The local Remix vector is derived from `@remixicon/react` 4.9.0, by Remix Design
 under the Remix Icon License 1.0. Lucide React vectors and Inter fonts retain
 their respective ISC and SIL Open Font License notices in their packages.
 All icons and fonts used by the extension are bundled locally.
+
+Temml 0.14.0, Copyright (c) 2020 Ron Kok, is used under the MIT license
+(the permission grant, conditions, and warranty disclaimer reproduced above).
+Formula rendering uses the system's math font without fetching remote fonts.

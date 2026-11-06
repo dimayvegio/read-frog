@@ -91,10 +91,14 @@ describe("video subtitles page sections", () => {
   })
 
   it("turns translate-on-open on for one platform only", () => {
-    testState.videoSubtitles!.autoStart = { youtube: true, xcom: false, netflix: false }
+    testState.videoSubtitles!.autoStart.youtube = true
     renderInRouter(<SubtitlesAutoStartPage />)
 
     expect(screen.getByRole("switch", { name: "YouTube" })).toBeChecked()
+    for (const name of ["Bilibili", "Udemy", "edX"]) {
+      expect(screen.getByRole("switch", { name })).not.toBeChecked()
+    }
+    expect(screen.queryByRole("switch", { name: "X" })).not.toBeInTheDocument()
     expect(screen.queryByRole("switch", { name: "Netflix" })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("switch", { name: "YouTube" }))
@@ -102,7 +106,7 @@ describe("video subtitles page sections", () => {
     const update = setVideoSubtitlesMock.mock.lastCall?.[0]
     expect(typeof update).toBe("function")
     expect(typeof update === "function" && update(testState.videoSubtitles!)).toEqual({
-      autoStart: { youtube: false, xcom: false, netflix: false },
+      autoStart: { ...DEFAULT_CONFIG.videoSubtitles.autoStart, youtube: false },
     })
   })
 })

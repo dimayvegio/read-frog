@@ -1,5 +1,12 @@
 # AGENTS.md
 
+## Local Fork Upgrades
+
+- Before integrating an upstream release, read [UPSTREAM_UPGRADE_GUIDE.md](UPSTREAM_UPGRADE_GUIDE.md).
+- Preserve the local OpenAI-only runtime, private credentials, PDF selection, Microsoft/OpenAI TTS, Vietnamese typography, and two-minute subtitle buffer.
+- Mark upstream-based local releases with the `A` suffix in `manifest.version_name` (for example `1.58.0A`), while keeping package and manifest numeric versions valid.
+- Published fork migrations are frozen; upstream migration numbers may conflict and must be adapted as a new fork schema step.
+
 ## Testing Notes
 
 - `src/utils/host/translate/api/__tests__/free-api.test.ts` depends on live external translation services.

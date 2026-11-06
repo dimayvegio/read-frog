@@ -31,7 +31,7 @@ export interface BootstrapIO<T> {
 }
 
 /** Shared attempt; only the trusted settings handler is allowed to request retry. */
-export function createConfigBootstrap<T>(io: BootstrapIO<T>, latestVersion: 121 | 122 = 121) {
+export function createConfigBootstrap<T>(io: BootstrapIO<T>, latestVersion: 121 | 122 | 123 = 121) {
   let attempt: Promise<InitialConfigResult<T>> | undefined
   let running = false
   let result: InitialConfigResult<T> | undefined

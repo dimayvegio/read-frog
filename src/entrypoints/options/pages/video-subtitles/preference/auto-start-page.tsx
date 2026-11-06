@@ -14,6 +14,9 @@ const PLATFORM_NAMES = {
   youtube: "YouTube",
   xcom: "X",
   netflix: "Netflix",
+  bilibili: "Bilibili",
+  udemy: "Udemy",
+  edx: "edX",
 } as const satisfies Record<SubtitlesPlatform, string>
 
 /**
@@ -45,7 +48,7 @@ export function SubtitlesAutoStartPage() {
         }
       >
         {subtitlesPlatformSchema.options
-          .filter((platform) => platform === "youtube")
+          .filter((platform) => platform !== "xcom" && platform !== "netflix")
           .map((platform) => {
             const name = PLATFORM_NAMES[platform]
             return (

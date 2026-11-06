@@ -24,27 +24,56 @@ beforeEach(async () => {
 })
 
 describe("production configuration bootstrap and cleanup wiring", () => {
-  it.each(["active", "deleted"])(
-    "upgrades an installed v121 profile without changing its %s credential",
-    async (state) => {
-      const { testSeries: v121 } = await import("@/utils/config/__tests__/example/v121")
-      const previous = structuredClone(Object.values(v121)[0]!.config)
+  it.each([
+    [121, "active"],
+    [121, "deleted"],
+    [122, "active"],
+    [122, "deleted"],
+  ] as const)(
+    "upgrades an installed v%i profile without changing its %s credential",
+    async (version, state) => {
+      const { testSeries: previousSeries } =
+        version === 121
+          ? await import("@/utils/config/__tests__/example/v121")
+          : await import("@/utils/config/__tests__/example/v122")
+      const previous = structuredClone(Object.values(previousSeries)[0]!.config)
+      previous.videoSubtitles.autoStart.youtube = true
+      if (version === 122) {
+        previous.tts.provider = "openai"
+        previous.tts.openai = {
+          model: "gpt-4o-mini-tts",
+          voice: "coral",
+          speed: 1.25,
+          instructions: "Warm.",
+        }
+      }
       await storage.setItem("local:config", previous)
-      await storage.setMeta("local:config", { schemaVersion: 121 })
+      await storage.setMeta("local:config", { schemaVersion: version })
       const credentials = await import("../openai-credentials")
       if (state === "active") await credentials.saveOpenAIKey("existing-private-sentinel")
       else await credentials.deleteOpenAIKey()
       const status = await credentials.readOpenAIKeyStatus()
       const { ensureInitializedConfig } = await import("../config")
       const config = await ensureInitializedConfig()
-      expect(config.tts).toMatchObject({ ...previous.tts, provider: "microsoft" })
-      expect(config.tts.openai.model).toBe("gpt-realtime-2.1-mini")
+      expect(config.tts).toMatchObject({
+        ...previous.tts,
+        provider: version === 121 ? "microsoft" : "openai",
+      })
+      expect(config.tts.openai.model).toBe(
+        version === 121 ? "gpt-realtime-2.1-mini" : "gpt-4o-mini-tts",
+      )
+      expect(config.videoSubtitles.autoStart).toMatchObject({
+        youtube: true,
+        bilibili: false,
+        udemy: false,
+        edx: false,
+      })
       expect(await credentials.readOpenAIKeyStatus()).toMatchObject({
         configured: state === "active",
         revision: status.revision,
       })
-      expect((await credentials.readBootstrapJournal())?.targetVersion).toBe(122)
-      expect((await storage.getMeta("local:config")).schemaVersion).toBe(122)
+      expect((await credentials.readBootstrapJournal())?.targetVersion).toBe(CONFIG_SCHEMA_VERSION)
+      expect((await storage.getMeta("local:config")).schemaVersion).toBe(CONFIG_SCHEMA_VERSION)
     },
   )
 
