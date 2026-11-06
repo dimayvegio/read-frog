@@ -44,7 +44,9 @@ không cần nhập lại mỗi lần. ZIP nén audio MP3 và DEFLATE 9, giữ t
 vẫn nhập được ZIP v1/v2 cũ. Cùng HTML tự giải nén và phát audio khi mở từ file
 hoặc đặt trên server HTTP(S), không cần API giải nén hay CDN.
 Tab **Nhật ký** thống kê từ/lượt đã kiểm tra, đúng/sai, thời gian phản hồi và
-từ cần ôn thêm. **Tải báo cáo JSON** để gửi phân tích; ZIP v4 mang theo nhật ký
+từ cần ôn thêm. **Tải báo cáo cho ChatGPT** xuất file Markdown với danh sách từ
+cần ôn, lý do và câu trả lời sai/đáp án; JSON v2 giữ thêm toàn bộ dữ liệu thô.
+Tách từ đang củng cố, có dấu hiệu nhớ và chưa đủ dữ liệu. ZIP v4 mang theo nhật ký
 khi chuyển thiết bị và vẫn nhập được v1/v2/v3. Nhật ký bắt đầu ghi từ bản mới,
 không suy diễn kết quả đúng/sai từ lịch ôn cũ; thẻ lật được tính là tự đánh giá.
 Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.

@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.7` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.8` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.58.0-a.8` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.9` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.9`, giữ report JSON v2 và Markdown cho ChatGPT: danh sách từ
+cần ôn kèm bằng chứng, phân biệt từ chưa kiểm tra với từ có lỗi. Phân nhóm theo
+toàn bộ nhật ký của từ còn trong sổ, độc lập bộ lọc thống kê; giải thích quy tắc
+và không coi một lần đúng/tự chấm là xác nhận đã thuộc. DB3/ZIP4/config124 giữ
+nguyên; không thay dữ liệu gốc để tạo phân nhóm dẫn xuất.
 
 Từ build `1.58.0.8`, giữ store `reviewEvents` của DB v3, ZIP v4 với
 `reviews.json` và báo cáo JSON v1. Đọc ZIP v1/v2/v3; không dựng lại lịch sử

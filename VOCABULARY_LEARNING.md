@@ -1,5 +1,61 @@
 # Sổ từ vựng và HTML ôn tập
 
+## Báo cáo cho ChatGPT: 1.58.0-a.8 / manifest 1.58.0.9
+
+Tiếp tục từ `5734cb32`, nhánh `codex/vocabulary-review`. DB **3**, ZIP **v4**,
+config schema **124** giữ nguyên. Report JSON lên **v2**; bổ sung file Markdown
+dễ đọc, không thay log/SRS/audio/credential hoặc phát sinh API call.
+
+Trong **Nhật ký**, bấm **Tải báo cáo cho ChatGPT**, gửi file `.md` vừa tải.
+Đầu file có danh sách từ cần tập trung, nghĩa/ngôn ngữ, số đúng/sai/mở đáp án,
+lý do cụ thể và tối đa ba lỗi gần nhất cùng đáp án. File chứa đủ từ trong mỗi
+nhóm, UI hiện tối đa 10 từ cần ôn. JSON vẫn có toàn bộ event và thêm
+`assessment` trước các bảng thống kê để công cụ phân tích tìm thấy ngay.
+
+Phân nhóm tính từ **toàn bộ nhật ký**, chỉ cho từ còn trong sổ nếu có inventory;
+không bỏ bằng chứng cũ khi người dùng lọc thống kê 7/30 ngày. Các nhóm:
+
+- `needsReview`: lượt gần nhất sai/mở đáp án, tự chấm Chưa nhớ/Khó, hoặc trong
+  năm lượt chấm tự động gần nhất còn lỗi và chưa có ba lần đúng liên tiếp.
+- `developing`: đã có câu trả lời được chấm nhưng chưa đủ dấu hiệu ổn định.
+- `recallSignals`: ít nhất ba câu đúng liên tiếp, ít nhất hai phiên, chuỗi
+  kiểm tra trải qua ít nhất 24 giờ và có câu gõ đáp án. Gợi ý có dấu hiệu nhớ,
+  không khẳng định đã thuộc vĩnh viễn hoặc đạt trình độ CEFR.
+- `notAssessed`: chưa có nhật ký hoặc mới tự chấm thẻ lật không báo khó/chưa
+  nhớ; không gộp vào từ chưa thuộc hoặc đã thuộc. Dữ liệu cũ không từng ghi
+  vẫn là thiếu bằng chứng, không tạo lịch sử giả.
+
+`assessment.method = review-evidence-rules-v1`, scope `all-recorded-history`,
+giữ `inventoryProvided`, bốn nhóm, lý do, số lượt/chấm đúng/sai/mở, chuỗi đúng,
+phiên/span ngày và `recentMistakes` với answer/expectedAnswer. Dữ liệu thống kê
+theo kỳ vẫn ở summary/byMode/byLanguage/daily/words/events như report v1.
+Inventory không được cung cấp thì dùng snapshot các từ có log và đánh dấu rõ;
+UI luôn truyền inventory hiện tại, không đề xuất từ đã xóa.
+
+Markdown tách bốn nhóm và ghi rõ khác biệt phạm vi thống kê/phân nhóm, tự chấm
+và chấm tự động. Escape HTML, ký tự bảng/Markdown và xuống dòng trong dữ liệu.
+Không gửi dữ liệu tự động sang ChatGPT, không cần key để tạo báo cáo. Report
+v1 cũ vẫn là file số liệu để phân tích; các file report không dùng làm bộ nhập
+từ vựng, tiếp tục dùng ZIP v4 để chuyển dữ liệu đầy đủ.
+
+**Kiểm chứng 06/11/2026:** đã sửa danh sách ưu tiên/lý do, inventory chưa kiểm
+tra và bản xuất Markdown/JSON v2. 4.021 test đạt, 1 test bỏ qua; đặt
+`SKIP_FREE_API=true` và loại free-api live. Format/lint/type-check đạt, 67
+assertion production Edge đạt: tải MD/JSON thực tế, từ `reverse` vẫn cần ôn
+sau một lần đúng lại, giữ lỗi/đáp án và lý do, không chứa key/URL nguồn, phone
+viewport và các luồng ZIP/log/SRS/HTTP cũ. Unit kiểm tra hồi phục qua nhiều
+phiên/ngày, không suy ra thuộc từ trắc nghiệm hoặc tự chấm, thiếu dữ liệu,
+phạm vi lọc ngày và escape Markdown. Chưa thử điện thoại vật lý, OpenAI live
+hoặc server public; không có phần bị chặn, không publish site/cloud sync.
+
+Artifact đối chiếu từng file với build kiểm thử và HTML tải từ extension:
+
+- `ReadFrog-Edge-1.58.0A-ChatGPTReport.zip`: 205 file, 6.247.628 byte,
+  manifest `1.58.0.9` / `1.58.0A`.
+  SHA-256: `CF2A32A3EC4F81FA2FD7EB83CF0D497DF27681E5EBDF4A60F13A7D03B3156B09`.
+- `ReadFrog-OnTuVung.html`: 625.379 byte.
+  SHA-256: `61991918EFA097AD9580A260CE977120DC1DC4AC3FDA3EC7F5330B4268E84537`.
+
 ## Nhật ký học: 1.58.0-a.7 / manifest 1.58.0.8
 
 Tiếp tục từ `5d25ccd9`, nhánh `codex/vocabulary-review`; vẫn hiển thị **1.58.0A**.

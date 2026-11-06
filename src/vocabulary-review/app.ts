@@ -21,6 +21,7 @@ import {
   type ReviewEvent,
   type ReviewAttempt,
 } from "../utils/vocabulary/review-log"
+import { reviewReportMarkdown } from "../utils/vocabulary/review-report-markdown"
 import {
   REVIEW_MODES,
   normalizeAnswer,
@@ -258,7 +259,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   }
 
   function history() {
-    const report = createReviewReport(notebook, events, { days: logDays || undefined }),
+    const report = createReviewReport(notebook, events, { days: logDays || undefined, cards }),
       summary = report.summary
     const resultLabels = {
       correct: "Đúng",
@@ -267,7 +268,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       self: "Tự đánh giá",
     }
     const rate = (value: number | null) => (value === null ? "—" : `${value}%`)
-    return `<div class="page-top"><h1>Nhật ký học</h1><p>Nhìn lại những từ đã kiểm tra và gửi báo cáo để phân tích tiến bộ.</p></div><div class="log-tools"><label>Khoảng thời gian<select id="log-days"><option value="0" ${logDays === 0 ? "selected" : ""}>Toàn bộ nhật ký</option><option value="7" ${logDays === 7 ? "selected" : ""}>7 ngày gần đây</option><option value="30" ${logDays === 30 ? "selected" : ""}>30 ngày gần đây</option></select></label><button class="primary" data-action="export-report" ${!report.events.length ? "disabled" : ""}>Tải báo cáo JSON</button></div><div class="log-overview" id="review-summary">${[
+    return `<div class="page-top"><h1>Nhật ký học</h1><p>Nhìn lại những từ đã kiểm tra và gửi báo cáo để phân tích tiến bộ.</p></div><div class="log-tools"><label>Khoảng thời gian<select id="log-days"><option value="0" ${logDays === 0 ? "selected" : ""}>Toàn bộ nhật ký</option><option value="7" ${logDays === 7 ? "selected" : ""}>7 ngày gần đây</option><option value="30" ${logDays === 30 ? "selected" : ""}>30 ngày gần đây</option></select></label><button class="primary" data-action="export-chatgpt-report" ${!cards.length && !report.events.length ? "disabled" : ""}>Tải báo cáo cho ChatGPT</button><button data-action="export-report" ${!cards.length && !report.events.length ? "disabled" : ""}>Tải báo cáo JSON</button></div><div class="log-overview" id="review-summary">${[
       [summary.uniqueWords, "Từ đã kiểm tra"],
       [summary.attempts, "Lượt kiểm tra"],
       [summary.correct, "Trả lời đúng"],
@@ -285,16 +286,16 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       },
     ).join(
       "",
-    )}</tbody></table></div><p class="hint">${summary.selfRated} lượt tự đánh giá · ${summary.sessions} phiên học · Thời gian phản hồi trung vị: ${summary.medianResponseMs === null ? "—" : `${(summary.medianResponseMs / 1000).toFixed(1)} giây`}.</p></section><section class="log-section"><h2>Từ cần ôn thêm</h2>${
-      report.words
-        .filter((word) => word.incorrect || word.revealed)
+    )}</tbody></table></div><p class="hint">${summary.selfRated} lượt tự đánh giá · ${summary.sessions} phiên học · Thời gian phản hồi trung vị: ${summary.medianResponseMs === null ? "—" : `${(summary.medianResponseMs / 1000).toFixed(1)} giây`}.</p></section><section class="log-section" id="words-needing-review"><h2>Cần ôn lại (${report.assessment.needsReview.length})</h2><p class="hint">Phân nhóm dùng toàn bộ nhật ký của từ còn trong sổ, độc lập bộ lọc ngày. Đúng một lần chưa đủ để xác nhận đã thuộc.</p>${
+      report.assessment.needsReview
         .slice(0, 10)
         .map(
           (word) =>
-            `<div class="log-row"><div><strong>${esc(word.word)}</strong><p>${esc(word.meaning)}</p></div><span>${word.incorrect} sai · ${word.revealed} mở đáp án</span></div>`,
+            `<div class="log-row"><div><strong>${esc(word.word)}</strong><p>${esc(word.meaning)}</p><small>${esc(word.reasons.join(" "))}</small></div><span>${word.evidence.incorrect} sai · ${word.evidence.revealed} mở đáp án</span></div>`,
         )
-        .join("") || '<p class="muted">Chưa có từ trả lời sai hoặc mở đáp án trong khoảng này.</p>'
-    }</section><section class="log-section"><h2>Những lượt gần đây</h2>${
+        .join("") ||
+      '<p class="muted">Chưa có từ bị gắn cờ cần ôn lại. Điều này không có nghĩa là đã thuộc hết.</p>'
+    }<p class="hint">${report.assessment.developing.length} từ đang củng cố · ${report.assessment.recallSignals.length} từ có dấu hiệu nhớ · ${report.assessment.notAssessed.length} từ chưa đủ dữ liệu. Báo cáo cho ChatGPT chứa đầy đủ các nhóm và lý do.</p></section><section class="log-section"><h2>Những lượt gần đây</h2>${
       report.events
         .slice(-30)
         .reverse()
@@ -479,14 +480,19 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       `<h2>Dùng nhiều sổ từ</h2><p>Bấm <strong>+ Sổ</strong> để tạo Sổ 1, Sổ 2 hoặc đặt tên riêng. Chọn sổ trong danh sách để học, đổi tên hoặc xuất ZIP riêng. Trong Sổ từ, nút <strong>Chuyển</strong> mang một từ cùng audio và tiến độ sang sổ khác.</p><ol class="help-list"><li>Trong extension, bôi đen một từ/cụm từ rồi dịch.</li><li>Chọn <strong>Lưu vào sổ</strong> rồi bấm <strong>Lưu để học</strong>. OpenAI tạo nghĩa, ví dụ và hai audio; API chỉ dùng khi tạo nội dung.</li><li>Mở Sổ từ, chọn sổ muốn mang đi rồi <strong>Xuất ZIP</strong>.</li><li>Trong HTML, <strong>Nhập ZIP</strong>. ZIP mới có tên và ID sổ; nhập lại sẽ cập nhật đúng sổ đó. Với ZIP cũ không có thông tin sổ, hãy chọn sổ đích trước khi nhập.</li><li>Sau khi ôn, <strong>Xuất ZIP</strong> để sao lưu tiến độ của sổ đang chọn.</li></ol><p>Chỉ cần nhập một lần: những lần sau mở lại đúng HTML trên cùng trình duyệt/thiết bị sẽ tiếp tục học. Nhập lại khi có ZIP cập nhật từ mới, đổi máy/trình duyệt hoặc dữ liệu bị xóa. Mỗi sổ và tiến độ được lưu trên thiết bị, không tự đồng bộ qua mạng.</p><p>Điện thoại cần trình duyệt chạy JavaScript; trình xem trước file của hệ điều hành có thể không chạy HTML. Giữ ZIP để khôi phục dữ liệu khi cần.</p><div class="dialog-footer"><button data-action="close">Đã hiểu</button></div>`,
     )
   async function handleAction(action: string, button: HTMLElement) {
-    if (action === "export-report") {
-      const report = createReviewReport(notebook, events, { days: logDays || undefined })
+    if (action === "export-report" || action === "export-chatgpt-report") {
+      const report = createReviewReport(notebook, events, { days: logDays || undefined, cards })
+      const markdown = action === "export-chatgpt-report"
       download(
-        new TextEncoder().encode(JSON.stringify(report, null, 2)),
-        `ReadFrog-NhatKy-${notebook?.id.slice(0, 8) ?? "so"}-${new Date().toISOString().slice(0, 10)}.json`,
-        "application/json",
+        new TextEncoder().encode(
+          markdown ? reviewReportMarkdown(report) : JSON.stringify(report, null, 2),
+        ),
+        `ReadFrog-${markdown ? "Cho-ChatGPT" : "NhatKy"}-${notebook?.id.slice(0, 8) ?? "so"}-${new Date().toISOString().slice(0, 10)}.${markdown ? "md" : "json"}`,
+        markdown ? "text/markdown;charset=utf-8" : "application/json",
       )
-      notice("Đã tải báo cáo. Bạn có thể gửi file JSON này để phân tích việc học.")
+      notice(
+        `Đã tải báo cáo ${markdown ? "cho ChatGPT" : "JSON"}. Gửi file này để xem những từ cần ôn lại.`,
+      )
       return
     }
     if (action === "clear-logs") {

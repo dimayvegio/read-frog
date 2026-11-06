@@ -685,6 +685,33 @@ try {
   )
   const learningReport = JSON.parse(await fs.readFile(path.join(reviewedDir, reportFile), "utf8"))
   check(
+    "The JSON report puts reverse in the review-first list with its real mistake and expected answer",
+    learningReport.version === 2 &&
+      learningReport.assessment.needsReview[0].word === "reverse" &&
+      learningReport.assessment.needsReview[0].recentMistakes[0].answer === "not-the-answer" &&
+      learningReport.assessment.needsReview[0].recentMistakes[0].expectedAnswer === "reverse",
+  )
+  check(
+    "The history page explains why a word still needs review after one correct retry",
+    await page.$eval(
+      "#words-needing-review",
+      (node) =>
+        node.textContent.includes("reverse") && node.textContent.includes("mới đúng liên tiếp 1"),
+    ),
+  )
+  await page.click('[data-action="export-chatgpt-report"]')
+  const markdownFile = await wait(async () =>
+    (await fs.readdir(reviewedDir)).find((name) => name.endsWith(".md")),
+  )
+  const readableReport = await fs.readFile(path.join(reviewedDir, markdownFile), "utf8")
+  check(
+    "The actual downloaded ChatGPT report lists weak words first with reasons and mistakes",
+    readableReport.includes("not-the-answer") &&
+      readableReport.indexOf("reverse") > readableReport.indexOf("### Cần ôn lại") &&
+      readableReport.indexOf("reverse") < readableReport.indexOf("### Đang củng cố") &&
+      !/apiKey|sourceUrl|vocabulary-test-sentinel/.test(readableReport),
+  )
+  check(
     "The actual downloaded JSON report includes summaries, daily stats, weak words and raw attempts",
     learningReport.format === "read-frog-review-report" &&
       learningReport.summary.attempts === 4 &&
@@ -703,8 +730,10 @@ try {
   await page.select("#log-days", "7")
   check(
     "The seven-day review filter retains today's attempts",
-    (await page.$eval("#review-summary", (node) => node.textContent.includes("Lượt kiểm tra"))) &&
-      (await page.$eval("#review-summary strong:nth-child(1)", (node) => node.textContent)) === "1",
+    await page.$eval(
+      "#review-summary",
+      (node) => node.querySelectorAll("strong")[1].textContent === "4",
+    ),
   )
   await page.click('.nav [data-tab="study"]')
   await page.click("[data-action=export]")

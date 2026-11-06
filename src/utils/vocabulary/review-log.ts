@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { assessVocabulary, type StudyWord } from "./learning-assessment"
 
 export const MAX_REVIEW_EVENTS = 20000
 export const MAX_REVIEW_LOG_BYTES = 16 * 1024 * 1024
@@ -77,7 +78,7 @@ export function summarizeReviewEvents(events: ReviewEvent[]) {
 export function createReviewReport(
   notebook: { id: string; name: string } | null,
   events: ReviewEvent[],
-  options: { now?: number; days?: number; timeZone?: string } = {},
+  options: { now?: number; days?: number; timeZone?: string; cards?: readonly StudyWord[] } = {},
 ) {
   const now = options.now ?? Date.now(),
     timeZone = options.timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -111,7 +112,7 @@ export function createReviewReport(
   }
   return {
     format: "read-frog-review-report",
-    version: 1,
+    version: 2,
     exportedAt: now,
     timeZone,
     notebook,
@@ -120,6 +121,7 @@ export function createReviewReport(
       to: now,
       firstRecordedAt: events.length ? Math.min(...events.map((e) => e.occurredAt)) : null,
     },
+    assessment: assessVocabulary(events, options.cards),
     interpretation: [
       "Counts are unique recorded attempts, not the number of times a card was displayed.",
       "Accuracy includes only automatically checked first answers in choice/type modes. Revealed answers and flashcard self-ratings are separate.",
