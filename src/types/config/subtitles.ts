@@ -54,6 +54,7 @@ export const subtitlesPlatformSchema = z.enum([
   "bilibili",
   "udemy",
   "edx",
+  "anipm",
 ])
 
 // Per platform, whether subtitles start as a video loads. `.default()` lets a config stored

@@ -15,10 +15,11 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Tổ tiên chung với upstream 1.57.0        | `e361e991b4127dd0d03473ed9329c24885fe420a` |
 | Bản local ngay trước lần nâng cấp này    | `d2e7656ec87837fad331a5e3cda3eaa5b8284d76` |
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
-| `package.json`                           | `1.58.0-a` (SemVer hợp lệ)                 |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.1` (số hợp lệ cho Edge/Chromium)   |
+| Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
+| `package.json`                           | `1.58.0-a.1` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.2` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.0A`                                  |
-| Schema cấu hình của fork                 | `123`                                      |
+| Schema cấu hình của fork                 | `124`                                      |
 
 Không viết chữ A vào `manifest.version`. Khi phát hành bản sửa tiếp theo trên
 cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hiển thị
@@ -30,6 +31,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 Yêu cầu mới của người dùng có ưu tiên cao hơn tài liệu handoff cũ. Đặc biệt,
 OpenAI TTS và PDF đã được người dùng yêu cầu triển khai sau bản handoff nền.
 Không xoá chúng vì handoff ban đầu từng ghi chúng là ngoài phạm vi.
+
+**ani.pm cũng là tính năng riêng cần giữ từ build `1.58.0.2`.** Đọc
+[ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md) trước khi sửa adapter/player:
+giữ guard iframe chính xác, chỉ đọc cue đang tải sẵn, không đổi mode track
+của Settlar, menu ngoài controls bị scale và reset khi nguồn video thay đổi
+trong cùng iframe. Migration v124 đã phát hành phải giữ nguyên.
 
 | Phần phải giữ                                                                                                                      | Điểm kiểm tra trong source                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |

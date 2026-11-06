@@ -17,6 +17,7 @@ const PLATFORM_NAMES = {
   bilibili: "Bilibili",
   udemy: "Udemy",
   edx: "edX",
+  anipm: "ani.pm",
 } as const satisfies Record<SubtitlesPlatform, string>
 
 /**

@@ -1,4 +1,5 @@
 import type { ContentScriptContext } from "#imports"
+import { initAniPmSubtitles } from "./init-anipm-subtitles"
 import { initBilibiliSubtitles } from "./init-bilibili-subtitles"
 import { initEdxSubtitles } from "./init-edx-subtitles"
 import { initUdemySubtitles } from "./init-udemy-subtitles"
@@ -16,4 +17,5 @@ export function bootstrapSubtitlesRuntime(ctx: ContentScriptContext) {
   initBilibiliSubtitles(ctx)
   initUdemySubtitles(ctx)
   initEdxSubtitles(ctx)
+  initAniPmSubtitles(ctx)
 }

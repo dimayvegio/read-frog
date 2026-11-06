@@ -13,6 +13,10 @@ interface TextTrackFetcherOptions {
   resolveVideo: () => HTMLVideoElement | null
   getVideoId: () => string | null
   isSourceTrack?: (track: TextTrack) => boolean
+  /** False for players where enabling a disabled track would fetch another resource. */
+  allowTrackActivation?: boolean
+  /** Some players own track modes; their custom caption DOM is hidden by platform CSS instead. */
+  manageNativeTrackModes?: boolean
 }
 
 const SUBTITLE_KINDS = new Set<TextTrackKind>(["subtitles", "captions"])
@@ -21,7 +25,10 @@ export class TextTrackFetcher implements SubtitlesFetcher {
   private subtitles: SubtitlesFragment[] = []
   private sourceLanguage = ""
   private cachedTrackHash: string | null = null
+  private trackIds = new WeakMap<TextTrack, number>()
+  private nextTrackId = 0
   private playerModes = new Map<TextTrack, TextTrackMode>()
+  private lastShowingTrack: TextTrack | null = null
   private rehideTimer: ReturnType<typeof setTimeout> | null = null
   private watchedTracks: TextTrackList | null = null
   // Only we set "hidden", so any other mode is what the player now wants restored.
@@ -95,6 +102,7 @@ export class TextTrackFetcher implements SubtitlesFetcher {
   }
 
   hideNativeSubtitles(): void {
+    if (this.options.manageNativeTrackModes === false) return
     this.hideShowingTracks()
     this.clearRehideTimer()
     this.rehideTimer = setTimeout(() => {
@@ -122,10 +130,16 @@ export class TextTrackFetcher implements SubtitlesFetcher {
     this.subtitles = []
     this.sourceLanguage = ""
     this.cachedTrackHash = null
+    this.lastShowingTrack = null
   }
 
   private buildTrackHash(track: TextTrack): string {
-    return [this.options.getVideoId() ?? "", track.language, track.label, track.kind].join(":")
+    let id = this.trackIds.get(track)
+    if (id === undefined) {
+      id = ++this.nextTrackId
+      this.trackIds.set(track, id)
+    }
+    return [this.options.getVideoId() ?? "", id, track.language, track.label, track.kind].join(":")
   }
 
   private pickedTrackHash(): string | null {
@@ -137,11 +151,18 @@ export class TextTrackFetcher implements SubtitlesFetcher {
   private selectTrack(video: HTMLVideoElement): TextTrack | null {
     const { isSourceTrack } = this.options
     const candidates = Array.from(video.textTracks).filter(
-      (track) => SUBTITLE_KINDS.has(track.kind) && (!isSourceTrack || isSourceTrack(track)),
+      (track) =>
+        SUBTITLE_KINDS.has(track.kind) &&
+        (!isSourceTrack || isSourceTrack(track)) &&
+        (this.options.allowTrackActivation !== false || track.mode !== "disabled"),
     )
     return (
       // A track the player shows is still its pick once we hide it under our overlay.
-      candidates.find((track) => (this.playerModes.get(track) ?? track.mode) === "showing") ??
+      candidates.find((track) => track.mode === "showing") ??
+      candidates.find(
+        (track) => track === this.lastShowingTrack && this.playerModes.get(track) === "showing",
+      ) ??
+      candidates.find((track) => this.playerModes.get(track) === "showing") ??
       candidates.find((track) => track.kind === "subtitles") ??
       candidates[0] ??
       null
@@ -168,6 +189,7 @@ export class TextTrackFetcher implements SubtitlesFetcher {
 
     for (const track of Array.from(video.textTracks)) {
       if (track.mode === "showing") {
+        this.lastShowingTrack = track
         this.setMode(track, "hidden")
       }
     }

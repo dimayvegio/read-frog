@@ -79,6 +79,15 @@ function EdxIcon({ className }: { className?: string }) {
   )
 }
 
+function AniPmIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden="true">
+      <rect width="24" height="24" rx="5" fill="#18181b" />
+      <path d="m9 6 9 6-9 6Z" fill="#c4b5fd" />
+    </svg>
+  )
+}
+
 const PLATFORM_ICONS = {
   youtube: YoutubeIcon,
   xcom: XIcon,
@@ -86,6 +95,7 @@ const PLATFORM_ICONS = {
   bilibili: BilibiliIcon,
   udemy: UdemyIcon,
   edx: EdxIcon,
+  anipm: AniPmIcon,
 } satisfies Record<SubtitlesPlatform, (props: { className?: string }) => ReactNode>
 
 /** The full-color logo of a site video subtitles translate on. */

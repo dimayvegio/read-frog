@@ -88,6 +88,82 @@ describe("TextTrackFetcher", () => {
     await expect(pending).resolves.toEqual([{ text: "late", start: 0, end: 1000 }])
   })
 
+  it("passively reads loaded cues without activating disabled tracks or metadata", async () => {
+    const disabled = new FakeTrack("subtitles", "English", "en", "disabled")
+    const loaded = new FakeTrack("captions", "English CC (Dub)", "en", "showing")
+    loaded.cues = [{ startTime: 1.137, endTime: 3.097, text: "Synthetic caption." }] as any
+    const metadata = new FakeTrack("metadata", "chapters", "", "showing")
+    const fetcher = new TextTrackFetcher({
+      resolveVideo: () => videoWith(disabled, metadata, loaded),
+      getVideoId: () => "anipm-1",
+      allowTrackActivation: false,
+    })
+    await expect(fetcher.fetch()).resolves.toEqual([
+      { start: 1137, end: 3097, text: "Synthetic caption." },
+    ])
+    expect(disabled.mode).toBe("disabled")
+    const unavailable = new TextTrackFetcher({
+      resolveVideo: () => videoWith(disabled),
+      getVideoId: () => "anipm-1",
+      allowTrackActivation: false,
+    })
+    await expect(unavailable.hasAvailableSubtitles()).resolves.toBe(false)
+    expect(disabled.mode).toBe("disabled")
+  })
+
+  it("invalidates replaced tracks even when language and label are unchanged", async () => {
+    const old = new FakeTrack("subtitles", "English", "en", "showing")
+    old.loadCues("Old episode")
+    const video = videoWith(old)
+    const fetcher = createFetcher(video)
+    await fetcher.fetch()
+    const replacement = new FakeTrack("subtitles", "English", "en", "showing")
+    replacement.loadCues("New episode")
+    ;(video.textTracks as unknown as FakeTrackList).splice(0, 1, replacement)
+    await expect(fetcher.shouldUseSameTrack()).resolves.toBe(false)
+    await expect(fetcher.fetch()).resolves.toEqual([{ start: 0, end: 1000, text: "New episode" }])
+  })
+
+  it("leaves player-owned track modes untouched when captions are suppressed only by CSS", async () => {
+    const source = new FakeTrack("subtitles", "English CC (Dub)", "en", "showing")
+    source.loadCues("Synthetic caption")
+    const video = videoWith(source)
+    const fetcher = new TextTrackFetcher({
+      resolveVideo: () => video,
+      getVideoId: () => "anipm-1",
+      allowTrackActivation: false,
+      manageNativeTrackModes: false,
+    })
+    await fetcher.fetch()
+    fetcher.hideNativeSubtitles()
+    expect(source.mode).toBe("showing")
+    expect(vi.getTimerCount()).toBe(0)
+    source.mode = "disabled"
+    ;(video.textTracks as unknown as FakeTrackList).emit("change")
+    await expect(fetcher.shouldUseSameTrack()).resolves.toBe(false)
+    fetcher.cleanup()
+    expect(source.mode).toBe("disabled")
+  })
+
+  it("prefers a newly showing track over a previously hidden selection and restores both", async () => {
+    const old = new FakeTrack("subtitles", "English", "en", "showing")
+    const next = new FakeTrack("subtitles", "English CC", "en", "disabled")
+    old.loadCues("Old track")
+    next.loadCues("New track")
+    const video = videoWith(old, next)
+    const fetcher = createFetcher(video)
+    await fetcher.fetch()
+    fetcher.hideNativeSubtitles()
+    next.mode = "showing"
+    ;(video.textTracks as unknown as FakeTrackList).emit("change")
+    expect(next.mode).toBe("hidden")
+    await expect(fetcher.shouldUseSameTrack()).resolves.toBe(false)
+    fetcher.cleanup()
+    expect(old.mode).toBe("showing")
+    expect(next.mode).toBe("showing")
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
   it("checks for subtitles by loading the cues, and fetches from that same load", async () => {
     const track = new FakeTrack("subtitles", "English", "en", "hidden")
     const fetcher = createFetcher(videoWith(track))

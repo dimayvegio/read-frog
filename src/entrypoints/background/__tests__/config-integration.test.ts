@@ -29,16 +29,20 @@ describe("production configuration bootstrap and cleanup wiring", () => {
     [121, "deleted"],
     [122, "active"],
     [122, "deleted"],
+    [123, "active"],
+    [123, "deleted"],
   ] as const)(
     "upgrades an installed v%i profile without changing its %s credential",
     async (version, state) => {
       const { testSeries: previousSeries } =
         version === 121
           ? await import("@/utils/config/__tests__/example/v121")
-          : await import("@/utils/config/__tests__/example/v122")
+          : version === 122
+            ? await import("@/utils/config/__tests__/example/v122")
+            : await import("@/utils/config/__tests__/example/v123")
       const previous = structuredClone(Object.values(previousSeries)[0]!.config)
       previous.videoSubtitles.autoStart.youtube = true
-      if (version === 122) {
+      if (version >= 122) {
         previous.tts.provider = "openai"
         previous.tts.openai = {
           model: "gpt-4o-mini-tts",
@@ -67,6 +71,7 @@ describe("production configuration bootstrap and cleanup wiring", () => {
         bilibili: false,
         udemy: false,
         edx: false,
+        anipm: false,
       })
       expect(await credentials.readOpenAIKeyStatus()).toMatchObject({
         configured: state === "active",
