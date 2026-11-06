@@ -1,15 +1,23 @@
 import type { TTSConfig } from "@/types/config/tts"
+import type { OpenAITTSAudioResult } from "@/types/openai-tts"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toastManager } from "@/components/ui/base-ui/toast"
+import { OPENAI_TTS_PORT, OPENAI_TTS_VOICES } from "@/types/openai-tts"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
+import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
 import { detectLanguage } from "@/utils/content/language"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { splitTextByUtf8Bytes } from "@/utils/server/edge-tts/chunk"
+import {
+  claimSpeechSynthesis,
+  releaseSpeechSynthesis,
+  ownsSpeechSynthesis,
+} from "@/utils/tts-playback/synthesis-session"
 
 interface PlayAudioParams {
   text: string
@@ -36,6 +44,11 @@ export function selectTTSVoice(
   detectedLanguage?: string | null,
   forcedVoice?: string,
 ): string {
+  if (ttsConfig.provider === "openai") {
+    return forcedVoice && (OPENAI_TTS_VOICES as readonly string[]).includes(forcedVoice)
+      ? forcedVoice
+      : ttsConfig.openai.voice
+  }
   if (forcedVoice) {
     return forcedVoice
   }
@@ -135,11 +148,30 @@ export function useTextToSpeech() {
   const [totalChunks, setTotalChunks] = useState(0)
   const shouldStopRef = useRef(false)
   const activeRequestIdRef = useRef<string | null>(null)
+  const synthesisControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    const release = () => {
+      synthesisControllerRef.current?.abort()
+      const requestId = activeRequestIdRef.current
+      activeRequestIdRef.current = null
+      shouldStopRef.current = true
+      releaseSpeechSynthesis(requestId)
+      if (requestId) void sendMessage("ttsPlaybackStop", { requestId }).catch(() => {})
+    }
+    window.addEventListener("pagehide", release)
+    return () => {
+      window.removeEventListener("pagehide", release)
+      release()
+    }
+  }, [])
 
   const stop = () => {
     shouldStopRef.current = true
 
     const activeRequestId = activeRequestIdRef.current
+    synthesisControllerRef.current?.abort()
+    releaseSpeechSynthesis(activeRequestId)
     activeRequestIdRef.current = null
     if (activeRequestId) {
       void sendMessage("ttsPlaybackStop", { requestId: activeRequestId }).catch(() => {})
@@ -159,22 +191,41 @@ export function useTextToSpeech() {
       shouldStopRef.current = false
 
       const requestId = getRandomUUID()
+      const controller = new AbortController()
+      synthesisControllerRef.current = controller
+      claimSpeechSynthesis(requestId, controller)
       activeRequestIdRef.current = requestId
       // A newer play() resets shouldStopRef, so a run still awaiting a fetch
       // must also check that it is still the active request; otherwise it
       // would resume, start its audio over the newer one and flip its state.
-      const isSuperseded = () => shouldStopRef.current || activeRequestIdRef.current !== requestId
+      const isSuperseded = () =>
+        controller.signal.aborted ||
+        shouldStopRef.current ||
+        activeRequestIdRef.current !== requestId ||
+        !ownsSpeechSynthesis(requestId)
       try {
+        await sendMessage("ttsPlaybackPrepare", { requestId })
+        if (isSuperseded()) return
         await runPlayback(requestId, isSuperseded, {
           text,
           ttsConfig,
 
           forcedVoice,
+          signal: controller.signal,
         })
       } catch (error) {
         // A run the user already stopped or replaced reports nothing.
-        if (isSuperseded()) return
+        if (isSuperseded() || (error instanceof DOMException && error.name === "AbortError")) return
         throw error
+      } finally {
+        controller.abort()
+        releaseSpeechSynthesis(requestId)
+        if (activeRequestIdRef.current === requestId) {
+          activeRequestIdRef.current = null
+          setIsPlaying(false)
+          setCurrentChunk(0)
+          setTotalChunks(0)
+        }
       }
     },
     onError: (error, variables) => {
@@ -196,25 +247,49 @@ export function useTextToSpeech() {
   async function runPlayback(
     requestId: string,
     isSuperseded: () => boolean,
-    { text, ttsConfig, forcedVoice }: PlayAudioParams,
+    { text, ttsConfig, forcedVoice, signal }: PlayAudioParams & { signal: AbortSignal },
   ) {
-    const selectedVoice = await resolveVoiceForText(
-      text,
-      ttsConfig,
-      languageDetection.mode === "llm",
-      forcedVoice,
-    )
+    const openai = ttsConfig.provider === "openai"
+    const selectedVoice = openai
+      ? selectTTSVoice(ttsConfig, undefined, forcedVoice)
+      : await resolveVoiceForText(text, ttsConfig, languageDetection.mode === "llm", forcedVoice)
     if (isSuperseded()) {
       return
     }
-    const chunks = splitTextByUtf8Bytes(text)
+    const keyStatus = openai ? await sendMessage("getOpenAIKeyStatus", undefined) : null
+    if (isSuperseded()) return
+    if (openai && !keyStatus?.configured)
+      throw new Error("Configure an OpenAI API key in settings.")
+    const chunks = openai ? splitTextByUtf8Bytes(text, 1800) : splitTextByUtf8Bytes(text)
     setTotalChunks(chunks.length)
-    await sendMessage("ttsPlaybackPrepare")
     if (isSuperseded()) {
       return
     }
 
     const fetchChunkAudio = async (chunk: string) => {
+      if (openai) {
+        signal.throwIfAborted()
+        const config = {
+          ...ttsConfig.openai,
+          voice: selectedVoice as typeof ttsConfig.openai.voice,
+        }
+        const cacheKey = [
+          "tts-audio",
+          "openai",
+          { text: chunk, ...config, credentialRevision: keyStatus!.revision },
+        ]
+        const cached = queryClient.getQueryData<SynthesizedAudioChunk>(cacheKey)
+        if (cached) return cached
+        const audio = await createPortStreamPromise<OpenAITTSAudioResult>(
+          OPENAI_TTS_PORT,
+          { requestId, text: chunk, config },
+          { signal },
+        )
+        signal.throwIfAborted()
+        if ("cancelled" in audio) throw new DOMException("Speech request superseded", "AbortError")
+        queryClient.setQueryData(cacheKey, audio)
+        return audio
+      }
       logger.info("[TextToSpeech] Fetching chunk audio", {
         text: chunk,
         voice: selectedVoice,
@@ -268,6 +343,9 @@ export function useTextToSpeech() {
       const currentAudioPromise = fetchChunkAudio(chunks[index]!)
       const nextAudioPromise =
         index + 1 < chunks.length ? fetchChunkAudio(chunks[index + 1]!) : null
+      // Observe a prefetched rejection immediately, including cancellation;
+      // awaiting it after the current playback below still preserves failures.
+      void nextAudioPromise?.catch(() => {})
       const audioChunk = await currentAudioPromise
 
       if (isSuperseded()) {
@@ -301,7 +379,7 @@ export function useTextToSpeech() {
   ) => {
     return playMutation.mutateAsync({
       text,
-      ttsConfig,
+      ttsConfig: structuredClone(ttsConfig),
       forcedVoice: options?.forcedVoice,
       quiet: options?.quiet,
     })

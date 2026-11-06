@@ -1,6 +1,7 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import { LANG_CODE_ISO6393_OPTIONS, langCodeISO6393Schema } from "@read-frog/definitions"
 import { z } from "zod"
+import { DEFAULT_OPENAI_TTS_CONFIG, openAITTSConfigSchema } from "@/types/openai-tts"
 
 export type TTSVoice = string
 
@@ -3241,6 +3242,8 @@ export const ttsPitchSchema = z.coerce.number().int().min(MIN_TTS_PITCH).max(MAX
 export const ttsVolumeSchema = z.coerce.number().int().min(MIN_TTS_VOLUME).max(MAX_TTS_VOLUME)
 
 export const ttsConfigSchema = z.object({
+  provider: z.enum(["microsoft", "openai"]).default("microsoft"),
+  openai: openAITTSConfigSchema.default(() => ({ ...DEFAULT_OPENAI_TTS_CONFIG })),
   defaultVoice: ttsVoiceSchema,
   languageVoices: z.record(langCodeISO6393Schema, ttsVoiceSchema),
   rate: ttsRateSchema,

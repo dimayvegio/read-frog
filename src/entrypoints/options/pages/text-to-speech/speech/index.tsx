@@ -77,18 +77,20 @@ export function SpeechSection() {
  * Every dial takes a minus sign, so the draft is only judged once the field is left — reporting
  * mid-entry would fire on the "-" the reader is still typing a number after.
  */
-function SpeechDialInput({
+export function SpeechDialInput({
   value,
   min,
   max,
   schema,
   onValue,
+  step = 1,
 }: {
   value: number
   min: number
   max: number
-  schema: typeof ttsRateSchema
+  schema: { safeParse: (value: unknown) => { success: true; data: number } | { success: false } }
   onValue: (value: number) => void
+  step?: number
 }) {
   const [draftValue, setDraftValue] = useState(String(value))
   const [prevValue, setPrevValue] = useState(value)
@@ -105,7 +107,7 @@ function SpeechDialInput({
       type="number"
       min={min}
       max={max}
-      step={1}
+      step={step}
       value={draftValue}
       onChange={(e) => {
         const rawValue = e.target.value

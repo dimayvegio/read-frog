@@ -185,7 +185,7 @@ interface ProtocolMap {
   edgeTtsListVoices: () => Promise<EdgeTTSVoice[]>
   edgeTtsHealthCheck: () => Promise<EdgeTTSHealthStatus>
   // tts playback
-  ttsPlaybackPrepare: () => Promise<{ ok: true }>
+  ttsPlaybackPrepare: (data?: { requestId: string }) => Promise<{ ok: true }>
   ttsPlaybackStart: (data: TTSPlaybackStartRequest) => Promise<TTSPlaybackStartResponse>
   ttsPlaybackStop: (data: TTSPlaybackStopRequest) => Promise<{ ok: true }>
   // offscreen internal

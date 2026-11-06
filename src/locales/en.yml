@@ -2106,6 +2106,23 @@ languages:
   rar: Rarotongan
   hif: Fiji Hindi
 
+openaiTts:
+  provider: Speech provider
+  providerDescription: Choose the service used by all read-aloud buttons, including PDF selections.
+  description: AI-generated speech. OpenAI API usage is billed to your account. Microsoft voice settings are saved separately.
+  key: OpenAI API key
+  keyDescription: Uses the same key saved in API Providers. No additional key is stored in TTS settings.
+  settings: Open OpenAI settings
+  model: Speech model
+  modelDescription: Realtime Mini is recommended. gpt-4o-mini-tts uses the legacy Speech API and is scheduled to shut down on January 6, 2027.
+  voice: Voice
+  speed: Speed
+  speedDescription: 1× is normal speed; supported range is 0.25×–1.5×.
+  instructions: Voice style
+  instructionsDescription: "Optional delivery instructions, for example: Speak clearly and warmly."
+  preview: Preview voice
+  stop: Stop
+
 selectionResult:
   title: Selected text translation
   targetLanguage: Translate to

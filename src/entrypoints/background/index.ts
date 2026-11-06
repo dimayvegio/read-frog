@@ -1,6 +1,7 @@
 import "@/utils/zod-config"
 import type { Config, UiLanguage } from "@/types/config/config"
 import { browser, defineBackground } from "#imports"
+import { OPENAI_TTS_PORT } from "@/types/openai-tts"
 import { storageAdapter } from "@/utils/atoms/storage-adapter"
 import { setBackgroundConfigReadyResolver } from "@/utils/config/readiness"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
@@ -26,6 +27,7 @@ import { setupIframeInjection } from "./iframe-injection"
 import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
 import { setupNativeSelectionHandlers } from "./native-selection"
 import { setupOpenAISettingsHandlers } from "./openai-settings"
+import { handleOpenAITTSPort } from "./openai-tts"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
@@ -58,6 +60,10 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === OPENAI_TTS_PORT) {
+        handleOpenAITTSPort(port)
+        return
+      }
       dispatchBackgroundStreamPort(port)
     })
     onMessage("clearAllTranslationRelatedCache", async () => {

@@ -1,8 +1,9 @@
-# Read Frog — Edge / OpenAI text + Microsoft TTS
+# Read Frog — Edge / OpenAI text + OpenAI / Microsoft TTS
 
 Fork dựa trên commit e361e991b4127dd0d03473ed9329c24885fe420a (1.57.0).
 Giữ engine dịch trang, hai chế độ bilingual/translation-only, selection,
-annotation, custom actions, streaming, queue, glossary và Microsoft TTS.
+annotation, custom actions, streaming, queue, glossary và Microsoft TTS; có thêm
+lựa chọn đọc bằng OpenAI.
 
 Văn bản dùng OpenAI chính thức tại https://api.openai.com/v1/responses.
 API key được nhập trong Options và lưu vào IndexedDB riêng tại thiết bị;
@@ -34,6 +35,29 @@ xóa khi đóng cửa sổ kết quả hoặc tab nguồn; vùng chọn quá 30 
 lại và được dọn khi có yêu cầu tiếp theo. PDF scan không có text chưa được hỗ trợ
 OCR.
 
+## Đọc thành tiếng
+
+Trong Text to Speech, chọn Microsoft hoặc OpenAI. Mặc định tiếp tục dùng Microsoft;
+giọng theo ngôn ngữ, tốc độ, cao độ và âm lượng Microsoft được giữ nguyên khi đổi
+dịch vụ. OpenAI dùng chung key riêng trên thiết bị, có model đọc riêng với 10 giọng,
+tốc độ 0,25×–1,5×, phong cách đọc và nút nghe thử. Giọng do AI tạo; API được tính phí
+vào tài khoản OpenAI khi bấm đọc/nghe thử. Các nút đọc trong web, custom actions và
+cửa sổ dịch PDF dùng dịch vụ đã chọn.
+
+Model OpenAI mặc định là `gpt-realtime-2.1-mini`: background tạo client secret ngắn
+hạn tại endpoint OpenAI chính thức, nhận PCM 24 kHz qua WebSocket chính thức và
+phát WAV qua offscreen hiện có. Key chính và client secret không gửi tới content
+script, cấu hình hoặc export. Có lựa chọn `gpt-4o-mini-tts` dùng `/v1/audio/speech`
+cho tới lịch dừng 06/01/2027; không tự đổi dịch vụ khi có lỗi. Xem
+[OpenAI Realtime WebSocket](https://developers.openai.com/api/docs/guides/voice-websockets),
+[Speech API](https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create)
+và [lịch ngừng hỗ trợ](https://developers.openai.com/api/docs/deprecations#2026-10-01-text-to-speech-models).
+
+OpenAI TTS chia văn bản theo ranh giới UTF-8, tải trước đoạn tiếp theo, cache âm
+thanh theo dịch vụ/model/giọng/tốc độ/phong cách và phiên bản credential. Bấm Dừng,
+đóng cửa sổ hoặc bắt đầu lượt đọc mới sẽ hủy tổng hợp cũ; phản hồi trễ không phát
+đè lượt mới. Migration v122 và import/export giữ lựa chọn TTS cùng cấu hình Microsoft.
+
 ## Chạy và đóng gói
 
 Dùng Node 26.13+ và pnpm 12.16.1 theo package.json/lockfile.
@@ -58,7 +82,7 @@ giữ mặc định nếu không cần thay đổi transport.
 
 ## Dữ liệu cục bộ
 
-Bootstrap v121 phải hoàn tất trước khi UI cho phép ghi config. Key OpenAI cũ
+Bootstrap v122 phải hoàn tất trước khi UI cho phép ghi config. Key OpenAI cũ
 chỉ được tự kích hoạt khi xác định rõ endpoint chính thức. Key proxy hoặc
 không rõ nguồn được giữ riêng và yêu cầu nhập lại. Xóa key tạo tombstone để
 migration retry không khôi phục key đã xóa. Import, restore và reset config

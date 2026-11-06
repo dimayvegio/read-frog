@@ -57,7 +57,7 @@ const streamPortStartEnvelopeSchema = z.object({
 const streamTextPayloadSchema = openAITextPayloadSchema
 const structuredObjectPayloadSchema = openAIStructuredPayloadSchema
 
-function createStartMessageParser<TSerializablePayload>(payloadSchema: z.ZodTypeAny) {
+export function createStartMessageParser<TSerializablePayload>(payloadSchema: z.ZodTypeAny) {
   return (msg: unknown): StartMessageParseResult<TSerializablePayload> => {
     const envelopeResult = streamPortStartEnvelopeSchema.safeParse(msg)
     if (!envelopeResult.success) {
@@ -83,7 +83,7 @@ function createStartMessageParser<TSerializablePayload>(payloadSchema: z.ZodType
   }
 }
 
-function createStreamPortHandler<TSerializablePayload, TResponse>(
+export function createStreamPortHandler<TSerializablePayload, TResponse>(
   streamFn: (
     serializablePayload: TSerializablePayload,
     options: StreamRuntimeOptions<TResponse>,

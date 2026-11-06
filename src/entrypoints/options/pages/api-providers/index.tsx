@@ -113,7 +113,7 @@ export function ApiProvidersPage() {
   return (
     <PageLayout
       title="OpenAI"
-      description="Translate and analyze text using your OpenAI account. Microsoft text-to-speech is configured separately."
+      description="Translate, analyze text and enable OpenAI speech with your API key. Choose speech providers and voices under Text to Speech."
       innerClassName="flex flex-col gap-8"
     >
       <section className="flex max-w-2xl flex-col gap-3">

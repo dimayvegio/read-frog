@@ -36,15 +36,15 @@ type CredentialState = z.infer<typeof credentialSchema>
 export interface BootstrapJournal {
   id: "config-v121"
   sourceVersion: number
-  targetVersion: 121
+  targetVersion: 121 | 122
   targetPublicDigest: string
   phase: "prepared" | "config-written" | "metadata-written" | "cleanup-pending" | "complete"
 }
 
 const journalSchema = z.strictObject({
   id: z.literal("config-v121"),
-  sourceVersion: z.number().int().min(1).max(121),
-  targetVersion: z.literal(121),
+  sourceVersion: z.number().int().min(1).max(122),
+  targetVersion: z.union([z.literal(121), z.literal(122)]),
   targetPublicDigest: z.string().regex(/^[a-f0-9]{64}$/),
   phase: z.enum(["prepared", "config-written", "metadata-written", "cleanup-pending", "complete"]),
 })

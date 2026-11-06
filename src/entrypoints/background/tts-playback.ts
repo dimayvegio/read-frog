@@ -7,6 +7,7 @@ import { browser } from "#imports"
 import { logger } from "@/utils/logger"
 import { onMessage, sendMessage } from "@/utils/message"
 import { DOMAudioPlaybackController } from "@/utils/tts-playback/dom-audio-controller"
+import { beginTTSRequest, canPlayTTSRequest, cancelTTSRequest } from "./tts-request"
 
 const OFFSCREEN_DOCUMENT_PATH = "/offscreen.html" as const
 const OFFSCREEN_DOCUMENT_URL = browser.runtime.getURL(OFFSCREEN_DOCUMENT_PATH)
@@ -115,9 +116,11 @@ class ChromeOffscreenPlaybackAdapter implements TTSPlaybackAdapter {
 
   async play(request: TTSPlaybackStartRequest): Promise<TTSPlaybackStartResponse> {
     await this.prepare()
+    if (!canPlayTTSRequest(request.requestId)) return { ok: false, reason: "interrupted" }
 
     // Latest request wins: always stop any in-progress playback first.
     await this.stop({ reason: "interrupted" })
+    if (!canPlayTTSRequest(request.requestId)) return { ok: false, reason: "interrupted" }
 
     try {
       return await sendMessage("ttsOffscreenPlay", request)
@@ -130,6 +133,7 @@ class ChromeOffscreenPlaybackAdapter implements TTSPlaybackAdapter {
 
       // Offscreen documents can be reclaimed by the browser and briefly lose handlers.
       await this.prepare()
+      if (!canPlayTTSRequest(request.requestId)) return { ok: false, reason: "interrupted" }
       return sendMessage("ttsOffscreenPlay", request)
     }
   }
@@ -172,6 +176,7 @@ class BackgroundDOMAudioPlaybackAdapter implements TTSPlaybackAdapter {
 
   async play(request: TTSPlaybackStartRequest): Promise<TTSPlaybackStartResponse> {
     await this.prepare()
+    if (!canPlayTTSRequest(request.requestId)) return { ok: false, reason: "interrupted" }
     return this.controller.play(request)
   }
 
@@ -210,16 +215,23 @@ function createTTSPlaybackAdapter(): TTSPlaybackAdapter {
 export function setupTTSPlaybackMessageHandlers() {
   const adapter = createTTSPlaybackAdapter()
 
-  onMessage("ttsPlaybackPrepare", async () => {
+  onMessage("ttsPlaybackPrepare", async (message) => {
+    if (message.data?.requestId) {
+      const previousId = beginTTSRequest(message.data.requestId)
+      if (previousId) await adapter.stop({ requestId: previousId, reason: "interrupted" })
+    }
     await adapter.prepare()
     return { ok: true as const }
   })
 
   onMessage("ttsPlaybackStart", async (message) => {
+    if (!canPlayTTSRequest(message.data.requestId))
+      return { ok: false as const, reason: "interrupted" as const }
     return adapter.play(message.data)
   })
 
   onMessage("ttsPlaybackStop", async (message) => {
+    cancelTTSRequest(message.data.requestId)
     try {
       await adapter.stop({
         requestId: message.data.requestId,

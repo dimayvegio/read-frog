@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing/fake-browser"
 import { storage } from "#imports"
 import { testSeries } from "@/utils/config/__tests__/example/v120"
-import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { CONFIG_SCHEMA_VERSION, DEFAULT_CONFIG } from "@/utils/constants/config"
 import "fake-indexeddb/auto"
 
 const deleteCloudBase = vi.hoisted(() => vi.fn<(...args: any[]) => any>(async (_key: string) => {}))
@@ -24,6 +24,30 @@ beforeEach(async () => {
 })
 
 describe("production configuration bootstrap and cleanup wiring", () => {
+  it.each(["active", "deleted"])(
+    "upgrades an installed v121 profile without changing its %s credential",
+    async (state) => {
+      const { testSeries: v121 } = await import("@/utils/config/__tests__/example/v121")
+      const previous = structuredClone(Object.values(v121)[0]!.config)
+      await storage.setItem("local:config", previous)
+      await storage.setMeta("local:config", { schemaVersion: 121 })
+      const credentials = await import("../openai-credentials")
+      if (state === "active") await credentials.saveOpenAIKey("existing-private-sentinel")
+      else await credentials.deleteOpenAIKey()
+      const status = await credentials.readOpenAIKeyStatus()
+      const { ensureInitializedConfig } = await import("../config")
+      const config = await ensureInitializedConfig()
+      expect(config.tts).toMatchObject({ ...previous.tts, provider: "microsoft" })
+      expect(config.tts.openai.model).toBe("gpt-realtime-2.1-mini")
+      expect(await credentials.readOpenAIKeyStatus()).toMatchObject({
+        configured: state === "active",
+        revision: status.revision,
+      })
+      expect((await credentials.readBootstrapJournal())?.targetVersion).toBe(122)
+      expect((await storage.getMeta("local:config")).schemaVersion).toBe(122)
+    },
+  )
+
   it("migrates installed credentials before publishing canonical config; sanitizes indexed and orphan backups", async () => {
     const legacy = structuredClone(Object.values(testSeries)[0]!.config)
     legacy.providersConfig = [
@@ -55,7 +79,7 @@ describe("production configuration bootstrap and cleanup wiring", () => {
       providersConfig: [{ id: "openai-default" }],
       tts: legacy.tts,
     })
-    expect((await storage.getMeta("local:config")).schemaVersion).toBe(121)
+    expect((await storage.getMeta("local:config")).schemaVersion).toBe(CONFIG_SCHEMA_VERSION)
     const credentials = await import("../openai-credentials")
     expect(await credentials.readOpenAIKey()).toBe("installed-sentinel")
     expect(await credentials.readOpenAIKeyStatus()).toMatchObject({ recoveryBackupCount: 1 })
@@ -78,7 +102,10 @@ describe("production configuration bootstrap and cleanup wiring", () => {
 
   it("initializes a genuinely fresh profile without a bundled key", async () => {
     const { getInitialConfig } = await import("../config")
-    expect(await getInitialConfig()).toMatchObject({ ok: true, schemaVersion: 121 })
+    expect(await getInitialConfig()).toMatchObject({
+      ok: true,
+      schemaVersion: CONFIG_SCHEMA_VERSION,
+    })
     expect(await (await import("../openai-credentials")).readOpenAIKeyStatus()).toMatchObject({
       configured: false,
       requiresReentry: false,
@@ -87,7 +114,7 @@ describe("production configuration bootstrap and cleanup wiring", () => {
 
   it("refuses a future config without changing public config, metadata or service state", async () => {
     await storage.setItem("local:config", { apiKey: "future-sentinel", untouched: true })
-    await storage.setMeta("local:config", { schemaVersion: 122 })
+    await storage.setMeta("local:config", { schemaVersion: CONFIG_SCHEMA_VERSION + 1 })
     await storage.setItem("local:lastSyncedConfig", "keep-until-supported")
     const before = await fakeBrowser.storage.local.get(null)
     const { getInitialConfig } = await import("../config")

@@ -1959,6 +1959,23 @@ languages:
   rar: Tiếng Rarotongan
   hif: Tiếng Hindi Fiji
 
+openaiTts:
+  provider: Dịch vụ đọc
+  providerDescription: Chọn dịch vụ cho các nút đọc thành tiếng, kể cả đoạn bôi đen trong PDF.
+  description: Giọng nói được tạo bởi AI. Phí API OpenAI được tính vào tài khoản của bạn. Cấu hình giọng Microsoft được lưu riêng.
+  key: API key OpenAI
+  keyDescription: Dùng chung key đã lưu trong API Providers. Không lưu thêm key trong cấu hình TTS.
+  settings: Mở cài đặt OpenAI
+  model: Model đọc
+  modelDescription: Nên chọn Realtime Mini. gpt-4o-mini-tts dùng Speech API cũ và dự kiến dừng ngày 06/01/2027.
+  voice: Giọng đọc
+  speed: Tốc độ
+  speedDescription: 1× là tốc độ bình thường; hỗ trợ từ 0,25× đến 1,5×.
+  instructions: Phong cách đọc
+  instructionsDescription: "Hướng dẫn cách đọc, ví dụ: Đọc rõ ràng, tự nhiên và ấm áp."
+  preview: Nghe thử
+  stop: Dừng
+
 selectionResult:
   title: Dịch đoạn được chọn
   targetLanguage: Dịch sang

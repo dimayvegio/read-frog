@@ -31,7 +31,7 @@ export interface BootstrapIO<T> {
 }
 
 /** Shared attempt; only the trusted settings handler is allowed to request retry. */
-export function createConfigBootstrap<T>(io: BootstrapIO<T>) {
+export function createConfigBootstrap<T>(io: BootstrapIO<T>, latestVersion: 121 | 122 = 121) {
   let attempt: Promise<InitialConfigResult<T>> | undefined
   let running = false
   let result: InitialConfigResult<T> | undefined
@@ -47,7 +47,7 @@ export function createConfigBootstrap<T>(io: BootstrapIO<T>) {
       const meta =
         metadata && typeof metadata === "object" ? (metadata as Record<string, unknown>) : undefined
       const version = meta?.schemaVersion
-      if (typeof version === "number" && version > 121)
+      if (typeof version === "number" && version > latestVersion)
         return { ok: false, code: "UNSUPPORTED_SCHEMA", retryable: false }
       const rawAbsent = raw === null || raw === undefined
       const fresh =
@@ -72,7 +72,7 @@ export function createConfigBootstrap<T>(io: BootstrapIO<T>) {
         (rawAbsent ||
           !Number.isInteger(version) ||
           (version as number) < 1 ||
-          (version as number) > 121)
+          (version as number) > latestVersion)
       ) {
         return { ok: false, code: "MIGRATION_FAILED", retryable: false }
       }
@@ -90,9 +90,9 @@ export function createConfigBootstrap<T>(io: BootstrapIO<T>) {
         sourceVersion: checkpoint
           ? previousJournal!.sourceVersion
           : fresh
-            ? 121
+            ? latestVersion
             : (version as number),
-        targetVersion: 121,
+        targetVersion: latestVersion,
         targetPublicDigest: sha256(canonicalJSON(target)),
         phase: "prepared",
       }
@@ -101,7 +101,7 @@ export function createConfigBootstrap<T>(io: BootstrapIO<T>) {
       if (canonicalJSON(raw) !== canonicalJSON(target)) await io.writeConfig(target)
       await io.advance({ ...journal, phase: "config-written" })
       await io.writeMeta({
-        schemaVersion: 121,
+        schemaVersion: latestVersion,
         lastModifiedAt: typeof meta?.lastModifiedAt === "number" ? meta.lastModifiedAt : Date.now(),
       })
       await io.advance({ ...journal, phase: "metadata-written" })
@@ -109,7 +109,7 @@ export function createConfigBootstrap<T>(io: BootstrapIO<T>) {
       await io.advance({ ...journal, phase: "cleanup-pending" })
       await io.cleanup()
       await io.advance({ ...journal, phase: "complete" })
-      return { ok: true, config: target, schemaVersion: 121 }
+      return { ok: true, config: target, schemaVersion: latestVersion }
     } catch {
       return {
         ok: false,

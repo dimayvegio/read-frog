@@ -1,5 +1,6 @@
 import { browser, storage } from "#imports"
 import { migrateConfig } from "@/utils/config/migration"
+import { CONFIG_SCHEMA_VERSION } from "@/utils/constants/config"
 import { db } from "@/utils/db/dexie/db"
 import { preserveRecoveryBackup } from "./openai-credentials"
 
@@ -33,7 +34,7 @@ export async function cleanupLegacyConfigStorage() {
       )
         throw new Error("Invalid backup")
       publicBackup = {
-        schemaVersion: 121,
+        schemaVersion: CONFIG_SCHEMA_VERSION,
         config: await migrateConfig(value.config, value.schemaVersion),
       }
     } catch {

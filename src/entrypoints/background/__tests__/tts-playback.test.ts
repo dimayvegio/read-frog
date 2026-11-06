@@ -244,6 +244,32 @@ describe("setupTTSPlaybackMessageHandlers", () => {
     expect(revokeObjectURLMock).toHaveBeenCalledWith("blob:tts-test")
   })
 
+  it("rejects late audio from a superseded context and ignores its stale stop", async () => {
+    vi.stubEnv("BROWSER", "firefox")
+    const { FakeAudio } = installFakeAudio()
+    const { setupTTSPlaybackMessageHandlers } = await import("../tts-playback")
+    setupTTSPlaybackMessageHandlers()
+    const prepare = getRegisteredMessageHandler<{ ok: true }>("ttsPlaybackPrepare")
+    const start = getRegisteredMessageHandler<{ ok: boolean }>("ttsPlaybackStart")
+    const stop = getRegisteredMessageHandler<{ ok: true }>("ttsPlaybackStop")
+    await prepare({ data: { requestId: "old-context" } })
+    await prepare({ data: { requestId: "new-context" } })
+    expect(
+      await start({
+        data: { requestId: "old-context", audioBase64: "ZmFrZQ==", contentType: "audio/wav" },
+      }),
+    ).toEqual({ ok: false, reason: "interrupted" })
+    expect(FakeAudio.instances).toHaveLength(0)
+    const playback = start({
+      data: { requestId: "new-context", audioBase64: "ZmFrZQ==", contentType: "audio/wav" },
+    })
+    await Promise.resolve()
+    await stop({ data: { requestId: "old-context" } })
+    expect(FakeAudio.instances[0]!.pause).not.toHaveBeenCalled()
+    await stop({ data: { requestId: "new-context" } })
+    await expect(playback).resolves.toEqual({ ok: false, reason: "stopped" })
+  })
+
   it("stops only the active Firefox background playback request", async () => {
     vi.stubEnv("BROWSER", "firefox")
     const { FakeAudio } = installFakeAudio()
