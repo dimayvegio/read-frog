@@ -3,7 +3,14 @@ import { generateText, Output } from "ai"
 import { browser } from "#imports"
 import { safeOpenAIErrorMessage } from "@/utils/error/openai"
 import { onMessage } from "@/utils/message"
-import { vocabularyDB, saveGeneratedCard } from "@/utils/vocabulary/db"
+import {
+  findCapturedVocabulary,
+  getNotebookCard,
+  resolveNotebookId,
+  getNotebookSnapshot,
+  setActiveNotebook,
+  saveGeneratedCard,
+} from "@/utils/vocabulary/db"
 import {
   captureSchema,
   generatedVocabularySchema,
@@ -14,6 +21,7 @@ import {
   safeSourceUrl,
   MAX_AUDIO_BYTES,
   VOCABULARY_PORT,
+  notebookIdSchema,
   type VocabularyCapture,
   type VocabularySaveEvent,
   type AudioAsset,
@@ -35,6 +43,7 @@ export async function saveVocabulary(
   ])
   signal.throwIfAborted()
   const config = await ensureInitializedConfig()
+  const notebookId = await resolveNotebookId(capture.notebookId)
   const speech = config.tts.openai
   const captureKey = await sha256(
     JSON.stringify([
@@ -44,8 +53,11 @@ export async function saveVocabulary(
       speech,
     ]),
   )
-  const existing = await vocabularyDB.cards.where("captureKey").equals(captureKey).first()
-  if (existing) return { stage: "saved", cardId: existing.id, duplicate: true }
+  const existing = await findCapturedVocabulary(captureKey)
+  if (existing) {
+    const added = await saveGeneratedCard(existing, [], signal, notebookId)
+    return { stage: "saved", cardId: existing.id, duplicate: !added, notebookId }
+  }
   if (pending.has(captureKey) || pending.size >= 2)
     throw new Error("Đang tạo từ vựng. Hãy chờ tác vụ hiện tại hoàn tất.")
   pending.add(captureKey)
@@ -73,7 +85,8 @@ export async function saveVocabulary(
         normalizeAnswer(content.meaning),
       ]),
     )
-    if (await vocabularyDB.cards.get(id)) return { stage: "saved", cardId: id, duplicate: true }
+    if (await getNotebookCard(id, notebookId))
+      return { stage: "saved", cardId: id, duplicate: true, notebookId }
     const audio: AudioAsset[] = []
     for (const [stage, text] of [
       ["word-audio", content.word],
@@ -103,8 +116,8 @@ export async function saveVocabulary(
       audio: { word: audio[0]!.id, example: audio[1]!.id },
       speech: { model: speech.model, voice: speech.voice, speed: speech.speed },
     })
-    await saveGeneratedCard(card, audio, signal)
-    return { stage: "saved", cardId: id }
+    const added = await saveGeneratedCard(card, audio, signal, notebookId)
+    return { stage: "saved", cardId: id, notebookId, duplicate: !added }
   } finally {
     pending.delete(captureKey)
   }
@@ -124,6 +137,13 @@ export const handleVocabularyPort = createStreamPortHandler(
 )
 
 export function setupVocabularyHandlers() {
+  onMessage("getVocabularyNotebooks", async () => {
+    await resolveNotebookId()
+    return getNotebookSnapshot()
+  })
+  onMessage("selectVocabularyNotebook", async (message) => {
+    await setActiveNotebook(notebookIdSchema.parse(message.data.notebookId))
+  })
   onMessage("openVocabulary", async () => {
     await browser.tabs.create({ url: browser.runtime.getURL("/vocabulary.html"), active: true })
   })

@@ -1,6 +1,82 @@
 # Sổ từ vựng và HTML ôn tập
 
-## Phương án đã triển khai
+## Bản nhiều sổ: 1.58.0-a.5 / manifest 1.58.0.6
+
+Tiếp tục từ `d9504205` trên nhánh `codex/vocabulary-review`. Cấu hình extension
+vẫn schema 124; database từ vựng nâng từ version 1 lên **2**, định dạng ZIP mới
+là **v2** và tiếp tục đọc được ZIP v1 đã phát hành.
+
+- **Nhập một lần:** lần sau mở lại đúng HTML trên cùng trình duyệt/thiết bị
+  sẽ đọc từ, audio, các sổ và tiến độ đã lưu. Không cần nhập lại mỗi buổi học.
+- **Nhập cập nhật:** cần nhập ZIP mới khi muốn đưa thêm từ từ extension sang
+  HTML/thiết bị khác. Không tự đồng bộ các file ZIP hoặc các thiết bị qua mạng.
+- **Nhiều sổ:** bấm **+ Sổ**, đặt Sổ 1/Sổ 2/Sổ 3 hoặc tên riêng; **Đổi tên**
+  giữ nguyên ID sổ, từ và lịch ôn. Tạo sổ mới giữ toàn bộ các sổ hiện có.
+- **Chọn sổ khi lưu:** dropdown **Lưu vào sổ** trong kết quả dịch web/PDF.
+  Từ được lưu vào sổ đã chọn, kể cả khi tác vụ tạo audio kéo dài.
+- **Chuyển từ:** trong danh sách Sổ từ, bấm **Chuyển** để mang từ, audio và
+  tiến độ sang sổ khác. Cùng từ trong hai sổ có lịch ôn và nội dung độc lập.
+- **Mỗi sổ một ZIP:** chọn sổ rồi Xuất ZIP. Tên file lấy tên sổ, bên trong chỉ
+  có từ, audio và tiến độ của sổ đó. Giới hạn 2.000 từ/64 MiB áp dụng mỗi sổ.
+
+ZIP v2 giữ cấu trúc bốn phần của v1, thêm `manifest.notebook` gồm `id` (UUID),
+`name`, `createdAt`, `updatedAt`; `manifest.version = 2`, `title` là tên sổ.
+Văn bản thẻ và progress trong file giữ cấu trúc v1; scope sổ được xác định bằng
+manifest. Nhập lại cùng ID sẽ cập nhật sổ đó, ghép lịch mới hơn theo từng kiểu,
+không tạo thêm sổ hoặc trộn lịch các sổ. Hai sổ khác ID nhưng cùng tên được
+đặt hậu tố `(2)` để phân biệt. Tên đổi mới hơn được giữ theo `updatedAt`.
+
+ZIP v1 chưa có ID sổ: nhập vào sổ đang chọn, hoặc tự tạo Sổ 1 nếu thư viện còn
+trống. Sau lần nhập đó có thể xuất ZIP v2 để mang theo tên và ID sổ.
+
+Migration đóng băng tại `src/utils/vocabulary/migrations/v1-to-v2.ts`. Giữ
+nguyên các store/definition v1; sao chép từ/lịch sang `notebookCards` và
+`notebookProgress` với khóa ghép `[notebookId + id/cardId]`. Audio giữ nguyên,
+dùng chung theo hash nhưng ZIP luôn tự chứa đủ audio cần thiết. Thư viện v1 có
+dữ liệu trở thành **Sổ 1**, giữ cả ba lịch ôn; DB v1 trống không sinh sổ giả.
+ID của Sổ 1 lấy từ fingerprint và thời điểm tạo của thẻ cũ nhất: các bản sao
+cùng thư viện v1 nhận cùng ID khi nâng cấp, kể cả khi một bản đã thêm từ mới.
+Các sổ tạo mới dùng UUID ngẫu nhiên; đổi tên không đổi ID.
+Các thao tác import, chuyển, xóa và kiểm tra dung lượng chạy trong transaction.
+Không sửa migration này sau phát hành; bước sau phải là version mới.
+
+**Khi cập nhật HTML:** thay nội dung file cũ và giữ nguyên tên/vị trí file.
+Đổi đường dẫn, đổi trình duyệt, xóa dữ liệu hoặc dùng chế độ riêng tư có thể
+dùng vùng lưu trữ khác; giữ ZIP để khôi phục. HTML cũ chỉ đọc ZIP v1, nên cần
+HTML mới này để nhập ZIP v2. Không đưa key vào HTML hoặc ZIP từ vựng.
+
+Đã kiểm tra nâng cấp bằng chính HTML a.4 đã phát hành: nhập ZIP v1, ôn từ,
+thay file bằng HTML mới tại **cùng URL**, mở lại trong cùng context Edge và
+đối chiếu từ/lịch. Phần dưới lưu lại đặc tả và artifact của bản đầu tiên.
+
+### Kết quả bản nhiều sổ — 06/11/2026
+
+- **Đã sửa:** tạo/đổi tên nhiều sổ, chọn sổ khi lưu trên web/PDF, chuyển từ
+  mang theo audio/lịch ôn, xuất từng sổ, nhập lại cập nhật theo ID, migration
+  thư viện cũ sang Sổ 1. Dữ liệu/lịch của cùng từ ở hai sổ độc lập.
+- **Đã kiểm thử:** 3.984 test đạt, 1 test bỏ qua; `SKIP_FREE_API=true`, loại
+  free-api live. Format và lint/type-check đạt. Production Edge có 42 assertion:
+  toàn bộ 25 kiểm tra trước cùng luồng nhiều sổ, chọn sổ ngay trên popup,
+  đổi sổ sau khi lưu, chuyển từ/audio/lịch, ZIP v2 và ZIP v1, nhập lại không
+  nhân sổ, nâng cấp từ HTML a.4 thật tại cùng URL, đóng hẳn rồi mở lại Edge
+  bằng profile kiểm thử vẫn giữ sổ đang chọn và ba lịch ôn mà không nhập lại.
+  UI 360/390/768/1280 px; audio offline và không lỗi JavaScript.
+- **Chưa kiểm thử:** OpenAI live/chất lượng từ và giọng thật, điện thoại vật
+  lý/iOS và mọi trình mở HTML cục bộ. API/audio dùng mock; PDF dùng trang kết
+  quả với selection fixture, không click context-menu PDF của hệ điều hành.
+- **Bị chặn:** không có.
+
+Artifact đối chiếu từng file với production build đã kiểm thử và HTML tải
+từ extension, không chứa profile, key hoặc sentinel kiểm thử:
+
+- `ReadFrog-Edge-1.58.0A-Notebooks.zip`: 204 file, 6.112.573 byte,
+  manifest `1.58.0.6` / `1.58.0A`.
+  SHA-256: `818E547F3FC5615C78E892E2FAFF459FF1C6933D76B10A7E325C8EE52AD40CDE`.
+- `ReadFrog-OnTuVung.html`: 427.393 byte. Cập nhật đè **đúng tên/vị trí HTML
+  cũ**, không đổi URL lưu trữ.
+  SHA-256: `C084FA5FED5AFD4C31E5735DA73EEF9D39B44C8CA5194732FC8283C9DE2A6D0F`.
+
+## Bản đầu tiên: phương án và hợp đồng v1
 
 Từ baseline `cb6a3cc9`, nhánh `codex/vocabulary-review`. Package `1.58.0-a.4`,
 manifest `1.58.0.5`, tên hiển thị `1.58.0A`; cấu hình vẫn schema **124**.

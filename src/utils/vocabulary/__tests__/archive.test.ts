@@ -123,6 +123,20 @@ describe("portable vocabulary archive", () => {
     const result = await readVocabularyZip(await createVocabularyZip(bundle))
     expect(result.audio).toHaveLength(1)
   })
+  it("round trips a named notebook ZIP v2 while continuing to read v1", async () => {
+    const bundle = await vocabularyFixture()
+    bundle.notebook = {
+      id: "5a4f50d2-4765-4317-bfa2-61448a31045e",
+      name: "Tiếng Anh công việc",
+      createdAt: 1,
+      updatedAt: 2,
+    }
+    const zip = await createVocabularyZip(bundle)
+    expect(await readVocabularyZip(zip)).toEqual(bundle)
+    expect(
+      JSON.parse(await (await JSZip.loadAsync(zip)).file("manifest.json")!.async("string")).version,
+    ).toBe(2)
+  })
 })
 describe("review rules", () => {
   it("verifies the same SHA-256 when a mobile/HTTP context lacks SubtleCrypto", async () => {

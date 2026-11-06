@@ -26,6 +26,20 @@ body {
 .filter-toggle {
   display: none;
 }
+.notebook-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+.notebook-bar select {
+  min-width: 0;
+}
+.notebook-bar button {
+  padding: 10px 12px;
+  font-size: 13px;
+}
 button,
 input,
 textarea,

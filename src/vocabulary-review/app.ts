@@ -6,7 +6,10 @@ import {
   importLibrary,
   reviewCard,
   deleteVocabularyCard,
-  clearVocabularyLibrary,
+  createNotebook,
+  renameNotebook,
+  setActiveNotebook,
+  moveVocabularyCard,
 } from "../utils/vocabulary/db"
 import {
   REVIEW_MODES,
@@ -21,6 +24,7 @@ import {
   type Grade,
   type VocabularyCapture,
   type VocabularySaveEvent,
+  type VocabularyNotebook,
 } from "../utils/vocabulary/schema"
 import style from "./style.css?inline"
 
@@ -80,6 +84,9 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   document.head.append(css)
   let cards: VocabularyCard[] = [],
     progress = new Map<string, CardProgress>()
+  let notebooks: VocabularyNotebook[] = [],
+    notebook: VocabularyNotebook | null = null,
+    selectedNotebookId: string | undefined
   let mode: ReviewMode = "flash",
     tab = "study",
     query = "",
@@ -116,9 +123,19 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     if (!error) noticeTimer = setTimeout(() => (element.textContent = ""), 7000)
   }
   const refresh = async () => {
-    const data = await loadLibrary()
+    const previous = notebook?.id
+    const data = await loadLibrary(selectedNotebookId)
+    notebooks = data.notebooks
+    notebook = data.notebook
+    selectedNotebookId = notebook?.id
     cards = data.cards
     progress = new Map(data.progress.map((p) => [p.cardId, p]))
+    if (previous && previous !== notebook?.id) {
+      query = ""
+      tag = ""
+      limit = 40
+      freshSession()
+    }
   }
   const getState = (id: string) => progress.get(id) ?? emptyProgress(id)
   const filtered = () =>
@@ -228,7 +245,14 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         "",
       )}</div>${list.length > limit ? `<button class="load-more" data-action="more">Xem thêm (${list.length - limit} từ)</button>` : ""}`
   }
+  function renderNotebookBar() {
+    const bar = root.querySelector<HTMLElement>("#notebook-bar")
+    if (!bar) return
+    const disabled = busy || !!generation
+    bar.innerHTML = `<select id="notebook-select" aria-label="Chọn sổ từ" ${disabled ? "disabled" : ""}>${!notebooks.length ? '<option value="">Chưa có sổ</option>' : notebooks.map((n) => `<option value="${n.id}" ${n.id === notebook?.id ? "selected" : ""}>${esc(n.name)}</option>`).join("")}</select><button data-action="new-library" ${disabled ? "disabled" : ""} aria-label="Tạo sổ mới">+ Sổ</button><button data-action="rename-notebook" ${disabled || !notebook ? "disabled" : ""}>Đổi tên</button>`
+  }
   function render() {
+    renderNotebookBar()
     const focused =
       document.activeElement instanceof HTMLInputElement
         ? {
@@ -261,6 +285,15 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
           : "Tìm từ / lọc chủ đề"
       filters.before(toggle)
     }
+    if (tab === "library")
+      main.querySelectorAll<HTMLElement>(".entry-actions").forEach((actions) => {
+        const id = actions.querySelector<HTMLElement>('[data-action="view"]')?.dataset.id
+        const move = document.createElement("button")
+        move.dataset.action = "move"
+        move.dataset.id = id
+        move.textContent = "Chuyển"
+        actions.append(move)
+      })
     root.querySelectorAll<HTMLElement>("[data-tab]").forEach((el) => {
       if (el.closest(".nav"))
         el.setAttribute("aria-current", el.dataset.tab === tab ? "page" : "false")
@@ -297,6 +330,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     generation?.abort()
     generation = null
     root.querySelector<HTMLDialogElement>("#dialog")!.close()
+    renderNotebookBar()
   }
   async function play(id: string) {
     stopAudio()
@@ -319,9 +353,10 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   }
   const help = () =>
     showDialog(
-      `<h2>Mang những từ đã gặp vào đây</h2><ol class="help-list"><li>Trong Read Frog trên máy tính, bôi đen một từ/cụm từ rồi dịch.</li><li>Bấm <strong>Lưu để học</strong>. OpenAI tạo nghĩa theo câu, ví dụ và hai audio. API chỉ dùng khi tạo nội dung.</li><li>Mở <strong>Sổ từ</strong> trong extension rồi bấm <strong>Xuất ZIP</strong>.</li><li>Trên điện thoại hoặc máy tính, mở trang ôn tập và <strong>Nhập ZIP</strong>. Bạn có thể học và nghe offline.</li><li>Sau khi ôn, <strong>Xuất ZIP</strong> để mang theo tiến độ. Nhập bộ cập nhật sẽ ghép từ, giữ tiến độ mới hơn của từng kiểu ôn.</li></ol><p>Dữ liệu nằm trong trình duyệt trên máy này. Giữ bản ZIP để khôi phục khi đổi trình duyệt hoặc xóa dữ liệu. Trang HTML cần được mở trong trình duyệt có JavaScript; trình xem trước file của điện thoại có thể không chạy ứng dụng.</p><div class="dialog-footer"><button data-action="close">Đã hiểu</button></div>`,
+      `<h2>Dùng nhiều sổ từ</h2><p>Bấm <strong>+ Sổ</strong> để tạo Sổ 1, Sổ 2 hoặc đặt tên riêng. Chọn sổ trong danh sách để học, đổi tên hoặc xuất ZIP riêng. Trong Sổ từ, nút <strong>Chuyển</strong> mang một từ cùng audio và tiến độ sang sổ khác.</p><ol class="help-list"><li>Trong extension, bôi đen một từ/cụm từ rồi dịch.</li><li>Chọn <strong>Lưu vào sổ</strong> rồi bấm <strong>Lưu để học</strong>. OpenAI tạo nghĩa, ví dụ và hai audio; API chỉ dùng khi tạo nội dung.</li><li>Mở Sổ từ, chọn sổ muốn mang đi rồi <strong>Xuất ZIP</strong>.</li><li>Trong HTML, <strong>Nhập ZIP</strong>. ZIP mới có tên và ID sổ; nhập lại sẽ cập nhật đúng sổ đó. Với ZIP cũ không có thông tin sổ, hãy chọn sổ đích trước khi nhập.</li><li>Sau khi ôn, <strong>Xuất ZIP</strong> để sao lưu tiến độ của sổ đang chọn.</li></ol><p>Chỉ cần nhập một lần: những lần sau mở lại đúng HTML trên cùng trình duyệt/thiết bị sẽ tiếp tục học. Nhập lại khi có ZIP cập nhật từ mới, đổi máy/trình duyệt hoặc dữ liệu bị xóa. Mỗi sổ và tiến độ được lưu trên thiết bị, không tự đồng bộ qua mạng.</p><p>Điện thoại cần trình duyệt chạy JavaScript; trình xem trước file của hệ điều hành có thể không chạy HTML. Giữ ZIP để khôi phục dữ liệu khi cần.</p><div class="dialog-footer"><button data-action="close">Đã hiểu</button></div>`,
     )
   async function handleAction(action: string, button: HTMLElement) {
+    if ((busy || generation) && ["new-library", "rename-notebook", "move"].includes(action)) return
     if (action === "filters") {
       filtersOpen = !filtersOpen
       render()
@@ -368,21 +403,40 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       return
     }
     if (action === "new-library") {
+      let index = 1
+      while (notebooks.some((n) => normalizeAnswer(n.name) === normalizeAnswer(`Sổ ${index}`)))
+        index++
       showDialog(
-        `<h2>Tạo bộ từ mới?</h2><p>Xuất ZIP trước để giữ từ, audio và tiến độ hiện tại. Bộ hiện tại sẽ được xóa khỏi trình duyệt; bạn có thể nhập lại từ ZIP đã lưu.</p><label><input id="backup-confirmed" type="checkbox" style="width:20px;min-height:20px;vertical-align:middle"> Tôi đã giữ bản ZIP và muốn tạo bộ mới</label><div class="dialog-footer"><button data-action="close">Giữ bộ hiện tại</button><button class="danger" data-action="confirm-new-library">Tạo bộ mới</button></div>`,
+        `<form id="notebook-form"><h2>Tạo sổ mới</h2><p>Mỗi sổ có từ, lịch ôn và ZIP riêng. Các sổ hiện tại vẫn được giữ.</p><label for="notebook-name">Tên sổ</label><input id="notebook-name" value="Sổ ${index}" required maxlength="80"><p id="notebook-error" role="alert"></p><div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Tạo sổ</button></div></form>`,
       )
       return
     }
-    if (action === "confirm-new-library") {
-      if (!root.querySelector<HTMLInputElement>("#backup-confirmed")?.checked) return
-      await clearVocabularyLibrary()
+    if (action === "rename-notebook" && notebook) {
+      showDialog(
+        `<form id="notebook-form" data-id="${notebook.id}"><h2>Đổi tên sổ</h2><label for="notebook-name">Tên sổ</label><input id="notebook-name" value="${esc(notebook.name)}" required maxlength="80"><p id="notebook-error" role="alert"></p><div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Lưu tên</button></div></form>`,
+      )
+      return
+    }
+    if (action === "move") {
+      const others = notebooks.filter((n) => n.id !== notebook?.id)
+      showDialog(
+        others.length
+          ? `<h2>Chuyển từ sang sổ khác</h2><label for="move-target">Sổ đích</label><select id="move-target">${others.map((n) => `<option value="${n.id}">${esc(n.name)}</option>`).join("")}</select><p>Audio và tiến độ của từ sẽ đi cùng. Các từ khác trong hai sổ được giữ.</p><div class="dialog-footer"><button data-action="close">Hủy</button><button class="primary" data-action="confirm-move" data-id="${button.dataset.id}">Chuyển từ</button></div>`
+          : `<h2>Bạn cần thêm một sổ</h2><p>Tạo sổ mới, rồi quay lại chuyển từ.</p><div class="dialog-footer"><button data-action="close">Đóng</button><button class="primary" data-action="new-library">Tạo sổ mới</button></div>`,
+      )
+      return
+    }
+    if (action === "confirm-move" && notebook) {
+      await moveVocabularyCard(
+        button.dataset.id!,
+        notebook.id,
+        root.querySelector<HTMLSelectElement>("#move-target")!.value,
+      )
       closeDialog()
-      query = ""
-      tag = ""
-      freshSession()
       await refresh()
+      freshSession()
       render()
-      notice("Đã tạo thư viện trống. Bạn có thể nhập ZIP khác hoặc thêm từ mới.")
+      notice("Đã chuyển từ cùng audio và tiến độ.")
       return
     }
     if (action === "reveal") {
@@ -417,7 +471,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       return
     }
     if (action === "confirm-delete") {
-      await deleteVocabularyCard(button.dataset.id!)
+      await deleteVocabularyCard(button.dataset.id!, notebook?.id)
       closeDialog()
       reset()
       await refresh()
@@ -427,15 +481,32 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     }
     if (action === "export") {
       if (busy) return
+      if (!notebook) {
+        notice("Hãy tạo sổ hoặc nhập ZIP trước.")
+        return
+      }
       busy = true
+      renderNotebookBar()
       button.setAttribute("disabled", "")
       notice("Đang đóng gói từ, audio và tiến độ…")
       try {
-        const bytes = await createVocabularyZip(await exportLibrary())
-        download(bytes, `Tu-vung-${new Date().toISOString().slice(0, 10)}.zip`, "application/zip")
-        notice("Đã xuất ZIP kèm audio và tiến độ. Giữ file này để sao lưu hoặc chuyển máy.")
+        const selected = notebook
+        const bytes = await createVocabularyZip(await exportLibrary(selected.id))
+        const filename = Array.from(selected.name, (character) =>
+          character.charCodeAt(0) < 32 ? "_" : character,
+        )
+          .join("")
+          .replace(/[\\/:*?"<>|]/g, "_")
+          .slice(0, 60)
+        download(
+          bytes,
+          `Tu-vung-${filename}-${new Date().toISOString().slice(0, 10)}.zip`,
+          "application/zip",
+        )
+        notice(`Đã xuất riêng sổ “${selected.name}”, kèm audio và tiến độ.`)
       } finally {
         busy = false
+        renderNotebookBar()
         button.removeAttribute("disabled")
       }
     }
@@ -444,8 +515,12 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   const newLibraryButton = document.createElement("button")
   newLibraryButton.className = "quiet"
   newLibraryButton.dataset.action = "new-library"
-  newLibraryButton.textContent = "Tạo bộ mới"
+  newLibraryButton.textContent = "Tạo sổ mới"
   root.querySelector(".footer-note")!.append(newLibraryButton)
+  const notebookBar = document.createElement("div")
+  notebookBar.id = "notebook-bar"
+  notebookBar.className = "notebook-bar"
+  root.querySelector("#notice")!.before(notebookBar)
   root.addEventListener("click", (event) => {
     const button = (event.target as Element).closest<HTMLElement>("button,[data-action]")
     if (!button || !root.contains(button) || button.hasAttribute("disabled")) return
@@ -474,8 +549,9 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       const card = current()
       if (!card || !revealed || busy) return
       busy = true
+      renderNotebookBar()
       button.setAttribute("disabled", "")
-      void reviewCard(card.id, mode, button.dataset.grade as Grade)
+      void reviewCard(card.id, mode, button.dataset.grade as Grade, notebook?.id)
         .then((p) => {
           progress.set(p.cardId, p)
           completed.add(card.id)
@@ -487,6 +563,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         )
         .finally(() => {
           busy = false
+          renderNotebookBar()
           button.removeAttribute("disabled")
         })
       return
@@ -514,6 +591,27 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   })
   root.addEventListener("change", (event) => {
     const input = event.target as HTMLInputElement
+    if (input.id === "notebook-select") {
+      if (busy || generation || !input.value) return
+      busy = true
+      renderNotebookBar()
+      const id = input.value
+      void setActiveNotebook(id)
+        .then(async () => {
+          selectedNotebookId = id
+          await refresh()
+          freshSession()
+          query = ""
+          tag = ""
+          render()
+        })
+        .catch(() => notice("Chưa mở được sổ đã chọn.", true))
+        .finally(() => {
+          busy = false
+          renderNotebookBar()
+        })
+      return
+    }
     if (input.id === "tag-filter") {
       tag = input.value
       freshSession()
@@ -527,6 +625,28 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   root.addEventListener("submit", (event) => {
     event.preventDefault()
     const form = event.target as HTMLFormElement
+    if (form.id === "notebook-form") {
+      const submit = form.querySelector<HTMLButtonElement>('button[type="submit"]')!
+      if (submit.disabled) return
+      submit.disabled = true
+      const name = form.querySelector<HTMLInputElement>("#notebook-name")!.value.trim(),
+        id = form.dataset.id
+      void (id ? renameNotebook(id, name) : createNotebook(name))
+        .then(async (saved) => {
+          selectedNotebookId = saved.id
+          closeDialog()
+          await refresh()
+          freshSession()
+          render()
+          notice(id ? "Đã đổi tên sổ." : `Đã tạo sổ “${saved.name}”. Các sổ khác vẫn được giữ.`)
+        })
+        .catch((error) => {
+          form.querySelector<HTMLElement>("#notebook-error")!.textContent =
+            error instanceof Error ? error.message : "Không lưu được tên sổ."
+        })
+        .finally(() => (submit.disabled = false))
+      return
+    }
     if (form.id === "type-form") {
       const card = current()
       if (!card || revealed) return
@@ -538,6 +658,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     if (form.id === "generate-form" && bridge && !generation) {
       const controller = new AbortController()
       generation = controller
+      renderNotebookBar()
       const status = form.querySelector<HTMLElement>("#generate-status")!
       const button = form.querySelector<HTMLButtonElement>("button[type=submit]")!
       button.disabled = true
@@ -546,6 +667,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         context: form.querySelector<HTMLTextAreaElement>("#new-context")!.value,
         sourceTitle: "Thêm thủ công",
         sourceUrl: "",
+        notebookId: notebook?.id,
       }
       status.textContent = "Đang tạo nội dung bằng OpenAI…"
       void bridge
@@ -575,12 +697,14 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         .finally(() => {
           if (generation === controller) generation = null
           button.disabled = false
+          renderNotebookBar()
         })
     }
   })
   root.querySelector<HTMLDialogElement>("#dialog")!.addEventListener("cancel", () => {
     generation?.abort()
     generation = null
+    renderNotebookBar()
     stopAudio()
   })
   root.querySelector<HTMLInputElement>("#import-file")!.addEventListener("change", (event) => {
@@ -593,22 +717,28 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       return
     }
     busy = true
+    renderNotebookBar()
     notice("Đang kiểm tra và nhập bộ từ…")
     void (async () => {
       const bundle = await readVocabularyZip(new Uint8Array(await file.arrayBuffer()))
-      await importLibrary(bundle)
+      selectedNotebookId = await importLibrary(bundle, bundle.notebook ? undefined : notebook?.id)
       await refresh()
       freshSession()
       render()
-      notice(`Đã nhập ${bundle.cards.length} từ; giữ tiến độ mới hơn của từng kiểu ôn.`)
+      notice(
+        `Đã nhập ${bundle.cards.length} từ vào sổ “${notebook?.name ?? ""}”; giữ tiến độ mới hơn của từng kiểu ôn.`,
+      )
     })()
       .catch(() =>
         notice(
-          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1 có đủ dữ liệu và audio, tối đa 64 MB. Thư viện cũ vẫn được giữ.",
+          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1 hoặc 2 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
           true,
         ),
       )
-      .finally(() => (busy = false))
+      .finally(() => {
+        busy = false
+        renderNotebookBar()
+      })
   })
   document.addEventListener("keydown", (event) => {
     if (

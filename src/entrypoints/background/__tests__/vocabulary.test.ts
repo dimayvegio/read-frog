@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { vocabularyFixture } from "@/utils/vocabulary/__tests__/fixtures"
-import { vocabularyDB, exportLibrary } from "@/utils/vocabulary/db"
+import { vocabularyDB, exportLibrary, createNotebook } from "@/utils/vocabulary/db"
 import { saveVocabulary } from "../vocabulary"
 await vi.hoisted(async () => {
   const fake = await import("fake-indexeddb")
@@ -28,9 +28,7 @@ const capture = {
 }
 beforeEach(async () => {
   vi.clearAllMocks()
-  await vocabularyDB.cards.clear()
-  await vocabularyDB.audio.clear()
-  await vocabularyDB.progress.clear()
+  for (const table of vocabularyDB.tables) await table.clear()
   const fixture = await vocabularyFixture()
   const {
     id: _id,
@@ -72,7 +70,7 @@ describe("vocabulary generation", () => {
       })
       .mockRejectedValueOnce(new Error("speech failed"))
     await expect(saveVocabulary(capture)).rejects.toThrow("speech failed")
-    expect(await vocabularyDB.cards.count()).toBe(0)
+    expect(await vocabularyDB.notebookCards.count()).toBe(0)
     expect(await vocabularyDB.audio.count()).toBe(0)
   })
   it("does not save a cancelled generation or start the next audio after cancellation", async () => {
@@ -83,7 +81,7 @@ describe("vocabulary generation", () => {
     })
     await expect(saveVocabulary(capture, { signal: controller.signal })).rejects.toThrow(/abort/i)
     expect(mocks.audio).toHaveBeenCalledTimes(1)
-    expect(await vocabularyDB.cards.count()).toBe(0)
+    expect(await vocabularyDB.notebookCards.count()).toBe(0)
   })
   it("rejects invalid capture payloads and wrong-word output before generating audio", async () => {
     await expect(saveVocabulary({ ...capture, word: "a".repeat(161) })).rejects.toThrow(/Too big/)
@@ -92,5 +90,14 @@ describe("vocabulary generation", () => {
     result.output.word = "different"
     await expect(saveVocabulary(capture)).rejects.toThrow("selected word")
     expect(mocks.audio).not.toHaveBeenCalled()
+  })
+  it("saves a cached word to a second notebook without more OpenAI calls", async () => {
+    await saveVocabulary(capture)
+    const second = await createNotebook("Sổ 2")
+    const result = await saveVocabulary({ ...capture, notebookId: second.id })
+    expect(result).toMatchObject({ notebookId: second.id, duplicate: false })
+    expect((await exportLibrary(second.id)).cards).toHaveLength(1)
+    expect(mocks.generate).toHaveBeenCalledTimes(1)
+    expect(mocks.audio).toHaveBeenCalledTimes(2)
   })
 })

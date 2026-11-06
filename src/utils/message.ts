@@ -1,4 +1,5 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { NotebookSnapshot } from "./vocabulary/schema"
 import type {
   BackgroundGenerateTextPayload,
   BackgroundGenerateTextResponse,
@@ -30,6 +31,8 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  getVocabularyNotebooks: () => NotebookSnapshot
+  selectVocabularyNotebook: (data: { notebookId: string }) => void
   openVocabulary: () => void
   openTranslationHub: () => void
   // navigation

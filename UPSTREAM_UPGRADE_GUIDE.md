@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.4` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.5` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.58.0-a.5` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.6` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,11 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.6`, giữ **nhiều sổ từ có tên**, dữ liệu/lịch riêng và ZIP
+riêng theo ID sổ. Database từ vựng version 2, có snapshot migration v1-to-v2;
+config vẫn schema 124. ZIP v2 mới phải đọc cùng ZIP v1 cũ. Giữ ID khi đổi tên,
+không xóa sổ cũ khi tạo sổ mới; cập nhật HTML cùng đường dẫn để giữ IndexedDB.
 
 Từ build `1.58.0.5`, giữ sổ từ vựng local, audio OpenAI, ZIP v1 và HTML ôn tập
 độc lập responsive. Đọc [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md).

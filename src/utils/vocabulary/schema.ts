@@ -11,12 +11,25 @@ export const MAX_CARDS = 2000
 const text = (max: number) => z.string().trim().min(1).max(max)
 const hash = z.string().regex(/^[a-f0-9]{64}$/)
 const time = z.number().int().min(0).max(8_640_000_000_000_000)
+export const notebookIdSchema = z.string().uuid()
+export const notebookSchema = z.strictObject({
+  id: notebookIdSchema,
+  name: text(80),
+  createdAt: time,
+  updatedAt: time,
+})
+export type VocabularyNotebook = z.infer<typeof notebookSchema>
+export interface NotebookSnapshot {
+  notebooks: VocabularyNotebook[]
+  activeNotebookId: string | null
+}
 
 export const captureSchema = z.strictObject({
   word: text(160),
   context: z.string().max(1800),
   sourceTitle: z.string().max(240),
   sourceUrl: z.string().max(2048),
+  notebookId: notebookIdSchema.optional(),
 })
 export type VocabularyCapture = z.infer<typeof captureSchema>
 
@@ -71,6 +84,7 @@ export const progressSchema = z.strictObject({
 })
 export type CardProgress = z.infer<typeof progressSchema>
 export interface VocabularyBundle {
+  notebook?: VocabularyNotebook
   cards: VocabularyCard[]
   progress: CardProgress[]
   audio: AudioAsset[]
@@ -79,6 +93,7 @@ export interface VocabularySaveEvent {
   stage: "text" | "word-audio" | "example-audio" | "saved"
   cardId?: string
   duplicate?: boolean
+  notebookId?: string
 }
 
 export function normalizeAnswer(value: string) {

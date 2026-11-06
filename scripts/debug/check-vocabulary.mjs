@@ -248,6 +248,9 @@ try {
   native.on("pageerror", (e) => errors.push(e.message))
   await native.goto(`chrome-extension://${id}/selection-result.html?selectionId=${nativeChannel}`)
   await native.waitForSelector("[data-slot=save-vocabulary] button")
+  await native.waitForFunction(
+    () => !document.querySelector("[data-slot=save-vocabulary] button").disabled,
+  )
   await native.click("[data-slot=save-vocabulary] button")
   await native.waitForFunction(() =>
     document.querySelector("[data-slot=save-vocabulary]").textContent.includes("Từ này đã có"),
@@ -287,7 +290,7 @@ try {
   await web.waitForSelector('body >>> [aria-label="Translation"]', { visible: true })
   await web.click('body >>> [aria-label="Translation"]')
   await web.waitForSelector("::-p-aria(Lưu để học)")
-  await web.click("::-p-aria(Lưu để học)")
+  await web.locator("::-p-aria(Lưu để học)").click()
   await web.waitForSelector("::-p-aria(Đã lưu)")
   check(
     "A normal web selection exposes the save action inside the actual shadow-DOM translation popover",
@@ -295,6 +298,86 @@ try {
   )
   await web.close()
   page = manager
+  const extensionFirstNotebook = await page.$eval("#notebook-select", (select) => select.value)
+  await page.click('#notebook-bar [data-action="new-library"]')
+  await page.click('#notebook-form button[type="submit"]')
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#notebook-select").options.length === 2 &&
+      !document.querySelector("#dialog").open,
+  )
+  const extensionSecondNotebook = await page.$eval("#notebook-select", (select) => select.value)
+  const anotherChannel = await worker.evaluate(async () => {
+    const channel = crypto.randomUUID()
+    await chrome.storage.session.set({
+      ["native-selection:" + channel]: {
+        id: crypto.randomUUID(),
+        text: "reverse",
+        createdAt: Date.now(),
+        tooLong: false,
+      },
+    })
+    return channel
+  })
+  const chooseNotebookPage = await browser.newPage()
+  await chooseNotebookPage.goto(
+    `chrome-extension://${id}/selection-result.html?selectionId=${anotherChannel}`,
+  )
+  await chooseNotebookPage.waitForFunction(
+    () => document.querySelector('[aria-label="Lưu vào sổ"]')?.options.length === 2,
+  )
+  await chooseNotebookPage.select('[aria-label="Lưu vào sổ"]', extensionFirstNotebook)
+  await chooseNotebookPage.select('[aria-label="Lưu vào sổ"]', extensionSecondNotebook)
+  await chooseNotebookPage.waitForFunction(
+    () => !document.querySelector("[data-slot=save-vocabulary] button").disabled,
+  )
+  await chooseNotebookPage.click("[data-slot=save-vocabulary] button")
+  await chooseNotebookPage.waitForFunction(() =>
+    document.querySelector("[data-slot=save-vocabulary]").textContent.includes("Đã lưu từ"),
+  )
+  check(
+    "The save popup selects a named notebook and stores the word separately in that notebook",
+    await worker.evaluate(
+      async (expected) =>
+        new Promise((resolve, reject) => {
+          const open = indexedDB.open("read-frog-vocabulary")
+          open.onerror = reject
+          open.onsuccess = () => {
+            const db = open.result,
+              request = db.transaction("notebookCards").objectStore("notebookCards").getAll()
+            request.onsuccess = () => {
+              resolve(
+                request.result.length === 2 &&
+                  request.result.some((row) => row.notebookId === expected),
+              )
+              db.close()
+            }
+          }
+        }),
+      extensionSecondNotebook,
+    ),
+  )
+  await chooseNotebookPage.select('[aria-label="Lưu vào sổ"]', extensionFirstNotebook)
+  await chooseNotebookPage.waitForFunction(
+    () => !document.querySelector("[data-slot=save-vocabulary] button").disabled,
+  )
+  await chooseNotebookPage.click("[data-slot=save-vocabulary] button")
+  await chooseNotebookPage.waitForFunction(() =>
+    document.querySelector("[data-slot=save-vocabulary]").textContent.includes("Từ này đã có"),
+  )
+  check(
+    "After saving, the popup can choose another notebook and save without reselecting the word",
+    true,
+  )
+  await chooseNotebookPage.close()
+  await page.select("#notebook-select", extensionFirstNotebook)
+  await page.waitForFunction(
+    (bookId) =>
+      document.querySelector("#notebook-select").value === bookId &&
+      !document.querySelector("#notebook-select").disabled,
+    {},
+    extensionFirstNotebook,
+  )
   const cdp = await page.createCDPSession()
   await cdp.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: scratch })
   await page.click('a[download="ReadFrog-OnTuVung.html"]')
@@ -319,9 +402,17 @@ try {
   const bundleBytes = await fs.readFile(path.join(scratch, zipFile)),
     zip = await JSZip.loadAsync(bundleBytes)
   const cards = JSON.parse(await zip.file("vocabulary.json").async("string"))
+  const legacyArchive = await JSZip.loadAsync(bundleBytes)
+  const legacyManifest = JSON.parse(await legacyArchive.file("manifest.json").async("string"))
+  delete legacyManifest.notebook
+  legacyManifest.version = 1
+  legacyManifest.title = "Từ vựng của tôi"
+  legacyArchive.file("manifest.json", JSON.stringify(legacyManifest))
+  const legacyPath = path.join(scratch, "legacy-v1.zip")
+  await fs.writeFile(legacyPath, await legacyArchive.generateAsync({ type: "nodebuffer" }))
   check(
-    "ZIP carries schema v1 plus WAV assets and no API credential",
-    JSON.parse(await zip.file("manifest.json").async("string")).version === 1 &&
+    "ZIP carries a named notebook v2 plus WAV assets and no API credential",
+    JSON.parse(await zip.file("manifest.json").async("string")).version === 2 &&
       Object.keys(zip.files).filter((n) => n.endsWith(".wav")).length >= 1 &&
       !(await zip.file("vocabulary.json").async("string")).includes("vocabulary-test-sentinel"),
   )
@@ -462,10 +553,15 @@ try {
           open.onerror = reject
           open.onsuccess = () => {
             const db = open.result,
-              tx = db.transaction("progress"),
-              req = tx.objectStore("progress").getAll()
+              tx = db.transaction("notebookProgress"),
+              req = tx.objectStore("notebookProgress").getAll()
             req.onsuccess = () => {
-              resolve(req.result)
+              const selectedNotebook = document.querySelector("#notebook-select").value
+              resolve(
+                req.result
+                  .filter((row) => row.notebookId === selectedNotebook)
+                  .map(({ notebookId: _notebookId, ...progress }) => progress),
+              )
               db.close()
             }
           }
@@ -537,6 +633,251 @@ try {
     "Library search handles Vietnamese accents",
     await page.evaluate(() => document.querySelectorAll(".entry").length === 1),
   )
+  const firstNotebook = await page.$eval("#notebook-select", (select) => select.value)
+  await page.click('#notebook-bar [data-action="new-library"]')
+  await page.click('#notebook-form button[type="submit"]')
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#notebook-select").options.length === 2 &&
+      !document.querySelector("#dialog").open,
+  )
+  const secondNotebook = await page.$eval("#notebook-select", (select) => select.value)
+  check(
+    "Creating Sổ 2 preserves Sổ 1 and starts with an empty word list",
+    secondNotebook !== firstNotebook &&
+      (await page.evaluate(() => document.querySelectorAll(".entry").length === 0)),
+  )
+  await page.click('[data-action="rename-notebook"]')
+  await page.click("#notebook-name")
+  await page.keyboard.down("Control")
+  await page.keyboard.press("A")
+  await page.keyboard.up("Control")
+  await page.type("#notebook-name", "Sổ 2 - Công việc")
+  await page.click('#notebook-form button[type="submit"]')
+  await page.waitForFunction(
+    () =>
+      !document.querySelector("#dialog").open &&
+      document.querySelector("#notebook-select").selectedOptions[0].textContent ===
+        "Sổ 2 - Công việc",
+  )
+  check("Notebooks can be renamed with Vietnamese names", true)
+  await page.select("#notebook-select", firstNotebook)
+  await page.waitForSelector(".entry")
+  await page.click('.entry [data-action="move"]')
+  await page.select("#move-target", secondNotebook)
+  await page.click('[data-action="confirm-move"]')
+  await page.waitForFunction(() =>
+    document.querySelector("#notice").textContent.includes("Đã chuyển"),
+  )
+  check(
+    "Moving a word removes it from the source notebook",
+    await page.evaluate(() => document.querySelectorAll(".entry").length === 0),
+  )
+  await page.select("#notebook-select", secondNotebook)
+  await page.waitForSelector(".entry")
+  check(
+    "The target notebook keeps the word's three review histories",
+    JSON.stringify(await readProgress()) === JSON.stringify(before),
+  )
+  const filesBefore = new Set(await fs.readdir(reviewedDir))
+  await page.click('[data-action="export"]')
+  const secondFile = await wait(async () => {
+    const names = await fs.readdir(reviewedDir)
+    return names.find((n) => n.endsWith(".zip") && !filesBefore.has(n))
+  })
+  const secondZip = await JSZip.loadAsync(await fs.readFile(path.join(reviewedDir, secondFile)))
+  const secondManifest = JSON.parse(await secondZip.file("manifest.json").async("string"))
+  check(
+    "Each ZIP carries only the selected notebook and its user-chosen name",
+    secondManifest.notebook.id === secondNotebook &&
+      secondManifest.notebook.name === "Sổ 2 - Công việc" &&
+      secondFile.includes("Công việc"),
+  )
+  await (await page.$("#import-file")).uploadFile(path.join(reviewedDir, secondFile))
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#notice").textContent.includes("Đã nhập") &&
+      !document.querySelector("#notebook-select").disabled,
+  )
+  check(
+    "Importing the same notebook ZIP again updates it without duplicating its words or notebook",
+    (await page.evaluate(
+      () =>
+        document.querySelector("#notebook-select").options.length === 2 &&
+        document.querySelectorAll(".entry").length === 1,
+    )) && JSON.stringify(await readProgress()) === JSON.stringify(before),
+  )
+  await (await page.$("#import-file")).uploadFile(path.join(scratch, zipFile))
+  await page.waitForFunction(
+    (bookId) =>
+      document.querySelector("#notebook-select").value === bookId &&
+      !document.querySelector("#notebook-select").disabled,
+    {},
+    firstNotebook,
+  )
+  check(
+    "Importing Sổ 1 keeps the separate Sổ 2 and does not create a duplicate notebook",
+    await page.$eval("#notebook-select", (select) => select.options.length === 2),
+  )
+  await page.select("#notebook-select", secondNotebook)
+  await page.waitForSelector(".entry")
+  check(
+    "Importing another notebook does not reset this notebook's progress",
+    JSON.stringify(await readProgress()) === JSON.stringify(before),
+  )
+  await page.click('#notebook-bar [data-action="new-library"]')
+  await page.click('#notebook-form button[type="submit"]')
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#notebook-select").options.length === 3 &&
+      !document.querySelector("#dialog").open,
+  )
+  const thirdNotebook = await page.$eval("#notebook-select", (select) => select.value)
+  await (await page.$("#import-file")).uploadFile(legacyPath)
+  await page.waitForFunction(
+    () =>
+      document.querySelector("#notice").textContent.includes("Đã nhập") &&
+      !document.querySelector("#notebook-select").disabled,
+  )
+  check(
+    "A legacy ZIP v1 imports into the selected notebook without replacing other notebooks",
+    await page.$eval(
+      "#notebook-select",
+      (select, bookId) => select.value === bookId && select.options.length === 3,
+      thirdNotebook,
+    ),
+  )
+  await page.reload()
+  await page.waitForFunction(() => document.querySelector("#notebook-select")?.options.length === 3)
+  check(
+    "Notebooks, selected notebook and words survive reopening HTML without importing again",
+    (await page.$eval(
+      "#notebook-select",
+      (select, bookId) => select.value === bookId,
+      thirdNotebook,
+    )) && (await page.$eval(".word", (word) => word.textContent === "reverse")),
+  )
+  await page.screenshot({ path: path.join(scratch, "phone-notebooks.png"), fullPage: true })
+  evidence.screenshots.push(path.join(scratch, "phone-notebooks.png"))
+
+  // Real Edge upgrade: use the previously shipped standalone HTML at the SAME
+  // file URL, keeping its own browser context and IndexedDB between versions.
+  const baseline = await JSZip.loadAsync(
+    await fs.readFile(
+      process.env.VOCAB_BASELINE_ZIP ?? ".output/read-frogextension-1.58.0-a.4-edge.zip",
+    ),
+  )
+  const upgradePath = path.join(scratch, "upgrade-review.html")
+  await fs.writeFile(upgradePath, await baseline.file("vocabulary-review.html").async("nodebuffer"))
+  const upgradeContext = await browser.createBrowserContext(),
+    oldPage = await upgradeContext.newPage()
+  await oldPage.goto(pathToFileURL(upgradePath).href)
+  await oldPage.waitForSelector("#import-file")
+  await (await oldPage.$("#import-file")).uploadFile(legacyPath)
+  await oldPage.waitForSelector(".word")
+  await oldPage.click('[data-action="reveal"]')
+  await oldPage.click('[data-grade="good"]')
+  await oldPage.waitForSelector('[data-action="check-due"]')
+  const rawStore = (target, storeName) =>
+    target.evaluate(
+      (store) =>
+        new Promise((resolve, reject) => {
+          const open = indexedDB.open("read-frog-vocabulary")
+          open.onerror = reject
+          open.onsuccess = () => {
+            const db = open.result,
+              request = db.transaction(store).objectStore(store).getAll()
+            request.onsuccess = () => {
+              resolve(request.result)
+              db.close()
+            }
+            request.onerror = reject
+          }
+        }),
+      storeName,
+    )
+  const oldProgress = await rawStore(oldPage, "progress"),
+    oldCards = await rawStore(oldPage, "cards")
+  await oldPage.close()
+  await fs.writeFile(upgradePath, await fs.readFile(standalonePath))
+  const upgraded = await upgradeContext.newPage()
+  await upgraded.goto(pathToFileURL(upgradePath).href)
+  await upgraded.waitForSelector("#notebook-select")
+  await upgraded.click('[data-tab="library"]')
+  await upgraded.waitForSelector(".entry")
+  const migratedCards = (await rawStore(upgraded, "notebookCards")).map(
+    ({ notebookId: _notebookId, ...card }) => card,
+  )
+  const migratedProgress = (await rawStore(upgraded, "notebookProgress")).map(
+    ({ notebookId: _notebookId, ...progress }) => progress,
+  )
+  check(
+    "Replacing the old HTML at the same path migrates its real Edge v1 words and histories",
+    JSON.stringify(migratedCards) === JSON.stringify(oldCards) &&
+      JSON.stringify(migratedProgress) === JSON.stringify(oldProgress),
+  )
+  check(
+    "Legacy data appears in Sổ 1 after the HTML upgrade",
+    await upgraded.$eval(
+      "#notebook-select",
+      (select) => select.options.length === 1 && select.selectedOptions[0].textContent === "Sổ 1",
+    ),
+  )
+  await upgraded.reload()
+  await upgraded.waitForSelector("#notebook-select")
+  check(
+    "A second reload does not duplicate the migrated notebook",
+    await upgraded.$eval("#notebook-select", (select) => select.options.length === 1),
+  )
+  await upgradeContext.close()
+  const persistentProfile = path.join(scratch, "normal-html-profile")
+  const launchPersistent = () =>
+    puppeteer.launch({
+      executablePath:
+        process.env.VOCAB_BROWSER ?? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+      userDataDir: persistentProfile,
+      headless: false,
+      pipe: true,
+      defaultViewport: { width: 1000, height: 800 },
+      args: ["--no-first-run", "--no-default-browser-check"],
+    })
+  let persistentBrowser
+  try {
+    persistentBrowser = await launchPersistent()
+    let persistentPage = await persistentBrowser.newPage()
+    await persistentPage.goto(pathToFileURL(standalonePath).href)
+    await persistentPage.waitForSelector("#import-file")
+    await (await persistentPage.$("#import-file")).uploadFile(path.join(reviewedDir, secondFile))
+    await persistentPage.waitForFunction(() =>
+      document.querySelector("#notice").textContent.includes("Đã nhập"),
+    )
+    await persistentBrowser.close()
+    persistentBrowser = await launchPersistent()
+    persistentPage = await persistentBrowser.newPage()
+    await persistentPage.goto(pathToFileURL(standalonePath).href)
+    await persistentPage.waitForSelector("#notebook-select")
+    await persistentPage.click('[data-tab="library"]')
+    await persistentPage.waitForSelector(".entry")
+    check(
+      "Closing and restarting normal Edge preserves the imported notebook without importing ZIP again",
+      await persistentPage.$eval(
+        "#notebook-select",
+        (select, bookId) =>
+          select.value === bookId && select.selectedOptions[0].textContent === "Sổ 2 - Công việc",
+        secondNotebook,
+      ),
+    )
+    const reopenedProgress = await rawStore(persistentPage, "notebookProgress")
+    check(
+      "All three review schedules survive a full browser restart",
+      reopenedProgress.length === 1 &&
+        reopenedProgress[0].flash.reviews === 1 &&
+        reopenedProgress[0].choice.reviews === 1 &&
+        reopenedProgress[0].type.reviews === 1,
+    )
+  } finally {
+    await persistentBrowser?.close()
+  }
   check("Standalone makes no network requests while studying and listening", requests.length === 0)
   check("No browser JavaScript errors", errors.length === 0 && standaloneErrors.length === 0)
   evidence.cardCount = cards.length

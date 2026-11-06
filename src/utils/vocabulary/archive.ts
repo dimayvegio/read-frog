@@ -10,6 +10,7 @@ import {
   MAX_ARCHIVE_BYTES,
   MAX_AUDIO_BYTES,
   MAX_CARDS,
+  notebookSchema,
   type VocabularyBundle,
 } from "./schema"
 
@@ -28,13 +29,17 @@ function crc32(bytes: Uint8Array) {
   for (const byte of bytes) value = crcTable[(value ^ byte) & 255]! ^ (value >>> 8)
   return (value ^ 0xffffffff) >>> 0
 }
-const manifestSchema = z.strictObject({
+const manifestV1Schema = z.strictObject({
   format: z.literal(FORMAT),
   version: z.literal(1),
   title: z.string().max(160),
   exportedAt: z.number().int().nonnegative(),
   cardCount: z.number().int().min(0).max(MAX_CARDS),
 })
+const manifestSchema = z.discriminatedUnion("version", [
+  manifestV1Schema,
+  manifestV1Schema.extend({ version: z.literal(2), notebook: notebookSchema }),
+])
 
 // Bound expanded data BEFORE a ZIP library inflates anything. We accept only
 // single-volume, unencrypted ZIP32 archives with the documented file names.
@@ -169,10 +174,11 @@ export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uin
     "manifest.json",
     JSON.stringify({
       format: FORMAT,
-      version: 1,
-      title: "Từ vựng của tôi",
+      version: bundle.notebook ? 2 : 1,
+      title: bundle.notebook?.name ?? "Từ vựng của tôi",
       exportedAt: Date.now(),
       cardCount: bundle.cards.length,
+      ...(bundle.notebook ? { notebook: bundle.notebook } : {}),
     }),
   )
   zip.file("vocabulary.json", JSON.stringify(bundle.cards))
@@ -230,5 +236,10 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
       throw new Error("Audio bị hỏng hoặc không khớp mã kiểm tra.")
     audio.push({ id, bytes: data, contentType: "audio/wav" })
   }
-  return { cards, progress, audio }
+  return {
+    cards,
+    progress,
+    audio,
+    ...(manifest.version === 2 ? { notebook: manifest.notebook } : {}),
+  }
 }

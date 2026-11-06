@@ -38,7 +38,10 @@ Sau khi dịch một từ/cụm từ trên web hoặc PDF, bấm **Lưu để h�
 nghĩa theo câu, phiên âm, ví dụ và hai audio. Mở **Sổ từ** từ popup để quản lý,
 ôn tập hoặc xuất một ZIP chứa cả dữ liệu/audio/tiến độ. HTML độc lập hỗ trợ
 điện thoại và máy tính, ba kiểu thẻ lật/trắc nghiệm/gõ đáp án, học và nghe offline.
-Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì định dạng v1.
+Có thể tạo nhiều sổ có tên, chọn sổ khi lưu từ, đổi tên và chuyển từ giữa sổ.
+Mỗi sổ xuất ZIP riêng, giữ lịch ôn riêng; HTML mở lại trên cùng trình duyệt
+không cần nhập lại mỗi lần. ZIP v2 giữ tên/ID sổ, vẫn nhập được ZIP v1 cũ.
+Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
 
 ## Dịch đoạn bôi đen trong PDF trên Edge
 
