@@ -33,6 +33,57 @@
   text-decoration: inherit;
 }
 
+/* Some Windows serif fonts (notably Georgia) leave Vietnamese tone marks
+ * detached and give accented vowels extra advance. Use a local font with
+ * complete Vietnamese coverage for translated prose, including in-place mode.
+ * Keep formula/code typography under the host's control. */
+.read-frog-translated-content-wrapper[lang="vi"],
+.read-frog-translated-content-wrapper[lang="vi"]
+  *:not(
+    :where(
+      .read-frog-inline-atom,
+      .read-frog-inline-atom *,
+      code,
+      code *,
+      pre,
+      pre *,
+      kbd,
+      kbd *,
+      samp,
+      samp *,
+      math,
+      math *,
+      .katex,
+      .katex *,
+      .MathJax,
+      .MathJax *
+    )
+  ),
+[data-read-frog-translation-only][lang="vi"],
+[data-read-frog-translation-only][lang="vi"]
+  *:not(
+    :where(
+      .read-frog-inline-atom,
+      .read-frog-inline-atom *,
+      code,
+      code *,
+      pre,
+      pre *,
+      kbd,
+      kbd *,
+      samp,
+      samp *,
+      math,
+      math *,
+      .katex,
+      .katex *,
+      .MathJax,
+      .MathJax *
+    )
+  ) {
+  font-family: Arial, "Segoe UI", "Noto Sans", sans-serif;
+}
+
 /* Simplified Chinese - macOS > Windows > Cross-platform > Fallback */
 .read-frog-translated-content-wrapper[lang="zh"],
 .read-frog-translated-content-wrapper[lang="zh"]

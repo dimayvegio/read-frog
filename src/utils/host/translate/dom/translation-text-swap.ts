@@ -2,6 +2,7 @@ import type { Config } from "@/types/config/config"
 import type { TransNode } from "@/types/dom"
 import { CONTENT_WRAPPER_CLASS, TRANSLATION_ONLY_ATTRIBUTE } from "../../../constants/dom-labels"
 import { isHTMLElement, isTextNode } from "../../dom/filter"
+import { getContainingShadowRoot, getOwnerDocument } from "../../dom/node"
 import {
   dropTranslationOnlySwapRecords,
   markExtensionDrivenCharacterData,
@@ -14,6 +15,7 @@ import {
   type TranslationOnlySwapRecord,
 } from "../core/translation-state"
 import { setTranslationDirAndLang } from "../translation-attributes"
+import { ensurePresetStyles } from "../ui/style-injector"
 import {
   TRANSLATABLE_ATTRIBUTE_NAMES,
   TRANSLATABLE_INPUT_VALUE_TYPES,
@@ -367,6 +369,11 @@ export function ensureTranslationOnlyAnchorState(
   ]
   anchor.setAttribute(TRANSLATION_ONLY_ATTRIBUTE, "")
   setTranslationDirAndLang(anchor, config)
+  if (config.language.targetCode === "vie") {
+    // In-place translations have no decorated wrapper to load the language
+    // typography. The marker scopes it and restore removes that marker.
+    ensurePresetStyles(getContainingShadowRoot(anchor) ?? getOwnerDocument(anchor))
+  }
   const state: TranslationOnlyAnchorState = { anchor, attributeAdjustments, swaps: [] }
   registerTranslationOnlyAnchorState(state)
   return state
