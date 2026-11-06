@@ -244,6 +244,16 @@ export async function synthesizeOpenAITTS(
     AbortSignal.timeout(TTS_TIMEOUT_MS),
     ...(options.signal ? [options.signal] : []),
   ])
+  return generateOpenAIAudio(payload, signal)
+}
+
+/** File generation has its own cancellation scope and never claims playback. */
+export async function generateOpenAIAudio(
+  input: OpenAITTSPayload,
+  callerSignal: AbortSignal,
+): Promise<TTSAudioChunk> {
+  const payload = openAITTSPayloadSchema.parse(input)
+  const signal = AbortSignal.any([callerSignal, AbortSignal.timeout(TTS_TIMEOUT_MS)])
   signal.throwIfAborted()
   await ensureInitializedConfig()
   const { apiKey } = await readOpenAIExecutionCredential()

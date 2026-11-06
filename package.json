@@ -1,29 +1,30 @@
 {
   "name": "@read-frog/extension",
-  "version": "1.58.0-a.3",
+  "version": "1.58.0-a.4",
   "private": true,
   "description": "Read Frog browser extension for language learning",
   "type": "module",
   "scripts": {
-    "build": "wxt build",
-    "build:edge": "wxt build -b edge",
-    "build:firefox": "wxt build -b firefox --mv3",
-    "build:analyze": "wxt build --analyze",
-    "dev": "wxt",
-    "dev:edge": "wxt -b edge",
-    "dev:firefox": "wxt -b firefox --mv3",
+    "build:review": "node scripts/build-vocabulary-review.mjs",
+    "build": "pnpm build:review && wxt build",
+    "build:edge": "pnpm build:review && wxt build -b edge",
+    "build:firefox": "pnpm build:review && wxt build -b firefox --mv3",
+    "build:analyze": "pnpm build:review && wxt build --analyze",
+    "dev": "pnpm build:review && wxt",
+    "dev:edge": "pnpm build:review && wxt -b edge",
+    "dev:firefox": "pnpm build:review && wxt -b firefox --mv3",
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check .",
     "lint": "oxlint --type-aware --type-check",
     "lint:fix": "oxlint --type-aware --fix",
-    "postinstall": "wxt prepare",
+    "postinstall": "node scripts/build-vocabulary-review.mjs && wxt prepare",
     "test": "vitest run",
     "test:cov": "vitest run --coverage",
     "test:watch": "vitest",
     "type-check": "oxlint --type-aware --type-check",
-    "zip": "wxt zip",
-    "zip:edge": "wxt zip -b edge",
-    "zip:firefox": "wxt zip -b firefox --mv3",
+    "zip": "pnpm build:review && wxt zip",
+    "zip:edge": "pnpm build:review && wxt zip -b edge",
+    "zip:firefox": "pnpm build:review && wxt zip -b firefox --mv3",
     "zip:all": "pnpm zip && pnpm zip:edge && pnpm zip:firefox",
     "release": "changeset git-tag",
     "prepare": "husky",
@@ -80,6 +81,7 @@
     "jotai": "^3.0.1",
     "jotai-family": "^1.1.0",
     "js-sha256": "^1.0.0",
+    "jszip": "3.10.2",
     "liquidjs": "~10.30.1",
     "lucide-react": "^1.68.0",
     "morphdom": "^2.7.8",
@@ -153,13 +155,13 @@
       "build": {
         "executor": "nx:run-commands",
         "options": {
-          "command": "wxt build"
+          "command": "node scripts/build-vocabulary-review.mjs && wxt build"
         }
       },
       "build:firefox": {
         "executor": "nx:run-commands",
         "options": {
-          "command": "wxt build -b firefox"
+          "command": "node scripts/build-vocabulary-review.mjs && wxt build -b firefox"
         }
       },
       "test": {

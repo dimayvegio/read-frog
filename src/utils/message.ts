@@ -30,6 +30,7 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  openVocabulary: () => void
   openTranslationHub: () => void
   // navigation
 

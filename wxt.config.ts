@@ -37,7 +37,7 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.58.0.4",
+    version: "1.58.0.5",
     version_name: "1.58.0A",
     description: "__MSG_extDescription__",
     default_locale: "en",
@@ -48,8 +48,8 @@ export default defineConfig({
       }),
     permissions: [
       "storage",
-      // The glossary is the only user-authored, non-regenerable data the
-      // extension stores locally. Without this, IndexedDB is "best-effort" and
+      // Glossaries and the vocabulary library are user-authored local data.
+      // Without this, IndexedDB is "best-effort" and
       // the browser may evict it under disk pressure — fine for the translation
       // caches, data loss for a term list the user typed by hand. It also lifts
       // the 10 MB quota the 20,000-term cap would otherwise sit close to.

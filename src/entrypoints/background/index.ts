@@ -34,6 +34,7 @@ import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { translationMessage } from "./translation-signal"
 import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
 import { setupVideoSummaryHandlers } from "./video-summary"
+import { handleVocabularyPort, setupVocabularyHandlers, VOCABULARY_PORT } from "./vocabulary"
 
 export default defineBackground({
   type: "module",
@@ -60,6 +61,11 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === VOCABULARY_PORT) {
+        if (port.sender?.id === browser.runtime.id) handleVocabularyPort(port)
+        else port.disconnect()
+        return
+      }
       if (port.name === OPENAI_TTS_PORT) {
         handleOpenAITTSPort(port)
         return
@@ -80,6 +86,7 @@ export default defineBackground({
     setupPageTranslationHandlers()
     setupSubtitlesTranslationHandlers()
     setupVideoSummaryHandlers()
+    setupVocabularyHandlers()
     setupGlossaryMessageHandlers()
     setupEdgeTTSMessageHandlers()
     setupTTSPlaybackMessageHandlers()

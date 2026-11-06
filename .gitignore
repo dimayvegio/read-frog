@@ -9,6 +9,7 @@ lerna-debug.log*
 
 node_modules
 .output
+/public/vocabulary-review.html
 stats.html
 stats-*.html
 stats-*.json

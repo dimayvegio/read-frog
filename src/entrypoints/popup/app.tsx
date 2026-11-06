@@ -1,5 +1,6 @@
 import { Icon } from "@/components/local-icon"
 import { i18n } from "@/utils/i18n"
+import { sendMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
 import { version } from "../../../package.json"
 import { AISmartContext } from "./components/ai-smart-context"
@@ -25,6 +26,13 @@ function App() {
           <div className="flex items-center justify-between gap-2">
             <span className="font-semibold">Read Frog</span>
             <div className="flex shrink-0 items-center">
+              <button
+                type="button"
+                className="rounded-md px-2 py-1 text-xs hover:bg-muted"
+                onClick={() => void sendMessage("openVocabulary", undefined)}
+              >
+                Sổ từ
+              </button>
               <TranslationHubButton />
             </div>
           </div>

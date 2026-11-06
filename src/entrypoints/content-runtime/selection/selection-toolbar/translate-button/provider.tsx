@@ -438,6 +438,11 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
               translatedText={translatedText}
               isTranslating={isTranslating}
               thinking={thinking}
+              vocabularySource={{
+                context: (paragraphsText ?? "").slice(0, 1800),
+                sourceTitle: (titleText ?? "").slice(0, 240),
+                sourceUrl: location.href.slice(0, 2048),
+              }}
             />
             <SelectionToolbarErrorAlert error={error} className="-mt-3" />
           </SelectionPopover.Body>

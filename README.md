@@ -32,6 +32,14 @@ Tạo phụ đề từ âm thanh khi thiếu CC chưa được tích hợp. Open
 và Realtime transcription; để dùng cho video cần thêm lấy âm thanh và đồng bộ
 timeline. Không tự thu âm hoặc gọi dịch vụ nhận dạng giọng nói khi bật dịch CC.
 
+## Sổ từ vựng và HTML ôn tập
+
+Sau khi dịch một từ/cụm từ trên web hoặc PDF, bấm **Lưu để học** để OpenAI tạo
+nghĩa theo câu, phiên âm, ví dụ và hai audio. Mở **Sổ từ** từ popup để quản lý,
+ôn tập hoặc xuất một ZIP chứa cả dữ liệu/audio/tiến độ. HTML độc lập hỗ trợ
+điện thoại và máy tính, ba kiểu thẻ lật/trắc nghiệm/gõ đáp án, học và nghe offline.
+Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì định dạng v1.
+
 ## Dịch đoạn bôi đen trong PDF trên Edge
 
 Bôi đen văn bản trong trình đọc PDF của Edge, bấm chuột phải và chọn

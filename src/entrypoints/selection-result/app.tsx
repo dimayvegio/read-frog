@@ -155,6 +155,11 @@ function SelectionTranslation({
                 translatedText={output}
                 isTranslating={loading}
                 thinking={thinking}
+                vocabularySource={{
+                  context: request.text.slice(0, 1800),
+                  sourceTitle: "PDF / văn bản đã chọn",
+                  sourceUrl: "",
+                }}
               />
               <SelectionToolbarErrorAlert error={error} className="-mt-3" />
             </>

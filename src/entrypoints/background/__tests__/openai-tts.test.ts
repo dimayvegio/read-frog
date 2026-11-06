@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { z } from "zod"
 import { DEFAULT_OPENAI_TTS_CONFIG } from "@/types/openai-tts"
-import { pcmToWav, synthesizeOpenAITTS } from "../openai-tts"
-import { beginTTSRequest } from "../tts-request"
+import { pcmToWav, synthesizeOpenAITTS, generateOpenAIAudio } from "../openai-tts"
+import { beginTTSRequest, getTTSRequestSignal } from "../tts-request"
 
 const { credential } = vi.hoisted(() => ({ credential: vi.fn<(...args: any[]) => any>() }))
 vi.mock("../openai-credentials", () => ({ readOpenAIExecutionCredential: credential }))
@@ -63,6 +63,18 @@ afterEach(() => {
 })
 
 describe("private OpenAI speech transport", () => {
+  it("generates an independent vocabulary clip without claiming or cancelling playback", async () => {
+    const active = getTTSRequestSignal(requestId)
+    const wav = pcmToWav([new Uint8Array([0, 0, 1, 0])])
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Uint8Array(wav)))
+    const clip = await generateOpenAIAudio(
+      { ...payload("gpt-4o-mini-tts"), requestId: "independent-vocabulary-clip" },
+      new AbortController().signal,
+    )
+    expect(clip.contentType).toBe("audio/wav")
+    expect(getTTSRequestSignal(requestId)).toBe(active)
+    expect(active.aborted).toBe(false)
+  })
   it("uses the legacy Speech endpoint with a private credential and the supplied audio snapshot", async () => {
     const wav = pcmToWav([new Uint8Array([0, 0, 1, 0])])
     const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Uint8Array(wav)))

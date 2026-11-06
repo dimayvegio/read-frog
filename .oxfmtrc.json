@@ -11,6 +11,7 @@
     ".output/**",
     "coverage/**",
     "dist/**",
+    "public/vocabulary-review.html",
     ".nx/**",
     ".turbo/**",
     "repos/**",

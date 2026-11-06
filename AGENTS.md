@@ -6,6 +6,7 @@
 - Preserve the local OpenAI-only runtime, private credentials, PDF selection, Microsoft/OpenAI TTS, Vietnamese typography, and two-minute subtitle buffer.
 - Preserve the ani.pm subtitle adapter and its passive player/iframe constraints documented in [ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md).
 - Preserve restored X/Twitter and Netflix native captions, the Netflix MAIN-world bridge and track restoration documented in [X_NETFLIX_SUBTITLES.md](X_NETFLIX_SUBTITLES.md), without reintroducing hosted services.
+- Preserve the vocabulary database, portable ZIP v1 and standalone mobile review page documented in [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md). Vocabulary audio generation has an independent cancellation scope from TTS playback.
 - Mark upstream-based local releases with the `A` suffix in `manifest.version_name` (for example `1.58.0A`), while keeping package and manifest numeric versions valid.
 - Published fork migrations are frozen; upstream migration numbers may conflict and must be adapted as a new fork schema step.
 
