@@ -253,6 +253,31 @@ describe("background context menu", () => {
     expect(openNativeSelectionMock).not.toHaveBeenCalled()
   })
 
+  it("resolves a native PDF guest tab without sending its frame to another content script", async () => {
+    browser.tabs.query = vi.fn<(...args: any[]) => any>().mockResolvedValue([{ id: 8 }])
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!(
+      { menuItemId: MENU_ID_SELECTION_TRANSLATE, selectionText: "PDF selection", frameId: 7 },
+      { id: -1, windowId: 6 },
+    )
+    expect(browser.tabs.query).toHaveBeenCalledExactlyOnceWith({ active: true, windowId: 6 })
+    expect(sendMessageMock).not.toHaveBeenCalled()
+    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("PDF selection", 8)
+  })
+
+  it("opens a selection even when neither the menu nor tabs.query supplies a source tab", async () => {
+    browser.tabs.query = vi
+      .fn<(...args: any[]) => any>()
+      .mockRejectedValue(new Error("Tab unavailable"))
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!({
+      menuItemId: MENU_ID_SELECTION_TRANSLATE,
+      selectionText: "PDF selection",
+    })
+    expect(sendMessageMock).not.toHaveBeenCalled()
+    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("PDF selection", undefined)
+  })
+
   it("ignores empty selections without opening a result or making a request", async () => {
     registerContextMenuListeners()
     await contextMenuClickListeners[0]!(

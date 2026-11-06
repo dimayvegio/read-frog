@@ -83,7 +83,7 @@ interface ProtocolMap {
   // ask host to start page translation
   askManagerToTogglePageTranslation: (data: { enabled: boolean }) => void
   openSelectionTranslationFromContextMenu: (data: { selectionText: string }) => void
-  getNativeSelection: (data: { sourceTabId: number }) => NativeSelectionRequest | null
+  getNativeSelection: (data: { selectionId: string }) => NativeSelectionRequest | null
   openSelectionCustomActionFromContextMenu: (data: {
     actionId: string
     selectionText: string

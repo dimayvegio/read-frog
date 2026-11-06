@@ -51,7 +51,7 @@ describe("native selection result window", () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     await initI18n("en")
-    history.replaceState(null, "", "/selection-result.html?sourceTabId=4")
+    history.replaceState(null, "", "/selection-result.html?selectionId=pdf-channel")
     send.mockResolvedValue({
       id: "first",
       text: "Selected PDF paragraph",
@@ -65,6 +65,7 @@ describe("native selection result window", () => {
   it("streams the chosen paragraph and renders output as text", async () => {
     render(<App />)
     await waitFor(() => expect(translate).toHaveBeenCalledOnce())
+    expect(send).toHaveBeenCalledWith("getNativeSelection", { selectionId: "pdf-channel" })
     const request = translate.mock.calls[0]?.[0]
     expect(request.text).toBe("Selected PDF paragraph")
     await act(() =>
@@ -88,7 +89,9 @@ describe("native selection result window", () => {
       tooLong: false,
       createdAt: Date.now(),
     })
-    await act(() => browser.storage.session.set({ "native-selection:4": { id: "second" } }))
+    await act(() =>
+      browser.storage.session.set({ "native-selection:pdf-channel": { id: "second" } }),
+    )
     await waitFor(() => expect(translate).toHaveBeenCalledTimes(2))
     expect(previous.signal.aborted).toBe(true)
     await act(() =>
@@ -122,6 +125,18 @@ describe("native selection result window", () => {
     render(<App />)
     expect((await screen.findByRole("status")).textContent).toBe("selectionResult.empty")
     expect(translate).not.toHaveBeenCalled()
+  })
+
+  it("distinguishes a failed read from expiration and retries the same selection", async () => {
+    send.mockRejectedValueOnce(new Error("Background unavailable"))
+    render(<App />)
+    expect((await screen.findByRole("alert")).textContent).toContain("selectionResult.loadFailed")
+    expect(screen.queryByText("selectionResult.empty")).toBeNull()
+    expect(translate).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole("button", { name: "selectionResult.retry" }))
+    await waitFor(() => expect(translate).toHaveBeenCalledOnce())
+    expect(send).toHaveBeenLastCalledWith("getNativeSelection", { selectionId: "pdf-channel" })
+    expect(screen.queryByRole("alert")).toBeNull()
   })
 
   it("aborts on window teardown", async () => {

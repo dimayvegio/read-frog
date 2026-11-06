@@ -1986,6 +1986,7 @@ selectionResult:
   settings: Cài đặt OpenAI
   translating: Đang dịch
   failed: Không thể dịch. Hãy kiểm tra cài đặt OpenAI rồi thử lại.
+  loadFailed: Không thể tải đoạn đã chọn. Hãy thử lại hoặc bôi đen đoạn văn trong PDF lần nữa.
   tooLong: Hãy chọn đoạn ngắn hơn (tối đa $1 ký tự).
   empty: Vùng chọn đã hết hạn. Hãy bôi đen văn bản trong PDF rồi chọn Read Frog → Translate lần nữa.
   hint: Để dịch đoạn khác, bôi đen trong PDF, bấm chuột phải rồi chọn Read Frog → Translate. Chỉ văn bản đã chọn được gửi đi dịch.

@@ -2133,6 +2133,7 @@ selectionResult:
   settings: OpenAI settings
   translating: Translating
   failed: Unable to translate. Check your OpenAI settings and try again.
+  loadFailed: Unable to load the selected text. Try again, or select the passage in the PDF again.
   tooLong: Select a shorter passage (up to $1 characters).
   empty: This selection has expired. Select text in the PDF and use Read Frog → Translate again.
   hint: To translate another passage, select it in the PDF, then right-click and choose Read Frog → Translate. Only the selected text is sent for translation.

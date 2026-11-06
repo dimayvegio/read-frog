@@ -180,8 +180,9 @@ export default function App() {
     null,
   )
   const [ready, setReady] = useState(false)
-  const rawTabId = new URLSearchParams(location.search).get("sourceTabId")
-  const sourceTabId = rawTabId === null ? -1 : Number(rawTabId)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [readAttempt, setReadAttempt] = useState(0)
+  const selectionId = new URLSearchParams(location.search).get("selectionId") ?? ""
   useEffect(() => {
     let disposed = false
     let version = 0
@@ -189,22 +190,26 @@ export default function App() {
       const readVersion = ++version
       try {
         const [request, config] = await Promise.all([
-          sendMessage("getNativeSelection", { sourceTabId }),
+          sendMessage("getNativeSelection", { selectionId }),
           getLocalConfig(),
         ])
         if (!disposed && version === readVersion) {
+          setLoadFailed(false)
           setState((previous) =>
             previous?.request.id === request?.id ? previous : request ? { request, config } : null,
           )
         }
       } catch {
-        if (!disposed && version === readVersion) setState(null)
+        if (!disposed && version === readVersion) {
+          setState(null)
+          setLoadFailed(true)
+        }
       } finally {
         if (!disposed && version === readVersion) setReady(true)
       }
     }
     const changed = (changes: Record<string, unknown>) => {
-      if (`${NATIVE_SELECTION_STORAGE_PREFIX}${sourceTabId}` in changes) void refresh()
+      if (`${NATIVE_SELECTION_STORAGE_PREFIX}${selectionId}` in changes) void refresh()
     }
     browser.storage.session.onChanged.addListener(changed)
     void refresh()
@@ -212,7 +217,8 @@ export default function App() {
       disposed = true
       browser.storage.session.onChanged.removeListener(changed)
     }
-  }, [sourceTabId])
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- readAttempt is the user's explicit request to retry loading the same session channel.
+  }, [selectionId, readAttempt])
   return (
     <main>
       {state ? (
@@ -221,6 +227,19 @@ export default function App() {
           request={state.request}
           config={state.config}
         />
+      ) : ready && loadFailed ? (
+        <div role="alert" className="space-y-3 p-4 text-sm">
+          <p>{i18n.t("selectionResult.loadFailed")}</p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setReady(false)
+              setReadAttempt((value) => value + 1)
+            }}
+          >
+            {i18n.t("selectionResult.retry")}
+          </Button>
+        </div>
       ) : ready ? (
         <p role="status" className="p-4 text-sm text-muted-foreground">
           {i18n.t("selectionResult.empty")}

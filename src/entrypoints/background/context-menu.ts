@@ -173,17 +173,19 @@ async function handleContextMenuClick(
   info: Browser.contextMenus.OnClickData,
   tab?: Browser.tabs.Tab,
 ) {
-  if (!tab?.id) {
+  // Native PDF viewers can report a guest tab with id -1 (or no tab).
+  // selectionText is still supplied by the browser's trusted context menu.
+  if (info.menuItemId === MENU_ID_SELECTION_TRANSLATE) {
+    await handleSelectionTranslateClick(info, tab)
+    return
+  }
+
+  if (!isTabId(tab?.id)) {
     return
   }
 
   if (info.menuItemId === MENU_ID_TRANSLATE) {
     await handleTranslateClick(tab.id, tab.url)
-    return
-  }
-
-  if (info.menuItemId === MENU_ID_SELECTION_TRANSLATE) {
-    await handleSelectionTranslateClick(info, tab.id)
     return
   }
 
@@ -232,26 +234,46 @@ async function handleTranslateClick(tabId: number, tabUrl?: string) {
 
 async function handleSelectionTranslateClick(
   info: Browser.contextMenus.OnClickData,
-  tabId: number,
+  tab?: Browser.tabs.Tab,
 ) {
   const selectionText = info.selectionText?.trim()
   if (!selectionText) {
     return
   }
 
-  const target = typeof info.frameId === "number" ? { tabId, frameId: info.frameId } : tabId
-
-  try {
-    await sendMessage("openSelectionTranslationFromContextMenu", { selectionText }, target)
-  } catch {
-    // Native PDF readers and other protected documents cannot host our content
-    // UI. The browser still supplies selectionText through its trusted menu.
+  if (isTabId(tab?.id)) {
+    const tabId = tab.id
+    const target = typeof info.frameId === "number" ? { tabId, frameId: info.frameId } : tabId
     try {
-      await openNativeSelectionResult(selectionText, tabId)
+      await sendMessage("openSelectionTranslationFromContextMenu", { selectionText }, target)
+      return
     } catch {
-      logger.warn("Unable to open the selection translation window")
+      // Protected documents cannot host our in-page selection UI.
     }
   }
+
+  let sourceTabId = isTabId(tab?.id) ? tab.id : undefined
+  if (sourceTabId === undefined) {
+    // Resolve the browser tab for lifecycle/reuse only. Never send a guest
+    // frame's message to an unrelated top-level content script.
+    const tabs = await browser.tabs
+      .query({
+        active: true,
+        ...(isTabId(tab?.windowId) ? { windowId: tab.windowId } : { lastFocusedWindow: true }),
+      })
+      .catch(() => [])
+    if (isTabId(tabs[0]?.id)) sourceTabId = tabs[0].id
+  }
+
+  try {
+    await openNativeSelectionResult(selectionText, sourceTabId)
+  } catch {
+    logger.warn("Unable to open the selection translation window")
+  }
+}
+
+function isTabId(id: unknown): id is number {
+  return typeof id === "number" && Number.isSafeInteger(id) && id >= 0
 }
 
 async function handleSelectionReadAloudClick(
