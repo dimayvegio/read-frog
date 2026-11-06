@@ -1,6 +1,7 @@
 # Read Frog — Edge / OpenAI text + OpenAI / Microsoft TTS
 
-Fork dựa trên commit e361e991b4127dd0d03473ed9329c24885fe420a (1.57.0).
+Fork local đã tích hợp tag upstream v1.58.0 tại
+48dccd04cfdf8432994608215ccad6db329f952b, giữ các thay đổi riêng phát triển từ 1.57.0.
 Giữ engine dịch trang, hai chế độ bilingual/translation-only, selection,
 annotation, custom actions, streaming, queue, glossary và Microsoft TTS; có thêm
 lựa chọn đọc bằng OpenAI.
@@ -16,8 +17,20 @@ YouTube dùng lại engine và giao diện phụ đề nguyên bản: tải trac
 dịch trước theo cửa sổ look-ahead, batch/cache, sidebar transcript, xuất SRT và đầy đủ
 thiết lập hiển thị/style. Phần dịch và phân tích vẫn qua OpenAI hiện tại. Nút Read Frog
 có trên watch, embed và Shorts như bản gốc; video cần có track phụ đề. Tạo phụ đề bằng
-dịch vụ hosted của Read Frog không được khôi phục. ani.pm và trình đọc PDF riêng
-thuộc roadmap sau.
+dịch vụ hosted của Read Frog không được khôi phục. Có thêm ani.pm qua track text
+đã tải trong player Settlar, cùng Bilibili, Udemy/Business và edX từ upstream 1.58.0.
+
+X/Twitter và Netflix đã được khôi phục theo tag upstream v1.58.0: logo/menu gốc,
+đọc native TextTrack trên X và TTML qua MAIN-world bridge trên Netflix; dịch qua
+OpenAI hiện có. Có tuỳ chọn tự dịch riêng cho từng site, mặc định tắt. Bộ đệm dịch
+trước vẫn là 120 giây ở 1×. X cần track text có sẵn; Netflix có thể chọn track text
+theo tiếng audio và khôi phục lựa chọn khi tắt như bản gốc. Xem
+[X_NETFLIX_SUBTITLES.md](X_NETFLIX_SUBTITLES.md) và
+[ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md) để bảo trì các adapter.
+
+Tạo phụ đề từ âm thanh khi thiếu CC chưa được tích hợp. OpenAI có Speech-to-Text
+và Realtime transcription; để dùng cho video cần thêm lấy âm thanh và đồng bộ
+timeline. Không tự thu âm hoặc gọi dịch vụ nhận dạng giọng nói khi bật dịch CC.
 
 ## Dịch đoạn bôi đen trong PDF trên Edge
 

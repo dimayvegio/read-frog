@@ -95,11 +95,9 @@ describe("video subtitles page sections", () => {
     renderInRouter(<SubtitlesAutoStartPage />)
 
     expect(screen.getByRole("switch", { name: "YouTube" })).toBeChecked()
-    for (const name of ["Bilibili", "Udemy", "edX", "ani.pm"]) {
+    for (const name of ["X", "Netflix", "Bilibili", "Udemy", "edX", "ani.pm"]) {
       expect(screen.getByRole("switch", { name })).not.toBeChecked()
     }
-    expect(screen.queryByRole("switch", { name: "X" })).not.toBeInTheDocument()
-    expect(screen.queryByRole("switch", { name: "Netflix" })).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole("switch", { name: "YouTube" }))
 

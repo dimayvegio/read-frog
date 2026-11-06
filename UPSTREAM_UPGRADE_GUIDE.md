@@ -16,8 +16,9 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Bản local ngay trước lần nâng cấp này    | `d2e7656ec87837fad331a5e3cda3eaa5b8284d76` |
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
-| `package.json`                           | `1.58.0-a.2` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.3` (số hợp lệ cho Edge/Chromium)   |
+| Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
+| `package.json`                           | `1.58.0-a.3` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.4` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -42,6 +43,13 @@ Từ build `1.58.0.3`, giữ cả guard hostname đầu `initYoutubeSubtitles`: 
 dẫn `/embed/v1` của Settlar từng bị nhận nhầm là YouTube, gây toast thiếu video
 và shortcut trùng sau khi trang đã chạy. Giữ menu ani.pm tự đóng khi bật dịch;
 không áp hành vi mới này lên menu các nền tảng khác.
+
+Từ build `1.58.0.4`, **X/Twitter và Netflix đã được khôi phục theo yêu cầu người
+dùng** từ đúng tag v1.58.0, vẫn dịch bằng OpenAI riêng. Đọc
+[X_NETFLIX_SUBTITLES.md](X_NETFLIX_SUBTITLES.md) khi nâng cấp. Không khôi phục
+Read Frog hosted ASR, auth/server hay provider khác cùng các adapter này. Giữ
+MAIN-world bridge Netflix, chọn/khôi phục track và native TextTrack X; các field
+`autoStart.xcom`/`netflix` đã tồn tại nên schema vẫn là 124.
 
 | Phần phải giữ                                                                                                                      | Điểm kiểm tra trong source                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |

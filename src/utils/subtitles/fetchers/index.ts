@@ -1,6 +1,7 @@
 export * from "./types"
 export { bilibiliTrackSource } from "./bilibili"
 export { edxTrackSource } from "./edx"
+export { NetflixSubtitlesFetcher } from "./netflix"
 export { TextTrackFetcher } from "./text-track"
 export { TrackSubtitlesFetcher } from "./track"
 export { udemyTrackSource } from "./udemy"
