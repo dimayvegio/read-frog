@@ -1,7 +1,6 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
 import type { LanguageItem } from "./language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
-import { langCodeISO6393Schema } from "@read-frog/definitions"
 import { useMemo } from "react"
 import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
@@ -14,15 +13,7 @@ import {
   ComboboxList,
 } from "@/components/ui/base-ui/combobox"
 import { i18n } from "@/utils/i18n"
-import { getLanguageLabel } from "@/utils/language-labels"
-import { filterLanguage } from "./language-combobox-options"
-
-function getLanguageItems(): LanguageItem<LangCodeISO6393>[] {
-  return langCodeISO6393Schema.options.map((code) => ({
-    value: code,
-    label: getLanguageLabel(code),
-  }))
-}
+import { filterLanguage, getTargetLanguageItems } from "./language-combobox-options"
 
 interface MultiLanguageComboboxProps {
   selectedLanguages: LangCodeISO6393[]
@@ -35,7 +26,7 @@ export function MultiLanguageCombobox({
   onLanguagesChange,
   buttonLabel,
 }: MultiLanguageComboboxProps) {
-  const languageItems = useMemo(() => getLanguageItems(), [])
+  const languageItems = useMemo(() => getTargetLanguageItems(), [])
 
   const selectedItems = useMemo(
     () => languageItems.filter((item) => selectedLanguages.includes(item.value)),
