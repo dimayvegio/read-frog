@@ -1,5 +1,76 @@
 # Đọc và dịch PDF local
 
+## Tự nhớ vị trí — 1.58.0-a.11 / manifest 1.58.0.12
+
+Tiếp tục từ `f823d780` trên nhánh `codex/pdf-reading-panel`, tên hiển thị
+**1.58.0A**. Giữ config124, vocabulary DB4/ZIP5/report3; PDF DB lên **2** bằng
+hai store mới, định nghĩa DB1 đã phát hành không đổi.
+
+1. Giải nén ZIP mới đè đúng thư mục extension cũ rồi Reload tại `edge://extensions`.
+2. Bấm **PDF** trong popup → **Đọc PDF và tự lưu vị trí**. Trình đọc Read Frog
+   mở tab riêng. Nếu đang xem file PDF và đã bật **Allow access to file URLs**,
+   có thể mở thẳng file từ tab nguồn; nếu không, bấm **Mở PDF trên máy**.
+3. Cuộn/chuyển trang/đổi thu phóng sẽ tự lưu, không cần nhập bookmark. Mở lại
+   cùng file tự về trang, vị trí trong trang và mức thu phóng đã đọc. Đổi tên
+   hoặc chuyển thư mục vẫn nhận diện theo SHA-256 nội dung; sửa nội dung thành
+   file khác sẽ tạo vị trí riêng. Không lưu bản sao PDF hoặc quyền file handle;
+   phiên mới cần chọn lại file nếu channel tab nguồn không còn/hết 30 phút.
+4. Bôi đen → **Dịch đoạn đã chọn** dùng cùng khung dịch hiện có: ngôn ngữ,
+   streaming, làm sạch, lịch sử/cache, TTS Microsoft/OpenAI và lưu từ. Chỉ bôi
+   đen hoặc đọc/cuộn không gọi OpenAI. Đóng khung dịch hủy stream/giọng đang đọc.
+5. **Quên vị trí** xóa riêng vị trí của file, không xóa lịch sử dịch hoặc sổ từ.
+   Cuộn tiếp sẽ tự lưu vị trí mới. Xóa lịch sử dịch cũng giữ vị trí đọc.
+
+Tự nhớ vị trí chỉ hoạt động trong **trình đọc Read Frog**, không theo dõi số
+trang của Edge native. Luồng dịch Edge native bên dưới được giữ nguyên.
+PDF.js 6.5.438, worker, font, CMap và decoder đều đóng gói local, hoạt động
+offline; không chạy script/action của PDF và không gửi toàn file lên server.
+Giới hạn file **200 MiB / 20.000 trang**. Chỉ ba trang gần vùng đọc có canvas và
+text layer, mỗi canvas tối đa 8 triệu pixel, DPR tối đa2; hủy và dọn trang cũ.
+PDF có mật khẩu hỏi khi mở và không lưu mật khẩu. PDF scan hiển thị được nhưng
+chưa OCR, nên ảnh không có text sẽ không bôi đen/dịch được.
+
+DB2 thêm `positions` và `positionEpochs` trong `read-frog-pdf-reading`. Mỗi vị
+trí lưu content hash, tên file, hash lịch sử, số trang/offset/zoom và thời gian;
+không lưu đường dẫn, byte PDF, key hay password. Save qua background, debounce
+300 ms, hạn chờ1,5 giây khi cuộn liên tục; flush khi ẩn/đóng. Thời gian lấy tại
+lúc di chuyển, không lúc flush; tab cũ không ghi đè hoạt động mới. Clear epoch
+ngăn request trễ hồi sinh vị trí đã quên. Tab khác đã xóa thì tab cũ ngừng tự
+lưu và yêu cầu mở lại. Không export/sync vị trí trong settings/ZIP từ vựng.
+
+**Đã sửa:** trình đọc riêng, tự lưu/khôi phục, chọn file fallback, tích hợp khung
+dịch, worker/assets local và migration cộng thêm. Bản PDF native trước đây giữ
+nguyên identity theo URL; khi chuyển trực tiếp sang reader, giữ hash lịch sử
+cũ. Khi mở bằng file picker lần đầu, lịch sử dùng content hash.
+
+**Đã kiểm thử:** production Edge, PDF80 trang, restore sau reload/đổi tên/đóng
+tab, file khác độc lập, page/scroll/zoom, không ghi đè khi resize/restore, giới
+hạn ba canvas và hủy khi chuyển nhanh, quên rồi tự lưu lại, chọn text thật từ
+PDF.js qua khung dịch dùng API mô phỏng, viewport390/760/1280. Harness PDF có
+**39** assertion gồm20 của native sidebar. Migration v1 thật giữ nguyên mọi
+record/budget/epoch; timestamp cũ và request sau clear bị từ chối. Vocabulary
+68 assertion và scale1.000 từ/2.000 MP3/9.000 answers25 assertion vẫn đạt.
+
+**Chưa kiểm thử:** OpenAI live, toàn bộ PDF mã hóa/CJK/JPX/ICC ngoài fixture,
+file200 MiB/20.000 trang hoặc thao tác native context menu bằng chuột OS.
+**Bị chặn:** không có blocker triển khai. HTML ôn từ không cần cập nhật.
+
+Lệnh regression: `SKIP_FREE_API=true`, test source, fmt/lint/type-check,
+`pnpm zip:edge`, `node scripts/debug/check-pdf-reading.mjs`,
+`check-vocabulary.mjs`, `check-vocabulary-scale.mjs`. License xem
+[PDF_THIRD_PARTY_NOTICES.md](PDF_THIRD_PARTY_NOTICES.md).
+
+Source **4.078 test đạt /1 bỏ qua**, live free-api loại theo AGENTS.md.
+
+ZIP `ReadFrog-Edge-1.58.0A-AutoPDF.zip`: **410 file /8.690.985 byte**, tăng
+**2.423.759 byte** so với bản PDFReading trước. Đã kiểm CRC và đối chiếu từng
+file với build chạy Edge; không đóng gói profile, fixture, test key, `.env`,
+sourcemap hoặc Node canvas binaries. Worker và bộ assets/license PDF.js local
+có trong gói. SHA-256:
+`A9633462659A642AD341557AFEDFDD65937C54CE0F3F6143CA963DDDDAAAC223`.
+HTML ôn từ giữ nguyên SHA-256
+`301315CED603BDCB46649DBC63E57B529AEA866414123FD1392BFEF55405DDFF`.
+
 ## Bản 1.58.0-a.10 / manifest 1.58.0.11
 
 Nhánh `codex/pdf-reading-panel`, tiếp tục từ `9e2a8724`, tên hiển thị **1.58.0A**.

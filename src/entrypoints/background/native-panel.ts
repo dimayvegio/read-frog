@@ -1,5 +1,4 @@
 import type { Browser } from "#imports"
-import { sha256 } from "js-sha256"
 import { browser } from "#imports"
 import {
   MAX_NATIVE_SELECTION_LENGTH,
@@ -10,6 +9,7 @@ import {
 } from "@/types/native-selection"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { onMessage } from "@/utils/message"
+import { identifyPdfDocument } from "@/utils/selection-result/pdf-document"
 import { openNativeSelectionResult } from "./native-selection"
 import { isTrustedOptionsSender } from "./settings-sender"
 import { getSidePanelApi } from "./side-panel"
@@ -28,29 +28,6 @@ export function isPdfContext(info: Browser.contextMenus.OnClickData, tab?: Brows
       return false
     }
   })
-}
-function documentFor(url: string | undefined, title?: string): NativeSelectionRequest["document"] {
-  try {
-    const parsed = new URL(url ?? "")
-    if (!["file:", "https:", "http:"].includes(parsed.protocol)) return undefined
-    parsed.hash = ""
-    parsed.username = ""
-    parsed.password = ""
-    let name = title?.trim()
-    if (!name || parsed.protocol === "file:") {
-      try {
-        name = decodeURIComponent(parsed.pathname.split("/").at(-1) ?? "")
-      } catch {
-        name = "PDF"
-      }
-    }
-    return {
-      id: sha256(parsed.href),
-      title: (name || "PDF").replace(/\p{Cc}/gu, " ").slice(0, 240),
-    }
-  } catch {
-    return undefined
-  }
 }
 let panelQueue: Promise<unknown> = Promise.resolve()
 let lastFocusedWindowId: number | undefined
@@ -88,7 +65,7 @@ export function openNativePdfPanel(
             })
             .catch(() => [])
         )[0]
-    const document = documentFor(
+    const document = identifyPdfDocument(
       info.pageUrl && /^file:|^https?:/.test(info.pageUrl) ? info.pageUrl : source?.url,
       source?.title,
     )

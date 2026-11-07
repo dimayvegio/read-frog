@@ -30,6 +30,7 @@ import { setupNativeSelectionHandlers } from "./native-selection"
 import { setupOpenAISettingsHandlers } from "./openai-settings"
 import { handleOpenAITTSPort } from "./openai-tts"
 import { setupPageTranslationHandlers } from "./page-translation"
+import { setupPdfReaderHandlers } from "./pdf-reader"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { translationMessage } from "./translation-signal"
@@ -85,6 +86,7 @@ export default defineBackground({
     registerContextMenuListeners()
     setupNativeSelectionHandlers()
     setupNativePanelHandlers()
+    setupPdfReaderHandlers()
     setupPageTranslationHandlers()
     setupSubtitlesTranslationHandlers()
     setupVideoSummaryHandlers()

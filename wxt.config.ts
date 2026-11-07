@@ -3,6 +3,7 @@ import process from "node:process"
 import ViteYaml from "@modyfi/vite-plugin-yaml"
 import { defineConfig } from "wxt"
 import { z } from "zod"
+import { buildPdfAssets } from "./scripts/build-pdf-assets"
 import { escapeNoncharactersPlugin } from "./scripts/escape-noncharacters"
 import {
   createExtensionClientEnvSchema,
@@ -37,7 +38,7 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.58.0.11",
+    version: "1.58.0.12",
     version_name: "1.58.0A",
     description: "__MSG_extDescription__",
     default_locale: "en",
@@ -63,7 +64,11 @@ export default defineConfig({
     ],
     host_permissions: [
       "*://*/*", // Required for scripting.executeScript in any frame
+      "file:///*", // Optional user-enabled local PDF access; file picker works without it.
     ],
+    content_security_policy: {
+      extension_pages: "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';",
+    },
     // Allow images/SVGs referenced by content-script UI <img> tags to be loaded from
     // moz-extension:// URLs on regular pages. Firefox enforces this more strictly.
     web_accessible_resources: [
@@ -117,6 +122,7 @@ export default defineConfig({
     ],
   },
   hooks: {
+    "build:before": buildPdfAssets,
     // With local packages the bundle holds @read-frog/layout-engine's readable
     // source, which must never leave this machine.
     "zip:start": () => {

@@ -1,0 +1,121 @@
+.rf-reader {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+}
+.rf-reader-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.rf-reader button,
+.rf-reader select,
+.rf-reader input {
+  font: inherit;
+}
+.rf-reader-toolbar button,
+.rf-reader-toolbar select,
+.rf-reader-toolbar input {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 10px;
+  background: var(--background);
+  color: var(--foreground);
+}
+.rf-reader-toolbar button:disabled {
+  opacity: 0.4;
+}
+.rf-reader input[type="number"] {
+  width: 70px;
+}
+.rf-reader-name {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rf-reader-status {
+  font-size: 12px;
+  padding: 4px 16px;
+  min-height: 26px;
+}
+.rf-reader-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.rf-pdf-scroll {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  position: relative;
+  padding: 16px;
+  background: #404247;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+}
+.rf-pdf-page {
+  position: relative;
+  margin: 0 auto 16px;
+  background: white;
+  box-shadow: 0 2px 8px #0005;
+  flex: none;
+}
+.rf-pdf-page:last-child {
+  margin-bottom: 0;
+}
+.rf-pdf-page canvas {
+  display: block;
+}
+.rf-reader-translation {
+  width: 390px;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  min-height: 0;
+}
+.rf-reader-translation > button {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.rf-reader-empty {
+  margin: 24px;
+  max-width: 580px;
+  line-height: 1.7;
+}
+.rf-reader-action {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  padding: 12px 18px;
+  border-radius: 10px;
+  background: #1d4ed8;
+  color: white;
+  box-shadow: 0 4px 24px #0006;
+  z-index: 10;
+}
+.rf-reader-error {
+  color: #d94b4b;
+  padding: 8px 16px;
+}
+@media (max-width: 760px) {
+  .rf-reader-body {
+    flex-direction: column;
+  }
+  .rf-reader-translation {
+    width: 100%;
+    height: 50%;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .rf-reader-name {
+    max-width: 170px;
+  }
+}

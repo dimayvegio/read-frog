@@ -3,6 +3,7 @@ import { createHash } from "node:crypto"
 import fs from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { checkAutoPdfReader } from "./check-auto-pdf-reader.mjs"
 
 // Production extension, real Edge sidebar and local PDF; fake OpenAI only.
 // Selection messages are seeded at the trusted native bridge because CDP does
@@ -440,6 +441,7 @@ try {
   await panel.setViewport({ width: 390, height: 940 })
   await panel.screenshot({ path: path.join(scratch, "panel-390.png"), fullPage: true })
   evidence.screenshots.push("panel-390.png")
+  await checkAutoPdfReader({ browser, id, worker, source, panel, scratch, check, calls, evidence })
   check("The browser flow completes without JavaScript errors", errors.length === 0)
   evidence.apiCalls = await calls()
   evidence.historyRecords = (await records()).length

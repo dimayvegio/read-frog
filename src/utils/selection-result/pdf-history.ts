@@ -1,3 +1,4 @@
+import type { PdfReadingPosition } from "./reading-position"
 import { Dexie, type Table } from "dexie"
 import { sha256 } from "js-sha256"
 import { z } from "zod"
@@ -34,6 +35,8 @@ export class PdfHistoryDatabase extends Dexie {
   documents!: Table<StoredDocument, string>
   translations!: Table<PdfHistoryRecord, string>
   meta!: Table<HistoryBudget, string>
+  positions!: Table<PdfReadingPosition, string>
+  positionEpochs!: Table<{ documentId: string; epoch: number }, string>
   constructor(name = "read-frog-pdf-reading") {
     super(name)
     this.version(1).stores({
@@ -41,6 +44,8 @@ export class PdfHistoryDatabase extends Dexie {
       translations: "&id, documentId, updatedAt",
       meta: "&key",
     })
+    // Additive only; published v1 data/epoch/budget stay unchanged.
+    this.version(2).stores({ positions: "&documentId, updatedAt", positionEpochs: "&documentId" })
   }
 }
 export const pdfHistoryDB = new PdfHistoryDatabase()

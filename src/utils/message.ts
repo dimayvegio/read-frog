@@ -1,4 +1,9 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type {
+  PdfReadingPosition,
+  PdfPositionState,
+  PdfReaderSource,
+} from "./selection-result/reading-position"
 import type { NotebookSnapshot } from "./vocabulary/schema"
 import type {
   BackgroundGenerateTextPayload,
@@ -89,6 +94,14 @@ interface ProtocolMap {
   openSelectionTranslationFromContextMenu: (data: { selectionText: string }) => void
   getNativeSelection: (data: { selectionId: string }) => NativeSelectionRequest | null
   getNativePanelSelection: (data: { windowId: number }) => NativeSelectionRequest | null
+  openPdfReader: (data: { windowId: number }) => void
+  getPdfReaderSource: (data: { channel: string }) => PdfReaderSource | null
+  loadPdfReadingPosition: (data: { documentId: string }) => PdfPositionState
+  savePdfReadingPosition: (data: {
+    position: PdfReadingPosition
+    epoch: number
+  }) => "saved" | "stale" | "cleared"
+  forgetPdfReadingPosition: (data: { documentId: string }) => number
   openSelectionCustomActionFromContextMenu: (data: {
     actionId: string
     selectionText: string

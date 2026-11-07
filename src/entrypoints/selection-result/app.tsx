@@ -32,17 +32,20 @@ import {
 } from "@/utils/selection-result/pdf-text"
 import { translateNativeSelection } from "@/utils/selection-result/translate"
 import { PdfHistoryPanel, pdfLanguageName } from "./pdf-history-panel"
+import { PdfReaderButton } from "./pdf-reader-button"
 
-function SelectionTranslation({
+export function SelectionTranslation({
   request,
   config,
   panel,
+  embedded = false,
   textOptions,
   onTextOptions,
 }: {
   request: NativeSelectionRequest
   config: Config
   panel: boolean
+  embedded?: boolean
   textOptions: PdfTextOptions
   onTextOptions: (options: PdfTextOptions) => void
 }) {
@@ -145,7 +148,9 @@ function SelectionTranslation({
         if (!open && !panel) window.close()
       }}
     >
-      <div className="flex h-screen flex-col bg-popover text-popover-foreground">
+      <div
+        className={`${panel ? "min-h-0 flex-1" : "h-screen"} flex flex-col bg-popover text-popover-foreground`}
+      >
         <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
           <SelectionToolbarTitleContent title="Translation" icon="ri:translate" />
           <div className="flex items-center gap-1">
@@ -181,7 +186,7 @@ function SelectionTranslation({
           <p className="font-medium break-words">
             {request.document?.title ?? "PDF / văn bản đã chọn"}
           </p>
-          {panel && (
+          {panel && !embedded && (
             <p className="mt-1 text-xs text-muted-foreground">
               Khung cố định: bôi đen đoạn khác rồi chọn Read Frog → Translate để cập nhật.
             </p>
@@ -393,7 +398,8 @@ export default function App({ panel = false }: { panel?: boolean }) {
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- readAttempt is the user's explicit request to retry loading the same session channel.
   }, [selectionId, readAttempt, panel])
   return (
-    <main>
+    <main className={panel ? "flex h-screen flex-col" : undefined}>
+      {panel && <PdfReaderButton />}
       {state ? (
         <SelectionTranslation
           key={state.request.id}

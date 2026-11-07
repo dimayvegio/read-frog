@@ -35,7 +35,9 @@ function Hydrate({
   return children
 }
 
-export async function mountSelectionResult(panel = false) {
+export const mountSelectionResult = (panel = false) =>
+  mountExtensionPage(() => <App panel={panel} />)
+export async function mountExtensionPage(view: (config: Config) => React.ReactNode) {
   const [config, theme] = await Promise.all([getLocalConfig(), getLocalThemeMode()])
   await initI18n(config.uiLanguage)
   document.title = `${i18n.t("selectionResult.title")} | Read Frog`
@@ -47,9 +49,7 @@ export async function mountSelectionResult(panel = false) {
           <ThemeProvider>
             <TooltipProvider>
               <ToastProvider>
-                <AnchoredToastProvider>
-                  <App panel={panel} />
-                </AnchoredToastProvider>
+                <AnchoredToastProvider>{view(config)}</AnchoredToastProvider>
               </ToastProvider>
             </TooltipProvider>
           </ThemeProvider>
