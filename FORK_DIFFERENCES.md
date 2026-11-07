@@ -14,6 +14,14 @@ phải giữ khi merge. DB riêng `read-frog-reading-library` v1, ZIP
 `read-frog-reading-library` v1; không đổi các DB/config/ZIP cũ. Quy tắc và
 source/regression tại [READING_LAB.md](READING_LAB.md).
 
+**F20 — PDF song ngữ theo đoạn:** thêm từ release `1.58.0-a.22` / manifest
+`1.58.0.23`, trên baseline `3c53f11d`. Trình đọc PDF.js có bản gốc/bản dịch hai
+khung, badge và highlight tương ứng, cuộn liên kết; dịch từng đoạn/trang theo
+thao tác rõ ràng. Dùng cache/epoch/credential identity PDF cũ, không đổi DB2.
+Giữ không gọi provider khi mở/cuộn/cache miss, hủy khi chuyển trang/file và
+giới hạn tài nguyên. Hợp đồng, source và regression:
+[PDF_BILINGUAL_READING.md](PDF_BILINGUAL_READING.md).
+
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
 **Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`

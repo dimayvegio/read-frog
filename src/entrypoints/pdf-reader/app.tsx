@@ -13,6 +13,7 @@ import { sendMessage } from "@/utils/message"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
 import { PdfAutosave } from "./autosave"
+import { PdfBilingualPane, type PdfBilingualHandle } from "./bilingual-pane"
 import { PdfViewport, type ViewPosition } from "./viewport"
 
 GlobalWorkerOptions.workerSrc = workerURL
@@ -28,6 +29,7 @@ export function PdfReader({ config }: { config: Config }) {
   } | null>(null)
   const version = useRef(0)
   const [documentInfo, setDocumentInfo] = useState<{
+    viewport: PdfViewport
     id: string
     historyId: string
     title: string
@@ -42,6 +44,9 @@ export function PdfReader({ config }: { config: Config }) {
   const [shotBusy, setShotBusy] = useState(false)
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
   const [textOptions, setTextOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
+  const [bilingual, setBilingual] = useState(false),
+    [bilingualBusy, setBilingualBusy] = useState(false)
+  const bilingualPane = useRef<PdfBilingualHandle>(null)
   const dispose = () => {
     current.current?.saver?.stop()
     current.current?.viewport?.destroy()
@@ -155,7 +160,7 @@ export function PdfReader({ config }: { config: Config }) {
       current.current = { task, viewport, saver }
       await viewport.init(saved.position ?? undefined)
       if (token !== version.current) return
-      setDocumentInfo({ id, historyId, title, count: pdf.numPages })
+      setDocumentInfo({ id, historyId, title, count: pdf.numPages, viewport })
       setStatus(
         saved.position
           ? `Đã khôi phục vị trí đọc — trang ${saved.position.page}. Tự lưu khi bạn đọc tiếp.`
@@ -225,6 +230,27 @@ export function PdfReader({ config }: { config: Config }) {
         />
         {documentInfo && (
           <>
+            <button
+              type="button"
+              aria-pressed={bilingual}
+              onClick={() => {
+                setRequest(null)
+                setSelection("")
+                setBilingual((value) => !value)
+              }}
+            >
+              Song ngữ theo đoạn
+            </button>
+            {bilingual && (
+              <button
+                type="button"
+                id="pdf-translate-page"
+                disabled={bilingualBusy}
+                onClick={() => bilingualPane.current?.translatePage()}
+              >
+                Dịch trang đang xem
+              </button>
+            )}
             <button
               type="button"
               disabled={shotBusy}
@@ -346,41 +372,60 @@ export function PdfReader({ config }: { config: Config }) {
         </p>
       )}
       <div className="rf-reader-body">
-        <div
-          ref={host}
-          className="rf-pdf-scroll"
-          aria-label="Nội dung PDF"
-          tabIndex={0}
-          onMouseUp={() => {
-            const selected = window.getSelection()
-            setSelectionPage(
-              Number(
-                selected?.anchorNode?.parentElement?.closest<HTMLElement>(".rf-pdf-page")?.dataset
-                  .page,
-              ) || view.page,
-            )
-            setSelection(
-              selected?.anchorNode &&
-                host.current?.contains(selected.anchorNode) &&
-                selected.focusNode &&
-                host.current.contains(selected.focusNode)
-                ? selected.toString().trim()
-                : "",
-            )
-          }}
-          onKeyUp={() => {
-            const selected = window.getSelection()
-            setSelectionPage(
-              Number(
-                selected?.anchorNode?.parentElement?.closest<HTMLElement>(".rf-pdf-page")?.dataset
-                  .page,
-              ) || view.page,
-            )
-            if (selected?.anchorNode && host.current?.contains(selected.anchorNode))
-              setSelection(selected.toString().trim())
-          }}
-        />
-        {request && (
+        <div className="rf-reader-original-column">
+          {bilingual && documentInfo && (
+            <div key="pdf-label" className="rf-bilingual-source-heading">
+              BẢN GỐC · Trang {view.page}
+            </div>
+          )}
+          <div
+            key="pdf-host"
+            ref={host}
+            className="rf-pdf-scroll"
+            aria-label="Nội dung PDF"
+            tabIndex={0}
+            onMouseUp={() => {
+              const selected = window.getSelection()
+              setSelectionPage(
+                Number(
+                  selected?.anchorNode?.parentElement?.closest<HTMLElement>(".rf-pdf-page")?.dataset
+                    .page,
+                ) || view.page,
+              )
+              setSelection(
+                selected?.anchorNode &&
+                  host.current?.contains(selected.anchorNode) &&
+                  selected.focusNode &&
+                  host.current.contains(selected.focusNode)
+                  ? selected.toString().trim()
+                  : "",
+              )
+            }}
+            onKeyUp={() => {
+              const selected = window.getSelection()
+              setSelectionPage(
+                Number(
+                  selected?.anchorNode?.parentElement?.closest<HTMLElement>(".rf-pdf-page")?.dataset
+                    .page,
+                ) || view.page,
+              )
+              if (selected?.anchorNode && host.current?.contains(selected.anchorNode))
+                setSelection(selected.toString().trim())
+            }}
+          />
+        </div>
+        {bilingual && documentInfo && (
+          <PdfBilingualPane
+            key={documentInfo.id}
+            ref={bilingualPane}
+            viewport={documentInfo.viewport}
+            document={{ id: documentInfo.historyId, title: documentInfo.title }}
+            pageCount={documentInfo.count}
+            onBusy={setBilingualBusy}
+            textOptions={textOptions}
+          />
+        )}
+        {!bilingual && request && (
           <aside className="rf-reader-translation">
             <button type="button" onClick={() => setRequest(null)}>
               Đóng khung dịch ×
@@ -402,6 +447,7 @@ export function PdfReader({ config }: { config: Config }) {
           type="button"
           className="rf-reader-action"
           onClick={() => {
+            setBilingual(false)
             setRequest({
               id: crypto.randomUUID(),
               text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,

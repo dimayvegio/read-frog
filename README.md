@@ -98,6 +98,13 @@ Tự nhớ vị trí chỉ hoạt động trong trình đọc Read Frog; Edge na
 luồng dịch vùng chọn bên dưới. Không lưu bản sao PDF, nên phiên mới có thể cần
 chọn lại file. Không cần thay HTML ôn từ.
 
+Trong trình đọc Read Frog, bật **Song ngữ theo đoạn** để xem PDF gốc bên trái,
+bản dịch theo đoạn bên phải, chọn đoạn tô sáng tương ứng và cuộn cùng nhau.
+Bấm **Dịch trang đang xem** hoặc **Dịch đoạn** để dịch; mở/cuộn chỉ đọc cache
+trên máy. Có loa, tải MP3 khi chọn OpenAI và mở Luyện nghe/Lưu đoạn sau khi
+dịch. PDF scan dùng **Chụp vùng & dịch ảnh**. Xem
+[PDF_BILINGUAL_READING.md](PDF_BILINGUAL_READING.md).
+
 Bấm **PDF** trong popup để mở khung, rồi chọn đoạn → Read Frog → Translate hoặc
 **Dịch trong khung cố định (PDF)**. Xem/tải JSON/xóa lịch sử riêng từng file;
 chọn lại đoạn trùng dùng bản lưu, Regenerate chủ động dịch mới. Xem

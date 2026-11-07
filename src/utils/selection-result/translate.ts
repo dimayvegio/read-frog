@@ -32,6 +32,7 @@ export async function translateNativeSelection({
   onCacheState,
   imageCache = false,
   pretranslated,
+  cacheOnly = false,
 }: {
   text: string
   config: Config
@@ -43,6 +44,7 @@ export async function translateNativeSelection({
   onCacheState?: (state: "cached" | "saved" | "not-saved", message?: string) => void
   imageCache?: boolean
   pretranslated?: ImagePretranslation
+  cacheOnly?: boolean
 }) {
   const preparedText = prepareTranslationText(preparePdfText(text, textOptions))
   if (
@@ -162,6 +164,7 @@ export async function translateNativeSelection({
       )
     }
   }
+  if (cacheOnly) return { output: "", thinking: { status: "complete" as const, text: "" } }
   const result = await streamBackgroundText(payload, {
     signal,
     onChunk: (chunk) => {

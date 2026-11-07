@@ -131,6 +131,15 @@ file. Không suy đoán số trang hoặc inject vào text layer của Edge nati
   chứa đoạn gốc/bản dịch do người dùng chủ động tải. Chưa có import JSON lịch
   sử. Không gộp vào settings backup hoặc ZIP từ vựng, không cloud sync.
 
+## Bổ sung PDF song ngữ theo đoạn
+
+Build `1.58.0.23` / `1.58.0A` thêm hai khung theo đoạn trong reader PDF.js;
+không thay chức năng chọn chữ native, lịch sử hoặc schema DB2. Hướng dẫn,
+giới hạn nhận diện và hợp đồng bảo toàn khi merge ở
+[PDF_BILINGUAL_READING.md](PDF_BILINGUAL_READING.md). Các số liệu và phạm vi
+kiểm thử của bản sidebar bên dưới là snapshot lịch sử, không thay báo cáo
+regression của bản mới.
+
 ## Bảo trì và kiểm thử
 
 Giữ `openNativePdfPanel()` gọi `sidePanel.open()` đồng bộ trong lượt tương tác

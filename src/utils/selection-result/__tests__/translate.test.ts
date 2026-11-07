@@ -16,6 +16,19 @@ describe("native PDF selected-text translation", () => {
     stream.mockResolvedValue({ output: "Bản dịch", thinking: { status: "complete", text: "" } })
     send.mockResolvedValue({ revision: 1, entries: [], scopeKey: "global" })
   })
+  it("never dispatches a provider request during a cache-only miss", async () => {
+    const config = structuredClone(DEFAULT_CONFIG)
+    config.glossary.enabled = false
+    const result = await translateNativeSelection({
+      text: "Only check local cache.",
+      config,
+      signal: new AbortController().signal,
+      cacheOnly: true,
+      onChunk: () => {},
+    })
+    expect(result.output).toBe("")
+    expect(stream).not.toHaveBeenCalled()
+  })
   const run = (
     text: string,
     config = structuredClone(DEFAULT_CONFIG),

@@ -2,6 +2,7 @@ import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
 import type { PdfReadingPosition } from "@/utils/selection-result/reading-position"
 import { TextLayer } from "pdfjs-dist"
 import { encodeCrop } from "../image-translate/image"
+import { PdfParagraphLayer } from "./paragraph-layer"
 export type ViewPosition = Pick<PdfReadingPosition, "page" | "offset" | "zoom">
 interface Lease {
   cancel: () => void
@@ -12,12 +13,14 @@ export function pageAtOffset(tops: number[], offset: number) {
     hi = tops.length - 1
   while (lo < hi) {
     const mid = Math.ceil((lo + hi) / 2)
-    if (tops[mid]! <= offset) lo = mid
+    // Fractional device pixels can round scrollTop slightly below a requested page top.
+    if (tops[mid]! <= offset + 0.5) lo = mid
     else hi = mid - 1
   }
   return lo
 }
 export class PdfViewport {
+  readonly paragraphs: PdfParagraphLayer
   private sizes: { width: number; height: number }[] = []
   private elements: HTMLDivElement[] = []
   private tops: number[] = []
@@ -36,9 +39,22 @@ export class PdfViewport {
     private changed: (position: ViewPosition, activity: boolean) => void,
     private error: (text: string) => void,
   ) {
+    this.paragraphs = new PdfParagraphLayer(
+      host,
+      () => this.snapshot(),
+      (page, offset) => {
+        const index = Math.max(0, Math.min(this.sizes.length - 1, page - 1))
+        this.host.scrollTop = this.tops[index]! + offset * this.sizes[index]!.height * this.scale
+        this.update(true)
+      },
+    )
     host.addEventListener("scroll", this.scrolled)
     this.resize = new ResizeObserver(() => {
-      if (this.width === host.clientWidth || !this.elements.length || this.destroyed) return
+      if (!this.elements.length || this.destroyed) return
+      if (this.width === host.clientWidth) {
+        this.update(false)
+        return
+      }
       this.layout(this.snapshot())
     })
     this.resize.observe(host)
@@ -150,6 +166,7 @@ export class PdfViewport {
       }
     for (const n of needed) if (!this.leases.has(n)) this.render(n)
     this.changed(position, activity)
+    this.paragraphs.update()
   }
   private render(index: number) {
     const element = this.elements[index]!,
@@ -256,6 +273,7 @@ export class PdfViewport {
     return encodeCrop(output, output.width, output.height, { x: 0, y: 0, width: 1, height: 1 })
   }
   destroy() {
+    this.paragraphs.destroy()
     this.destroyed = true
     cancelAnimationFrame(this.frame)
     this.resize.disconnect()
