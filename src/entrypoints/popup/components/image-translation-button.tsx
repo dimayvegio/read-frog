@@ -1,7 +1,14 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { browser } from "#imports"
+import { imageShortcutLabel, openImageShortcuts } from "@/utils/image-translation/shortcut"
 import { sendMessage } from "@/utils/message"
 export function ImageTranslationButton() {
+  const [shortcut, setShortcut] = useState("")
+  useEffect(() => {
+    void imageShortcutLabel()
+      .then(setShortcut)
+      .catch(() => setShortcut("Chưa gán"))
+  }, [])
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("")
   return (
@@ -37,6 +44,13 @@ export function ImageTranslationButton() {
         onClick={() => void sendMessage("openImageTranslation", undefined)}
       >
         Dán / mở ảnh có sẵn
+      </button>
+      <button
+        type="button"
+        className="ml-2 text-xs underline"
+        onClick={() => void openImageShortcuts()}
+      >
+        Phím tắt: {shortcut}
       </button>
     </div>
   )

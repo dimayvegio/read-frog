@@ -199,6 +199,41 @@ describe("background-stream", () => {
     )
   })
 
+  it("streams and validates a single multimodal original/translation pair on a guarded port", async () => {
+    const image = "data:image/png;base64,iVBORw0KGgoAAA=="
+    const { runImageTranslationInBackground, dispatchBackgroundStreamPort } =
+      await import("../background-stream")
+    streamTextMock.mockReturnValue(
+      parts([
+        { type: "text-delta", text: '{"original":"Hello",' },
+        { type: "text-delta", text: '"translation":"Xin chào"}' },
+        { type: "finish", finishReason: "stop" },
+      ]),
+    )
+    const result = await runImageTranslationInBackground({ ...payload, image })
+    expect(result.output).toEqual({ original: "Hello", translation: "Xin chào" })
+    expect(outputObjectMock).toHaveBeenCalledOnce()
+    const blocked = createMockPort("stream-image-translation")
+    Object.assign(blocked.port, {
+      sender: {
+        id: browser.runtime.id,
+        url: browser.runtime.getURL("/") + "options.html",
+        frameId: 0,
+      },
+    })
+    expect(dispatchBackgroundStreamPort(blocked.port as never)).toBe(true)
+    expect(blocked.disconnect).toHaveBeenCalledOnce()
+    streamTextMock.mockReturnValue(
+      parts([
+        { type: "text-delta", text: '{"original":"Only original"}' },
+        { type: "finish", finishReason: "stop" },
+      ]),
+    )
+    await expect(runImageTranslationInBackground({ ...payload, image })).rejects.toThrow(
+      "expected format",
+    )
+  })
+
   it("streams text via background stream port handler with request IDs", async () => {
     streamTextMock.mockReturnValue(
       parts([

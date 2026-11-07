@@ -1,0 +1,273 @@
+{
+  "browser": "Edg/156.0.4314.58",
+  "baselineManifest": "1.58.0.13",
+  "candidateManifest": "1.58.0.14",
+  "liveOpenAI": false,
+  "mockLatencyMsPerRequest": 200,
+  "includes": "click to settled translation UI; crop encoding, actual IndexedDB, private runtime and mocked network; excludes real model generation",
+  "baseline": {
+    "runs": 20,
+    "apiCallsPerRun": [2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+    "medianMs": 446,
+    "p95Ms": 457,
+    "samples": [
+      {
+        "ms": 495,
+        "apiCalls": 2
+      },
+      {
+        "ms": 457,
+        "apiCalls": 2
+      },
+      {
+        "ms": 455,
+        "apiCalls": 2
+      },
+      {
+        "ms": 446,
+        "apiCalls": 2
+      },
+      {
+        "ms": 441,
+        "apiCalls": 2
+      },
+      {
+        "ms": 440,
+        "apiCalls": 2
+      },
+      {
+        "ms": 453,
+        "apiCalls": 2
+      },
+      {
+        "ms": 437,
+        "apiCalls": 2
+      },
+      {
+        "ms": 446,
+        "apiCalls": 2
+      },
+      {
+        "ms": 454,
+        "apiCalls": 2
+      },
+      {
+        "ms": 448,
+        "apiCalls": 2
+      },
+      {
+        "ms": 437,
+        "apiCalls": 2
+      },
+      {
+        "ms": 446,
+        "apiCalls": 2
+      },
+      {
+        "ms": 445,
+        "apiCalls": 2
+      },
+      {
+        "ms": 456,
+        "apiCalls": 2
+      },
+      {
+        "ms": 452,
+        "apiCalls": 2
+      },
+      {
+        "ms": 443,
+        "apiCalls": 2
+      },
+      {
+        "ms": 454,
+        "apiCalls": 2
+      },
+      {
+        "ms": 444,
+        "apiCalls": 2
+      },
+      {
+        "ms": 446,
+        "apiCalls": 2
+      }
+    ]
+  },
+  "fastCold": {
+    "runs": 20,
+    "apiCallsPerRun": [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    "medianMs": 243,
+    "p95Ms": 250,
+    "samples": [
+      {
+        "ms": 245,
+        "apiCalls": 1
+      },
+      {
+        "ms": 244,
+        "apiCalls": 1
+      },
+      {
+        "ms": 237,
+        "apiCalls": 1
+      },
+      {
+        "ms": 246,
+        "apiCalls": 1
+      },
+      {
+        "ms": 259,
+        "apiCalls": 1
+      },
+      {
+        "ms": 241,
+        "apiCalls": 1
+      },
+      {
+        "ms": 242,
+        "apiCalls": 1
+      },
+      {
+        "ms": 245,
+        "apiCalls": 1
+      },
+      {
+        "ms": 235,
+        "apiCalls": 1
+      },
+      {
+        "ms": 237,
+        "apiCalls": 1
+      },
+      {
+        "ms": 250,
+        "apiCalls": 1
+      },
+      {
+        "ms": 249,
+        "apiCalls": 1
+      },
+      {
+        "ms": 239,
+        "apiCalls": 1
+      },
+      {
+        "ms": 243,
+        "apiCalls": 1
+      },
+      {
+        "ms": 241,
+        "apiCalls": 1
+      },
+      {
+        "ms": 249,
+        "apiCalls": 1
+      },
+      {
+        "ms": 242,
+        "apiCalls": 1
+      },
+      {
+        "ms": 243,
+        "apiCalls": 1
+      },
+      {
+        "ms": 242,
+        "apiCalls": 1
+      },
+      {
+        "ms": 239,
+        "apiCalls": 1
+      }
+    ]
+  },
+  "fastWarm": {
+    "runs": 20,
+    "apiCallsPerRun": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "medianMs": 30,
+    "p95Ms": 39,
+    "samples": [
+      {
+        "ms": 39,
+        "apiCalls": 0
+      },
+      {
+        "ms": 29,
+        "apiCalls": 0
+      },
+      {
+        "ms": 31,
+        "apiCalls": 0
+      },
+      {
+        "ms": 50,
+        "apiCalls": 0
+      },
+      {
+        "ms": 29,
+        "apiCalls": 0
+      },
+      {
+        "ms": 30,
+        "apiCalls": 0
+      },
+      {
+        "ms": 29,
+        "apiCalls": 0
+      },
+      {
+        "ms": 29,
+        "apiCalls": 0
+      },
+      {
+        "ms": 39,
+        "apiCalls": 0
+      },
+      {
+        "ms": 28,
+        "apiCalls": 0
+      },
+      {
+        "ms": 30,
+        "apiCalls": 0
+      },
+      {
+        "ms": 31,
+        "apiCalls": 0
+      },
+      {
+        "ms": 25,
+        "apiCalls": 0
+      },
+      {
+        "ms": 39,
+        "apiCalls": 0
+      },
+      {
+        "ms": 29,
+        "apiCalls": 0
+      },
+      {
+        "ms": 25,
+        "apiCalls": 0
+      },
+      {
+        "ms": 30,
+        "apiCalls": 0
+      },
+      {
+        "ms": 30,
+        "apiCalls": 0
+      },
+      {
+        "ms": 32,
+        "apiCalls": 0
+      },
+      {
+        "ms": 30,
+        "apiCalls": 0
+      }
+    ]
+  },
+  "osShortcutDriven": false
+}

@@ -38,8 +38,14 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.58.0.13",
+    version: "1.58.0.14",
     version_name: "1.58.0A",
+    commands: {
+      "capture-and-translate": {
+        suggested_key: { default: "Alt+Shift+S" },
+        description: "Chụp vùng và dịch ảnh với Read Frog",
+      },
+    },
     description: "__MSG_extDescription__",
     default_locale: "en",
     // Fixed extension ID for development

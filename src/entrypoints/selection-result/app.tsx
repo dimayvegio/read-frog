@@ -1,6 +1,7 @@
 import type { SelectionToolbarInlineError } from "@/components/ui/selection-popover/inline-error"
 import type { ThinkingSnapshot } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
+import type { ImagePretranslation } from "@/types/image-translation"
 import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { PdfHistoryRecord } from "@/utils/selection-result/pdf-history"
 import { IconLoader2, IconPlayerStop, IconSettings } from "@tabler/icons-react"
@@ -40,6 +41,8 @@ export function SelectionTranslation({
   panel,
   embedded = false,
   sourceTitle,
+  imageCache = false,
+  pretranslated,
   textOptions,
   onTextOptions,
 }: {
@@ -48,6 +51,8 @@ export function SelectionTranslation({
   panel: boolean
   embedded?: boolean
   sourceTitle?: string
+  imageCache?: boolean
+  pretranslated?: ImagePretranslation
   textOptions: PdfTextOptions
   onTextOptions: (options: PdfTextOptions) => void
 }) {
@@ -86,14 +91,17 @@ export function SelectionTranslation({
           document: request.document,
           textOptions,
           bypassCache,
+          imageCache,
+          pretranslated,
           onCacheState: (state, message) => {
             if (controller.signal.aborted) return
             setCacheState(
-              state === "cached"
-                ? "Dùng bản lưu trên máy — không gọi API."
-                : state === "saved"
-                  ? "Đã lưu bản dịch trên máy."
-                  : (message ?? "Đã dịch nhưng chưa lưu được lịch sử."),
+              message ??
+                (state === "cached"
+                  ? "Dùng bản lưu trên máy — không gọi API."
+                  : state === "saved"
+                    ? "Đã lưu bản dịch trên máy."
+                    : "Đã dịch nhưng chưa lưu được lịch sử."),
             )
             if (state === "saved") setHistoryRevision((value) => value + 1)
           },
@@ -128,8 +136,19 @@ export function SelectionTranslation({
       controller.abort()
       window.removeEventListener("pagehide", abort)
     }
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- retry is the user's explicit request to start another translation.
-  }, [request, targetLanguage, retry, sourceText, textOptions, bypassCache, historical, tooLong])
+  }, [
+    request,
+    targetLanguage,
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- retry is an explicit regenerate action.
+    retry,
+    sourceText,
+    textOptions,
+    bypassCache,
+    historical,
+    tooLong,
+    imageCache,
+    pretranslated,
+  ])
 
   const rerun = () => {
     controllerRef.current?.abort()

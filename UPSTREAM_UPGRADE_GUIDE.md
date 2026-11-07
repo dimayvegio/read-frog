@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.12` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.13` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.13` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.14` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,14 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.14`, giữ cache ảnh DB1 tách riêng (chỉ hash/chữ/bản dịch),
+500 record/16 MiB/30 ngày, LRU và clear epoch. Giữ cả OCR hai bước và một
+lượt structured original/translation, cache riêng từng loại, kiểm fingerprint
+trước khi dùng bản dịch một lượt trong khung chung. Glossary có từ hoặc prompt
+khác Default dùng hai bước; Regenerate/Đọc lại ảnh bỏ qua cache. Giữ command
+`capture-and-translate`, Alt+Shift+S gợi ý và hiển thị binding thật từ browser.
+Đo benchmark phải ghi rõ API mô phỏng hay live, xem [IMAGE_TRANSLATION.md](IMAGE_TRANSLATION.md).
 
 Từ build `1.58.0.13`, giữ chụp/crop/paste ảnh, canvas PDF, OpenAI OCR rồi dịch
 text qua engine chung. Giữ sender guard, one-shot RAM channel, chỉ crop gửi

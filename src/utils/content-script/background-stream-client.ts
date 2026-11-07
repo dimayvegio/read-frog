@@ -46,3 +46,14 @@ export function streamBackgroundImageText(
     options,
   )
 }
+
+export function streamBackgroundImageTranslation(
+  payload: BackgroundStreamImageSerializablePayload,
+  options: ContentScriptStreamOptions<BackgroundStreamResponseMap["streamImageTranslation"]> = {},
+) {
+  return createPortStreamPromise<BackgroundStreamResponseMap["streamImageTranslation"]>(
+    BACKGROUND_STREAM_PORTS.streamImageTranslation,
+    payload,
+    options,
+  )
+}

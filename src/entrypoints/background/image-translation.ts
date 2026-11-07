@@ -1,6 +1,10 @@
 import { z } from "zod"
 import { browser } from "#imports"
-import { imageDataURLSchema, type CapturedImage } from "@/types/image-translation"
+import {
+  IMAGE_CAPTURE_COMMAND,
+  imageDataURLSchema,
+  type CapturedImage,
+} from "@/types/image-translation"
 import { onMessage } from "@/utils/message"
 import { isTrustedOptionsSender, type SettingsSender } from "./settings-sender"
 
@@ -54,9 +58,7 @@ export function setupImageTranslationHandlers() {
       throw error
     }
   }
-  onMessage("captureImageTranslation", async (message) => {
-    requirePage(message.sender, ["popup.html"])
-    const windowId = z.number().int().nonnegative().parse(message.data?.windowId)
+  const captureInWindow = async (windowId: number) => {
     const [source] = await browser.tabs.query({ active: true, windowId })
     if (source?.id === undefined || source.id < 0) throw new Error("Không tìm được tab cần chụp.")
     let image: string
@@ -71,6 +73,34 @@ export function setupImageTranslationHandlers() {
     if (current?.id !== source.id || current.url !== source.url)
       throw new Error("Tab đã thay đổi trong lúc chụp. Hãy chụp lại.")
     await open(image, windowId)
+  }
+  onMessage("captureImageTranslation", async (message) => {
+    requirePage(message.sender, ["popup.html"])
+    const windowId = z.number().int().nonnegative().parse(message.data?.windowId)
+    await captureInWindow(windowId)
+  })
+  let commandBusy = false,
+    lastCommandAt = 0
+  browser.commands.onCommand.addListener((command, tab) => {
+    if (command !== IMAGE_CAPTURE_COMMAND || commandBusy || Date.now() - lastCommandAt < 800) return
+    commandBusy = true
+    lastCommandAt = Date.now()
+    void (async () => {
+      try {
+        const windowId = tab?.windowId ?? (await browser.windows.getLastFocused()).id
+        if (windowId === undefined) throw new Error("No active window")
+        await captureInWindow(windowId)
+      } catch {
+        await browser.tabs
+          .create({
+            url: new URL("image-translate.html?captureError=denied", browser.runtime.getURL("/"))
+              .href,
+          })
+          .catch(() => {})
+      } finally {
+        commandBusy = false
+      }
+    })()
   })
   onMessage("openImageTranslation", async (message) => {
     requirePage(message.sender, ["popup.html", "pdf-reader.html", "sidepanel.html"])

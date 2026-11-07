@@ -1,7 +1,10 @@
 import { beforeEach, expect, it, vi } from "vitest"
 import { browser } from "#imports"
 import { setupImageTranslationHandlers, IMAGE_CAPTURE_TTL } from "../image-translation"
-const { handlers } = vi.hoisted(() => ({ handlers: new Map<string, (message: any) => any>() }))
+const { handlers, commands } = vi.hoisted(() => ({
+  handlers: new Map<string, (message: any) => any>(),
+  commands: [] as Array<(...args: any[]) => void>,
+}))
 vi.mock("@/utils/message", () => ({
   onMessage: (name: string, fn: (message: any) => any) => handlers.set(name, fn),
 }))
@@ -22,6 +25,10 @@ beforeEach(async () => {
   vi.restoreAllMocks()
   vi.clearAllMocks()
   handlers.clear()
+  commands.length = 0
+  vi.spyOn(browser.commands.onCommand, "addListener").mockImplementation((listener) =>
+    commands.push(listener),
+  )
   setupImageTranslationHandlers()
   await browser.storage.local.clear()
   await browser.storage.session.clear()
@@ -40,6 +47,23 @@ it("captures only from a trusted popup and transfers the image once through an o
   expect(await consume(id)).toBeNull()
   expect(await browser.storage.local.get(null)).toEqual({})
   expect(await browser.storage.session.get(null)).toEqual({})
+})
+it("the registered keyboard command captures once and ignores repeats or unknown commands", async () => {
+  commands[0]!("unrelated-command", { windowId: 3 })
+  expect(browser.tabs.captureVisibleTab).not.toHaveBeenCalled()
+  commands[0]!("capture-and-translate", { windowId: 3 })
+  commands[0]!("capture-and-translate", { windowId: 3 })
+  await vi.waitFor(() => expect(browser.tabs.create).toHaveBeenCalledOnce())
+  expect(browser.tabs.captureVisibleTab).toHaveBeenCalledOnce()
+  expect((await consume(channel())).image).toBe(image)
+})
+it("a denied shortcut capture opens an actionable paste fallback without screenshot data in the URL", async () => {
+  vi.mocked(browser.tabs.captureVisibleTab).mockRejectedValueOnce(new Error("Denied"))
+  commands[0]!("capture-and-translate", { windowId: 3 })
+  await vi.waitFor(() => expect(browser.tabs.create).toHaveBeenCalledOnce())
+  expect(vi.mocked(browser.tabs.create).mock.calls[0]![0].url).toMatch(
+    /image-translate\.html\?captureError=denied$/,
+  )
 })
 it("rejects websites, subframes, other extensions and arbitrary extension pages", async () => {
   for (const from of [

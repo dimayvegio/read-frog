@@ -56,6 +56,7 @@ export async function checkImageTranslation({
       await editor.$eval("canvas", (node) => node.width >= 1280),
     )
     check("Capture and crop selection make no OpenAI request", (await calls()) === beforeCalls)
+    await editor.select('[aria-label="Chế độ dịch ảnh"]', "two-step")
     check(
       "Image editor controls use visible borders from the application theme",
       await editor.$eval(".rf-image-toolbar button", (node) => {
@@ -196,7 +197,7 @@ export async function checkImageTranslation({
       __pdfDelay = 900
     })
     const beforeStop = await calls()
-    await editor.locator("::-p-aria(Đọc chữ và dịch)").click()
+    await editor.locator("::-p-aria(Đọc lại ảnh)").click()
     for (let attempt = 0; attempt < 60 && (await calls()) === beforeStop; attempt++)
       await new Promise((resolve) => setTimeout(resolve, 30))
     await editor.locator("::-p-aria(Dừng)").click()
@@ -212,7 +213,7 @@ export async function checkImageTranslation({
       __imageOutput = ""
     })
     const beforeEmpty = await calls()
-    await editor.locator("::-p-aria(Đọc chữ và dịch)").click()
+    await editor.locator("::-p-aria(Đọc lại ảnh)").click()
     await editor.waitForSelector('[role="alert"]')
     check(
       "An image with no recognized text shows an error without calling translation",
@@ -222,7 +223,7 @@ export async function checkImageTranslation({
       __imageOutput = "x".repeat(20001)
     })
     const beforeLong = await calls()
-    await editor.locator("::-p-aria(Đọc chữ và dịch)").click()
+    await editor.locator("::-p-aria(Đọc lại ảnh)").click()
     await editor.waitForFunction(() =>
       document.querySelector('[role="alert"]')?.textContent.includes("20.000"),
     )

@@ -21,6 +21,7 @@ import { generateText, Output, parsePartialJson, streamText } from "ai"
 import { z } from "zod"
 import { browser } from "#imports"
 import { BACKGROUND_STREAM_PORTS } from "@/types/background-stream"
+import { imagePairSchema, imagePairWireSchema } from "@/types/image-translation"
 import {
   openAIGeneratePayloadSchema,
   openAIStructuredPayloadSchema,
@@ -525,6 +526,15 @@ export async function runImageTextInBackground(
   input: BackgroundStreamImageSerializablePayload,
   options: StreamRuntimeOptions<BackgroundTextStreamSnapshot> = {},
 ) {
+  const result = await createImagePartStream(input, options)
+  return consumeTextPartStream(result.stream, { onChunk: options.onChunk, signal: options.signal })
+}
+
+async function createImagePartStream(
+  input: BackgroundStreamImageSerializablePayload,
+  options: Pick<StreamRuntimeOptions, "signal" | "onError">,
+  structured = false,
+) {
   options.signal?.throwIfAborted()
   const payload = openAIImagePayloadSchema.parse(input)
   const execution = await resolveOpenAIExecution(payload.providerConfig, { signal: options.signal })
@@ -532,6 +542,7 @@ export async function runImageTextInBackground(
     model: execution.model,
     ...execution.params,
     instructions: payload.instructions,
+    ...(structured ? { output: Output.object({ schema: imagePairWireSchema }) } : {}),
     messages: [
       {
         role: "user",
@@ -551,7 +562,19 @@ export async function runImageTextInBackground(
     abortSignal: options.signal,
     onError: ({ error }) => options.onError?.(error),
   })
-  return consumeTextPartStream(result.stream, { onChunk: options.onChunk, signal: options.signal })
+  return result
+}
+
+export async function runImageTranslationInBackground(
+  input: BackgroundStreamImageSerializablePayload,
+  options: StreamRuntimeOptions<BackgroundStructuredObjectStreamSnapshot> = {},
+) {
+  const result = await createImagePartStream(input, options, true)
+  return consumeStructuredObjectPartStream(result.stream, {
+    objectSchema: imagePairSchema,
+    onChunk: options.onChunk,
+    signal: options.signal,
+  })
 }
 
 async function createLocalStructuredObjectPartStream<TOutput extends Record<string, unknown>>(
@@ -623,6 +646,22 @@ export const BACKGROUND_STREAM_PORT_HANDLERS: Readonly<
     }
     createStreamPortHandler(
       runImageTextInBackground,
+      createStartMessageParser<BackgroundStreamImageSerializablePayload>(openAIImagePayloadSchema),
+    )(port)
+  },
+  [BACKGROUND_STREAM_PORTS.streamImageTranslation]: (port) => {
+    if (
+      !isTrustedOptionsSender(
+        port.sender,
+        browser.runtime.id,
+        new URL("image-translate.html", browser.runtime.getURL("/")).href,
+      )
+    ) {
+      port.disconnect()
+      return
+    }
+    createStreamPortHandler(
+      runImageTranslationInBackground,
       createStartMessageParser<BackgroundStreamImageSerializablePayload>(openAIImagePayloadSchema),
     )(port)
   },

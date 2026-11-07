@@ -1,6 +1,7 @@
 import type { StreamTextOnErrorCallback } from "ai"
 import type { z } from "zod"
 import type { Browser } from "#imports"
+import type { ImagePair } from "./image-translation"
 import type {
   openAITextPayloadSchema,
   openAIStructuredPayloadSchema,
@@ -40,6 +41,7 @@ export type BackgroundStreamStructuredObjectSerializablePayload = z.infer<
 export const BACKGROUND_STREAM_PORTS = {
   streamText: "stream-text",
   streamImageText: "stream-image-text",
+  streamImageTranslation: "stream-image-translation",
   streamStructuredObject: "stream-structured-object",
 } as const
 
@@ -49,6 +51,7 @@ export type BackgroundStreamPortName = (typeof BACKGROUND_STREAM_PORTS)[Backgrou
 export interface BackgroundStreamResponseMap {
   streamText: BackgroundTextStreamSnapshot
   streamImageText: BackgroundTextStreamSnapshot
+  streamImageTranslation: BackgroundStreamSnapshot<ImagePair>
   streamStructuredObject: BackgroundStructuredObjectStreamSnapshot
 }
 

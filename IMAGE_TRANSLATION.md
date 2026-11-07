@@ -1,5 +1,63 @@
 # Chụp vùng và dịch ảnh
 
+## Cập nhật 1.58.0-a.13 / manifest 1.58.0.14
+
+Tiếp tục từ `f4737d6c`, giữ tên **1.58.0A**, config124, PDF DB2 và vocabulary
+DB4/ZIP5/report3. Không sửa migration đã phát hành. Cập nhật bằng ZIP ghi đè
+đúng thư mục extension cũ rồi Reload; giữ ID/thư mục để giữ key và sổ từ.
+
+- Mặc định **Nhanh — một lượt**: OpenAI nhận crop, trả chữ gốc và bản dịch
+  bằng structured output trong một request. Chữ/bản dịch hiển thị dần; chỉ
+  nhận kết quả hoàn chỉnh đúng schema và giới hạn. Khung kết quả dùng lại
+  copy/TTS/lưu từ, không gọi dịch lần nữa nếu fingerprint vẫn khớp.
+- **Đọc chữ trước — hai bước** giữ đường OCR rồi engine dịch cũ. Nếu glossary
+  đang bật và có thuật ngữ toàn cục, hoặc prompt khác Default, tự dùng hai
+  bước dù đang chọn Nhanh; lý do hiện trong trạng thái. Không đổi model/key.
+- Cache tự bật cho OCR, cặp một lượt và text dịch sau OCR, tách key từng loại.
+  OCR tái dùng khi đổi ngôn ngữ đích; bản dịch phải xét target, prompt hiệu
+  dụng, model/reasoning/temperature, credential revision và tùy chọn làm sạch.
+  Fast key còn xét instructions thực tế, ảnh crop và glossary. Đổi cấu hình
+  không dùng nhầm bản cũ; đổi thứ tự thuộc tính options không gây cache miss.
+- **Đọc lại ảnh** bỏ qua cache OCR/fast cho lượt đó; **Regenerate** trong
+  khung dùng engine text và bỏ qua cache text. Sửa chữ rồi **Dịch lại văn bản**
+  dùng key text mới, không gửi ảnh lại. Fast và text hai bước không dùng lẫn
+  kết quả cache; muốn tạo lại cặp fast dùng Đọc lại ảnh.
+- **Xóa cache ảnh** xóa OCR/fast/text cache, không xóa PDF history, key, sổ từ
+  hoặc tiến trình học. Xóa trong lúc đang chạy hủy UI; epoch ngăn ghi lại muộn
+  kể cả từ tab khác. Lỗi/rỗng/cắt ngắn/quá giới hạn/hủy không được cache.
+- **Alt+Shift+S** là shortcut gợi ý của `capture-and-translate`. Browser phải
+  đang có focus; không đăng ký global trên toàn Windows. Đọc binding thật
+  bằng commands.getAll, hiển thị trong popup và editor. Bấm nhãn để mở phần
+  phím tắt; nếu xung đột/chưa gán thì đổi tại `edge://extensions/shortcuts`.
+  Khi command capture thất bại, mở trang paste với hướng dẫn Win+Shift+S;
+  không tự gửi ảnh hoặc tự gọi API chỉ do bấm phím tắt. Chống giữ phím lặp.
+
+DB riêng `read-frog-image-cache` **v1** (`entries`, `meta`) chỉ lưu hash,
+kind, chữ gốc/bản dịch, thời gian và byte ledger; không chứa ảnh, URL/path,
+provider config hoặc credential. **Tổng500 record /16 MiB /TTL30 ngày**, LRU
+tự loại entry cũ. Một ảnh hai bước có thể dùng hai record. Mode preference
+`imageTranslationMode` nằm riêng trong storage.local, không đổi config schema.
+Cache không nằm trong settings backup/notebook ZIP; ảnh vẫn chỉ ở RAM tạm.
+TTL là hạn tái sử dụng; entry hết hạn được dọn khi cache được đọc/ghi tiếp.
+Định nghĩa DB1 mới phải đóng băng sau phát hành. Hai bước vẫn có giới hạn OCR
+20.000 ký tự; fast có original≤20.000, translation≤60.000, token budget16.000
+và không chấp nhận output bị cắt. Model fast cần hỗ trợ cả vision và structured
+output; model không hỗ trợ có thể chọn hai bước, không tự retry mất thêm lượt.
+
+Đối chiếu tốc độ với ZIP a.12 được làm bằng cùng browser/ảnh/model cấu hình,
+20 lượt mỗi trường hợp, xen kẽ để giảm ảnh hưởng thời điểm. API giả lập200 ms
+mỗi request, IndexedDB/crop/runtime/UI thật; không đo chất lượng hoặc thời
+gian sinh token của OpenAI. Xem [báo cáo số liệu](IMAGE_TRANSLATION_BENCHMARK.md).
+
+Artifact cập nhật `ReadFrog-Edge-1.58.0A-FastImage.zip`: **416 file /8.703.575
+byte**, tăng **3.698 byte** so với a.12. Kiểm CRC và từng file khớp build đã
+test; không có profile/fixture/test key/`.env`/sourcemap/Node binary trong gói.
+SHA-256: `310D47923B7539BE8AB7258FE74AC59F49D9DBDF99E595B4CF800ABAEBBA8AE1`.
+HTML ôn từ giữ SHA-256
+`301315CED603BDCB46649DBC63E57B529AEA866414123FD1392BFEF55405DDFF`.
+
+## Bản trước 1.58.0-a.12 / manifest 1.58.0.13
+
 Build `1.58.0-a.12`, manifest `1.58.0.13`, hiển thị **1.58.0A**, tiếp tục từ
 `83b1e454` trên nhánh `codex/pdf-reading-panel`. Không đổi config124, PDF DB2,
 vocabulary DB4/ZIP5/report3 hoặc migration đã phát hành.

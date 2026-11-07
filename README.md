@@ -58,6 +58,11 @@ Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
 ## Dịch đoạn bôi đen trong PDF trên Edge
 
 Popup có **Chụp vùng & dịch ảnh**: chụp → kéo chọn vùng → **Đọc chữ và dịch**.
+Phím tắt gợi ý **Alt+Shift+S**, đổi tại `edge://extensions/shortcuts`.
+Chế độ **Nhanh — một lượt** nhận cả chữ và bản dịch trong một request;
+glossary/prompt riêng vẫn dùng hai bước. Cache chữ/bản dịch giúp ảnh trùng
+không cần gọi API lại; **Đọc lại ảnh** bỏ qua cache, **Xóa cache ảnh** xóa riêng
+bộ nhớ đệm này. Không lưu ảnh vào cache.
 Trình đọc PDF cũng có nút này để dịch trang scan. Có thể dùng Win+Shift+S rồi
 **Dán / mở ảnh có sẵn → Ctrl+V**, hoặc mở ảnh PNG/JPEG/WebP. OpenAI đọc chữ,
 sau đó dùng cùng khung dịch/copy/TTS/lưu từ; có ô sửa chữ nhận dạng.
