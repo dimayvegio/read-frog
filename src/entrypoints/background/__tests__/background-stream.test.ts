@@ -3,6 +3,7 @@ import type {
   BackgroundTextStreamSnapshot,
 } from "@/types/background-stream"
 import { beforeEach, describe, expect, it, vi } from "vitest"
+import { browser } from "#imports"
 import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 import { ProviderSetupError } from "@/utils/providers/provider-setup-error"
 
@@ -128,6 +129,74 @@ describe("background-stream", () => {
       }),
     )
     expect(streamTextMock.mock.calls[0]![0]).not.toHaveProperty("providerConfig")
+  })
+
+  it("sends bounded image input through the same private model snapshot using multimodal file parts", async () => {
+    const image = "data:image/png;base64,iVBORw0KGgoAAA=="
+    streamTextMock.mockReturnValue(
+      parts([
+        { type: "text-delta", text: "Visible words" },
+        { type: "finish", finishReason: "stop" },
+      ]),
+    )
+    const { runImageTextInBackground, dispatchBackgroundStreamPort } =
+      await import("../background-stream")
+    const result = await runImageTextInBackground({ ...payload, image })
+    expect(result.output).toBe("Visible words")
+    expect(streamTextMock.mock.calls[0]![0]).toMatchObject({
+      model: "snapshot-model",
+      maxRetries: 0,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "sample" },
+            {
+              type: "file",
+              mediaType: "image/png",
+              data: image,
+              providerOptions: { openai: { imageDetail: "high" } },
+            },
+          ],
+        },
+      ],
+    })
+    const blocked = createMockPort("stream-image-text")
+    Object.assign(blocked.port, {
+      sender: {
+        id: browser.runtime.id,
+        url: browser.runtime.getURL("/") + "options.html",
+        frameId: 0,
+      },
+    })
+    expect(dispatchBackgroundStreamPort(blocked.port as never)).toBe(true)
+    expect(blocked.disconnect).toHaveBeenCalledOnce()
+    const accepted = createMockPort("stream-image-text")
+    Object.assign(accepted.port, {
+      sender: {
+        id: browser.runtime.id,
+        url: browser.runtime.getURL("/") + "image-translate.html",
+        frameId: 0,
+      },
+    })
+    streamTextMock.mockReturnValue(
+      parts([
+        { type: "text-delta", text: "OCR" },
+        { type: "finish", finishReason: "stop" },
+      ]),
+    )
+    dispatchBackgroundStreamPort(accepted.port as never)
+    await accepted.emitMessage({
+      type: "start",
+      streamRequestId: "image",
+      payload: { ...payload, image },
+    })
+    expect(accepted.postMessage).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        type: "done",
+        data: { output: "OCR", thinking: { status: "complete", text: "" } },
+      }),
+    )
   })
 
   it("streams text via background stream port handler with request IDs", async () => {

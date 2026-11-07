@@ -7,6 +7,7 @@ import type {
   BackgroundStreamTextSerializablePayload,
   BackgroundStructuredObjectStreamSnapshot,
   BackgroundTextStreamSnapshot,
+  BackgroundStreamImageSerializablePayload,
   StartMessageParseResult,
   StreamPortHandler,
   StreamPortRequestMessage,
@@ -18,16 +19,19 @@ import type {
 import type { ErrorAction } from "@/utils/error-action"
 import { generateText, Output, parsePartialJson, streamText } from "ai"
 import { z } from "zod"
+import { browser } from "#imports"
 import { BACKGROUND_STREAM_PORTS } from "@/types/background-stream"
 import {
   openAIGeneratePayloadSchema,
   openAIStructuredPayloadSchema,
   openAITextPayloadSchema,
+  openAIImagePayloadSchema,
 } from "@/types/openai-execution"
 import { createStructuredObjectSchema } from "@/utils/ai/structured-object-schema"
 import { safeOpenAIErrorMessage } from "@/utils/error/openai"
 import { logger } from "@/utils/logger"
 import { resolveOpenAIExecution } from "./openai-runtime"
+import { isTrustedOptionsSender } from "./settings-sender"
 
 const invalidStreamStartPayloadMessage = "Invalid stream start payload"
 const aiStreamProtocolErrorMessage = "Invalid AI stream response."
@@ -517,6 +521,39 @@ export async function runStreamTextInBackground(
   return consumeTextPartStream(partStream, { onChunk: options.onChunk, signal: options.signal })
 }
 
+export async function runImageTextInBackground(
+  input: BackgroundStreamImageSerializablePayload,
+  options: StreamRuntimeOptions<BackgroundTextStreamSnapshot> = {},
+) {
+  options.signal?.throwIfAborted()
+  const payload = openAIImagePayloadSchema.parse(input)
+  const execution = await resolveOpenAIExecution(payload.providerConfig, { signal: options.signal })
+  const result = streamText({
+    model: execution.model,
+    ...execution.params,
+    instructions: payload.instructions,
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: payload.prompt },
+          {
+            type: "file",
+            mediaType: payload.image.startsWith("data:image/png;") ? "image/png" : "image/jpeg",
+            data: payload.image,
+            providerOptions: { openai: { imageDetail: "high" } },
+          },
+        ],
+      },
+    ],
+    maxOutputTokens: payload.maxOutputTokens,
+    maxRetries: 0,
+    abortSignal: options.signal,
+    onError: ({ error }) => options.onError?.(error),
+  })
+  return consumeTextPartStream(result.stream, { onChunk: options.onChunk, signal: options.signal })
+}
+
 async function createLocalStructuredObjectPartStream<TOutput extends Record<string, unknown>>(
   input: BackgroundStreamStructuredObjectSerializablePayload,
   objectSchema: z.ZodType<TOutput>,
@@ -573,6 +610,22 @@ export const BACKGROUND_STREAM_PORT_HANDLERS: Readonly<
   Record<BackgroundStreamPortName, StreamPortHandler>
 > = {
   [BACKGROUND_STREAM_PORTS.streamText]: handleStreamTextPort,
+  [BACKGROUND_STREAM_PORTS.streamImageText]: (port) => {
+    if (
+      !isTrustedOptionsSender(
+        port.sender,
+        browser.runtime.id,
+        new URL("image-translate.html", browser.runtime.getURL("/")).href,
+      )
+    ) {
+      port.disconnect()
+      return
+    }
+    createStreamPortHandler(
+      runImageTextInBackground,
+      createStartMessageParser<BackgroundStreamImageSerializablePayload>(openAIImagePayloadSchema),
+    )(port)
+  },
   [BACKGROUND_STREAM_PORTS.streamStructuredObject]: handleStreamStructuredObjectPort,
 }
 

@@ -22,6 +22,7 @@ import type {
   EdgeTTSSynthesizeRequest,
   EdgeTTSSynthesizeWireResponse,
 } from "@/types/edge-tts"
+import type { CapturedImage } from "@/types/image-translation"
 import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { ProviderRequestRouting } from "@/types/provider-request"
 import type {
@@ -36,6 +37,9 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  captureImageTranslation: (data: { windowId: number }) => void
+  openImageTranslation: (data?: { image?: string }) => void
+  consumeCapturedImage: (data: { channel: string }) => CapturedImage | null
   getVocabularyNotebooks: () => NotebookSnapshot
   selectVocabularyNotebook: (data: { notebookId: string }) => void
   openVocabulary: () => void

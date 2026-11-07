@@ -57,6 +57,12 @@ Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
 
 ## Dịch đoạn bôi đen trong PDF trên Edge
 
+Popup có **Chụp vùng & dịch ảnh**: chụp → kéo chọn vùng → **Đọc chữ và dịch**.
+Trình đọc PDF cũng có nút này để dịch trang scan. Có thể dùng Win+Shift+S rồi
+**Dán / mở ảnh có sẵn → Ctrl+V**, hoặc mở ảnh PNG/JPEG/WebP. OpenAI đọc chữ,
+sau đó dùng cùng khung dịch/copy/TTS/lưu từ; có ô sửa chữ nhận dạng.
+Xem [IMAGE_TRANSLATION.md](IMAGE_TRANSLATION.md).
+
 PDF local có sidebar cố định, làm sạch dòng và lịch sử/cache theo tài liệu.
 Bấm **PDF** trong popup → **Đọc PDF và tự lưu vị trí**, rồi mở PDF trên máy.
 Trình đọc Read Frog tự nhớ trang, vị trí cuộn và thu phóng; mở lại cùng nội dung

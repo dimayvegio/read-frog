@@ -39,6 +39,7 @@ export function SelectionTranslation({
   config,
   panel,
   embedded = false,
+  sourceTitle,
   textOptions,
   onTextOptions,
 }: {
@@ -46,6 +47,7 @@ export function SelectionTranslation({
   config: Config
   panel: boolean
   embedded?: boolean
+  sourceTitle?: string
   textOptions: PdfTextOptions
   onTextOptions: (options: PdfTextOptions) => void
 }) {
@@ -184,20 +186,22 @@ export function SelectionTranslation({
         </header>
         <section className="shrink-0 border-b px-4 py-2 text-sm" data-testid="pdf-reading-controls">
           <p className="font-medium break-words">
-            {request.document?.title ?? "PDF / văn bản đã chọn"}
+            {request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn"}
           </p>
           {panel && !embedded && (
             <p className="mt-1 text-xs text-muted-foreground">
               Khung cố định: bôi đen đoạn khác rồi chọn Read Frog → Translate để cập nhật.
             </p>
           )}
-          {panel && !request.document && (
+          {panel && !request.document && !sourceTitle && (
             <p className="mt-1 text-xs text-muted-foreground">
               Chưa nhận diện được tài liệu; đoạn này chưa lưu lịch sử theo file.
             </p>
           )}
           <details className="mt-2">
-            <summary className="cursor-pointer">Văn bản PDF và cách làm sạch</summary>
+            <summary className="cursor-pointer">
+              {sourceTitle ? "Văn bản và cách làm sạch" : "Văn bản PDF và cách làm sạch"}
+            </summary>
             <div className="mt-2 space-y-2">
               <label className="flex items-start gap-2">
                 <input
@@ -317,7 +321,7 @@ export function SelectionTranslation({
                 thinking={thinking}
                 vocabularySource={{
                   context: sourceText.slice(0, 1800),
-                  sourceTitle: request.document?.title ?? "PDF / văn bản đã chọn",
+                  sourceTitle: request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn",
                   sourceUrl: "",
                 }}
               />

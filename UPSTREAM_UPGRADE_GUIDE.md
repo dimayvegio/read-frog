@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.11` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.12` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.12` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.13` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.13`, giữ chụp/crop/paste ảnh, canvas PDF, OpenAI OCR rồi dịch
+text qua engine chung. Giữ sender guard, one-shot RAM channel, chỉ crop gửi
+provider và không lưu ảnh trong DB/settings. Port `stream-image-text` chỉ cho
+image editor; các port text/structured cũ không nhận thêm ảnh. Không tự đổi
+model/key. Xem [IMAGE_TRANSLATION.md](IMAGE_TRANSLATION.md).
 
 Từ build `1.58.0.12`, giữ trình đọc PDF.js riêng và tự lưu trang/scroll/zoom theo
 SHA-256 nội dung file. PDF DB2 chỉ thêm `positions`/`positionEpochs`; DB1 giữ

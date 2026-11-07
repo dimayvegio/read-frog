@@ -24,6 +24,7 @@ import {
 import { setupEdgeTTSMessageHandlers } from "./edge-tts"
 import { setupGlossaryMessageHandlers } from "./glossary"
 import { setupIframeInjection } from "./iframe-injection"
+import { setupImageTranslationHandlers } from "./image-translation"
 import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
 import { setupNativePanelHandlers } from "./native-panel"
 import { setupNativeSelectionHandlers } from "./native-selection"
@@ -87,6 +88,7 @@ export default defineBackground({
     setupNativeSelectionHandlers()
     setupNativePanelHandlers()
     setupPdfReaderHandlers()
+    setupImageTranslationHandlers()
     setupPageTranslationHandlers()
     setupSubtitlesTranslationHandlers()
     setupVideoSummaryHandlers()

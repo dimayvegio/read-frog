@@ -38,6 +38,7 @@ export function PdfReader({ config }: { config: Config }) {
     [status, setStatus] = useState(""),
     [error, setError] = useState("")
   const [selection, setSelection] = useState("")
+  const [shotBusy, setShotBusy] = useState(false)
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
   const [textOptions, setTextOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
   const dispose = () => {
@@ -186,6 +187,28 @@ export function PdfReader({ config }: { config: Config }) {
         />
         {documentInfo && (
           <>
+            <button
+              type="button"
+              disabled={shotBusy}
+              onClick={async () => {
+                const active = current.current,
+                  token = version.current
+                if (!active?.viewport) return
+                setShotBusy(true)
+                try {
+                  const image = await active.viewport.captureVisible()
+                  if (token === version.current)
+                    await sendMessage("openImageTranslation", { image })
+                } catch (cause) {
+                  if (token === version.current)
+                    setError(cause instanceof Error ? cause.message : "Chưa chụp được vùng PDF.")
+                } finally {
+                  setShotBusy(false)
+                }
+              }}
+            >
+              {shotBusy ? "Đang chụp…" : "Chụp vùng & dịch ảnh"}
+            </button>
             <span className="rf-reader-name" title={documentInfo.title}>
               {documentInfo.title}
             </span>

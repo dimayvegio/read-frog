@@ -1,9 +1,11 @@
 import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
 import type { PdfReadingPosition } from "@/utils/selection-result/reading-position"
 import { TextLayer } from "pdfjs-dist"
+import { encodeCrop } from "../image-translate/image"
 export type ViewPosition = Pick<PdfReadingPosition, "page" | "offset" | "zoom">
 interface Lease {
   cancel: () => void
+  ready?: Promise<void>
 }
 export function pageAtOffset(tops: number[], offset: number) {
   let lo = 0,
@@ -156,17 +158,18 @@ export class PdfViewport {
       render: RenderTask | undefined,
       text: TextLayer | undefined,
       page: PDFPageProxy | undefined
-    const lease = {
+    const lease: Lease = {
       cancel: () => {
         stopped = true
         render?.cancel()
         text?.cancel()
         element.replaceChildren()
+        delete element.dataset.rendered
         page?.cleanup()
       },
     }
     this.leases.set(index, lease)
-    void (async () => {
+    lease.ready = (async () => {
       page = await this.pdf.getPage(index + 1)
       if (stopped) {
         page.cleanup()
@@ -200,6 +203,7 @@ export class PdfViewport {
       const results = await Promise.allSettled([render.promise, text.render()])
       if (results.some((result) => result.status === "rejected"))
         throw new Error("PDF render cancelled or failed")
+      if (!stopped) element.dataset.rendered = "true"
     })()
       .catch(() => {
         if (!stopped && !this.destroyed)
@@ -208,6 +212,48 @@ export class PdfViewport {
       .finally(() => {
         if (stopped) page?.cleanup()
       })
+  }
+  async captureVisible() {
+    this.update(false)
+    await Promise.all([...this.leases.values()].map((lease) => lease.ready ?? Promise.resolve()))
+    if (this.destroyed) throw new Error("PDF đã đóng. Hãy mở lại file.")
+    const hostBox = this.host.getBoundingClientRect()
+    const width = this.host.clientWidth,
+      height = this.host.clientHeight
+    const output = document.createElement("canvas")
+    const scale = Math.min(1.5, Math.sqrt(8_000_000 / (width * height)))
+    output.width = Math.round(width * scale)
+    output.height = Math.round(height * scale)
+    const context = output.getContext("2d")!
+    context.scale(scale, scale)
+    context.fillStyle = "#404247"
+    context.fillRect(0, 0, width, height)
+    let found = false
+    for (const page of this.elements) {
+      const box = page.getBoundingClientRect()
+      if (
+        box.bottom <= hostBox.top ||
+        box.top >= hostBox.bottom ||
+        box.right <= hostBox.left ||
+        box.left >= hostBox.right
+      )
+        continue
+      const source = page.querySelector("canvas")
+      if (!source || page.dataset.rendered !== "true")
+        throw new Error(
+          "Trang đang render hoặc thu phóng quá nhỏ. Chờ trang hiện rõ hoặc tăng thu phóng rồi chụp lại.",
+        )
+      context.drawImage(
+        source,
+        box.left - hostBox.left,
+        box.top - hostBox.top,
+        box.width,
+        box.height,
+      )
+      found = true
+    }
+    if (!found) throw new Error("Chưa có trang PDF để chụp.")
+    return encodeCrop(output, output.width, output.height, { x: 0, y: 0, width: 1, height: 1 })
   }
   destroy() {
     this.destroyed = true

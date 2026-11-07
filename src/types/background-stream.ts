@@ -1,11 +1,16 @@
 import type { StreamTextOnErrorCallback } from "ai"
 import type { z } from "zod"
 import type { Browser } from "#imports"
-import type { openAITextPayloadSchema, openAIStructuredPayloadSchema } from "./openai-execution"
+import type {
+  openAITextPayloadSchema,
+  openAIStructuredPayloadSchema,
+  openAIImagePayloadSchema,
+} from "./openai-execution"
 import type { SelectionToolbarCustomActionOutputType } from "@/types/config/selection-toolbar"
 import type { ErrorAction } from "@/utils/error-action"
 
 export type BackgroundStreamTextSerializablePayload = z.infer<typeof openAITextPayloadSchema>
+export type BackgroundStreamImageSerializablePayload = z.infer<typeof openAIImagePayloadSchema>
 
 export interface BackgroundStructuredObjectOutputField {
   name: string
@@ -34,6 +39,7 @@ export type BackgroundStreamStructuredObjectSerializablePayload = z.infer<
 
 export const BACKGROUND_STREAM_PORTS = {
   streamText: "stream-text",
+  streamImageText: "stream-image-text",
   streamStructuredObject: "stream-structured-object",
 } as const
 
@@ -42,6 +48,7 @@ export type BackgroundStreamPortName = (typeof BACKGROUND_STREAM_PORTS)[Backgrou
 
 export interface BackgroundStreamResponseMap {
   streamText: BackgroundTextStreamSnapshot
+  streamImageText: BackgroundTextStreamSnapshot
   streamStructuredObject: BackgroundStructuredObjectStreamSnapshot
 }
 

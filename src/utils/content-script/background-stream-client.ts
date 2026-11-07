@@ -1,5 +1,7 @@
 import type {
   BackgroundStreamResponseMap,
+  BackgroundStreamImageSerializablePayload,
+  BackgroundTextStreamSnapshot,
   BackgroundStreamStructuredObjectSerializablePayload,
   BackgroundStreamTextSerializablePayload,
 } from "@/types/background-stream"
@@ -30,6 +32,17 @@ export function streamBackgroundStructuredObject(
   return createPortStreamPromise<BackgroundStreamResponseMap["streamStructuredObject"]>(
     BACKGROUND_STREAM_PORTS.streamStructuredObject,
     serializablePayload,
+    options,
+  )
+}
+
+export function streamBackgroundImageText(
+  payload: BackgroundStreamImageSerializablePayload,
+  options: ContentScriptStreamOptions<BackgroundTextStreamSnapshot> = {},
+) {
+  return createPortStreamPromise<BackgroundTextStreamSnapshot>(
+    BACKGROUND_STREAM_PORTS.streamImageText,
+    payload,
     options,
   )
 }

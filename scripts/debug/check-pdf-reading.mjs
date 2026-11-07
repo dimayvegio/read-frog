@@ -4,6 +4,7 @@ import fs from "node:fs/promises"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import { checkAutoPdfReader } from "./check-auto-pdf-reader.mjs"
+import { checkImageTranslation } from "./check-image-translation.mjs"
 
 // Production extension, real Edge sidebar and local PDF; fake OpenAI only.
 // Selection messages are seeded at the trusted native bridge because CDP does
@@ -125,7 +126,13 @@ try {
         authorization: request.headers.get("authorization"),
       })
       if (__pdfOffline) throw new Error("Offline fixture")
-      const output = `Bản dịch PDF số ${__pdfCalls.length}. Đây là văn bản tiếng Việt có dấu.`,
+      const imageInput = body.input?.some(
+        (item) =>
+          Array.isArray(item.content) && item.content.some((part) => part.type === "input_image"),
+      )
+      const output = imageInput
+          ? (globalThis.__imageOutput ?? "Read Frog image fixture.\nRemember the words you learn.")
+          : `Bản dịch PDF số ${__pdfCalls.length}. Đây là văn bản tiếng Việt có dấu.`,
         delay = __pdfDelay
       const response = {
         id: "resp_pdf",
@@ -442,6 +449,17 @@ try {
   await panel.screenshot({ path: path.join(scratch, "panel-390.png"), fullPage: true })
   evidence.screenshots.push("panel-390.png")
   await checkAutoPdfReader({ browser, id, worker, source, panel, scratch, check, calls, evidence })
+  await checkImageTranslation({
+    browser,
+    id,
+    worker,
+    source,
+    popup,
+    scratch,
+    check,
+    calls,
+    evidence,
+  })
   check("The browser flow completes without JavaScript errors", errors.length === 0)
   evidence.apiCalls = await calls()
   evidence.historyRecords = (await records()).length

@@ -5,6 +5,7 @@ import { openOptionsPage } from "@/utils/navigation"
 import { version } from "../../../package.json"
 import { AISmartContext } from "./components/ai-smart-context"
 import { AlwaysTranslate } from "./components/always-translate"
+import { ImageTranslationButton } from "./components/image-translation-button"
 import LanguageOptionsSelector from "./components/language-options-selector"
 import { MoreMenu } from "./components/more-menu"
 import Hotkey from "./components/node-translation-hotkey-selector"
@@ -53,6 +54,7 @@ function App() {
         {/* Out of flow on purpose: the card appears on its own schedule, and letting it
             grow the popup would shift every control out from under the user's cursor. */}
       </div>
+      <ImageTranslationButton />
       <div className="flex items-center justify-between bg-neutral-200 px-2 py-1 dark:bg-neutral-800">
         <button
           type="button"

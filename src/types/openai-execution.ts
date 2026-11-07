@@ -4,6 +4,7 @@ import {
   openAIPublicConfigSchema,
   publicProviderRefSchema,
 } from "./config/openai"
+import { imageDataURLSchema } from "./image-translation"
 
 export const openAITextPayloadSchema = z.strictObject({
   providerKind: z.literal("local"),
@@ -25,6 +26,10 @@ export const openAIStructuredPayloadSchema = openAITextPayloadSchema.extend({
     .min(1)
     .max(128)
     .refine((fields) => new Set(fields.map((field) => field.name)).size === fields.length),
+})
+
+export const openAIImagePayloadSchema = openAITextPayloadSchema.extend({
+  image: imageDataURLSchema,
 })
 
 export const openAIGeneratePayloadSchema = z.strictObject({
