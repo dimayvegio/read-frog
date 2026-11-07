@@ -32,6 +32,7 @@ import { setupOpenAISettingsHandlers } from "./openai-settings"
 import { handleOpenAITTSPort } from "./openai-tts"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { setupPdfReaderHandlers } from "./pdf-reader"
+import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { translationMessage } from "./translation-signal"
@@ -95,6 +96,7 @@ export default defineBackground({
     setupVideoSummaryHandlers()
     setupVocabularyHandlers()
     setupUsageHandlers()
+    setupSettingsSyncHandlers()
     setupGlossaryMessageHandlers()
     setupEdgeTTSMessageHandlers()
     setupTTSPlaybackMessageHandlers()

@@ -59,6 +59,13 @@ function App() {
           >
             Chi phí và tốc độ OpenAI
           </button>
+          <button
+            type="button"
+            className="text-left text-[13px] underline"
+            onClick={() => void sendMessage("openSettingsSync", undefined)}
+          >
+            Đồng bộ cấu hình Edge
+          </button>
         </div>
         {/* Out of flow on purpose: the card appears on its own schedule, and letting it
             grow the popup would shift every control out from under the user's cursor. */}

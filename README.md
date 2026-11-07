@@ -13,6 +13,10 @@ config, backup và export thông thường không chứa key. TTS Microsoft ho�
 
 Các dịch vụ hosted Read Frog, tài khoản, Notebase, Google Drive sync,
 telemetry, provider dịch khác và proxy mạng tổng quát đã được gỡ.
+Popup → **Đồng bộ cấu hình Edge** dùng tài khoản trình duyệt, không cần Client ID.
+Cấu hình được nén, có xử lý xung đột và backup/khôi phục. API key và dữ liệu học
+vẫn giữ riêng trên máy; các máy cần cùng ID extension. Xem
+[EDGE_SETTINGS_SYNC.md](EDGE_SETTINGS_SYNC.md). Nút Send feedback cũ đã được gỡ.
 YouTube dùng lại engine và giao diện phụ đề nguyên bản: tải track CC từ YouTube,
 dịch trước theo cửa sổ look-ahead, batch/cache, sidebar transcript, xuất SRT và đầy đủ
 thiết lập hiển thị/style. Phần dịch và phân tích vẫn qua OpenAI hiện tại. Nút Read Frog

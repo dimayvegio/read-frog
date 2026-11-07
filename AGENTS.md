@@ -18,6 +18,7 @@
 - Mark upstream-based local releases with the `A` suffix in `manifest.version_name` (for example `1.58.0A`), while keeping package and manifest numeric versions valid.
 - Preserve additive vocabulary DB5 source passages and ZIP6 while reading ZIP1-5. Source IDs deduplicate passages independently of review events; adding encounters never updates SRS or answer counts. Keep active-notebook highlights bounded and DOM-preserving on web/PDF.js, saved-word lookups local and YouTube sentence practice explicitly opt-in with ad/navigation/input guards. Keep separate usage DB1 numeric-only, actual SDK usage, unknown costs honest and clear epochs; no prompts, URLs or credentials in usage logs. See [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 - Published fork migrations are frozen; upstream migration numbers may conflict and must be adapted as a new fork schema step.
+- Preserve opt-in Edge account configuration sync in [EDGE_SETTINGS_SYNC.md](EDGE_SETTINGS_SYNC.md): native storage.sync, trusted-page RPC, gzip/chunk limits, head-last commit, checksum validation, vector-clock conflicts, stale-choice guards and persistent local recovery/undo. Sync format v1 is frozen for fork config124; do not project away newer fields. Keep OpenAI credentials, glossary rows, vocabulary/audio/progress/logs, PDF/image/usage databases outside this transport. Do not claim storage.sync writes prove Microsoft cloud delivery or change the existing extension ID silently. Keep the legacy Send feedback action removed.
 
 ## Testing Notes
 

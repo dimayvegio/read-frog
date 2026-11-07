@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.15` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.16` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.16` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.17` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,13 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.17`, giữ Edge native configuration sync opt-in, DB riêng1 và
+transport1 frozen config124: gzip/chunks/checksum, head-last commit, vector
+conflicts, sender guard và persistent recovery/undo. Không sync credential hoặc
+DB glossary/vocabulary/PDF/image/usage, không đổi extension ID âm thầm. Khi
+nâng config schema phải thêm reader/writer sync mới. Không khôi phục nút Send
+feedback cũ. Xem [EDGE_SETTINGS_SYNC.md](EDGE_SETTINGS_SYNC.md).
 
 Từ build `1.58.0.16`, giữ vocabulary DB5 additive store `sources`, ZIP6 và
 đọc ZIP1-5; không đổi định nghĩa DB1-4 hoặc schema review logs đã phát hành.

@@ -4,6 +4,7 @@ import type {
   PdfPositionState,
   PdfReaderSource,
 } from "./selection-result/reading-position"
+import type { EdgeSyncView } from "./settings-sync/db"
 import type { usageSnapshot } from "./usage/db"
 import type { UsageTask, UsagePrice } from "./usage/schema"
 import type { NotebookSnapshot } from "./vocabulary/schema"
@@ -41,6 +42,13 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  openSettingsSync: () => void
+  getEdgeSettingsSync: () => EdgeSyncView
+  setEdgeSettingsSyncEnabled: (data: { enabled: boolean }) => EdgeSyncView
+  syncEdgeSettingsNow: (data?: { token: string; source: string }) => EdgeSyncView
+  undoEdgeSettingsSync: () => EdgeSyncView
+  acknowledgeEdgeSyncRecovery: () => EdgeSyncView
+  openEdgeSyncSettings: () => void
   getUsageSnapshot: () => Awaited<ReturnType<typeof usageSnapshot>>
   clearUsage: () => void
   saveUsagePrice: (data: UsagePrice) => void

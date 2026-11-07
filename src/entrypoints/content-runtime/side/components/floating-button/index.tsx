@@ -1,5 +1,5 @@
 import type { FloatingButtonSide } from "@/types/config/floating-button"
-import { IconLock, IconLockOpen, IconMessageCircle, IconSettings, IconX } from "@tabler/icons-react"
+import { IconLock, IconLockOpen, IconSettings, IconX } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
@@ -203,10 +203,6 @@ export default function FloatingButton() {
         })
       }
     })
-  }
-
-  const handleFeedbackClick = () => {
-    void sendMessage("openOptionsPage", { route: "/help" })
   }
 
   const startActiveDrag = () => {
@@ -441,15 +437,6 @@ export default function FloatingButton() {
           onClick={() => {
             void sendMessage("openOptionsPage", undefined)
           }}
-        />
-      )}
-      {!isDraggingButton && (
-        <HiddenButton
-          side={floatingButtonSide}
-          expanded={isFloatingButtonExpanded}
-          icon={<IconMessageCircle className="h-5 w-5" />}
-          label={i18n.t("options.floatingButton.tooltips.feedback")}
-          onClick={handleFeedbackClick}
         />
       )}
     </div>

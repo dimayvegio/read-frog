@@ -1,0 +1,36 @@
+[data-testid="settings-sync"] label.rf-usage-tools {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  margin-block: 20px;
+}
+[data-testid="settings-sync"] input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+[data-testid="settings-sync"] article {
+  border: 1px solid var(--rf-border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 16px;
+}
+[data-testid="settings-sync"] h3 {
+  font-weight: 650;
+  font-size: 17px;
+}
+[data-testid="settings-sync"] button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.sync-config {
+  max-height: 300px;
+  overflow: auto;
+  padding: 12px;
+  font:
+    12px/1.5 ui-monospace,
+    monospace;
+  border: 1px solid var(--rf-border);
+  border-radius: 8px;
+  margin-block: 10px;
+}
