@@ -10,6 +10,7 @@ import {
   streamBackgroundImageText,
   streamBackgroundImageTranslation,
 } from "@/utils/content-script/background-stream-client"
+import { sendMessage } from "@/utils/message"
 import { imageCacheKey, readImageCache, saveImageCache } from "./cache"
 import { imageTranslationContext, OCR_INSTRUCTIONS } from "./context"
 export async function recognizeImage({
@@ -44,6 +45,7 @@ export async function recognizeImage({
     epoch = cached.epoch
     signal.throwIfAborted()
     if (!bypass && cached.value) {
+      void sendMessage("recordLocalCacheHit", { task: fast ? "image" : "ocr" }).catch(() => {})
       onChunk(cached.value.original, fast ? (cached.value.translation ?? "") : "")
       onStatus(
         fast

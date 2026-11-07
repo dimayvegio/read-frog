@@ -1075,3 +1075,28 @@ audio {
     }
   }
 }
+.source-passages {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.source-passages summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.source-passages ol {
+  padding-left: 22px;
+}
+.source-passages li {
+  margin-bottom: 20px;
+}
+.source-passages blockquote {
+  margin: 8px 0;
+  white-space: pre-wrap;
+}
+.source-passages button {
+  margin: 6px 8px 0 0;
+}
+.source-passages a {
+  margin-right: 12px;
+}

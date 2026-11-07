@@ -38,6 +38,9 @@ export function setupSubtitlesTranslationHandlers(): void {
     if (hash) {
       const cached = await db.translationCache.get(hash)
       if (cached) {
+        void import("./usage")
+          .then(({ recordCacheHit }) => recordCacheHit("subtitles"))
+          .catch(() => {})
         return cached.translation
       }
     }

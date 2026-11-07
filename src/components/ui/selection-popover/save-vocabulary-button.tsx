@@ -1,7 +1,9 @@
+import type { StudyWord } from "@/utils/vocabulary/study-snapshot"
 import { IconBookmark, IconLoader2, IconBook2 } from "@tabler/icons-react"
 import { useEffect, useRef, useState } from "react"
 import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
 import { sendMessage } from "@/utils/message"
+import { normalizeAnswer } from "@/utils/vocabulary/schema"
 import {
   VOCABULARY_PORT,
   type VocabularyCapture,
@@ -19,6 +21,8 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
   const [saved, setSaved] = useState(false)
   const [notebooks, setNotebooks] = useState<VocabularyNotebook[]>([])
   const [notebookId, setNotebookId] = useState("")
+  const [matches, setMatches] = useState<StudyWord[]>([])
+  const [existingId, setExistingId] = useState("")
   const controller = useRef<AbortController | null>(null)
   useEffect(() => () => controller.current?.abort(), [])
   useEffect(() => {
@@ -48,6 +52,43 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
     }
   }, [pending])
   const valid = !!capture.word.trim() && capture.word.length <= 160
+  useEffect(() => {
+    let disposed = false
+    void sendMessage("getVocabularyStudySnapshot", { notebookId: notebookId || undefined })
+      .then((snapshot) => {
+        if (disposed) return
+        const found =
+          snapshot.notebookId === notebookId
+            ? snapshot.words.filter((word) => word.variants.includes(normalizeAnswer(capture.word)))
+            : []
+        setMatches(found)
+        setExistingId(found[0]?.id ?? "")
+      })
+      .catch(() => {})
+    return () => {
+      disposed = true
+    }
+  }, [capture.word, notebookId])
+  const attach = async () => {
+    setPending(true)
+    try {
+      const added = await sendMessage("addVocabularySource", {
+        notebookId,
+        cardId: existingId,
+        capture,
+      })
+      setSaved(true)
+      setStatus(
+        added
+          ? "Đã thêm câu nguồn. Giữ nguyên audio và tiến trình học; không gọi OpenAI."
+          : "Câu nguồn này đã có; không tính thêm lần gặp.",
+      )
+    } catch {
+      setStatus("Chưa thêm được câu. Mỗi từ lưu tối đa 20 câu nguồn.")
+    } finally {
+      setPending(false)
+    }
+  }
   const save = async () => {
     const abort = new AbortController()
     controller.current = abort
@@ -107,6 +148,31 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
         </select>
       </label>
       <div className="flex flex-wrap items-center gap-2">
+        {matches.length > 0 && capture.context.trim() && (
+          <>
+            <select
+              aria-label="Từ đã có để thêm câu"
+              value={existingId}
+              onChange={(event) => setExistingId(event.target.value)}
+              disabled={pending}
+              className="min-h-8 max-w-64 rounded border bg-background text-xs"
+            >
+              {matches.map((word) => (
+                <option key={word.id} value={word.id}>
+                  {word.word} — {word.meaning}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="min-h-8 rounded border px-2 text-xs"
+              disabled={pending || saved}
+              onClick={() => void attach()}
+            >
+              Thêm câu vào từ đã có
+            </button>
+          </>
+        )}
         <button
           type="button"
           className="flex min-h-8 items-center gap-1 rounded-md px-2 text-xs hover:bg-muted disabled:opacity-50"
@@ -123,7 +189,7 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
           ) : (
             <IconBookmark className="size-4" />
           )}
-          {saved ? "Đã lưu" : "Lưu để học"}
+          {saved ? "Đã lưu" : matches.length ? "Tạo thẻ cho nghĩa khác" : "Lưu để học"}
         </button>
         {pending && (
           <button

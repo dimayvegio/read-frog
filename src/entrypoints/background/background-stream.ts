@@ -482,7 +482,10 @@ async function createLocalTextPartStream(
   options: StreamRuntimeOptions<BackgroundTextStreamSnapshot> = {},
 ): Promise<AsyncIterable<unknown>> {
   const payload = openAITextPayloadSchema.parse(input)
-  const execution = await resolveOpenAIExecution(payload.providerConfig, { signal: options.signal })
+  const execution = await resolveOpenAIExecution(payload.providerConfig, {
+    signal: options.signal,
+    usageTask: payload.usageTask ?? "selection",
+  })
   const result = streamText({
     model: execution.model,
     ...execution.params,
@@ -501,7 +504,10 @@ export async function generateTextForProviderRef(
   options: { signal?: AbortSignal } = {},
 ): Promise<string> {
   const payload = openAIGeneratePayloadSchema.parse(input)
-  const execution = await resolveOpenAIExecution(payload.providerRef.config, options)
+  const execution = await resolveOpenAIExecution(payload.providerRef.config, {
+    ...options,
+    usageTask: payload.usageTask ?? "summary",
+  })
   const { text } = await generateText({
     model: execution.model,
     ...execution.params,
@@ -537,7 +543,10 @@ async function createImagePartStream(
 ) {
   options.signal?.throwIfAborted()
   const payload = openAIImagePayloadSchema.parse(input)
-  const execution = await resolveOpenAIExecution(payload.providerConfig, { signal: options.signal })
+  const execution = await resolveOpenAIExecution(payload.providerConfig, {
+    signal: options.signal,
+    usageTask: structured ? "image" : "ocr",
+  })
   const result = streamText({
     model: execution.model,
     ...execution.params,
@@ -583,7 +592,10 @@ async function createLocalStructuredObjectPartStream<TOutput extends Record<stri
   options: StreamRuntimeOptions<BackgroundStructuredObjectStreamSnapshot> = {},
 ): Promise<AsyncIterable<unknown>> {
   const payload = openAIStructuredPayloadSchema.parse(input)
-  const execution = await resolveOpenAIExecution(payload.providerConfig, { signal: options.signal })
+  const execution = await resolveOpenAIExecution(payload.providerConfig, {
+    signal: options.signal,
+    usageTask: payload.usageTask ?? "customAction",
+  })
   const result = streamText({
     model: execution.model,
     ...execution.params,

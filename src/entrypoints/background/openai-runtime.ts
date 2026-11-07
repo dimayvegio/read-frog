@@ -1,3 +1,4 @@
+import type { UsageTask } from "@/utils/usage/schema"
 import { createOpenAI } from "@ai-sdk/openai"
 import { openAIPublicConfigSchema } from "@/types/config/openai"
 import { resolveModelId } from "@/utils/providers/model-id"
@@ -5,6 +6,7 @@ import { buildOpenAIGenerateParams } from "@/utils/providers/openai-profile"
 import { ProviderSetupError } from "@/utils/providers/provider-setup-error"
 import { ensureInitializedConfig } from "./config"
 import { readOpenAIExecutionCredential } from "./openai-credentials"
+import { instrumentModel } from "./usage"
 
 /** This guard belongs to LLM text only. Microsoft TTS has a separate client. */
 export const openAIOnlyFetch: typeof fetch = async (input, init) => {
@@ -27,7 +29,7 @@ export const openAIOnlyFetch: typeof fetch = async (input, init) => {
 
 export async function resolveOpenAIExecution(
   input: unknown,
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; usageTask?: UsageTask } = {},
 ) {
   options.signal?.throwIfAborted()
   const snapshot = openAIPublicConfigSchema.parse(input)
@@ -43,7 +45,7 @@ export async function resolveOpenAIExecution(
     fetch: openAIOnlyFetch,
   })
   return {
-    model: client.languageModel(modelId),
+    model: instrumentModel(client.languageModel(modelId), options.usageTask ?? "other"),
     params: buildOpenAIGenerateParams(snapshot),
     credentialRevision: revision,
   }

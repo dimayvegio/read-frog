@@ -4,7 +4,11 @@ import type {
   PdfPositionState,
   PdfReaderSource,
 } from "./selection-result/reading-position"
+import type { usageSnapshot } from "./usage/db"
+import type { UsageTask, UsagePrice } from "./usage/schema"
 import type { NotebookSnapshot } from "./vocabulary/schema"
+import type { VocabularyCapture } from "./vocabulary/schema"
+import type { StudySnapshot } from "./vocabulary/study-snapshot"
 import type {
   BackgroundGenerateTextPayload,
   BackgroundGenerateTextResponse,
@@ -37,10 +41,28 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  getUsageSnapshot: () => Awaited<ReturnType<typeof usageSnapshot>>
+  clearUsage: () => void
+  saveUsagePrice: (data: UsagePrice) => void
+  setUsageBudget: (data: { usd: number }) => void
+  recordLocalCacheHit: (data: { task: UsageTask }) => void
+  openUsageDashboard: () => void
   captureImageTranslation: (data: { windowId: number }) => void
   openImageTranslation: (data?: { image?: string }) => void
   consumeCapturedImage: (data: { channel: string }) => CapturedImage | null
   getVocabularyNotebooks: () => NotebookSnapshot
+  getVocabularyStudySnapshot: (data?: { notebookId?: string }) => StudySnapshot
+  goToPdfVocabularySource: (data: {
+    documentId: string
+    page: number
+    targetTabId: number
+  }) => boolean
+  openVocabularyPdfSource: (data: { documentId: string; page: number }) => boolean
+  addVocabularySource: (data: {
+    notebookId: string
+    cardId: string
+    capture: VocabularyCapture
+  }) => boolean
   selectVocabularyNotebook: (data: { notebookId: string }) => void
   openVocabulary: () => void
   openTranslationHub: () => void

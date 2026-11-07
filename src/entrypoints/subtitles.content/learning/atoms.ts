@@ -1,3 +1,4 @@
+import type { StudyWord } from "@/utils/vocabulary/study-snapshot"
 import { atom } from "jotai"
 import { customActionRequestAtom } from "@/components/custom-action/atoms"
 import { configAtom } from "@/utils/atoms/config"
@@ -26,6 +27,21 @@ export const subtitleTokensAtom = atom((get) =>
 )
 
 let nextSessionKey = 0
+export const savedStudyLookupAtom = atom<{
+  key: number
+  words: StudyWord[]
+  context: string
+} | null>(null)
+export const lookUpStudyWordAtom = atom(
+  null,
+  (get, set, input: { index: number; words: StudyWord[] }) => {
+    const cue = get(displaySubtitleAtom)
+    if (!cue) return
+    set(wordLookupAtom, { cueStart: cue.start, index: input.index })
+    set(customActionRequestAtom, null)
+    set(savedStudyLookupAtom, { key: ++nextSessionKey, words: input.words, context: cue.text })
+  },
+)
 
 /**
  * The one way in: looks up the word at `index` in the cue on screen, or closes
@@ -33,6 +49,7 @@ let nextSessionKey = 0
  * picked for word lookups in settings.
  */
 export const lookUpAtom = atom(null, (get, set, index: number | null) => {
+  set(savedStudyLookupAtom, null)
   const cue = get(displaySubtitleAtom)
   const word = index === null ? undefined : get(subtitleTokensAtom)[index]
   const action = resolveWordLookupAction(get(configAtom))

@@ -48,7 +48,7 @@ export function setupOpenAISettingsHandlers() {
     }
     if (!status.configured) return { ...identity, ok: false, code: "NOT_CONFIGURED" as const }
     try {
-      const execution = await resolveOpenAIExecution(snapshot)
+      const execution = await resolveOpenAIExecution(snapshot, { usageTask: "connection" })
       identity.credentialRevision = execution.credentialRevision
       await generateText({
         model: execution.model,

@@ -1,0 +1,134 @@
+.rf-usage {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 36px 24px 80px;
+  font: 15px/1.6 system-ui;
+  color: var(--rf-foreground);
+  background: var(--rf-background);
+}
+.rf-usage h1 {
+  font-size: 30px;
+  line-height: 1.2;
+  margin: 8px 0 14px;
+}
+.rf-usage h2 {
+  font-size: 21px;
+  margin: 0 0 10px;
+}
+.rf-usage-eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  opacity: 0.65;
+}
+.rf-usage section {
+  margin-top: 28px;
+  border-top: 1px solid var(--rf-border);
+  padding-top: 24px;
+}
+.rf-usage-tools,
+.rf-usage form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+.rf-usage label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rf-usage button,
+.rf-usage input,
+.rf-usage select {
+  font: inherit;
+  border: 1px solid var(--rf-border);
+  border-radius: 7px;
+  background: var(--rf-background);
+  color: var(--rf-foreground);
+  padding: 7px 10px;
+  max-width: 100%;
+}
+.rf-usage button {
+  cursor: pointer;
+}
+.rf-usage button:hover {
+  outline: 1px solid currentColor;
+}
+.rf-usage-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+.rf-usage-stats div {
+  padding: 15px;
+  border: 1px solid var(--rf-border);
+  border-radius: 10px;
+}
+.rf-usage-stats strong,
+.rf-usage-stats span {
+  display: block;
+}
+.rf-usage-stats strong {
+  font-size: 25px;
+  overflow-wrap: anywhere;
+}
+.rf-usage-stats span,
+.rf-usage-note,
+.rf-usage small {
+  font-size: 13px;
+  opacity: 0.75;
+}
+.rf-usage small {
+  display: block;
+}
+.rf-usage-table {
+  overflow: auto;
+}
+.rf-usage table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.rf-usage th,
+.rf-usage td {
+  padding: 10px;
+  border-bottom: 1px solid var(--rf-border);
+  vertical-align: top;
+}
+.rf-usage a {
+  color: inherit;
+  text-decoration: underline;
+}
+.rf-usage form input {
+  width: 155px;
+}
+.rf-usage-warning {
+  padding: 12px;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+}
+.rf-usage details {
+  margin-top: 15px;
+}
+@media (max-width: 600px) {
+  .rf-usage {
+    padding: 22px 14px 50px;
+  }
+  .rf-usage h1 {
+    font-size: 25px;
+  }
+  .rf-usage-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .rf-usage-stats strong {
+    font-size: 21px;
+  }
+  .rf-usage form label {
+    flex: 1;
+    min-width: 130px;
+  }
+  .rf-usage form input {
+    width: 100%;
+  }
+}

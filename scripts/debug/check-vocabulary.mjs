@@ -291,13 +291,25 @@ try {
   await native.waitForFunction(
     () => !document.querySelector("[data-slot=save-vocabulary] button").disabled,
   )
-  await native.click("[data-slot=save-vocabulary] button")
+  await native.bringToFront()
   await native.waitForFunction(() =>
-    document.querySelector("[data-slot=save-vocabulary]").textContent.includes("Từ này đã có"),
+    [...document.querySelectorAll("[data-slot=save-vocabulary] button")].some((button) =>
+      button.textContent.includes("Thêm câu vào từ đã có"),
+    ),
   )
+  const beforeNativeSave = await worker.evaluate(() => __vocabCalls.length)
+  await native.evaluate(() =>
+    [...document.querySelectorAll("[data-slot=save-vocabulary] button")]
+      .find((button) => button.textContent.includes("Thêm câu vào từ đã có"))
+      .click(),
+  )
+  await native.waitForFunction(() => {
+    const text = document.querySelector("[data-slot=save-vocabulary]").textContent
+    return text.includes("Đã thêm câu nguồn") || text.includes("Câu nguồn này đã có")
+  })
   check(
-    "The native PDF result page saves through the real vocabulary port and deduplicates the same sense",
-    true,
+    "The native PDF result adds a source to the existing sense without another OpenAI or TTS call",
+    (await worker.evaluate(() => __vocabCalls.length)) === beforeNativeSave,
   )
   await native.close()
   const manager = page
@@ -317,6 +329,7 @@ try {
   })
   const webUrl = "https://example.com/vocabulary-fixture"
   await web.goto(webUrl)
+  await web.bringToFront()
   await web.waitForSelector("read-frog-selection")
   await web.$eval("#term", (node) => {
     const range = document.createRange()
@@ -329,8 +342,12 @@ try {
   })
   await web.waitForSelector('body >>> [aria-label="Translation"]', { visible: true })
   await web.click('body >>> [aria-label="Translation"]')
-  await web.waitForSelector("::-p-aria(Lưu để học)")
-  await web.locator("::-p-aria(Lưu để học)").click()
+  await web.waitForSelector("::-p-aria(Tạo thẻ cho nghĩa khác)")
+  await web.$eval('body >>> [data-slot="save-vocabulary"]', (node) =>
+    [...node.querySelectorAll("button")]
+      .find((button) => button.textContent.includes("Tạo thẻ cho nghĩa khác"))
+      .click(),
+  )
   await web.waitForSelector("::-p-aria(Đã lưu)")
   check(
     "A normal web selection exposes the save action inside the actual shadow-DOM translation popover",
@@ -350,7 +367,12 @@ try {
   await web.waitForSelector('body >>> [aria-label="Dictionary"]', { visible: true })
   await web.click('body >>> [aria-label="Dictionary"]')
   await web.waitForSelector('body >>> [data-slot="dictionary-save-vocabulary"]', { visible: true })
-  await web.locator("::-p-aria(Lưu để học)").click()
+  await web.waitForSelector("::-p-aria(Tạo thẻ cho nghĩa khác)")
+  await web.$eval('body >>> [data-slot="save-vocabulary"]', (node) =>
+    [...node.querySelectorAll("button")]
+      .find((button) => button.textContent.includes("Tạo thẻ cho nghĩa khác"))
+      .click(),
+  )
   await web.waitForSelector("::-p-aria(Đã lưu)")
   check(
     "Built-in dictionary results save through the same private vocabulary port and notebook picker",
@@ -358,6 +380,7 @@ try {
   )
   await web.close()
   page = manager
+  await manager.bringToFront()
   const extensionFirstNotebook = await page.$eval("#notebook-select", (select) => select.value)
   await page.click('#notebook-bar [data-action="new-library"]')
   await page.click('#notebook-form button[type="submit"]')
@@ -418,12 +441,20 @@ try {
     ),
   )
   await chooseNotebookPage.select('[aria-label="Lưu vào sổ"]', extensionFirstNotebook)
-  await chooseNotebookPage.waitForFunction(
-    () => !document.querySelector("[data-slot=save-vocabulary] button").disabled,
-  )
-  await chooseNotebookPage.click("[data-slot=save-vocabulary] button")
   await chooseNotebookPage.waitForFunction(() =>
-    document.querySelector("[data-slot=save-vocabulary]").textContent.includes("Từ này đã có"),
+    [...document.querySelectorAll("[data-slot=save-vocabulary] button")].some(
+      (button) => button.textContent.includes("Thêm câu vào từ đã có") && !button.disabled,
+    ),
+  )
+  await chooseNotebookPage.$eval("[data-slot=save-vocabulary]", (node) =>
+    [...node.querySelectorAll("button")]
+      .find((button) => button.textContent.includes("Thêm câu vào từ đã có"))
+      .click(),
+  )
+  await chooseNotebookPage.waitForFunction(() =>
+    /Đã thêm câu nguồn|Câu nguồn này đã có/.test(
+      document.querySelector("[data-slot=save-vocabulary]").textContent,
+    ),
   )
   check(
     "After saving, the popup can choose another notebook and save without reselecting the word",
@@ -466,6 +497,7 @@ try {
   const legacyManifest = JSON.parse(await zip.file("manifest.json").async("string"))
   const notebookMetadata = legacyManifest.notebook
   delete legacyManifest.reviewCount
+  delete legacyManifest.sourceCount
   delete legacyManifest.notebook
   legacyManifest.version = 1
   legacyManifest.title = "Từ vựng của tôi"
@@ -495,8 +527,8 @@ try {
     })
   await fs.writeFile(legacyV2Path, legacyV2Bytes)
   check(
-    "ZIP carries a named notebook v4 plus compressed MP3 assets and no API credential",
-    JSON.parse(await zip.file("manifest.json").async("string")).version === 5 &&
+    "ZIP carries a named notebook v6 plus compressed MP3 assets and no API credential",
+    JSON.parse(await zip.file("manifest.json").async("string")).version === 6 &&
       Object.keys(zip.files).filter((n) => n.endsWith(".mp3")).length >= 1 &&
       !(await zip.file("vocabulary.json").async("string")).includes("vocabulary-test-sentinel"),
   )
@@ -568,6 +600,17 @@ try {
   )
   await page.click('[data-action="filters"]')
   check("A standalone local HTML imports the exported ZIP entirely offline", requests.length === 0)
+  const sourceRows = JSON.parse(await zip.file("sources.json").async("string"))
+  check("ZIP6 carries the saved source separately from answer logs", sourceRows.length > 0)
+  await page.click('[data-tab="library"]')
+  await page.click('[data-action="view"]')
+  await page.waitForSelector(".source-passages")
+  check(
+    "The offline mobile HTML displays source passages imported from ZIP6",
+    await page.$eval(".source-passages", (node) => node.textContent.includes("Những câu đã gặp")),
+  )
+  await page.click('[data-action="close"]')
+  await page.click('[data-tab="study"]')
   await page.click("[data-action=reveal]")
   await page.click("[data-action=audio]")
   await page.waitForFunction(() =>
@@ -1141,7 +1184,7 @@ try {
   const hostedZip = await JSZip.loadAsync(await fs.readFile(path.join(hostedDir, hostedFile)))
   check(
     "Hosted HTML transcodes legacy WAV to MP3 ZIP v4 using only bundled JavaScript",
-    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 5 &&
+    JSON.parse(await hostedZip.file("manifest.json").async("string")).version === 6 &&
       Object.keys(hostedZip.files).some((name) => name.endsWith(".mp3")),
   )
   check(
@@ -1256,9 +1299,10 @@ try {
           .map((n) => n.shadowRoot.textContent.slice(-5000)),
       }))
       .catch(() => null)
+  if (page) await page.bringToFront().catch(() => {})
   if (page)
     await page
-      .screenshot({ path: path.join(scratch, "failure.png"), fullPage: true })
+      .screenshot({ path: path.join(scratch, "failure.png"), fullPage: false })
       .catch(() => {})
   throw error
 } finally {

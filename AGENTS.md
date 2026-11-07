@@ -16,6 +16,7 @@
 - Preserve the readable ChatGPT report, explicit practice reasons and separate unassessed words. Practice flags use all recorded history for the current inventory; one correct answer or flashcard self-rating must not imply confirmed recall.
 - Preserve guided typing/correction/hints/dictation/cloze, resumable daily lessons (DB4), dictionary capture, ZIP5/report3 and compact per-word reports for large notebooks. Assisted answers and correction drills never inflate unassisted accuracy; preserve the first answer and update SRS at most once per word/run. Keep the published ZIP4 event schema frozen and retain the 1,000-word browser regression.
 - Mark upstream-based local releases with the `A` suffix in `manifest.version_name` (for example `1.58.0A`), while keeping package and manifest numeric versions valid.
+- Preserve additive vocabulary DB5 source passages and ZIP6 while reading ZIP1-5. Source IDs deduplicate passages independently of review events; adding encounters never updates SRS or answer counts. Keep active-notebook highlights bounded and DOM-preserving on web/PDF.js, saved-word lookups local and YouTube sentence practice explicitly opt-in with ad/navigation/input guards. Keep separate usage DB1 numeric-only, actual SDK usage, unknown costs honest and clear epochs; no prompts, URLs or credentials in usage logs. See [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 - Published fork migrations are frozen; upstream migration numbers may conflict and must be adapted as a new fork schema step.
 
 ## Testing Notes

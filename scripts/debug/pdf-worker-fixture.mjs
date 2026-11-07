@@ -57,7 +57,9 @@ export const preparePdfWorker = async () => {
           }))
         : imageInput
           ? (globalThis.__imageOutput ?? "Read Frog image fixture.\nRemember the words you learn.")
-          : `Bản dịch PDF số ${__pdfCalls.length}. Đây là văn bản tiếng Việt có dấu.`,
+          : typeof globalThis.__pdfTextOutput === "function"
+            ? globalThis.__pdfTextOutput(body)
+            : `Bản dịch PDF số ${__pdfCalls.length}. Đây là văn bản tiếng Việt có dấu.`,
       delay = __pdfDelay
     const response = {
       id: "resp_pdf",

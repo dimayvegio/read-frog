@@ -1,6 +1,8 @@
 import type { ReviewEvent } from "./review-log"
+import type { VocabularySource } from "./sources"
 import { sha256 as portableSha256 } from "js-sha256"
 import { z } from "zod"
+import { sourceLocatorSchema } from "./source-locator"
 
 export const VOCABULARY_PORT = "vocabulary-save"
 export const REVIEW_MODES = ["flash", "choice", "type"] as const
@@ -31,6 +33,7 @@ export const captureSchema = z.strictObject({
   sourceTitle: z.string().max(240),
   sourceUrl: z.string().max(2048),
   notebookId: notebookIdSchema.optional(),
+  source: sourceLocatorSchema.optional(),
 })
 export type VocabularyCapture = z.infer<typeof captureSchema>
 
@@ -90,6 +93,7 @@ export interface VocabularyBundle {
   progress: CardProgress[]
   audio: AudioAsset[]
   events?: ReviewEvent[]
+  sources?: VocabularySource[]
 }
 export interface VocabularySaveEvent {
   stage: "text" | "word-audio" | "example-audio" | "saved"

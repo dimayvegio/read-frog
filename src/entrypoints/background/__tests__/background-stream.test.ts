@@ -119,7 +119,10 @@ describe("background-stream", () => {
     expect((await runStreamTextInBackground({ ...payload, providerConfig: snapshot })).output).toBe(
       "answer",
     )
-    expect(resolveExecutionMock).toHaveBeenCalledWith(snapshot, { signal: undefined })
+    expect(resolveExecutionMock).toHaveBeenCalledWith(snapshot, {
+      signal: undefined,
+      usageTask: "selection",
+    })
     expect(streamTextMock).toHaveBeenCalledWith(
       expect.objectContaining({
         model: "snapshot-model",
@@ -287,7 +290,10 @@ describe("background-stream", () => {
       { score: 97, summary: "sample" },
     ])
     expect(result.output).toEqual({ score: 97, summary: "sample" })
-    expect(resolveExecutionMock).toHaveBeenCalledWith(DEFAULT_OPENAI_CONFIG, { signal: undefined })
+    expect(resolveExecutionMock).toHaveBeenCalledWith(DEFAULT_OPENAI_CONFIG, {
+      signal: undefined,
+      usageTask: "customAction",
+    })
     const schema = outputObjectMock.mock.calls[0]![0].schema
     expect(schema.safeParse({ score: "wrong", summary: "sample" }).success).toBe(false)
     expect(schema.safeParse({ score: null, summary: null }).success).toBe(true)

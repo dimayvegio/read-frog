@@ -95,6 +95,7 @@ export async function translateNativeSelection({
     providerConfig: provider.config,
     instructions: systemPrompt,
     prompt,
+    usageTask: imageCache ? "image" : document ? "pdf" : "selection",
   } as const
   let cacheId: string | undefined,
     epoch = 0
@@ -116,6 +117,7 @@ export async function translateNativeSelection({
       imageEpoch = cached.epoch
       signal.throwIfAborted()
       if (!bypassCache && cached.value?.translation) {
+        void sendMessage("recordLocalCacheHit", { task: "image" }).catch(() => {})
         const snapshot = {
           output: cached.value.translation,
           thinking: { status: "complete", text: "" },
@@ -144,6 +146,7 @@ export async function translateNativeSelection({
       const cached = bypassCache ? null : await readPdfCache(cacheId, document.id)
       signal.throwIfAborted()
       if (cached) {
+        void sendMessage("recordLocalCacheHit", { task: "pdf" }).catch(() => {})
         onCacheState?.("cached")
         const snapshot = {
           output: cached.output,

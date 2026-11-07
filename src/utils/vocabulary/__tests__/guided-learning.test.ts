@@ -142,7 +142,7 @@ describe("guided learning and honest evidence", () => {
       expect(decoded.events?.[0]?.exercise).toEqual(result.event?.exercise)
       const zip = await JSZip.loadAsync(zipped),
         manifest = JSON.parse(await zip.file("manifest.json")!.async("string"))
-      expect(manifest.version).toBe(5)
+      expect(manifest.version).toBe(6)
       manifest.version = 4
       zip.file("manifest.json", JSON.stringify(manifest))
       await expect(

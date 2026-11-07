@@ -50,10 +50,17 @@ Sổ lớn có bảng tiến trình gọn cho từng từ, không nhét toàn b�
 **Học hôm nay** và luyện riêng hỗ trợ gõ nhiều vòng, gõ sửa lỗi, gợi ý,
 nghe và gõ, điền từ trong câu; tiếp tục buổi đang dở trên cùng trình duyệt.
 Gợi ý/dán đáp án/gõ sửa không tăng số lần tự nhớ đúng. Mỗi lượt tối đa 10 từ.
-Tách từ đang củng cố, có dấu hiệu nhớ và chưa đủ dữ liệu. ZIP v5 mang theo nhật ký
-khi chuyển thiết bị và vẫn nhập được v1/v2/v3/v4. Nhật ký bắt đầu ghi từ bản mới,
+Tách từ đang củng cố, có dấu hiệu nhớ và chưa đủ dữ liệu. ZIP v6 mang theo nhật ký
+và nhiều câu nguồn cho mỗi từ, vẫn nhập được v1–v5. Nhật ký bắt đầu ghi từ bản mới,
 không suy diễn kết quả đúng/sai từ lịch ôn cũ; thẻ lật được tính là tự đánh giá.
 Xem [VOCABULARY_LEARNING.md](VOCABULARY_LEARNING.md) để dùng và bảo trì.
+
+Từ trong sổ đang chọn được tô trên web, PDF Read Frog và phụ đề theo tiến trình
+đã kiểm tra; bấm để xem nghĩa local trước. **Thêm câu vào từ đã có** giữ nhiều
+ngữ cảnh, trang PDF/mốc video mà không tạo lại audio. YouTube → **Learning** có
+**Luyện nghe từng câu**, J/K/L, lặp 1–3 lần, tự dừng và ẩn/hiện bản dịch; mặc định
+tắt. Popup → **Chi phí và tốc độ OpenAI** xem token thật, độ trễ, chi phí ước tính,
+cache và cảnh báo ngân sách trên máy. Xem [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 
 ## Dịch đoạn bôi đen trong PDF trên Edge
 

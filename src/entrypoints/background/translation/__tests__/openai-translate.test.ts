@@ -40,7 +40,7 @@ describe("OpenAI page executor", () => {
       context: { title: "sample" },
       glossaryTerms: terms as never,
     })
-    expect(mocks.resolve).toHaveBeenCalledWith(DEFAULT_OPENAI_CONFIG, { signal })
+    expect(mocks.resolve).toHaveBeenCalledWith(DEFAULT_OPENAI_CONFIG, { signal, usageTask: "page" })
     expect(prompt).toHaveBeenCalledWith(
       "Vietnamese",
       "sample",

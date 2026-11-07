@@ -1,4 +1,5 @@
 import { z } from "zod"
+import { usageTaskSchema } from "@/utils/usage/schema"
 import {
   OPENAI_PROVIDER_ID,
   openAIPublicConfigSchema,
@@ -13,6 +14,7 @@ export const openAITextPayloadSchema = z.strictObject({
   instructions: z.string().max(262144),
   prompt: z.string().max(1048576),
   maxOutputTokens: z.number().int().positive().max(32768).optional(),
+  usageTask: usageTaskSchema.optional(),
 })
 
 export const openAIStructuredPayloadSchema = openAITextPayloadSchema.extend({
@@ -36,4 +38,5 @@ export const openAIGeneratePayloadSchema = z.strictObject({
   providerRef: publicProviderRefSchema,
   instructions: z.string().max(262144),
   prompt: z.string().max(1048576),
+  usageTask: usageTaskSchema.optional(),
 })

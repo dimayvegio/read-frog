@@ -11,6 +11,7 @@ import {
   getNotebookSnapshot,
   setActiveNotebook,
   saveGeneratedCard,
+  addVocabularySource,
 } from "@/utils/vocabulary/db"
 import {
   captureSchema,
@@ -27,6 +28,8 @@ import {
   type VocabularySaveEvent,
   type AudioAsset,
 } from "@/utils/vocabulary/schema"
+import { sourceFromCapture } from "@/utils/vocabulary/sources"
+import { getStudySnapshot } from "@/utils/vocabulary/study-snapshot"
 import { createStartMessageParser, createStreamPortHandler } from "./background-stream"
 import { ensureInitializedConfig } from "./config"
 import { resolveOpenAIExecution } from "./openai-runtime"
@@ -56,7 +59,13 @@ export async function saveVocabulary(
   )
   const existing = await findCapturedVocabulary(captureKey)
   if (existing) {
-    const added = await saveGeneratedCard(existing, [], signal, notebookId)
+    const added = await saveGeneratedCard(
+      existing,
+      [],
+      signal,
+      notebookId,
+      await sourceFromCapture(existing.id, capture, existing.originalTranslation),
+    )
     return { stage: "saved", cardId: existing.id, duplicate: !added, notebookId }
   }
   if (pending.has(captureKey) || pending.size >= 2)
@@ -64,7 +73,10 @@ export async function saveVocabulary(
   pending.add(captureKey)
   try {
     options.onChunk?.({ stage: "text" })
-    const execution = await resolveOpenAIExecution(config.providersConfig[0], { signal })
+    const execution = await resolveOpenAIExecution(config.providersConfig[0], {
+      signal,
+      usageTask: "vocabulary",
+    })
     const result = await generateText({
       model: execution.model,
       ...execution.params,
@@ -86,8 +98,11 @@ export async function saveVocabulary(
         normalizeAnswer(content.meaning),
       ]),
     )
-    if (await getNotebookCard(id, notebookId))
+    if (await getNotebookCard(id, notebookId)) {
+      const source = await sourceFromCapture(id, capture, content.originalTranslation)
+      if (source) await addVocabularySource(notebookId, source, signal)
       return { stage: "saved", cardId: id, duplicate: true, notebookId }
+    }
     const audio: AudioAsset[] = []
     for (const [stage, text] of [
       ["word-audio", content.word],
@@ -122,7 +137,13 @@ export async function saveVocabulary(
       audio: { word: audio[0]!.id, example: audio[1]!.id },
       speech: { model: speech.model, voice: speech.voice, speed: speech.speed },
     })
-    const added = await saveGeneratedCard(card, audio, signal, notebookId)
+    const added = await saveGeneratedCard(
+      card,
+      audio,
+      signal,
+      notebookId,
+      await sourceFromCapture(id, capture, content.originalTranslation),
+    )
     return { stage: "saved", cardId: id, notebookId, duplicate: !added }
   } finally {
     pending.delete(captureKey)
@@ -132,7 +153,9 @@ export async function saveVocabulary(
 export const handleVocabularyPort = createStreamPortHandler(
   async (payload: VocabularyCapture, options: StreamRuntimeOptions<VocabularySaveEvent>) => {
     try {
-      return await saveVocabulary(payload, options)
+      const result = await saveVocabulary(payload, options)
+      await browser.storage.local.set({ vocabularyStudyRevision: Date.now() }).catch(() => {})
+      return result
     } catch (error) {
       // Never serialize the provider error or a request body containing a key.
       // oxlint-disable-next-line eslint/preserve-caught-error -- SDK causes can contain the private credential.
@@ -143,6 +166,50 @@ export const handleVocabularyPort = createStreamPortHandler(
 )
 
 export function setupVocabularyHandlers() {
+  onMessage("getVocabularyStudySnapshot", async (message) =>
+    getStudySnapshot(
+      message.data?.notebookId ? notebookIdSchema.parse(message.data.notebookId) : undefined,
+    ),
+  )
+  onMessage("openVocabularyPdfSource", async (message) => {
+    const { documentId, page } = message.data
+    if (!/^[a-f0-9]{64}$/.test(documentId) || !Number.isInteger(page) || page < 1 || page > 20000)
+      throw new Error("Invalid PDF source")
+    const readerUrl = browser.runtime.getURL("/pdf-reader.html")
+    const tabs = (await browser.tabs.query({})).filter(
+      (tab) => tab.url?.split(/[?#]/)[0] === readerUrl,
+    )
+    for (const tab of tabs)
+      if (tab.id !== undefined) {
+        // Extension pages receive runtime messages, not tabs.sendMessage's
+        // content-script channel. The reader replies only for its own tab.
+        const found = await browser.runtime
+          .sendMessage({
+            id: Date.now(),
+            type: "goToPdfVocabularySource",
+            data: { documentId, page, targetTabId: tab.id },
+            timestamp: Date.now(),
+          })
+          .catch(() => false)
+        if (found?.res === true) {
+          await browser.tabs.update(tab.id, { active: true })
+          if (tab.windowId !== undefined)
+            await browser.windows.update(tab.windowId, { focused: true })
+          return true
+        }
+      }
+    return false
+  })
+  onMessage("addVocabularySource", async (message) => {
+    const { notebookId, cardId, capture } = message.data
+    notebookIdSchema.parse(notebookId)
+    if (!/^[a-f0-9]{64}$/.test(cardId)) throw new Error("Invalid card ID")
+    const source = await sourceFromCapture(cardId, captureSchema.parse(capture))
+    const added = source ? await addVocabularySource(notebookId, source) : false
+    if (added)
+      await browser.storage.local.set({ vocabularyStudyRevision: Date.now() }).catch(() => {})
+    return added
+  })
   onMessage("getVocabularyNotebooks", async () => {
     await resolveNotebookId()
     return getNotebookSnapshot()

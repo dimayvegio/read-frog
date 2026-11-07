@@ -12,6 +12,7 @@ import Hotkey from "./components/node-translation-hotkey-selector"
 import { PdfPanelButton } from "./components/pdf-panel-button"
 import ProvidersField from "./components/providers-field"
 import { SiteControlToggle } from "./components/site-control-toggle"
+import { StudyHighlightsSwitch } from "./components/study-highlights-switch"
 import TranslateButton from "./components/translate-button"
 import TranslatePromptSelector from "./components/translate-prompt-selector"
 import { TranslationHubButton } from "./components/translation-hub-button"
@@ -50,6 +51,14 @@ function App() {
           <AlwaysTranslate />
           <Hotkey />
           <AISmartContext />
+          <StudyHighlightsSwitch />
+          <button
+            type="button"
+            className="text-left text-[13px] underline"
+            onClick={() => void sendMessage("openUsageDashboard", undefined)}
+          >
+            Chi phí và tốc độ OpenAI
+          </button>
         </div>
         {/* Out of flow on purpose: the card appears on its own schedule, and letting it
             grow the popup would shift every control out from under the user's cursor. */}

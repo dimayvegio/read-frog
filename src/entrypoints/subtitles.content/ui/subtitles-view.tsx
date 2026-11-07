@@ -6,6 +6,11 @@ import { SUBTITLES_BOX_CLASS, SUBTITLES_VIEW_CLASS } from "@/utils/constants/sub
 import { cn } from "@/utils/styles/utils"
 import { displaySubtitleAtom } from "../atoms"
 import { subtitlesHoveredAtom } from "../learning/atoms"
+import {
+  sentenceStudyEnabledAtom,
+  sentenceHideTranslationAtom,
+  sentenceRevealedAtom,
+} from "../learning/sentence-study"
 import { MainSubtitle, TranslationSubtitle } from "./subtitle-lines"
 import { useVerticalDrag } from "./use-vertical-drag"
 
@@ -18,6 +23,9 @@ function SubtitlesContent() {
   const { style } = useAtomValue(configFieldsAtomMap.videoSubtitles)
   const { displayMode, translationPosition, container } = style
   const setHovered = useSetAtom(subtitlesHoveredAtom)
+  const studyEnabled = useAtomValue(sentenceStudyEnabledAtom)
+  const hideTranslation = useAtomValue(sentenceHideTranslationAtom)
+  const revealed = useAtomValue(sentenceRevealedAtom)
 
   // A box removed under the pointer never sees it leave.
   useEffect(() => () => setHovered(false), [setHovered])
@@ -27,7 +35,9 @@ function SubtitlesContent() {
   const isDuplicateTranslation = !!subtitle?.translation && subtitle.translation === subtitle.text
   // Bilingual: keep translation row for pending indicator when original is shown without translation.
   const showTranslation =
-    displayMode !== "originalOnly" && !(displayMode === "bilingual" && isDuplicateTranslation)
+    displayMode !== "originalOnly" &&
+    !(displayMode === "bilingual" && isDuplicateTranslation) &&
+    !(studyEnabled && hideTranslation && !revealed)
 
   const containerStyle = {
     backgroundColor: `rgba(0, 0, 0, ${container.backgroundOpacity / 100})`,

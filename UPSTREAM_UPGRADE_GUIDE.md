@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.14` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.15` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.15` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.16` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.16`, giữ vocabulary DB5 additive store `sources`, ZIP6 và
+đọc ZIP1-5; không đổi định nghĩa DB1-4 hoặc schema review logs đã phát hành.
+Giữ đánh dấu từ theo bằng chứng của sổ đang chọn mà không sửa DOM trang,
+luyện câu YouTube opt-in, lịch sử nhiều câu nguồn và usage DB1 chỉ chứa
+số liệu, không prompt/key/URL. Xem [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 
 Từ build `1.58.0.15`, danh sách chọn ngôn ngữ dùng chung ưu tiên `eng` rồi
 `vie`, sau đó giữ thứ tự cũ của các ngôn ngữ còn lại. Popup, dịch bôi đen,

@@ -3,6 +3,7 @@ import type { PromptResolver } from "@/types/translation"
 import type { MatchedTerm } from "@/utils/glossary/types"
 import { generateText } from "ai"
 import { safeOpenAIErrorMessage } from "@/utils/error/openai"
+import { getSubtitlesTranslatePrompt } from "@/utils/prompts/subtitles"
 import { attachRequestErrorMeta, getRequestErrorMeta } from "@/utils/request/retry-policy"
 import { resolveOpenAIExecution } from "../openai-runtime"
 
@@ -23,7 +24,10 @@ export async function aiTranslate<TContext>(
     glossaryTerms?: readonly MatchedTerm[]
   },
 ) {
-  const execution = await resolveOpenAIExecution(providerConfig, { signal: options?.signal })
+  const execution = await resolveOpenAIExecution(providerConfig, {
+    signal: options?.signal,
+    usageTask: promptResolver === getSubtitlesTranslatePrompt ? "subtitles" : "page",
+  })
   const { systemPrompt, prompt } = await promptResolver(targetLangName, text, options)
 
   try {

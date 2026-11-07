@@ -1,4 +1,5 @@
 import type { ReviewEvent } from "./review-log"
+import type { VocabularySource } from "./sources"
 import { z } from "zod"
 import { getRandomUUID } from "../crypto-polyfill"
 import { assessVocabulary } from "./learning-assessment"
@@ -71,11 +72,14 @@ function wholeMatches(text: string, candidate: string) {
   })
 }
 
-export function clozeFor(card: VocabularyCard): { prompt: string; expected: string } | null {
+export function clozeFor(
+  card: VocabularyCard,
+  contexts: readonly string[] = [],
+): { prompt: string; expected: string } | null {
   const candidates = [...new Set([card.word, ...card.acceptedAnswers])]
     .filter(Boolean)
     .sort((a, b) => b.length - a.length)
-  for (const sentence of [card.example.sentence, card.context]) {
+  for (const sentence of [...contexts, card.example.sentence, card.context]) {
     const text = sentence.normalize("NFC")
     for (const candidate of candidates) {
       for (const match of wholeMatches(text, candidate)) {
@@ -91,8 +95,15 @@ export function clozeFor(card: VocabularyCard): { prompt: string; expected: stri
   }
   return null
 }
-export function taskFor(card: VocabularyCard, kind: TaskKind, round: number): LearningTask | null {
-  const gap = kind === "cloze" ? clozeFor(card) : null
+export function taskFor(
+  card: VocabularyCard,
+  kind: TaskKind,
+  round: number,
+  contexts: readonly string[] = [],
+): LearningTask | null {
+  const offset = contexts.length ? (round - 1) % contexts.length : 0
+  const rotated = [...contexts.slice(offset), ...contexts.slice(0, offset)]
+  const gap = kind === "cloze" ? clozeFor(card, rotated) : null
   if (kind === "cloze" && !gap) return null
   return {
     id: getRandomUUID(),
@@ -111,7 +122,11 @@ export function createLearningRun(
   progress: CardProgress[],
   mode: LearningMode,
   now = Date.now(),
+  sources: readonly VocabularySource[] = [],
 ): LearningRun {
+  const contexts = new Map<string, string[]>()
+  for (const source of sources)
+    contexts.set(source.cardId, [...(contexts.get(source.cardId) ?? []), source.context])
   const assessment = assessVocabulary(events, cards),
     weak = new Set(assessment.needsReview.map((word) => word.cardId)),
     byProgress = new Map(progress.map((row) => [row.cardId, row]))
@@ -139,7 +154,7 @@ export function createLearningRun(
   } else
     selected = ordered
       .filter((card) => mode !== "weak" || weak.has(card.id))
-      .filter((card) => mode !== "cloze" || clozeFor(card))
+      .filter((card) => mode !== "cloze" || clozeFor(card, contexts.get(card.id)))
       .slice(0, 10)
   const queue: LearningTask[] = []
   for (let round = 1; round <= 3; round++)
@@ -148,7 +163,8 @@ export function createLearningRun(
         mode === "today" || mode === "weak"
           ? (["recall", "dictation", "cloze"] as const)[round - 1]!
           : mode
-      const task = taskFor(card, kind, round) ?? taskFor(card, "recall", round)!
+      const task =
+        taskFor(card, kind, round, contexts.get(card.id)) ?? taskFor(card, "recall", round)!
       queue.push(task)
     }
   const run: LearningRun = {

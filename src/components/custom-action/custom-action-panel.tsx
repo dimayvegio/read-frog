@@ -1,3 +1,4 @@
+import type { VocabularyCapture } from "@/utils/vocabulary/schema"
 import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { useMemo, useRef } from "react"
 import { SelectionPopover } from "@/components/ui/selection-popover"
@@ -22,7 +23,9 @@ import {
   useCustomActionWebPageContext,
 } from "./use-custom-action-execution"
 
-export function CustomActionPanel() {
+export function CustomActionPanel({
+  vocabularySource,
+}: { vocabularySource?: Omit<VocabularyCapture, "word" | "context"> } = {}) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const [request, setRequest] = useAtom(customActionRequestAtom)
   const language = useAtomValue(configFieldsAtomMap.language)
@@ -116,8 +119,9 @@ export function CustomActionPanel() {
                 capture={{
                   word: cleanSelection,
                   context: request.contextText.slice(0, 1800),
-                  sourceTitle: titleText ?? "",
-                  sourceUrl: webPageContext?.url ?? "",
+                  sourceTitle: vocabularySource?.sourceTitle ?? titleText ?? "",
+                  sourceUrl: vocabularySource?.sourceUrl ?? webPageContext?.url ?? "",
+                  ...(vocabularySource?.source ? { source: vocabularySource.source } : {}),
                 }}
               />
             </div>

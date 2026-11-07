@@ -50,7 +50,7 @@ describe("frozen vocabulary v1 -> v2", () => {
     const upgraded = new VocabularyDatabase(name)
     try {
       await upgraded.open()
-      expect(upgraded.verno).toBe(4)
+      expect(upgraded.verno).toBe(5)
       expect(await upgraded.reviewEvents.toArray()).toEqual([event])
       expect(await upgraded.notebookCards.toArray()).toEqual([card])
       expect(await upgraded.notebookProgress.toArray()).toEqual([progress])
@@ -91,7 +91,7 @@ describe("frozen vocabulary v1 -> v2", () => {
     const upgraded = new VocabularyDatabase(name)
     try {
       await upgraded.open()
-      expect(upgraded.verno).toBe(4)
+      expect(upgraded.verno).toBe(5)
       expect(await upgraded.notebooks.toArray()).toEqual([notebook])
       expect(await upgraded.notebookCards.toArray()).toEqual([card])
       expect(await upgraded.notebookProgress.toArray()).toEqual([progress])
@@ -118,7 +118,7 @@ describe("frozen vocabulary v1 -> v2", () => {
     const db = new VocabularyDatabase(name)
     try {
       await db.open()
-      expect(db.verno).toBe(4)
+      expect(db.verno).toBe(5)
       expect(await db.reviewEvents.count()).toBe(0)
       const notebooks = await db.notebooks.toArray()
       expect(notebooks).toHaveLength(1)

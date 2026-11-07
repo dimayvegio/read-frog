@@ -9,6 +9,7 @@ interface TranscriptRowProps {
   isActive: boolean
   onSeek: (seconds: number) => void
   activeRowRef?: Ref<HTMLButtonElement>
+  showTranslation?: boolean
 }
 
 export const TranscriptRow = memo(function TranscriptRow({
@@ -16,6 +17,7 @@ export const TranscriptRow = memo(function TranscriptRow({
   isActive,
   onSeek,
   activeRowRef,
+  showTranslation = true,
 }: TranscriptRowProps) {
   return (
     <button
@@ -39,7 +41,7 @@ export const TranscriptRow = memo(function TranscriptRow({
       >
         {line.text}
       </span>
-      {line.translation && (
+      {line.translation && showTranslation && (
         <span
           className={cn(
             "mt-1 block text-[14px] leading-relaxed transition-colors",

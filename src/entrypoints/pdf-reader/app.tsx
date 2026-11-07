@@ -38,6 +38,7 @@ export function PdfReader({ config }: { config: Config }) {
     [status, setStatus] = useState(""),
     [error, setError] = useState("")
   const [selection, setSelection] = useState("")
+  const [selectionPage, setSelectionPage] = useState(1)
   const [shotBusy, setShotBusy] = useState(false)
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
   const [textOptions, setTextOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
@@ -47,6 +48,43 @@ export function PdfReader({ config }: { config: Config }) {
     void current.current?.task.destroy()
     current.current = null
   }
+  useEffect(() => {
+    let stopped = false
+    let remove: (() => void) | undefined
+    void browser.tabs
+      .getCurrent()
+      .then((tab) => {
+        if (stopped || !documentInfo || tab?.id === undefined) return
+        // A non-target reader must not reply: runtime messaging broadcasts to
+        // extension pages and the first reply wins. Keep this listener raw.
+        const listener: Parameters<typeof browser.runtime.onMessage.addListener>[0] = (
+          message,
+          sender,
+          reply,
+        ) => {
+          if (
+            sender.id !== browser.runtime.id ||
+            message?.type !== "goToPdfVocabularySource" ||
+            message.data?.targetTabId !== tab.id ||
+            message.data.documentId !== documentInfo.id ||
+            !Number.isInteger(message.data.page) ||
+            message.data.page < 1 ||
+            message.data.page > documentInfo.count
+          )
+            return false
+          current.current?.viewport?.navigate(message.data.page)
+          reply({ res: true })
+          return false
+        }
+        browser.runtime.onMessage.addListener(listener)
+        remove = () => browser.runtime.onMessage.removeListener(listener)
+      })
+      .catch(() => {})
+    return () => {
+      stopped = true
+      remove?.()
+    }
+  }, [documentInfo])
   const load = async (file: Blob, name: string, source?: PdfReaderSource) => {
     const token = ++version.current
     dispose()
@@ -315,6 +353,12 @@ export function PdfReader({ config }: { config: Config }) {
           tabIndex={0}
           onMouseUp={() => {
             const selected = window.getSelection()
+            setSelectionPage(
+              Number(
+                selected?.anchorNode?.parentElement?.closest<HTMLElement>(".rf-pdf-page")?.dataset
+                  .page,
+              ) || view.page,
+            )
             setSelection(
               selected?.anchorNode &&
                 host.current?.contains(selected.anchorNode) &&
@@ -326,6 +370,12 @@ export function PdfReader({ config }: { config: Config }) {
           }}
           onKeyUp={() => {
             const selected = window.getSelection()
+            setSelectionPage(
+              Number(
+                selected?.anchorNode?.parentElement?.closest<HTMLElement>(".rf-pdf-page")?.dataset
+                  .page,
+              ) || view.page,
+            )
             if (selected?.anchorNode && host.current?.contains(selected.anchorNode))
               setSelection(selected.toString().trim())
           }}
@@ -358,6 +408,11 @@ export function PdfReader({ config }: { config: Config }) {
               tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
               createdAt: Date.now(),
               document: { id: documentInfo.historyId, title: documentInfo.title },
+              source: {
+                kind: "pdf",
+                documentId: documentInfo.id,
+                page: selectionPage,
+              },
             })
             setSelection("")
           }}

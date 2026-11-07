@@ -51,6 +51,7 @@ export function TranslationContent({
             context: vocabularySource?.context ?? selectionContent.slice(0, 1800),
             sourceTitle: vocabularySource?.sourceTitle ?? "",
             sourceUrl: vocabularySource?.sourceUrl ?? "",
+            ...(vocabularySource?.source ? { source: vocabularySource.source } : {}),
           }}
         />
       )}

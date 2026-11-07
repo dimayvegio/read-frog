@@ -16,6 +16,7 @@ import {
   getReviewEvent,
   recordReviewAnswer,
   clearReviewEvents,
+  deleteVocabularySource,
 } from "../utils/vocabulary/db"
 import {
   createReviewReport,
@@ -38,6 +39,7 @@ import {
   type VocabularySaveEvent,
   type VocabularyNotebook,
 } from "../utils/vocabulary/schema"
+import { sourceLink, type VocabularySource } from "../utils/vocabulary/sources"
 import { mountGuidedLearning } from "./guided-learning-view"
 import style from "./style.css?inline"
 
@@ -48,6 +50,8 @@ export interface VocabularyBridge {
     onChunk: (event: VocabularySaveEvent) => void,
   ) => Promise<VocabularySaveEvent>
   htmlUrl: string
+  changed?: () => void
+  openPdfSource?: (documentId: string, page: number) => Promise<boolean>
 }
 const speaker = `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg>`
 const book = `<svg width="25" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 3h14v18l-7-4-7 4V3Z"/><path d="M9 7h6M9 11h6"/></svg>`
@@ -121,10 +125,12 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
   let noticeTimer: ReturnType<typeof setTimeout> | undefined
   let events: ReviewEvent[] = [],
     logDays = 0
+  let sources: VocabularySource[] = []
   const updateEvent = (event: ReviewEvent) => {
     const index = events.findIndex((row) => row.id === event.id)
     if (index < 0) events.push(event)
     else events[index] = event
+    bridge?.changed?.()
   }
   const sessionId = getRandomUUID()
   let attempt: ReviewAttempt | null = null,
@@ -171,6 +177,8 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     events = notebook ? await loadReviewEvents(notebook.id) : []
     selectedNotebookId = notebook?.id
     cards = data.cards
+    sources = data.sources
+    bridge?.changed?.()
     progress = new Map(data.progress.map((p) => [p.cardId, p]))
     if (previous && previous !== notebook?.id) {
       query = ""
@@ -223,16 +231,31 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     }
     return selected
   }
+  const cardSources = (card: VocabularyCard) =>
+    sources
+      .filter((source) => source.cardId === card.id)
+      .sort((a, b) => a.createdAt - b.createdAt || a.id.localeCompare(b.id))
+  const activeSource = (card: VocabularyCard) => {
+    const rows = cardSources(card)
+    return rows.length ? rows[getState(card.id)[mode].reviews % rows.length] : undefined
+  }
+  const sourceDetails = (card: VocabularyCard) => {
+    const rows = cardSources(card)
+    if (!rows.length) return ""
+    return `<details class="source-passages" data-source-card="${card.id}"><summary>Những câu đã gặp (${rows.length})</summary><p class="hint">Lưu chủ động theo từng ngữ cảnh; không phải số lần trả lời đúng. Một câu trùng chỉ lưu một lần.</p><ol>${rows.map((row) => `<li><blockquote>${esc(row.context)}</blockquote>${row.translation ? `<p>${esc(row.translation)}</p>` : ""}<small>${esc(row.title)}${row.locator.page ? ` · Trang ${row.locator.page}` : ""}${row.locator.seconds !== undefined ? ` · ${Math.floor(row.locator.seconds / 60)}:${String(Math.floor(row.locator.seconds % 60)).padStart(2, "0")}` : ""}</small><div>${sourceLink(row) ? `<a href="${esc(sourceLink(row))}" target="_blank" rel="noopener noreferrer">Mở nguồn</a>` : ""}${bridge?.openPdfSource && row.locator.documentId && row.locator.page ? `<button data-action="open-pdf-source" data-source-id="${row.id}">Về trang PDF đang mở</button>` : ""}<button data-action="delete-source" data-source-id="${row.id}">Xóa câu này</button></div></li>`).join("")}</ol></details>`
+  }
   const source = (card: VocabularyCard) => {
-    const url = safeSourceUrl(card.sourceUrl)
-    return card.sourceTitle || url
-      ? `<div class="source">Nguồn: ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(card.sourceTitle || url)}</a>` : esc(card.sourceTitle)}</div>`
+    const active = activeSource(card)
+    const url = active ? sourceLink(active) : safeSourceUrl(card.sourceUrl)
+    const title = active?.title ?? card.sourceTitle
+    return title || url
+      ? `<div class="source">Nguồn: ${url ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(title || url)}</a>` : esc(title)}</div>`
       : ""
   }
   const audioButton = (id: string, label: string) =>
     `<button class="word-button" data-action="audio" data-id="${id}" aria-label="${esc(label)}" title="${esc(label)}">${speaker}</button>`
   const answer = (card: VocabularyCard) =>
-    `<div class="answer"><p class="meaning">${esc(card.meaning)}</p><p>${esc(card.definition)}</p>${card.pronunciationTip ? `<p class="muted">Cách đọc: ${esc(card.pronunciationTip)}</p>` : ""}${card.context ? `<p class="muted">${esc(card.originalTranslation)}</p>` : ""}<div class="example"><div class="example-top"><label>Ví dụ</label>${audioButton(card.audio.example, "Nghe câu ví dụ")}</div><p lang="${esc(card.language)}">${esc(card.example.sentence)}</p><p class="muted">${esc(card.example.translation)}</p></div>${source(card)}</div>`
+    `<div class="answer"><p class="meaning">${esc(card.meaning)}</p><p>${esc(card.definition)}</p>${card.pronunciationTip ? `<p class="muted">Cách đọc: ${esc(card.pronunciationTip)}</p>` : ""}${card.context ? `<p class="muted">${esc(activeSource(card)?.translation ?? card.originalTranslation)}</p>` : ""}<div class="example"><div class="example-top"><label>Ví dụ</label>${audioButton(card.audio.example, "Nghe câu ví dụ")}</div><p lang="${esc(card.language)}">${esc(card.example.sentence)}</p><p class="muted">${esc(card.example.translation)}</p></div>${source(card)}${sourceDetails(card)}</div>`
   const grades = (card: VocabularyCard) =>
     `<div class="grades" aria-label="Mức độ ghi nhớ">${(["again", "hard", "good", "easy"] as Grade[]).map((grade) => `<button data-grade="${grade}" ${answered === false && grade !== "again" ? "disabled" : ""}>${gradeLabels[grade]}<small>${intervalLabel(scheduleReview(getState(card.id)[mode], grade).intervalDays)}</small></button>`).join("")}</div>`
   async function submitAnswer(
@@ -347,7 +370,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       exercise = revealed
         ? `<div role="status" class="feedback ${answered ? "correct" : "wrong"}">${answered ? "Chính xác." : `Đáp án: ${esc(card.word)}`}</div>${answer(card)}${grades(card)}`
         : `<form id="type-form" class="typing"><label for="typed-answer" hidden>Từ hoặc cụm từ</label><input id="typed-answer" placeholder="Gõ đáp án…" autocomplete="off" autocapitalize="off" spellcheck="false" required maxlength="160"><button class="primary" type="submit">Kiểm tra</button></form><button class="quiet next-session" data-action="give-up">Tôi chưa nhớ</button>`
-    return `<div class="study"><div class="study-header"><span>${completed.size ? `Đã ôn ${completed.size} từ` : practice ? "Đang luyện thêm" : "Từng từ, từng ngữ cảnh"}</span><span class="badge">${modeLabels[mode]}</span></div><div class="study-main">${head}${card.context && mode !== "type" ? `<blockquote class="context">${esc(card.context)}</blockquote>` : ""}${exercise}</div><div class="study-footer"><span>Giọng đọc do OpenAI tạo · Phát từ bộ đã lưu</span><label style="margin:0;font-weight:400">Tốc độ <select id="audio-speed" aria-label="Tốc độ nghe">${[0.75, 1, 1.25].map((n) => `<option value="${n}" ${speed === n ? "selected" : ""}>${n}×</option>`).join("")}</select></label></div></div><p class="hint">${mode === "flash" ? "Phím Space để hiện nghĩa; 1–4 để chọn mức độ ghi nhớ." : "Lịch ôn được lưu riêng cho mỗi kiểu học."} ${practice ? "Bạn đang luyện cả các từ chưa đến lịch." : ""}</p>`
+    return `<div class="study"><div class="study-header"><span>${completed.size ? `Đã ôn ${completed.size} từ` : practice ? "Đang luyện thêm" : "Từng từ, từng ngữ cảnh"}</span><span class="badge">${modeLabels[mode]}</span></div><div class="study-main">${head}${card.context && mode !== "type" ? `<blockquote class="context">${esc(activeSource(card)?.context ?? card.context)}</blockquote>` : ""}${exercise}</div><div class="study-footer"><span>Giọng đọc do OpenAI tạo · Phát từ bộ đã lưu</span><label style="margin:0;font-weight:400">Tốc độ <select id="audio-speed" aria-label="Tốc độ nghe">${[0.75, 1, 1.25].map((n) => `<option value="${n}" ${speed === n ? "selected" : ""}>${n}×</option>`).join("")}</select></label></div></div><p class="hint">${mode === "flash" ? "Phím Space để hiện nghĩa; 1–4 để chọn mức độ ghi nhớ." : "Lịch ôn được lưu riêng cho mỗi kiểu học."} ${practice ? "Bạn đang luyện cả các từ chưa đến lịch." : ""}</p>`
   }
   function library() {
     const list = filtered()
@@ -664,6 +687,23 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       showDialog(
         `<form id="generate-form"><h2>Thêm từ bằng OpenAI</h2><p>Tạo nghĩa tiếng Việt, ví dụ và giọng đọc từ cấu hình OpenAI hiện tại của extension.</p><div class="field"><label for="new-word">Từ hoặc cụm từ</label><input id="new-word" required maxlength="160" autocomplete="off"></div><div class="field"><label for="new-context">Câu chứa từ đó</label><textarea id="new-context" maxlength="1800" placeholder="Dán câu gốc để lấy đúng nghĩa…"></textarea></div><p id="generate-status" role="status"></p><div class="dialog-footer"><button type="button" data-action="close">Hủy</button><button class="primary" type="submit">Tạo và lưu</button></div></form>`,
       )
+      return
+    }
+    if (action === "open-pdf-source") {
+      const passage = sources.find((row) => row.id === button.dataset.sourceId)
+      if (passage?.locator.documentId && passage.locator.page && bridge?.openPdfSource) {
+        const opened = await bridge.openPdfSource(passage.locator.documentId, passage.locator.page)
+        if (!opened)
+          notice("Hãy mở lại đúng file trong trình đọc PDF Read Frog trước, rồi bấm về trang.")
+      }
+      return
+    }
+    if (action === "delete-source" && notebook) {
+      await deleteVocabularySource(notebook.id, button.dataset.sourceId!)
+      closeDialog()
+      await refresh()
+      render()
+      notice("Đã xóa câu nguồn. Tiến trình học được giữ nguyên.")
       return
     }
     if (action === "view") {

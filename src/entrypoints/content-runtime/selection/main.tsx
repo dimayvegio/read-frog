@@ -131,5 +131,11 @@ export async function runSelectionContent(ctx: ContentScriptContext) {
 
   await initI18n(config?.uiLanguage)
 
+  const studyAbort = new AbortController()
+  ctx.onInvalidated(() => studyAbort.abort())
+  void import("@/utils/vocabulary/study-highlights").then(({ startStudyHighlights }) => {
+    if (!studyAbort.signal.aborted) startStudyHighlights(document.body, studyAbort.signal)
+  })
+
   void mountSelectionUI(ctx)
 }

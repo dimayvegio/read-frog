@@ -1,5 +1,22 @@
 # Sổ từ vựng và HTML ôn tập
 
+## Nhiều ngữ cảnh và từ đang học: 1.58.0-a.15 / manifest 1.58.0.16
+
+Vocabulary DB **5** chỉ thêm store `sources`; không đổi các migration đã phát
+hành v1–v4. ZIP **v6** thêm `sources.json`/`sourceCount`, đọc v1–v5; report JSON
+**v3** và quy tắc đánh giá giữ nguyên. Khi cập nhật cần thay cả HTML ôn tập.
+
+**Lưu để học → Thêm câu vào từ đã có** cho chọn nghĩa đang lưu, thêm đoạn nguồn,
+trang PDF hoặc mốc video mà không gọi OpenAI/tạo lại audio. Tối đa 20 câu/từ;
+câu trùng giữ bản đầu, không thay lịch ôn hoặc giả lập lượt trả lời. **Xem → Những
+câu đã gặp** mở/xóa nguồn; thẻ lật và điền câu luân phiên nguồn có sẵn. ZIP giữ
+nguồn khi chuyển sổ/thiết bị; HTML vẫn học offline. Không lưu byte/đường dẫn PDF.
+
+Từ trong sổ đang chọn được tô trên web/PDF Read Frog/phụ đề; trạng thái dựa trên
+toàn bộ logs của inventory hiện tại. Bấm mở nghĩa local, không gọi AI tự động.
+Chi tiết giới hạn, luyện câu YouTube, bảng usage và kiểm chứng:
+[STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
+
 ## Luyện nhớ và sổ 1.000 từ: 1.58.0-a.9 / manifest 1.58.0.10
 
 Tiếp tục từ `c46ea0ba`, nhánh `codex/vocabulary-review`; vẫn hiển thị

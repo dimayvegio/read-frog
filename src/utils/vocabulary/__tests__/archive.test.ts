@@ -70,7 +70,7 @@ describe("portable vocabulary archive", () => {
     ).toBe(true)
     expect(bytes.length).toBeLessThan((await createVocabularyZip(original)).length)
     const zip = await JSZip.loadAsync(bytes)
-    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(5)
+    expect(JSON.parse(await zip.file("manifest.json")!.async("string")).version).toBe(6)
     // Re-exporting an imported MP3 does not compound lossy compression.
     expect((await readVocabularyZip(await createCompressedVocabularyZip(result))).audio).toEqual(
       result.audio,
@@ -101,6 +101,8 @@ describe("portable vocabulary archive", () => {
     const manifest = JSON.parse(await zip.file("manifest.json")!.async("string"))
     manifest.version = 1
     delete manifest.reviewCount
+    delete manifest.sourceCount
+    zip.remove("sources.json")
     zip.file("manifest.json", JSON.stringify(manifest))
     await expect(
       readVocabularyZip(await zip.generateAsync({ type: "uint8array" })),

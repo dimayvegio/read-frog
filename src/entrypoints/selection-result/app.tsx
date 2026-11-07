@@ -342,6 +342,7 @@ export function SelectionTranslation({
                   context: sourceText.slice(0, 1800),
                   sourceTitle: request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn",
                   sourceUrl: "",
+                  source: request.source ?? { kind: imageCache ? "image" : "pdf" },
                 }}
               />
               <SelectionToolbarErrorAlert error={error} className="-mt-3" />

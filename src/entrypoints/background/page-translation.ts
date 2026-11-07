@@ -94,7 +94,10 @@ export function setupPageTranslationHandlers(): void {
         text,
         validateHtmlAttributeMarkers,
       )
-      if (cachedTranslation !== undefined) return cachedTranslation
+      if (cachedTranslation !== undefined) {
+        void import("./usage").then(({ recordCacheHit }) => recordCacheHit("page")).catch(() => {})
+        return cachedTranslation
+      }
     }
 
     // The cache lookup above yielded — the session's cancel may have drained

@@ -1,3 +1,5 @@
+import type { SourceLocator } from "@/utils/vocabulary/sources"
+
 export const MAX_NATIVE_SELECTION_LENGTH = 20_000
 export const NATIVE_SELECTION_TTL_MS = 30 * 60 * 1000
 export const NATIVE_SELECTION_STORAGE_PREFIX = "native-selection:"
@@ -9,4 +11,5 @@ export interface NativeSelectionRequest {
   createdAt: number
   tooLong: boolean
   document?: { id: string; title: string }
+  source?: SourceLocator
 }

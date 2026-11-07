@@ -1,9 +1,16 @@
 import { IconArrowDown, IconArrowUp, IconFileText } from "@tabler/icons-react"
+import { useAtomValue } from "jotai"
 import { useRef, useState } from "react"
 import { match } from "ts-pattern"
 import { Button } from "@/components/ui/base-ui/button"
 import { Skeleton } from "@/components/ui/base-ui/skeleton"
 import { i18n } from "@/utils/i18n"
+import {
+  SentenceStudyControls,
+  sentenceStudyEnabledAtom,
+  sentenceHideTranslationAtom,
+  sentenceRevealedAtom,
+} from "../../../../learning/sentence-study"
 import { useSubtitlesUI } from "../../../subtitles-ui-context"
 import { StatusCard } from "../status-card"
 import { TranscriptRow } from "./row"
@@ -47,6 +54,9 @@ function TranscriptSkeleton() {
 export function TranscriptSection() {
   const { seekTo } = useSubtitlesUI()
   const { lines, activeIndex, videoId, query } = useTranscriptLines()
+  const study = useAtomValue(sentenceStudyEnabledAtom),
+    hidden = useAtomValue(sentenceHideTranslationAtom),
+    revealed = useAtomValue(sentenceRevealedAtom)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const [activeRow, setActiveRow] = useState<HTMLButtonElement | null>(null)
@@ -90,6 +100,7 @@ export function TranscriptSection() {
 
   return (
     <div ref={rootRef} className="relative" {...intentProps}>
+      <SentenceStudyControls />
       {!following && activeAbove && (
         <div className="pointer-events-none sticky top-3 z-10 flex h-0 items-start justify-center">
           {backToCurrent}
@@ -103,6 +114,7 @@ export function TranscriptSection() {
             isActive={index === activeIndex}
             activeRowRef={index === activeIndex ? setActiveRow : undefined}
             onSeek={seekTo}
+            showTranslation={!study || !hidden || (revealed && index === activeIndex)}
           />
         ))}
       </div>

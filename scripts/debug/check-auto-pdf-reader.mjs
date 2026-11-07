@@ -3,7 +3,7 @@ import { createHash } from "node:crypto"
 import fs from "node:fs/promises"
 import path from "node:path"
 
-function bookFixture(label, count = 80) {
+export function bookFixture(label, count = 80) {
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "",

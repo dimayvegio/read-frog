@@ -36,6 +36,7 @@ import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { translationMessage } from "./translation-signal"
 import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
+import { setupUsageHandlers } from "./usage"
 import { setupVideoSummaryHandlers } from "./video-summary"
 import { handleVocabularyPort, setupVocabularyHandlers, VOCABULARY_PORT } from "./vocabulary"
 
@@ -93,6 +94,7 @@ export default defineBackground({
     setupSubtitlesTranslationHandlers()
     setupVideoSummaryHandlers()
     setupVocabularyHandlers()
+    setupUsageHandlers()
     setupGlossaryMessageHandlers()
     setupEdgeTTSMessageHandlers()
     setupTTSPlaybackMessageHandlers()

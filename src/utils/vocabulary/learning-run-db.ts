@@ -1,6 +1,6 @@
 import type { ExerciseLog } from "./exercise"
 import type { ReviewEvent } from "./review-log"
-import { vocabularyDB, recordReviewAnswer, putReviewEvent } from "./db"
+import { vocabularyDB, recordReviewAnswer, putReviewEvent, loadVocabularySources } from "./db"
 import {
   createLearningRun,
   currentLearningTask,
@@ -43,7 +43,15 @@ export async function startLearningRun(
   progress: CardProgress[],
   mode: LearningMode,
 ) {
-  const run = createLearningRun(notebookId, cards, events, progress, mode)
+  const run = createLearningRun(
+    notebookId,
+    cards,
+    events,
+    progress,
+    mode,
+    Date.now(),
+    await loadVocabularySources(notebookId),
+  )
   await vocabularyDB.learningRuns.put(run)
   return run
 }

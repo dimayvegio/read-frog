@@ -20,6 +20,7 @@ import {
   notebookSchema,
   type VocabularyBundle,
 } from "./schema"
+import { vocabularySourceSchema, MAX_SOURCES, MAX_SOURCE_BYTES } from "./sources"
 
 const FORMAT = "read-frog-vocabulary"
 interface EntryInfo {
@@ -56,6 +57,12 @@ const manifestSchema = z.discriminatedUnion("version", [
     version: z.literal(5),
     notebook: notebookSchema.optional(),
     reviewCount: z.number().int().min(0).max(MAX_REVIEW_EVENTS),
+  }),
+  manifestV1Schema.extend({
+    version: z.literal(6),
+    notebook: notebookSchema.optional(),
+    reviewCount: z.number().int().min(0).max(MAX_REVIEW_EVENTS),
+    sourceCount: z.number().int().min(0).max(MAX_SOURCES),
   }),
 ])
 
@@ -113,7 +120,7 @@ export function inspectZip(bytes: Uint8Array, metadata?: Map<string, EntryInfo>)
       bytes.subarray(cursor + 46, cursor + 46 + nameLength),
     )
     if (
-      !/^(manifest\.json|vocabulary\.json|progress\.json|reviews\.json|audio\/[a-f0-9]{64}\.(wav|mp3))$/.test(
+      !/^(manifest\.json|vocabulary\.json|progress\.json|reviews\.json|sources\.json|audio\/[a-f0-9]{64}\.(wav|mp3))$/.test(
         name,
       ) ||
       names.has(name)
@@ -202,7 +209,8 @@ export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uin
     "manifest.json",
     JSON.stringify({
       format: FORMAT,
-      version: 5,
+      version: 6,
+      sourceCount: bundle.sources?.length ?? 0,
       reviewCount: bundle.events?.length ?? 0,
       title: bundle.notebook?.name ?? "Từ vựng của tôi",
       exportedAt: Date.now(),
@@ -213,6 +221,7 @@ export async function createVocabularyZip(bundle: VocabularyBundle): Promise<Uin
   zip.file("vocabulary.json", JSON.stringify(bundle.cards))
   zip.file("progress.json", JSON.stringify(bundle.progress))
   zip.file("reviews.json", JSON.stringify(bundle.events ?? []))
+  zip.file("sources.json", JSON.stringify(bundle.sources ?? []))
   const used = new Set(bundle.cards.flatMap((c) => [c.audio.word, c.audio.example]))
   for (const asset of bundle.audio)
     if (used.has(asset.id))
@@ -267,6 +276,22 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
     .max(MAX_CARDS)
     .parse(await read("progress.json"))
   const ids = new Set(cards.map((c) => c.id))
+  const sources =
+    manifest.version >= 6
+      ? z
+          .array(vocabularySourceSchema)
+          .max(MAX_SOURCES)
+          .parse(await read("sources.json"))
+      : []
+  if (
+    (manifest.version < 6 && names.has("sources.json")) ||
+    (manifest.version >= 6 &&
+      (("sourceCount" in manifest ? manifest.sourceCount : -1) !== sources.length ||
+        new Set(sources.map((source) => source.id)).size !== sources.length ||
+        sources.some((source) => !ids.has(source.cardId)) ||
+        new TextEncoder().encode(JSON.stringify(sources)).length > MAX_SOURCE_BYTES))
+  )
+    throw new Error("Câu nguồn bị trùng, quá lớn hoặc sai ID.")
   if (
     ids.size !== cards.length ||
     manifest.cardCount !== cards.length ||
@@ -275,7 +300,7 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
   )
     throw new Error("Dữ liệu hoặc tiến độ bị trùng/sai ID.")
   const audioIds = new Set(cards.flatMap((c) => [c.audio.word, c.audio.example]))
-  if (names.size !== audioIds.size + (manifest.version >= 4 ? 4 : 3))
+  if (names.size !== audioIds.size + (manifest.version >= 6 ? 5 : manifest.version >= 4 ? 4 : 3))
     throw new Error("Số file audio không khớp dữ liệu.")
   for (const card of cards)
     card.acceptedAnswers = validateLearningContent(learningContentFromCard(card)).acceptedAnswers
@@ -295,6 +320,7 @@ export async function readVocabularyZip(bytes: Uint8Array): Promise<VocabularyBu
     progress,
     audio,
     ...(events.length ? { events } : {}),
+    ...(sources.length ? { sources } : {}),
     ...("notebook" in manifest && manifest.notebook ? { notebook: manifest.notebook } : {}),
   }
 }

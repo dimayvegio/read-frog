@@ -5,10 +5,13 @@ import { customActionRequestAtom } from "@/components/custom-action/atoms"
 import { CustomActionPanel } from "@/components/custom-action/custom-action-panel"
 import { ThemeProvider } from "@/components/providers/theme-provider"
 import { SelectionPopover } from "@/components/ui/selection-popover"
+import { SaveVocabularyButton } from "@/components/ui/selection-popover/save-vocabulary-button"
 import { SUBTITLES_BOX_CLASS } from "@/utils/constants/subtitles"
 import { ShadowWrapperContext } from "@/utils/react-shadow-host/create-shadow-host"
+import { STUDY_LABELS } from "@/utils/vocabulary/study-matcher"
 import { subtitlesPositionAtom } from "../atoms"
-import { lookUpAtom, wordLookupAtom } from "./atoms"
+import { useSubtitlesUI } from "../ui/subtitles-ui-context"
+import { lookUpAtom, wordLookupAtom, savedStudyLookupAtom } from "./atoms"
 import { useHoldPlayback } from "./use-hold-playback"
 import { useTopLayerPortalContainer } from "./use-top-layer-portal-container"
 
@@ -41,8 +44,11 @@ function isFromSubtitleWord(event: Event) {
 }
 
 export function WordLookupCard() {
+  const { getVideoPageUrl } = useSubtitlesUI()
   const lookup = useAtomValue(wordLookupAtom)
   const request = useAtomValue(customActionRequestAtom)
+  const saved = useAtomValue(savedStudyLookupAtom)
+  const sessionKey = request?.sessionKey ?? saved?.key
   const lookUp = useSetAtom(lookUpAtom)
   const subtitlesAtBottom = useAtomValue(subtitlesPositionAtom).anchor === "bottom"
   // The subtitles' own shadow root, read before this card provides its own container.
@@ -61,13 +67,13 @@ export function WordLookupCard() {
     mountKey: number
     anchor: SelectionPopoverPosition | null
   }>({ seenSessionKey: 0, mountKey: 0, anchor: null })
-  if (lookup && request && request.sessionKey !== placement.seenSessionKey) {
+  if (lookup && sessionKey && sessionKey !== placement.seenSessionKey) {
     setPlacement(
       pinned
-        ? { ...placement, seenSessionKey: request.sessionKey }
+        ? { ...placement, seenSessionKey: sessionKey }
         : {
-            seenSessionKey: request.sessionKey,
-            mountKey: request.sessionKey,
+            seenSessionKey: sessionKey,
+            mountKey: sessionKey,
             anchor: getWordAnchor(subtitlesRoot ?? document, lookup.index, subtitlesAtBottom),
           },
     )
@@ -99,7 +105,62 @@ export function WordLookupCard() {
           }}
         >
           <SelectionPopover.Content key={placement.mountKey} container={container}>
-            <CustomActionPanel />
+            {saved ? (
+              <>
+                <SelectionPopover.Header>
+                  <strong>Từ trong sổ đang học</strong>
+                  <SelectionPopover.Pin />
+                  <SelectionPopover.Close />
+                </SelectionPopover.Header>
+                <SelectionPopover.Body>
+                  <div className="space-y-3 p-4">
+                    {saved.words.map((word) => (
+                      <div key={word.id}>
+                        <strong>
+                          {word.word} — {word.meaning}
+                        </strong>
+                        <p className="text-sm">
+                          {STUDY_LABELS[word.status]}. {word.reason}
+                        </p>
+                        {word.lastAt && (
+                          <p className="text-xs">
+                            Kiểm tra gần nhất: {new Date(word.lastAt).toLocaleDateString("vi-VN")}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                    <p className="text-sm">{saved.context}</p>
+                    <button
+                      type="button"
+                      className="rounded border px-2 py-1 text-sm"
+                      onClick={() => lookUp(lookup?.index ?? null)}
+                    >
+                      Tra nghĩa mới bằng AI
+                    </button>
+                    <SaveVocabularyButton
+                      capture={{
+                        word: saved.words[0]!.word,
+                        context: saved.context,
+                        sourceTitle: document.title.slice(0, 240),
+                        sourceUrl: getVideoPageUrl() ?? "",
+                        source: {
+                          kind: "video",
+                          seconds: Math.max(0, (lookup?.cueStart ?? 0) / 1000),
+                        },
+                      }}
+                    />
+                  </div>
+                </SelectionPopover.Body>
+              </>
+            ) : (
+              <CustomActionPanel
+                vocabularySource={{
+                  sourceTitle: document.title.slice(0, 240),
+                  sourceUrl: getVideoPageUrl() ?? "",
+                  source: { kind: "video", seconds: Math.max(0, (lookup?.cueStart ?? 0) / 1000) },
+                }}
+              />
+            )}
           </SelectionPopover.Content>
         </SelectionPopover.Root>
       </ThemeProvider>

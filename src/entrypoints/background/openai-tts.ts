@@ -3,10 +3,12 @@ import type { OpenAITTSPayload, TTSAudioChunk, OpenAITTSAudioResult } from "@/ty
 import { z } from "zod"
 import { openAITTSPayloadSchema } from "@/types/openai-tts"
 import { ProviderSetupError } from "@/utils/providers/provider-setup-error"
+import { wavDurationMs, realtimeUsageFields } from "@/utils/usage/audio"
 import { createStartMessageParser, createStreamPortHandler } from "./background-stream"
 import { ensureInitializedConfig } from "./config"
 import { readOpenAIExecutionCredential } from "./openai-credentials"
 import { getTTSRequestSignal } from "./tts-request"
+import { beginUsage } from "./usage"
 
 const MAX_AUDIO_BYTES = 8 * 1024 * 1024
 const TTS_TIMEOUT_MS = 120_000
@@ -115,6 +117,7 @@ async function synthesizeRealtime(
   payload: OpenAITTSPayload,
   key: string,
   signal: AbortSignal,
+  onUsage: (usage: unknown) => void,
 ): Promise<Uint8Array> {
   const { config, text } = payload
   const instructions =
@@ -215,6 +218,7 @@ async function synthesizeRealtime(
         } else if (value.type === "response.done" && requested) {
           if (value.response?.status !== "completed")
             throw new Error("Speech generation did not complete")
+          onUsage(value.response?.usage)
           finish()
         } else if (value.type === "error") {
           const code = value.error?.code
@@ -259,32 +263,42 @@ export async function generateOpenAIAudio(
   const { apiKey } = await readOpenAIExecutionCredential()
   signal.throwIfAborted()
   if (!apiKey) throw new ProviderSetupError("Configure an OpenAI API key in settings")
-  const bytes =
-    payload.config.model === "gpt-4o-mini-tts"
-      ? await readLimitedAudio(
-          await postAudioAPI(
-            "/audio/speech",
-            {
-              model: payload.config.model,
-              voice: payload.config.voice,
-              speed: payload.config.speed,
-              instructions: payload.config.instructions || undefined,
-              input: payload.text,
-              response_format: "wav",
-            },
-            apiKey,
+  const span = await beginUsage("tts", payload.config.model)
+  let reported: ReturnType<typeof realtimeUsageFields> = {}
+  try {
+    const bytes =
+      payload.config.model === "gpt-4o-mini-tts"
+        ? await readLimitedAudio(
+            await postAudioAPI(
+              "/audio/speech",
+              {
+                model: payload.config.model,
+                voice: payload.config.voice,
+                speed: payload.config.speed,
+                instructions: payload.config.instructions || undefined,
+                input: payload.text,
+                response_format: "wav",
+              },
+              apiKey,
+              signal,
+            ),
             signal,
-          ),
-          signal,
-        )
-      : await synthesizeRealtime(payload, apiKey, signal)
-  signal.throwIfAborted()
-  if (
-    String.fromCharCode(...bytes.subarray(0, 4)) !== "RIFF" ||
-    String.fromCharCode(...bytes.subarray(8, 12)) !== "WAVE"
-  )
-    throw new Error("Invalid speech WAV audio")
-  return { audioBase64: asBase64(bytes), contentType: "audio/wav" }
+          )
+        : await synthesizeRealtime(payload, apiKey, signal, (usage) => {
+            reported = realtimeUsageFields(usage)
+          })
+    signal.throwIfAborted()
+    if (
+      String.fromCharCode(...bytes.subarray(0, 4)) !== "RIFF" ||
+      String.fromCharCode(...bytes.subarray(8, 12)) !== "WAVE"
+    )
+      throw new Error("Invalid speech WAV audio")
+    await span.finish("complete", { ...reported, audioMs: wavDurationMs(bytes) })
+    return { audioBase64: asBase64(bytes), contentType: "audio/wav" }
+  } catch (error) {
+    await span.finish(signal.aborted ? "cancelled" : "error")
+    throw error
+  }
 }
 
 export const handleOpenAITTSPort = createStreamPortHandler(

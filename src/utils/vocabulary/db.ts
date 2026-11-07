@@ -27,6 +27,13 @@ import {
   type VocabularyNotebook,
   type NotebookSnapshot,
 } from "./schema"
+import {
+  vocabularySourceSchema,
+  MAX_CARD_SOURCES,
+  MAX_SOURCE_BYTES,
+  MAX_SOURCES,
+  type VocabularySource,
+} from "./sources"
 
 interface StoredNotebook extends VocabularyNotebook {
   nameKey: string
@@ -48,6 +55,7 @@ export class VocabularyDatabase extends Dexie {
   meta!: Table<{ key: string; value: string }, string>
   reviewEvents!: Table<ReviewEvent & { notebookId: string }, [string, string]>
   learningRuns!: Table<LearningRun, string>
+  sources!: Table<VocabularySource & { notebookId: string }, [string, string]>
   constructor(name = "read-frog-vocabulary") {
     super(name)
     this.version(1).stores({
@@ -67,6 +75,8 @@ export class VocabularyDatabase extends Dexie {
     // Existing schedule counters cannot reconstruct historical answer outcomes.
     this.version(3).stores({ reviewEvents: "&[notebookId+id], notebookId, [notebookId+cardId]" })
     this.version(4).stores({ learningRuns: "&notebookId" })
+    // Additive store only. Published v1-v4 definitions and migrations stay frozen.
+    this.version(5).stores({ sources: "&[notebookId+id], notebookId, [notebookId+cardId]" })
   }
 }
 export const vocabularyDB = new VocabularyDatabase()
@@ -92,7 +102,55 @@ const tables = () => [
   vocabularyDB.meta,
   vocabularyDB.reviewEvents,
   vocabularyDB.learningRuns,
+  vocabularyDB.sources,
 ]
+
+export async function loadVocabularySources(notebookId: string): Promise<VocabularySource[]> {
+  return (await vocabularyDB.sources.where("notebookId").equals(notebookId).toArray()).map(
+    ({ notebookId: _notebookId, ...source }) => source,
+  )
+}
+export async function putVocabularySource(notebookId: string, input: VocabularySource) {
+  const source = vocabularySourceSchema.parse(input)
+  if (!(await vocabularyDB.notebookCards.get([notebookId, source.cardId])))
+    throw new Error("Từ này không còn trong sổ.")
+  const old = await vocabularyDB.sources.get([notebookId, source.id])
+  if (old) {
+    if (
+      old.cardId !== source.cardId ||
+      normalizeAnswer(old.context) !== normalizeAnswer(source.context) ||
+      old.url !== source.url ||
+      JSON.stringify(old.locator) !== JSON.stringify(source.locator)
+    )
+      throw new Error("Câu nguồn trùng ID nhưng khác nội dung.")
+    return false
+  }
+  if (
+    (await vocabularyDB.sources
+      .where("[notebookId+cardId]")
+      .equals([notebookId, source.cardId])
+      .count()) >= MAX_CARD_SOURCES
+  )
+    throw new Error("Mỗi từ lưu tối đa 20 câu nguồn. Hãy xóa một câu cũ trước.")
+  await vocabularyDB.sources.put({ ...source, notebookId })
+  return true
+}
+export async function addVocabularySource(
+  notebookId: string,
+  source: VocabularySource,
+  signal?: AbortSignal,
+) {
+  return vocabularyDB.transaction("rw", tables(), async () => {
+    signal?.throwIfAborted()
+    const added = await putVocabularySource(notebookId, source)
+    await assertCapacity(notebookId)
+    signal?.throwIfAborted()
+    return added
+  })
+}
+export async function deleteVocabularySource(notebookId: string, sourceId: string) {
+  await vocabularyDB.sources.delete([notebookId, sourceId])
+}
 
 export async function loadReviewEvents(notebookId: string): Promise<ReviewEvent[]> {
   return (await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).toArray()).map(
@@ -309,16 +367,18 @@ export async function loadLibrary(id?: string) {
     snapshot.notebooks.find((n) => n.id === id) ??
     snapshot.notebooks.find((n) => n.id === snapshot.activeNotebookId) ??
     null
-  if (!notebook) return { ...snapshot, notebook, cards: [], progress: [] }
-  const [cards, progress] = await Promise.all([
+  if (!notebook) return { ...snapshot, notebook, cards: [], progress: [], sources: [] }
+  const [cards, progress, sources] = await Promise.all([
     vocabularyDB.notebookCards.where("notebookId").equals(notebook.id).toArray(),
     vocabularyDB.notebookProgress.where("notebookId").equals(notebook.id).toArray(),
+    loadVocabularySources(notebook.id),
   ])
   return {
     ...snapshot,
     notebook,
     cards: cards.map(publicCard).sort((a, b) => b.createdAt - a.createdAt),
     progress: progress.map(publicProgress),
+    sources,
   }
 }
 export async function findCapturedVocabulary(captureKey: string) {
@@ -350,7 +410,11 @@ async function assertCapacity(notebookId: string) {
   ).length
   const size =
     audio.reduce((n, a) => n + (a?.bytes.length ?? 0), 0) + cardBytes + progressBytes + logBytes
-  if (Math.ceil(size * 1.01) + 4096 + ids.length * 256 > MAX_ARCHIVE_BYTES)
+  const sources = await loadVocabularySources(notebookId)
+  const sourceBytes = encoder.encode(JSON.stringify(sources)).length
+  if (sources.length > MAX_SOURCES) throw new Error("Sổ lưu tối đa 20.000 câu nguồn.")
+  if (sourceBytes > MAX_SOURCE_BYTES) throw new Error("Các câu nguồn trong sổ vượt 4 MiB.")
+  if (Math.ceil((size + sourceBytes) * 1.01) + 4096 + ids.length * 256 > MAX_ARCHIVE_BYTES)
     throw new Error("Sổ đã gần 64 MB. Hãy lưu sang sổ khác.")
 }
 export async function importLibrary(bundle: VocabularyBundle, targetId?: string) {
@@ -383,6 +447,7 @@ export async function importLibrary(bundle: VocabularyBundle, targetId?: string)
       })
     }
     for (const event of bundle.events ?? []) await putReviewEvent(destination, event)
+    for (const source of bundle.sources ?? []) await putVocabularySource(destination, source)
     await assertCapacity(destination)
     await collectUnusedAudio()
     await vocabularyDB.meta.put({ key: "activeNotebookId", value: destination })
@@ -394,16 +459,23 @@ export async function saveGeneratedCard(
   audio: AudioAsset[],
   signal?: AbortSignal,
   id?: string,
+  source?: VocabularySource | null,
 ) {
   const notebookId = await resolveNotebookId(id)
   return vocabularyDB.transaction("rw", tables(), async () => {
     signal?.throwIfAborted()
     await requireNotebook(notebookId)
-    if (await vocabularyDB.notebookCards.get([notebookId, card.id])) return false
+    if (await vocabularyDB.notebookCards.get([notebookId, card.id])) {
+      if (source) await putVocabularySource(notebookId, source)
+      await assertCapacity(notebookId)
+      signal?.throwIfAborted()
+      return false
+    }
     await vocabularyDB.audio.bulkPut(audio)
     signal?.throwIfAborted()
     await vocabularyDB.notebookCards.add({ ...card, notebookId })
     await vocabularyDB.notebookProgress.put({ ...emptyProgress(card.id), notebookId })
+    if (source) await putVocabularySource(notebookId, source)
     await assertCapacity(notebookId)
     signal?.throwIfAborted()
     return true
@@ -424,12 +496,14 @@ export async function exportLibrary(id?: string): Promise<VocabularyBundle> {
     ])
     if (audio.some((a) => !a)) throw new Error("Thiếu audio trong sổ.")
     const events = await loadReviewEvents(notebookId)
+    const sources = await loadVocabularySources(notebookId)
     return {
       notebook,
       cards,
       progress,
       audio: audio as AudioAsset[],
       ...(events.length ? { events } : {}),
+      ...(sources.length ? { sources } : {}),
     }
   })
 }
@@ -499,6 +573,7 @@ export async function deleteVocabularyCard(cardId: string, id?: string) {
   await vocabularyDB.transaction("rw", tables(), async () => {
     await vocabularyDB.notebookCards.delete([notebookId, cardId])
     await vocabularyDB.notebookProgress.delete([notebookId, cardId])
+    await vocabularyDB.sources.where("[notebookId+cardId]").equals([notebookId, cardId]).delete()
     await collectUnusedAudio()
   })
 }
@@ -525,6 +600,11 @@ export async function moveVocabularyCard(cardId: string, fromId: string, toId: s
         await vocabularyDB.reviewEvents.delete([fromId, event.id])
       }
     await resetLogBudget(fromId)
+    for (const source of await loadVocabularySources(fromId))
+      if (source.cardId === cardId) {
+        await putVocabularySource(toId, source)
+        await vocabularyDB.sources.delete([fromId, source.id])
+      }
     await assertCapacity(toId)
     await vocabularyDB.notebookCards.delete([fromId, cardId])
     await vocabularyDB.notebookProgress.delete([fromId, cardId])
@@ -539,6 +619,7 @@ export async function clearVocabularyLibrary(id?: string) {
     await vocabularyDB.reviewEvents.where("notebookId").equals(notebookId).delete()
     await vocabularyDB.meta.delete(`logBudget:${notebookId}`)
     await vocabularyDB.learningRuns.delete(notebookId)
+    await vocabularyDB.sources.where("notebookId").equals(notebookId).delete()
     await collectUnusedAudio()
   })
 }
