@@ -10,14 +10,17 @@ import {
   pronunciationEpoch,
   saveAttempt,
 } from "@/utils/pronunciation/db"
-import { pronunciationInstructions } from "@/utils/pronunciation/prompt"
+import { buildPronunciationInstructions } from "@/utils/pronunciation/prompt"
+import {
+  parsePronunciationFeedback,
+  PronunciationResponseError,
+} from "@/utils/pronunciation/response"
 import {
   captureSchema,
   PRONUNCIATION_MODEL,
   PRONUNCIATION_RUBRIC,
   requestSchema,
   referenceKey,
-  validateFeedback,
   overallScore,
   wordTokens,
   type PronunciationCapture,
@@ -160,7 +163,7 @@ async function execute(
         temperature: 0,
         max_completion_tokens: 4500,
         messages: [
-          { role: "system", content: pronunciationInstructions },
+          { role: "system", content: buildPronunciationInstructions(input.text) },
           {
             role: "user",
             content: [
@@ -204,10 +207,12 @@ async function execute(
     })
     let feedback
     try {
-      feedback = validateFeedback(JSON.parse(parsed.choices[0]!.message.content), input.text)
-    } catch {
+      feedback = parsePronunciationFeedback(parsed.choices[0]!.message.content, input.text)
+    } catch (error) {
       throw practiceError(
-        "Nhận xét AI chưa đúng mẫu hoặc chưa đủ chắc chắn. Chưa ghi điểm; hãy thử lại.",
+        error instanceof PronunciationResponseError
+          ? error.message
+          : "Không đọc được phản hồi chấm phát âm. Chưa ghi điểm. Mã PA-RESPONSE.",
       )
     }
     await stillCurrent(revision, epoch, signal)
@@ -272,7 +277,7 @@ export async function assessPronunciation(
   if (!status.configured) throw practiceError("Cần lưu khóa OpenAI trong cài đặt trước khi chấm.")
   const key = Sha256Hex(
     JSON.stringify([
-      "pronunciation-audio-prompt-v1",
+      "pronunciation-audio-prompt-v2",
       referenceKey(input.text, input.context),
       audio.hash,
       status.revision,

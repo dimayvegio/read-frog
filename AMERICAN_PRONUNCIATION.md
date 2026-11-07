@@ -64,6 +64,29 @@ Im lặng, nhiễu, clipping nghiêm trọng, thiếu chứng cứ, không đún
 điểm và index; JSON sai/thiếu/truncated không được ghi điểm, không tự gọi API
 để sửa JSON. Tín hiệu RMS chỉ giúp chặn im lặng, không phải thuật toán chấm âm.
 
+Từ bản sửa `1.58.0-a.25` / manifest `1.58.0.26` (baseline `f7e4fbb0`), wire
+response v2 xử lý riêng **một từ**: prompt chỉ yêu cầu sounds/stress/accuracy,
+không đòi người dùng đọc cả câu. App sở hữu N/A rhythm/fluency, bỏ điểm/nhận xét
+cấp câu mà model trả thừa, nên không loại toàn bộ kết quả từ đơn vì hai mục đó.
+Stress thiếu dữ liệu hiển thị N/A với lý do, không tự gán trọng âm hay số âm tiết.
+Canonical DB1, rubric/weights và report v1 vẫn giữ nguyên.
+
+Adapter nhận một JSON thuần hoặc một khối mã JSON bao trọn phản hồi, các score
+số/chuỗi số hợp lệ (kể cả `8.5/10`, thập phân tiếng Việt không mơ hồ `8,5`),
+chuyển về number 0–10 và làm tròn 0,5 trên app. Không clamp điểm ngoài thang,
+không đổi phần trăm thành điểm, không quét prose để đoán JSON hoặc gọi sửa bằng
+API. Metadata thừa không được lưu. Với đúng một từ, vị trí bị bỏ trống hoặc
+chỉ số `[1,1]` được quy về từ duy nhất `[0,0]`; không làm vậy cho câu nhiều từ,
+không sửa chỉ số ngoài phạm vi và không bịa từ/nhận xét.
+
+Model báo confidence thấp/retry/lý do chất lượng hoặc không có số cho tiêu chí
+bắt buộc → kết quả **cần thu lại**, mọi điểm null, không giữ findings/strengths
+suy đoán. Lỗi JSON/shape/score/index thật sự có mã **PA-JSON / PA-SHAPE /
+PA-SCORE / PA-WORD**, chỉ kèm tên field an toàn; không trả raw provider output,
+audio hoặc secret trong lỗi. Không còn gộp mọi trường hợp vào thông báo chung
+“sai mẫu hoặc chưa đủ chắc chắn”. Prompt/cache identity v2 tránh dùng lại kết
+quả theo parser cũ; không xóa lịch sử đã có và không phát sinh paid repair call.
+
 ## API, dữ liệu và cancellation
 
 - Model nghe âm thanh **`gpt-audio-1.5`**, độc lập model dịch. Fixed POST
@@ -161,3 +184,34 @@ SHA-256 ZIP: `18efa815436c160221a26b33af9559956cd22dba18d7807c6729262cf83479cb`.
 Cập nhật như trước: giải nén ZIP đè vào **đúng thư mục extension đã Load unpacked**,
 bấm **Reload** trong `edge://extensions`, rồi F5 trang web/PDF. Không gỡ extension
 để giữ ID, key và các dữ liệu trên máy. Tên hiển thị vẫn A, numeric version tăng.
+
+## Báo cáo sửa lỗi từ đơn — 1.58.0.26
+
+- **Đã sửa:** tái hiện trường hợp một từ có số điểm hợp lệ nhưng bị canonical
+  validator loại toàn bộ vì model trả thêm điểm rhythm/fluency. Adapter v2 đặt
+  hai mục này về N/A trước canonical validation; prompt chỉ yêu cầu 3 tiêu chí.
+  Nhận JSON fence/numeric string hợp lệ, half-step rounding, index không mơ hồ
+  của từ duy nhất; tách unscored quality retry khỏi lỗi PA có tên field an toàn.
+  Không thay model/rubric/DB/report, không dùng paid auto-repair.
+- **Đã kiểm thử:** **4.288 test đạt / 1 free API bỏ qua chủ ý**, 35 test nhóm
+  pronunciation/recorder, fmt/lint/type-check. Production Edge `156.0.4314.58`
+  đạt **27** assertion, có từ đơn/fence/string score/index `[1,1]`/thừa tiêu chí
+  câu/low confidence, không tạo call sửa JSON, giữ cache, cancel/clear, báo cáo
+  tải thật, nút Translate/Dictionary và English-only. Evidence
+  `.codex/pronunciation-1794068728760/evidence.json`; screenshot `single-word.png`
+  đã xem. API phản hồi và âm thanh mic trong test đều là fixture, không phải
+  phép đo chất lượng phát âm thực tế.
+- **Chưa kiểm thử:** chưa có raw response từ lượt lỗi của người dùng, không quy
+  kết chắc lượt đó vướng field nào; đã xác nhận/tái hiện nhánh lỗi từ đơn trong
+  code. Chưa gửi bản thu thật của người dùng/API live để hiệu chỉnh điểm.
+- **Bị chặn:** không có blocker triển khai.
+
+ZIP sửa: `ReadFrog-Edge-1.58.0A-Pronunciation-Fix.zip`, **446 file /
+8.988.283 byte** (+2.414 byte so với ZIP F22 đầu), manifest `1.58.0.26` /
+`1.58.0A`. CRC/từng entry khớp build, không key fixture/profile, HTML ôn từ
+giữ nguyên SHA-256 đã nêu. SHA-256 ZIP:
+`efcbfcda40e555489e34f106d5ce8611eae0b2eb589e712a4f1d38e173f9e88c`.
+
+Giải nén vào thư mục extension cũ, Reload extension, F5 trang và đóng/mở lại
+khung Phát âm cũ trước khi thử một từ. Nếu vẫn lỗi định dạng, mã PA và tên field
+hiển thị đủ để báo lỗi tiếp mà không gửi audio/key hoặc raw provider payload.

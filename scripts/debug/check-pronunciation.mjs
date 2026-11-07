@@ -79,6 +79,8 @@ try {
     globalThis.__pronunciationCalls = []
     globalThis.__pronunciationDelay = 0
     globalThis.__pronunciationBad = false
+    globalThis.__pronunciationWordLegacy = false
+    globalThis.__pronunciationQualityLow = false
     globalThis.fetch = async (input, init) => {
       const request = new Request(input, init)
       if (request.url !== "https://api.openai.com/v1/chat/completions") return original(request)
@@ -134,10 +136,23 @@ try {
           "Nối read it nhẹ nhàng, không thêm nguyên âm sau /d/.",
         ],
       }
+      if (word && __pronunciationWordLegacy) {
+        feedback.criteria.rhythm = { score: 8, feedback: "Tiêu chí câu thừa do model trả thêm." }
+        feedback.criteria.fluency = { score: 8, feedback: "Tiêu chí câu thừa do model trả thêm." }
+        feedback.criteria.sounds.score = "8.2/10"
+        feedback.criteria.stress.score = null
+        feedback.findings[0].wordStart = 1
+        feedback.findings[0].wordEnd = 1
+      }
+      if (__pronunciationQualityLow) feedback.confidence = "low"
+      const content =
+        word && __pronunciationWordLegacy
+          ? "```json\n" + JSON.stringify(feedback) + "\n```"
+          : JSON.stringify(feedback)
       return new Response(
         JSON.stringify({
           model: "gpt-audio-1.5",
-          choices: [{ finish_reason: "stop", message: { content: JSON.stringify(feedback) } }],
+          choices: [{ finish_reason: "stop", message: { content } }],
           usage: {
             prompt_tokens: 200,
             completion_tokens: 300,
@@ -374,9 +389,7 @@ try {
     __pronunciationBad = true
   })
   await practice.click("#assess-practice")
-  await practice.waitForFunction(() =>
-    document.body.textContent.includes("Nhận xét AI chưa đúng mẫu"),
-  )
+  await practice.waitForFunction(() => document.body.textContent.includes("PA-WORD"))
   check(
     "Invalid AI word indices yield no grade or fabricated history",
     (await rowCount()) === 2 && !(await practice.$("#practice-feedback")),
@@ -388,6 +401,60 @@ try {
   await clickText(practice, "Xác nhận xóa")
   await practice.waitForFunction(() => document.body.textContent.includes("0 lần chấm duy nhất"))
   check("Explicit history clearing removes attempts and cached feedback", (await rowCount()) === 0)
+  await practice.focus("#practice-text")
+  await practice.keyboard.down("Control")
+  await practice.keyboard.press("A")
+  await practice.keyboard.up("Control")
+  await practice.keyboard.type("read")
+  await worker.evaluate(() => {
+    __pronunciationWordLegacy = true
+  })
+  const beforeWord = await worker.evaluate(() => __pronunciationCalls.length)
+  await record(1100)
+  await practice.click("#assess-practice")
+  await practice.waitForSelector("#practice-feedback")
+  check(
+    "An isolated word survives fenced JSON, numeric-string scores, one-based word index and redundant sentence criteria",
+    (await practice.$eval("#practice-feedback", (node) =>
+      node.querySelector(".score").textContent.includes("8.0"),
+    )) && (await rowCount()) === 1,
+  )
+  check(
+    "Word-only feedback shows sentence rhythm/fluency as N/A and retains actual word correction",
+    (await practice.$eval("#practice-feedback", (node) =>
+      [...node.querySelectorAll(".criteria article")]
+        .filter((a) => /Nhịp và ngữ điệu|Độ trôi chảy/.test(a.textContent))
+        .every((a) => a.textContent.includes("N/A")),
+    )) &&
+      (await practice.$eval("#practice-feedback .finding h4", (node) =>
+        node.textContent.startsWith("read"),
+      )),
+  )
+  check(
+    "Word normalization does not trigger an automatic paid repair call",
+    await worker.evaluate((before) => __pronunciationCalls.length === before + 1, beforeWord),
+  )
+  await practice.screenshot({ path: path.join(scratch, "single-word.png"), fullPage: true })
+  evidence.screenshots.push(path.join(scratch, "single-word.png"))
+  await worker.evaluate(() => {
+    __pronunciationQualityLow = true
+  })
+  await record(1900)
+  await practice.click("#assess-practice")
+  await practice.waitForSelector("#practice-feedback")
+  check(
+    "Low-confidence word audio yields a visible recording retry with no grade rather than a format error",
+    (await practice.$eval(
+      "#practice-feedback",
+      (node) =>
+        node.textContent.includes("Cần thu lại để chấm") &&
+        node.querySelector(".score").textContent.includes("—"),
+    )) && (await rowCount()) === 2,
+  )
+  await worker.evaluate(() => {
+    __pronunciationWordLegacy = false
+    __pronunciationQualityLow = false
+  })
   await practice.close()
   await source.bringToFront()
   await source.reload()

@@ -37,6 +37,11 @@ tiến trình. DB pronunciation v1 riêng, không lưu audio, không sửa SRS/c
 hoặc upload bản shadowing F19. Hợp đồng, giới hạn và regression:
 [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md).
 
+F22 sửa chấm **từ riêng lẻ** ở package `1.58.0-a.25` / manifest `1.58.0.26`
+(baseline `f7e4fbb0`): prompt 3 tiêu chí, adapter response v2 cho N/A/JSON/score,
+giữ unscored retry khi chưa nghe đủ rõ và mã chẩn đoán an toàn riêng cho lỗi
+định dạng. Không đổi model `gpt-audio-1.5`, rubric/DB/report hoặc engine dịch.
+
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
 **Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`

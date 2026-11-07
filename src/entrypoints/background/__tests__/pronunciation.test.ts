@@ -223,3 +223,27 @@ it("records quality retries with no numerical score and refuses absent credentia
   )
   expect(fetch).toHaveBeenCalledTimes(1)
 })
+it("grades a single-word provider response with redundant sentence scores using one paid call", async () => {
+  const result = await assessPronunciation(
+    { ...payload(), text: "read" },
+    new AbortController().signal,
+  )
+  expect(result.attempt.score).toBe(7.5)
+  expect(result.attempt.feedback.criteria.rhythm.score).toBeNull()
+  expect(result.attempt.feedback.criteria.fluency.score).toBeNull()
+  const body = JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)
+  expect(body.messages[0].content).toContain("ONE ISOLATED WORD")
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(await pronunciationDB.attempts.count()).toBe(1)
+})
+it("returns an unscored retry for low-confidence assessed audio instead of the generic format error", async () => {
+  vi.mocked(fetch).mockResolvedValueOnce(response({ ...practiceFeedback(), confidence: "low" }))
+  const result = await assessPronunciation(
+    { ...payload(), text: "read" },
+    new AbortController().signal,
+  )
+  expect(result.attempt.score).toBeNull()
+  expect(result.attempt.feedback.verdict).toBe("retry")
+  expect(result.attempt.feedback.findings).toEqual([])
+  expect(fetch).toHaveBeenCalledTimes(1)
+})

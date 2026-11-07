@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.24` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.25` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.25` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.26` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/pdf-reading-panel`                  |
@@ -46,6 +46,11 @@ Không chuyển F19 sang auto-upload, không dùng điểm phát âm để đổ
 credential/sender/epoch/cancellation/cache guards, pronunciation DB1/report1 và
 regression audio giả lập trên production Edge. Không tuyên bố test mock đã
 xác minh độ chính xác chấm giọng thật.
+
+Từ `1.58.0.26`, giữ adapter response v2 cho từ đơn: chỉ 3 tiêu chí, N/A do app
+sở hữu, normalize JSON/score hữu hạn trước canonical validation, chất lượng
+không đủ vẫn không điểm, mã lỗi PA an toàn và không có paid auto-repair.
+Không quay lại chặn toàn bộ nhận xét chỉ vì model trả rhythm/fluency cho một từ.
 
 Từ build `1.58.0.24`, giữ **F21 — Khung song ngữ HTML** trong
 [HTML_BILINGUAL_READING.md](HTML_BILINGUAL_READING.md): đọc kết quả đã commit
