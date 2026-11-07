@@ -6,6 +6,13 @@ Giữ engine dịch trang, hai chế độ bilingual/translation-only, selection
 annotation, custom actions, streaming, queue, glossary và Microsoft TTS; có thêm
 lựa chọn đọc bằng OpenAI.
 
+Bản source hiện tại là **1.58.0A** (`1.58.0-a.18` / manifest `1.58.0.19`).
+Để nâng cấp upstream tiếp mà giữ tính năng riêng, đọc
+[bảng khác biệt và hợp đồng F01–F18](FORK_DIFFERENCES.md), rồi làm theo
+[quy trình merge và kiểm thử](UPSTREAM_UPGRADE_GUIDE.md). Các tài liệu này
+phân biệt tính năng thêm riêng, thay đổi dịch vụ có chủ ý và phần kế thừa từ
+upstream; có source map, ledger dữ liệu và mẫu báo cáo cho bản nâng cấp sau.
+
 Văn bản dùng OpenAI chính thức tại https://api.openai.com/v1/responses.
 API key được nhập trong Options và lưu vào IndexedDB riêng tại thiết bị;
 config, backup và export thông thường không chứa key. TTS Microsoft hoạt động
@@ -63,7 +70,11 @@ Từ trong sổ đang chọn được tô trên web, PDF Read Frog và phụ đ�
 đã kiểm tra; bấm để xem nghĩa local trước. **Thêm câu vào từ đã có** giữ nhiều
 ngữ cảnh, trang PDF/mốc video mà không tạo lại audio. YouTube → **Learning** có
 **Luyện nghe từng câu**, J/K/L, lặp 1–3 lần, tự dừng và ẩn/hiện bản dịch; mặc định
-tắt. Popup → **Chi phí và tốc độ OpenAI** xem token thật, độ trễ, chi phí ước tính,
+tắt. Bật chế độ này mới dùng OpenAI chia lại CC thành câu; chỉ gửi từng cửa sổ
+quanh vị trí xem, có cache/cancel và nhãn timing ước lượng khi thiếu word timing.
+Câu AI hiện trong khung Learning, track overlay/transcript thường vẫn riêng.
+Khung Learning kéo được cả khung, đổi chiều ngang/dọc từ cạnh/góc, nhớ local,
+có keyboard/reset và đi theo fullscreen. Popup → **Chi phí và tốc độ OpenAI** xem token thật, độ trễ, chi phí ước tính,
 cache và cảnh báo ngân sách trên máy. Xem [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 
 ## Dịch đoạn bôi đen trong PDF trên Edge
@@ -103,8 +114,8 @@ upload file PDF, không cần can thiệp vào canvas/text layer của trình đ
 glossary chung; không áp dụng glossary theo website cho PDF. Vùng chọn tối đa
 20.000 ký tự, lưu tạm trong storage.session, tách khỏi config/export. Dữ liệu được
 xóa khi đóng cửa sổ kết quả hoặc tab nguồn; vùng chọn quá 30 phút không được dùng
-lại và được dọn khi có yêu cầu tiếp theo. PDF scan không có text chưa được hỗ trợ
-OCR.
+lại và được dọn khi có yêu cầu tiếp theo. PDF scan không có text copy được dùng
+**Chụp vùng & dịch ảnh** để OCR phần đã chọn; không tự OCR hoặc upload toàn file.
 
 ## Đọc thành tiếng
 
@@ -153,7 +164,7 @@ giữ mặc định nếu không cần thay đổi transport.
 
 ## Dữ liệu cục bộ
 
-Bootstrap v122 phải hoàn tất trước khi UI cho phép ghi config. Key OpenAI cũ
+Bootstrap theo schema fork hiện tại **124** phải hoàn tất trước khi UI cho phép ghi config. Key OpenAI cũ
 chỉ được tự kích hoạt khi xác định rõ endpoint chính thức. Key proxy hoặc
 không rõ nguồn được giữ riêng và yêu cầu nhập lại. Xóa key tạo tombstone để
 migration retry không khôi phục key đã xóa. Import, restore và reset config

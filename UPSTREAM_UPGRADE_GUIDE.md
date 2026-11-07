@@ -3,6 +3,14 @@
 Tài liệu dành cho người tiếp tục phát triển repo `dimayvegio/read-frog`.
 Không dùng tài liệu này để khôi phục bản upstream đè lên bản local.
 
+Đọc [FORK_DIFFERENCES.md](FORK_DIFFERENCES.md) trước: bảng đối chiếu upstream
+`v1.58.0` với source local `7ccf0ad7`, mã hành vi F01–F18, điểm conflict,
+ledger schema/DB/ZIP và các giới hạn đã xác minh. Tài liệu này hướng dẫn
+**cách merge lần tiếp theo**; các báo cáo/tài liệu chức năng giữ bằng chứng
+chi tiết của từng bản phát hành. Ràng buộc cần bảo toàn là hành vi và dữ liệu;
+chỉ migration/schema/format đã phát hành phải đóng băng, không đóng băng toàn
+bộ implementation để rồi bỏ lỡ bug fix upstream.
+
 ## Quy ước phiên bản và mốc đối chiếu
 
 **Hậu tố A đánh dấu bản local đã tích hợp upstream và giữ các thay đổi riêng.**
@@ -21,6 +29,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | `manifest.version` trong `wxt.config.ts` | `1.58.0.19` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
+| Nhánh local hiện hành                    | `codex/pdf-reading-panel`                  |
+| Mốc source kiểm toán                     | `7ccf0ad7c6ff62a6551485eefe45e852bca087da` |
 
 Không viết chữ A vào `manifest.version`. Khi phát hành bản sửa tiếp theo trên
 cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hiển thị
@@ -178,35 +188,71 @@ Các mốc phát triển riêng giúp rà lại ý định khi có xung đột:
 
 ## Quy trình tích hợp upstream lần sau
 
-1. Đọc `AGENTS.md`, tài liệu này, release notes và yêu cầu mới nhất của người dùng.
+1. Đọc `AGENTS.md`, [FORK_DIFFERENCES.md](FORK_DIFFERENCES.md), tài liệu này,
+   tài liệu của các nhóm F bị ảnh hưởng và yêu cầu mới nhất của người dùng.
    Chạy `git status --short`, `git log -n 10 --oneline`, `git remote -v`.
-   Ghi commit local bắt đầu; giữ nguyên thay đổi chưa commit của người dùng.
-2. Xác minh tag và SHA upstream. Fetch đúng tag phát hành, không lấy `main`
-   đang phát triển thay cho release. Ví dụ:
+   Ghi SHA local bắt đầu và tag upstream cuối đã tích hợp. Giữ thay đổi chưa
+   commit của người dùng; nếu có, cô lập phần nâng cấp trên checkout/worktree
+   phù hợp để không làm mất hoặc gộp thay đổi không liên quan vào bản nâng cấp.
+2. Chuẩn bị dữ liệu để kiểm chứng update: settings export public, ZIP từng sổ
+   từ và logs, trạng thái key đã cấu hình, tên/thư mục/ID extension đang cài.
+   Settings export **không backup key**, và Git không backup các DB của browser.
+   Dùng profile test có sentinel, không trích key thật vào fixture/tài liệu.
+3. Xác minh release notes, tag và SHA upstream do người dùng chọn. Fetch đúng
+   tag, không lấy `main` phát triển thay cho release. Dùng namespace tag riêng
+   để không ghi đè tag đã có. Ví dụ dưới là template, cần thay `<VERSION>`:
 
    ```powershell
-   git fetch --no-tags https://github.com/mengxi-ream/read-frog.git tag v1.59.0
-   git rev-parse v1.59.0
-   git log --oneline v1.58.0..v1.59.0
-   git diff --stat v1.58.0 v1.59.0
+   $forkStart = (git rev-parse HEAD).Trim()
+   $previousUpstream = '48dccd04cfdf8432994608215ccad6db329f952b'
+   $targetTag = 'v<VERSION>'
+   $incomingRef = "refs/tags/upstream/$targetTag"
+   git fetch --no-tags https://github.com/mengxi-ream/read-frog.git "refs/tags/${targetTag}:${incomingRef}"
+   git rev-parse "${incomingRef}^{commit}"
+   git log --oneline "$previousUpstream..$incomingRef"
+   git diff --stat $previousUpstream $incomingRef
+   git diff --name-status $previousUpstream $incomingRef
+   git diff --name-status $previousUpstream $forkStart
    ```
 
-3. Tạo nhánh `codex/upstream-<version>-openai` từ **bản local hiện có**.
-   Merge tag với `git merge --no-commit --no-ff <tag>` để giữ lịch sử và có thể
-   đối chiếu các lần sau. Không reset/rebase bản local lên upstream rồi bỏ
-   các commit riêng; không chọn toàn bộ `--theirs` cho source hay lockfile.
-4. Rà từng xung đột theo bảng tính năng ở trên. Khi upstream sửa đoạn code
-   đã bị fork loại bỏ, giữ lý do loại bỏ: ví dụ bản sửa Google Translate
-   không phải lý do để khôi phục Google provider; bản sửa Notebase không
-   phải lý do để khôi phục note-origin hoặc cloud sync.
-5. Chỉ cập nhật dependency cần cho thay đổi upstream đã nhận. Không lấy
+   Khi chạy lệnh thật, kiểm tra exit code từng bước; dừng nếu fetch/resolve
+   thất bại. Không dùng SHA/table ở ví dụ để khẳng định một release mới chưa
+   kiểm tra. Lần nâng cấp sau nữa phải thay `$previousUpstream` bằng SHA vừa
+   tích hợp và ghi nhận, không luôn giữ baseline1.58.
+
+4. Lập bảng thay đổi upstream theo mẫu ở cuối tài liệu: **nhận nguyên logic /
+   điều chỉnh cho fork / bỏ qua có lý do / chưa port**. Mỗi mục ghi commit,
+   feature/fix, nhóm F, quyết định và test sẽ chạy. Mục Notebase/cloud/provider
+   có thể bỏ phần dịch vụ nhưng vẫn lấy được bug fix parser/DOM chung; nguồn
+   câu local của vocabulary là F14 riêng, không phải dịch vụ Notebase.
+5. Tạo nhánh `codex/upstream-<version>-openai` từ **local mới nhất** đã ghi ở
+   bước1. Merge tag đã xác minh bằng `git merge --no-commit --no-ff <ref>` để
+   giữ ancestry. Không reset/rebase local lên source upstream rồi chép lại
+   vài file. Không chọn toàn bộ `--ours`/`--theirs`, kể cả lockfile: `ours`
+   có thể bỏ mất bug fix mới, `theirs` có thể xóa tính năng riêng.
+6. Giải quyết conflict theo nhóm F và source map, rồi rà cả phần Git tự merge
+   không báo conflict: entrypoint/matches, MAIN bridge, message/port contract,
+   package exports, provider resolution, defaults, i18n, cache identity và
+   compiled assets. Di chuyển file được phép; chỉ tạo một controller/bridge
+   hoạt động. Không chỉ hiện nút để giả hỗ trợ platform hoặc tính năng.
+7. Chỉ cập nhật dependency cần cho thay đổi upstream đã nhận. Không lấy
    nguyên package/lockfile upstream để kéo lại API contract, auth client,
    analytics hay server packages đã gỡ. Không nâng AI SDK đồng thời khi
    không cần thiết. Kiểm tra lại tài nguyên/network của dependency mới.
-6. Làm migration riêng theo phần dưới. Chạy đầy đủ validation, đóng ZIP,
-   rồi mới commit/push. PR nếu có phải dùng conventional commit title.
-7. Cập nhật bảng phiên bản đầu tài liệu và kết quả thực tế của đợt phát hành.
-   Không sửa lịch sử để biến test mock thành test live.
+8. Làm migration theo phần dưới **chỉ khi cần đổi dữ liệu**. Kiểm riêng
+   config124 và transport Edge sync1: schema mới cần reader/writer sync mới,
+   xử lý client cũ, conflict và recovery; không drop field mới để ép vừa124.
+   Giữ lựa chọn model/TTS/auto-start; tính năng AI mới không tự bật sau update.
+9. Chạy validation source và production, rồi kiểm update tại chỗ từ ZIP đang
+   phát hành. Đóng một ZIP và kiểm nội dung, tạo lại HTML ôn từ. Sau khi các
+   kiểm tra cần thiết đạt mới commit/push. Cập nhật mốc upstream/local/version,
+   ma trận F, ledger dữ liệu và báo cáo; PR nếu có dùng conventional title.
+   Ghi rõ phần chưa port/chưa thử; không dùng kết quả cũ hoặc mock làm live.
+
+Nếu phải hủy một merge đang dở, chỉ abort thao tác merge của chính đợt nâng
+cấp; giữ source/artifact cũ và thay đổi của người dùng. Khi đã phát hành schema
+mới, rollback mã nguồn không có nghĩa DB tự downgrade: đánh giá compatibility
+và backup riêng trước khi nạp binary cũ. Không uninstall extension để rollback.
 
 ## Migration: số của fork không còn giống số upstream
 
@@ -225,6 +271,10 @@ Các mốc phát triển riêng giúp rà lại ý định khi có xung đột:
 - Đồng bộ `CONFIG_SCHEMA_VERSION`, registry tự kiểm tra chuỗi liên tục,
   `portable.ts`, giới hạn `BootstrapJournal` trong credential storage và
   version đích của bootstrap. Tên DB `edge-openai-credentials` phải ổn định.
+- Schema124 hiện còn gắn với Edge sync transport1. Nếu lên125+, thêm protocol
+  reader/writer phù hợp và kiểm đồng bộ với client cũ/mới; không sửa reader1
+  để âm thầm lược bỏ dữ liệu. DB vocabulary5/PDF2/image1/usage1/sync1, ZIP6
+  và report3 có version độc lập; xem ledger trong `FORK_DIFFERENCES.md`.
 - Thêm fixture cho schema mới và test upgrade từ schema fork đang dùng,
   cả import/restore cùng version. API key giả/sentinel phải không xuất hiện
   trong config/export, và key riêng đang lưu phải còn nguyên sau update.
@@ -233,10 +283,12 @@ Các mốc phát triển riêng giúp rà lại ý định khi có xung đột:
 
 ## Site adapters và phạm vi mạng
 
-Bản 1.58.0A nhận các adapter mới **Bilibili, Udemy/Udemy Business và edX**,
-ngoài YouTube đang có. Cấu hình cũ có thể vẫn chứa trường X/Netflix để bảo
-toàn dữ liệu; trong bản fork này chúng không được bật trong runtime/menu.
-Không quảng cáo hỗ trợ chỉ vì schema còn một tên platform.
+Bản hiện tại có **YouTube, X/Twitter, Netflix, Bilibili, Udemy/Udemy Business,
+edX và ani.pm**. Bilibili/Udemy/edX nhận từ tag1.58.0; X/Netflix được khôi
+phục từ cùng tag ở `cb6a3cc9`, gồm runtime/menu/bridge. Ghi chú cũ rằng
+X/Netflix chỉ còn trong schema không còn đúng với bản này. ani.pm là adapter
+riêng của fork. Danh sách hỗ trợ cần kiểm cả entrypoint/matches/fetcher/UI,
+không chỉ có tên trong schema; khả năng lấy CC còn tùy video/track/platform.
 
 - Dữ liệu phụ đề lấy từ player/track/API của chính nền tảng đang mở; người
   dùng tự đăng nhập nền tảng nếu video hoặc phụ đề đòi quyền truy cập.
@@ -296,6 +348,41 @@ không dùng key thật của người dùng để chạy test tự động:
 | Font VI             | Trang dùng Georgia; song ngữ và chỉ bản dịch đọc được dấu; tắt dịch trả text và font nguồn                                              |
 | Backup/export       | Không chứa API key; import không phục hồi endpoint/provider/auth bị gỡ                                                                  |
 
+Bổ sung các cửa kiểm tra từ các bản local sau merge1.58 ban đầu:
+
+| Nhóm             | Điều phải chứng minh                                                                                                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| F05–F06 Learning | Mở tab Learning chưa gọi AI; bật mới chia CC, giữ câu ngắn/câu >15 từ và carry; cache/seek/lặp/ad/input/SPA/cancel; kéo/resize/reset/fullscreen/persistence không remount transcript hoặc tự bật AI |
+| F07–F08 Captions | ani.pm thụ động, không đổi disabled-track mode; YouTube hostname guard; X ownership/native track; Netflix MAIN bridge, movie/track identity và restore; Bilibili/Udemy/edX vẫn vào runtime          |
+| F10 PDF.js       | Cùng hash dù đổi tên vẫn resume; chỉ3 canvas; position/history clear epoch; PDF guest-tab selection vào khung hoặc popup fallback, file không copy được dùng capture/OCR                            |
+| F11 Ảnh          | Fast1 request/hai bước2 request/warm0 khi cùng context; crop-only, sender, hủy/clear epoch; custom prompt ghi Chinese nhưng pickerViệt/Anh vẫn gửi đúng đích và không lẫn cache                     |
+| F12–F14 Sổ từ    | UpgradeDB cũ; nhiều sổ/ZIP riêng; nhậpZIP1–6; HTML file/HTTP/mobile; MP3/WAV, IDs, first-answer logs, assisted/SRS/source không đếm trùng; regression1.000 từ/2.000 audio                           |
+| F15 Usage        | Token SDK/cache/cost/unknown-price/latency/clear epoch; không prompt/URL/key hoặc giả số liệu live                                                                                                  |
+| F16 Edge sync    | Chunks-first/head-last, checksum, vector conflict/stale-preview, recovery/undo, quota, trusted sender và cùngID; relay mock phải báo đúng là mock                                                   |
+
+Các browser regression được theo dõi trong repo:
+
+```powershell
+node scripts/debug/check-study-flow.mjs
+node scripts/debug/check-vocabulary.mjs
+node scripts/debug/check-vocabulary-scale.mjs
+$env:PDF_IMAGE_SKIP_BENCHMARK = '1'
+node scripts/debug/check-pdf-reading.mjs
+node scripts/debug/check-edge-settings-sync.mjs
+```
+
+`check-study-flow` gọi cả `check-sidebar-window`; `check-pdf-reading` gọi PDF
+autosave/image/fast regression. Biến skip ở trên chỉ bỏ benchmark latency lịch
+sử, không bỏ kiểm đúng/sai chức năng. Muốn công bố số liệu tốc độ mới thì chạy
+benchmark riêng, ghi môi trường và độ trễ mock/live.
+
+Chuẩn bị môi trường theo skill `extension-puppeteer-debugging`: Edge executable,
+Puppeteer và FFmpeg cho video mẫu; nếu khác máy cũ thì đặt
+`VOCAB_PUPPETEER_MODULE`, `VOCAB_BROWSER`, `STUDY_FFMPEG` theo script. Dependency
+harness trong `.codex/` không được commit, nên checkout mới cần chuẩn bị lại.
+Không coi thiếu môi trường là test đã đạt; không dùng profile/key thật để lấp
+fixture. Các ca yêu cầu tài khoản/video live ghi riêng kết quả thực tế.
+
 Script và bằng chứng trong `.codex/` là scratch của từng máy và không được
 commit/đóng gói. Không dùng chúng làm bước CI duy nhất mà bỏ các test source
 đã liệt kê. Không gọi một tương tác native là đã test khi chỉ seed storage.
@@ -318,6 +405,53 @@ gỡ rồi cài lại hoặc chọn một thư mục mới cho mỗi phiên bả
 có thể đổi origin và làm key/cấu hình cũ không còn thấy được.
 
 Hướng dẫn chính thức: [Microsoft — cập nhật extension cài thủ công](https://learn.microsoft.com/en-us/microsoft-edge/extensions/getting-started/extension-sideloading#locally-updating-an-extension-reload).
+
+## Mẫu báo cáo cho mỗi lần nâng cấp
+
+```markdown
+# Nâng cấp upstream <tag> → local <version>A
+
+- Local bắt đầu: <SHA/branch>; upstream cũ: <tag/SHA>.
+- Upstream mới: <tag/SHA đã xác minh>; merge/source cuối: <SHA/branch>.
+- Package / manifest numeric / version_name: <...>.
+
+| Commit/feature/fix upstream | Nhóm F | Nhận / điều chỉnh / bỏ qua / chưa port | Lý do và test |
+| --------------------------- | ------ | -------------------------------------- | ------------- |
+| ...                         | ...    | ...                                    | ...           |
+
+## Đã sửa
+
+<Chức năng mới/fix đã nhận; cách port các nhóm F bị ảnh hưởng; thay đổi dữ liệu.>
+
+## Đã kiểm thử
+
+<Lệnh/exit code, unit/lint/build, update cùngID, browser/version, fixture hay live.
+Schema/DB/ZIP/transport trước → sau; credential và dữ liệu học giữ nguyên ra sao.>
+
+## Chưa kiểm thử
+
+<Live sites/API/cloud hai máy/thiết bị thật hoặc giới hạn môi trường; không suy diễn.>
+
+## Bị chặn
+
+<Mục chưa port và điều kiện cần; ghi Không nếu không còn blocker triển khai.>
+
+## Bàn giao
+
+<Một ZIP có manifest ở root, byte count/SHA-256/CRC, commit/branch.
+HTML mới nếu cần; cập nhật docs F/guide và hướng dẫn ghi đè cùng thư mục rồi Reload.>
+```
+
+## Nội dung có thể gửi cho agent ở lần sau
+
+> Nâng cấp bản local này lên tag upstream `<tag tôi chọn>`. Đọc AGENTS.md,
+> FORK_DIFFERENCES.md và UPSTREAM_UPGRADE_GUIDE.md trước. Bắt đầu từ nhánh local
+> mới nhất, lập bảng nhận/điều chỉnh/bỏ qua từng nhóm thay đổi upstream và giữ
+> các hành vi F01–F18, dữ liệu và định dạng đã phát hành. Nhận tính năng mới và
+> bug fix phù hợp; chuyển phần dịch vụ về runtime riêng khi cần, không thay
+> toàn bộ source bằng upstream. Kiểm migration/import/export, production và
+> update cùng ID. Cập nhật tài liệu, commit/push nhánh riêng và giao một ZIP;
+> báo rõ đã sửa, đã kiểm thử, chưa kiểm thử và bị chặn.
 
 ## Mẫu bàn giao mỗi lần nâng cấp
 

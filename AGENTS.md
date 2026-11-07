@@ -2,7 +2,7 @@
 
 ## Local Fork Upgrades
 
-- Before integrating an upstream release, read [UPSTREAM_UPGRADE_GUIDE.md](UPSTREAM_UPGRADE_GUIDE.md).
+- Before integrating an upstream release, read [FORK_DIFFERENCES.md](FORK_DIFFERENCES.md) and [UPSTREAM_UPGRADE_GUIDE.md](UPSTREAM_UPGRADE_GUIDE.md). Start from the latest local branch, preserve the F01–F18 behavior/data contracts and record which upstream changes are accepted, adapted, skipped or deferred. Protected behavior does not mean rejecting upstream bug fixes or freezing implementation files; only published migrations/formats are frozen.
 - Preserve the local OpenAI-only runtime, private credentials, PDF selection, Microsoft/OpenAI TTS, Vietnamese typography, and two-minute subtitle buffer.
 - Preserve the fixed PDF panel, conservative text cleanup and document-local history/cache in [PDF_LOCAL_READING.md](PDF_LOCAL_READING.md). Keep user-gesture-safe sidebar opening with popup fallback, path-free provider payloads, configuration/credential-aware cache identities and clear-epoch cancellation; PDF history DB v1 remains separate from credentials and vocabulary.
 - Preserve the extension-owned PDF.js reader and automatic content-hash page/scroll/zoom resume (PDF DB2 additive stores). Native Edge PDF position is not tracked. Keep local worker/assets, file-picker fallback, no document scripting/upload, three nearby canvases, timestamp/epoch guarded saves and the production PDF regression. Published DB1/DB2 schemas remain frozen.
@@ -22,9 +22,9 @@
 
 - Preserve the opt-in YouTube OpenAI listening sentence track in `STUDY_FLOW_AND_USAGE.md`: raw native CC, index-only validated boundaries, short sentences kept separate, no display optimizer, bounded windows with unfinished-tail carry, independent cache identity and abort-on-disable/navigation/CC/ad guards. The normal subtitle translation buffer and optional display segmentation remain independent. Label interpolated timing honestly.
 
-## Testing Notes
-
 - Preserve the movable/resizable learning window in `STUDY_FLOW_AND_USAGE.md`: pointer capture and primary-pointer guards, anchored edge/corner resizing, keyboard/reset, viewport/fullscreen reachability and local-only versioned geometry. Drag updates must not remount the transcript or change subtitle playback/AI opt-in state; clean listeners, capture and animation frames on close.
+
+## Testing Notes
 
 - `src/utils/host/translate/api/__tests__/free-api.test.ts` depends on live external translation services.
 - When running tests locally as an AI agent, set `SKIP_FREE_API=true`.
