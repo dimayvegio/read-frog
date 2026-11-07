@@ -16,7 +16,7 @@ interface SelectionSourceContentProps {
 
 export function SelectionSourceContent({
   text,
-  defaultExpanded = false,
+  defaultExpanded = true,
   emptyPlaceholder,
   separatorClassName,
 }: SelectionSourceContentProps) {

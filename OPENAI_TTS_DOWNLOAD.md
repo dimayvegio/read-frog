@@ -17,6 +17,12 @@ của trình duyệt. Không cần nghe trước. Tối đa 20.000 ký tự mỗ
 có thể bấm lại để hủy. Khi đã mở hộp thoại lưu, dùng Cancel trong hộp thoại.
 Microsoft TTS tiếp tục hoạt động như trước và không hiện nút MP3 OpenAI.
 
+Từ package `1.58.0-a.20` / manifest `1.58.0.21`, phần văn bản gốc trong popup
+Translate và custom action mở rộng mặc định: hiện ngay Copy, loa và Tải MP3
+(nếu chọn OpenAI). Vẫn có thể bấm mũi tên để thu gọn; mở rộng không tự đọc hoặc
+tự tải audio. Giữ mặc định này khi merge upstream, tại
+`src/components/ui/selection-popover/selection-source-content.tsx`.
+
 Audio hoàn tất còn trong cache bộ nhớ của cùng trang được dùng lại theo chính
 xác text/model/voice/speed/style/credential revision. Nếu lượt đọc đang tạo cùng
 chunk, lượt tải chờ kết quả đó. Những đoạn chưa có cần gọi OpenAI và có thể tính

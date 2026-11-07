@@ -22,14 +22,9 @@ describe("selectionSourceContent", () => {
     const { container } = render(<SelectionSourceContent text="use" />)
 
     const paragraph = screen.getByText("use")
-    expect(paragraph).toHaveClass("line-clamp-3")
-
-    // The chevron toggle is the first button rendered inside the source row.
-    const toggle = container.querySelector("button")
-    expect(toggle).not.toBeNull()
-    fireEvent.click(toggle as HTMLButtonElement)
-
     expect(paragraph).not.toHaveClass("line-clamp-3")
+    expect(screen.getByRole("button", { name: "Speak" })).toBeVisible()
+    expect(screen.getByRole("button", { name: "Copy" })).toBeVisible()
 
     const viewport = getViewport(container)
     // `max-h-*` lets the area shrink to a one-word selection; a fixed `h-*`
@@ -42,6 +37,13 @@ describe("selectionSourceContent", () => {
   it("does not constrain the height while collapsed", () => {
     const { container } = render(<SelectionSourceContent text="use" />)
 
+    // Users can still collapse the source controls after opening the translation.
+    const toggle = container.querySelector("button")
+    expect(toggle).not.toBeNull()
+    fireEvent.click(toggle as HTMLButtonElement)
+
     expect(getViewport(container).className).not.toMatch(/max-h-/)
+    expect(screen.getByText("use")).toHaveClass("line-clamp-3")
+    expect(screen.queryByRole("button", { name: "Speak" })).toBeNull()
   })
 })

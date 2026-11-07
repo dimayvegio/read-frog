@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.19` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.20` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.20` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.21` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/pdf-reading-panel`                  |

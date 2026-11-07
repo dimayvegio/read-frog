@@ -16,6 +16,10 @@ trong [OPENAI_TTS_DOWNLOAD.md](OPENAI_TTS_DOWNLOAD.md). Bảng mốc/audit bên 
 vẫn mô tả snapshot `7ccf0ad7`; khi nâng cấp cần bao gồm cả bổ sung này và các
 commit mới hơn trên nhánh hiện hành.
 
+Release `1.58.0-a.20` / manifest `1.58.0.21` tiếp tục F09: popup dịch/custom
+action mở rộng phần văn bản gốc mặc định để hiện ngay Copy, loa và MP3; người
+dùng vẫn thu gọn được. Không tự phát hoặc tải audio chỉ vì mở popup.
+
 | Mục                       | Giá trị                                                        |
 | ------------------------- | -------------------------------------------------------------- |
 | Repo gốc                  | `https://github.com/mengxi-ream/read-frog.git`                 |
