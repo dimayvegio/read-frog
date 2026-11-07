@@ -81,3 +81,16 @@ it("automatically stops after sixty seconds and recovers when permission is deni
   media.mockRejectedValueOnce(new Error("denied"))
   await expect(recorder.start()).rejects.toThrow(/Cho phép micro/)
 })
+it("allows pronunciation practice to stop at thirty seconds without changing shadowing's default", async () => {
+  vi.useFakeTimers()
+  const stop = vi.fn<() => void>()
+  vi.stubGlobal("navigator", {
+    mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop }] }) },
+  })
+  const recorder = new ShadowRecorder(() => {}, 30000),
+    pending = recorder.start()
+  await Promise.resolve()
+  await vi.advanceTimersByTimeAsync(30000)
+  expect(await pending).not.toBeNull()
+  expect(stop).toHaveBeenCalled()
+})

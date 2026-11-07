@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/base-ui/scroll-area"
 import { Separator } from "@/components/ui/base-ui/separator"
 import { cn } from "@/utils/styles/utils"
 import { CopyButton } from "./copy-button"
+import { PronunciationButton } from "./pronunciation-button"
 import { SpeakButton } from "./speak-button"
 
 interface SelectionSourceContentProps {
@@ -12,6 +13,7 @@ interface SelectionSourceContentProps {
   defaultExpanded?: boolean
   emptyPlaceholder?: string
   separatorClassName?: string
+  pronunciation?: { context?: string }
 }
 
 export function SelectionSourceContent({
@@ -19,6 +21,7 @@ export function SelectionSourceContent({
   defaultExpanded = true,
   emptyPlaceholder,
   separatorClassName,
+  pronunciation,
 }: SelectionSourceContentProps) {
   const [actionsExpanded, setActionsExpanded] = useState(defaultExpanded)
   const displayText = text || emptyPlaceholder || ""
@@ -55,9 +58,10 @@ export function SelectionSourceContent({
           </Button>
         </div>
         <Activity mode={actionsExpanded ? "visible" : "hidden"}>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <CopyButton text={text ?? undefined} />
             <SpeakButton text={text ?? undefined} />
+            {pronunciation && <PronunciationButton text={text} context={pronunciation.context} />}
           </div>
         </Activity>
       </div>

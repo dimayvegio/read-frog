@@ -78,6 +78,9 @@ export const DEFAULT_PRICES: UsagePrice[] = [
 ]
 export function estimateUsage(entry: UsageEntry, price?: UsagePrice): number | null {
   if (entry.status === "cache") return 0
+  // Audio-input Chat Completions mixes text/audio tokens; existing DB1 prices
+  // have no modality breakdown. Never apply a text tariff to these totals.
+  if (entry.model.startsWith("gpt-audio")) return null
   if (!price) return null
   if (entry.task === "tts")
     return price.audioMinute !== null && entry.audioMs !== null

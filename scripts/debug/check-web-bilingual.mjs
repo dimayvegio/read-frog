@@ -65,6 +65,10 @@ try {
     const { config } = await chrome.storage.local.get("config")
     config.language.sourceCode = "eng"
     config.language.targetCode = "vie"
+    // Establish the speech provider before mounting content UI. A raw fixture
+    // storage write later can race automatic page-language configuration writes.
+    config.tts.provider = "openai"
+    config.tts.openai.model = "gpt-4o-mini-tts"
     config.pageTranslation.mode = "bilingual"
     config.pageTranslation.page.range = "all"
     config.pageTranslation.enableAIContentAware = false

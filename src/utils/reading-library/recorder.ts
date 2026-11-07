@@ -8,7 +8,10 @@ export class ShadowRecorder {
   private stream: MediaStream | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
   private discard = false
-  constructor(private readonly onState: (state: "idle" | "requesting" | "recording") => void) {}
+  constructor(
+    private readonly onState: (state: "idle" | "requesting" | "recording") => void,
+    private readonly maxDurationMs = 60000,
+  ) {}
   stop(discard = false) {
     this.discard = discard
     if (this.recorder && this.recorder.state !== "inactive") this.recorder.stop()
@@ -100,7 +103,7 @@ export class ShadowRecorder {
         }
         recorder.start(500)
         this.onState("recording")
-        this.timer = setTimeout(() => this.stop(), 60000)
+        this.timer = setTimeout(() => this.stop(), this.maxDurationMs)
       })
     } catch (error) {
       stream.getTracks().forEach((track) => track.stop())

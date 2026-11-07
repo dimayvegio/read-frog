@@ -30,6 +30,13 @@ controls TTS/MP3/thư viện cho đoạn đang chọn. Giữ weak bounded metada
 source/parent/route/restore guards và regression:
 [HTML_BILINGUAL_READING.md](HTML_BILINGUAL_READING.md).
 
+**F22 — Luyện phát âm Mỹ:** release `1.58.0-a.24` / manifest `1.58.0.25`, trên
+baseline `117c7d85`. Translate/Dictionary mở khung thu/nghe/chấm explicit bằng
+OpenAI audio; rubric cố định, điểm 0–10 bước 0,5, lỗi/cách sửa/thử lại và báo cáo
+tiến trình. DB pronunciation v1 riêng, không lưu audio, không sửa SRS/config sync
+hoặc upload bản shadowing F19. Hợp đồng, giới hạn và regression:
+[AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md).
+
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
 **Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`

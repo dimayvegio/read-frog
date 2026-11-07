@@ -101,6 +101,7 @@ export function CustomActionPanel({
       </SelectionPopover.Header>
       <SelectionPopover.Body key={`${request.sessionKey}:${request.selectionText}`} ref={bodyRef}>
         <CustomActionContent
+          contextText={request?.contextText}
           action={action}
           status={status}
           selection={cleanSelection}

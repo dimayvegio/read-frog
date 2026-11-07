@@ -8,6 +8,7 @@ import { CustomActionLayoutView } from "@/components/layout-host/custom-action-l
 import { ThemeContext } from "@/components/providers/theme-provider"
 import { Thinking } from "@/components/thinking"
 import { SelectionSourceContent } from "@/components/ui/selection-popover/selection-source-content"
+import { BUILT_IN_DICTIONARY_ACTION_ID } from "@/utils/constants/custom-action"
 import { i18n } from "@/utils/i18n"
 import { resolveActionLayout } from "@/utils/layout-host/resolve"
 
@@ -21,6 +22,7 @@ interface CustomActionContentProps {
   selectionContent: string | null | undefined
   value: Record<string, unknown> | null
   thinking: ThinkingSnapshot | null
+  contextText?: string
 }
 
 export function CustomActionContent({
@@ -31,6 +33,7 @@ export function CustomActionContent({
   selectionContent,
   value,
   thinking,
+  contextText,
 }: CustomActionContentProps) {
   // The selection content script always renders inside ThemeProvider; the
   // light fallback only covers harnesses that mount the popover without it.
@@ -51,6 +54,9 @@ export function CustomActionContent({
         text={selectionContent}
         emptyPlaceholder="—"
         separatorClassName="mb-4"
+        pronunciation={
+          action?.id === BUILT_IN_DICTIONARY_ACTION_ID ? { context: contextText } : undefined
+        }
       />
 
       <div className="space-y-4">

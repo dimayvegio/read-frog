@@ -5,6 +5,11 @@ Tính năng riêng **F19**, từ package `1.58.0-a.21`, manifest numeric
 `codex/pdf-reading-panel`; giữ nguyên các hợp đồng F01–F18. Đây là ba phần người
 dùng đã duyệt: nghe nguồn → dịch, lưu đoạn đọc và tự thu giọng để đối chiếu.
 
+Từ build `1.58.0.25` có luồng **F22 — Luyện phát âm Mỹ** riêng ở Translate/
+Dictionary: [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md). Chỉ nút chấm
+trong khung đó gửi bản thu mới tới OpenAI. Bản shadowing trong F19 vẫn local,
+không bị upload hoặc tự chuyển thành điểm khi mở thư viện.
+
 ## Cách mở và sử dụng
 
 Bôi đen trên web/PDF/ảnh → Translate → **Luyện nghe / Lưu đoạn**. Khung kết quả

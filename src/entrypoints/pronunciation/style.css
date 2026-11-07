@@ -1,0 +1,237 @@
+.pronunciation-app {
+  max-width: 860px;
+  margin: auto;
+  padding: 28px 24px 60px;
+  font:
+    15px/1.65 system-ui,
+    sans-serif;
+  overflow-wrap: anywhere;
+  color: #20332f;
+  background: #f7f9f6;
+  min-height: 100vh;
+}
+.dark .pronunciation-app {
+  color: #e1eae5;
+  background: #121a17;
+}
+body:has(.pronunciation-app) {
+  margin: 0;
+  background: #f7f9f6;
+}
+.dark body:has(.pronunciation-app) {
+  background: #121a17;
+}
+.pronunciation-app header,
+.pronunciation-app .actions,
+.pronunciation-app .score-heading,
+.pronunciation-app .criteria article > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.pronunciation-app .actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin: 14px 0;
+}
+.pronunciation-app h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  margin: 5px 0;
+}
+.pronunciation-app h2 {
+  font-size: 19px;
+  margin: 0 0 12px;
+}
+.pronunciation-app h3 {
+  font-size: 16px;
+  margin: 18px 0 6px;
+}
+.pronunciation-app h4 {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 8px;
+}
+.pronunciation-app p {
+  margin: 8px 0;
+}
+.pronunciation-app small {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.pronunciation-app header small {
+  font-weight: 650;
+  color: #267557;
+}
+.pronunciation-app section {
+  border: 1px solid #d9e3dc;
+  border-radius: 16px;
+  padding: 22px;
+  margin: 20px 0;
+  background: white;
+}
+.dark .pronunciation-app section {
+  border-color: #35463c;
+  background: #1b2520;
+}
+.pronunciation-app label {
+  display: block;
+  font-weight: 600;
+}
+.pronunciation-app textarea,
+.pronunciation-app select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid #a7bbae;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 7px 0;
+  resize: vertical;
+  min-width: 0;
+}
+.pronunciation-app select {
+  max-width: 100%;
+}
+.dark .pronunciation-app option {
+  background: #1b2520;
+}
+.pronunciation-app button {
+  font: inherit;
+  line-height: 1.35;
+  padding: 9px 13px;
+  border-radius: 8px;
+  border: 1px solid #b9cdc0;
+  background: #f3f8f4;
+  color: #214a38;
+  cursor: pointer;
+  max-width: 100%;
+}
+.dark .pronunciation-app button {
+  color: #e1eae5;
+  background: #253d30;
+  border-color: #4b6554;
+}
+.pronunciation-app button:hover:enabled {
+  filter: brightness(0.94);
+}
+.pronunciation-app button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.pronunciation-app button.primary {
+  background: #226c4e;
+  border-color: #226c4e;
+  color: white;
+}
+.pronunciation-app button.danger {
+  color: #b33830;
+}
+.pronunciation-app :focus-visible {
+  outline: 3px solid #54a986;
+  outline-offset: 3px;
+}
+.pronunciation-app .muted {
+  color: #5b6f63;
+  font-size: 13px;
+}
+.dark .pronunciation-app .muted {
+  color: #aec0b3;
+}
+.pronunciation-app .validation {
+  color: #a04a18;
+  font-size: 13px;
+}
+.pronunciation-app .notice {
+  padding: 12px;
+  border-radius: 8px;
+  background: #edf4ee;
+  color: #275c40;
+}
+.dark .pronunciation-app .notice {
+  background: #253c30;
+  color: #c0dfca;
+}
+.pronunciation-app audio {
+  width: 100%;
+  margin-top: 12px;
+}
+.pronunciation-app details {
+  margin: 12px 0;
+}
+.pronunciation-app summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.pronunciation-app ul,
+.pronunciation-app ol {
+  padding-left: 22px;
+}
+.pronunciation-app li {
+  margin-bottom: 7px;
+}
+.pronunciation-app .score {
+  font-size: 38px;
+  color: #267557;
+  white-space: nowrap;
+}
+.pronunciation-app .score small {
+  font-size: 14px;
+}
+.pronunciation-app .criteria article {
+  padding: 12px 0;
+  border-bottom: 1px solid #d9e3dc;
+}
+.dark .pronunciation-app .criteria article {
+  border-color: #35463c;
+}
+.pronunciation-app .criteria h3 {
+  margin: 0;
+}
+.pronunciation-app .criteria p {
+  font-size: 14px;
+}
+.pronunciation-app .finding {
+  border-left: 3px solid #d7ae64;
+  padding: 10px 14px;
+  background: #faf8f2;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+}
+.dark .pronunciation-app .finding {
+  background: #2b2b22;
+}
+.pronunciation-app a {
+  color: #267557;
+  text-decoration: underline;
+}
+.dark .pronunciation-app a {
+  color: #9ed4b6;
+}
+.pronunciation-app .attempt-list {
+  list-style: none;
+  padding: 0;
+}
+@media (max-width: 540px) {
+  .pronunciation-app {
+    padding: 20px 12px 40px;
+  }
+  .pronunciation-app section {
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .pronunciation-app h1 {
+    font-size: 24px;
+  }
+  .pronunciation-app .actions button {
+    flex-grow: 1;
+  }
+  .pronunciation-app .score {
+    font-size: 32px;
+  }
+}

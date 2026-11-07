@@ -242,7 +242,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
-class BackgroundStreamError extends Error {
+export class BackgroundStreamError extends Error {
   constructor(
     readonly code: string,
     message: string,
