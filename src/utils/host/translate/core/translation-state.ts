@@ -1,5 +1,6 @@
 import { MARK_ATTRIBUTES } from "../../../constants/dom-labels"
 import { isTranslatedWrapperNode } from "../../dom/filter"
+import { webBilingualPairs } from "../web-bilingual-pairs"
 
 export interface TextSplitRecord {
   source: Text
@@ -380,6 +381,7 @@ export function rebindBilingualTranslationState(
   state: BilingualTranslationState,
   layoutSource: HTMLElement,
 ): void {
+  webBilingualPairs.rebind(state.layoutSource, layoutSource)
   if (bilingualTranslationsBySource.get(state.layoutSource) === state) {
     bilingualTranslationsBySource.delete(state.layoutSource)
   }

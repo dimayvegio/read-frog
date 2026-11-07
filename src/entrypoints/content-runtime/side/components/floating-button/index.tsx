@@ -1,5 +1,5 @@
 import type { FloatingButtonSide } from "@/types/config/floating-button"
-import { IconLock, IconLockOpen, IconSettings, IconX } from "@tabler/icons-react"
+import { IconColumns2, IconLock, IconLockOpen, IconSettings, IconX } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
@@ -18,7 +18,7 @@ import { i18n } from "@/utils/i18n"
 import { sendMessage } from "@/utils/message"
 import { cn } from "@/utils/styles/utils"
 import { urlMatchesPattern } from "@/utils/url-pattern"
-import { enablePageTranslationAtom, isDraggingButtonAtom } from "../../atoms"
+import { enablePageTranslationAtom, isDraggingButtonAtom, webBilingualOpenAtom } from "../../atoms"
 import { shadowWrapper } from "../../main"
 import HiddenButton from "./components/hidden-button"
 import TranslateButton from "./translate-button"
@@ -122,6 +122,7 @@ function getNormalizedFloatingContainerTop(mainButtonTop: number, mainOffsetY: n
 export default function FloatingButton() {
   const [floatingButton, setFloatingButton] = useAtom(configFieldsAtomMap.floatingButton)
   const translationState = useAtomValue(enablePageTranslationAtom)
+  const [, setWebBilingualOpen] = useAtom(webBilingualOpenAtom)
   const [isDraggingButton, setIsDraggingButton] = useAtom(isDraggingButtonAtom)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isHitAreaExpanded, setIsHitAreaExpanded] = useState(false)
@@ -428,6 +429,15 @@ export default function FloatingButton() {
           </>
         )}
       </div>
+      {!isDraggingButton && (
+        <HiddenButton
+          side={floatingButtonSide}
+          expanded={isFloatingButtonExpanded}
+          icon={<IconColumns2 className="h-5 w-5" />}
+          label="Khung song ngữ HTML"
+          onClick={() => setWebBilingualOpen(true)}
+        />
+      )}
       {!isDraggingButton && (
         <HiddenButton
           side={floatingButtonSide}

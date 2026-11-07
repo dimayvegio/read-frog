@@ -77,6 +77,15 @@ Khung Learning kéo được cả khung, đổi chiều ngang/dọc từ cạnh/
 có keyboard/reset và đi theo fullscreen. Popup → **Chi phí và tốc độ OpenAI** xem token thật, độ trễ, chi phí ước tính,
 cache và cảnh báo ngân sách trên máy. Xem [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 
+## Song ngữ theo đoạn trên trang HTML
+
+Trên trang báo **HTML**, bấm **Khung song ngữ HTML** trong popup hoặc biểu
+tượng hai cột cạnh logo nổi, rồi dùng **Translate page** như bình thường.
+Khung hiển thị cặp gốc/dịch theo đoạn, highlight/cuộn liên kết và Copy/TTS/
+MP3/Lưu đoạn cho đoạn đang chọn. Mở khung sau khi dịch không tạo lượt dịch
+thứ hai. Có chừa chỗ trên màn hình rộng, thu gọn và đóng. Xem hợp đồng
+[HTML_BILINGUAL_READING.md](HTML_BILINGUAL_READING.md) để bảo toàn khi merge.
+
 ## Dịch đoạn bôi đen trong PDF trên Edge
 
 Popup có **Chụp vùng & dịch ảnh**: chụp → kéo chọn vùng → **Đọc chữ và dịch**.

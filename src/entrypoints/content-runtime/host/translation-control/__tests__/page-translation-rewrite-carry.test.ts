@@ -15,6 +15,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { CONTENT_WRAPPER_CLASS } from "@/utils/constants/dom-labels"
+import { webBilingualPairs } from "@/utils/host/translate/web-bilingual-pairs"
 import { PageTranslationManager } from "../page-translation"
 
 const {
@@ -136,6 +137,8 @@ describe("identical rewrite of a translated subtree (real pipeline)", () => {
     try {
       const oldFirst = article.firstElementChild
       const wrappers = [...article.querySelectorAll(`.${CONTENT_WRAPPER_CLASS}`)]
+      const pairs = webBilingualPairs.getSnapshot().rows.map((row) => row.id)
+      expect(pairs).toHaveLength(2)
       expect(mockTranslateTextForPage).toHaveBeenCalledTimes(2)
 
       // React 19 re-applying the same dangerouslySetInnerHTML.
@@ -152,6 +155,8 @@ describe("identical rewrite of a translated subtree (real pipeline)", () => {
       const carried = [...article.querySelectorAll(`.${CONTENT_WRAPPER_CLASS}`)]
       expect(carried).toHaveLength(wrappers.length)
       carried.forEach((wrapper, index) => expect(wrapper).toBe(wrappers[index]))
+      webBilingualPairs.prune()
+      expect(webBilingualPairs.getSnapshot().rows.map((row) => row.id)).toEqual(pairs)
       expect(translationsIn(article)).toEqual([
         "译文：The package does not create new regimes.",
         "译文：The amendment now moves to the European Parliament.",

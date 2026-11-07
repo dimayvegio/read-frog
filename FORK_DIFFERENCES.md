@@ -22,6 +22,14 @@ Giữ không gọi provider khi mở/cuộn/cache miss, hủy khi chuyển trang
 giới hạn tài nguyên. Hợp đồng, source và regression:
 [PDF_BILINGUAL_READING.md](PDF_BILINGUAL_READING.md).
 
+**F21 — Khung song ngữ HTML cùng Translate page:** release `1.58.0-a.23` /
+manifest `1.58.0.24`, trên baseline `c7f863f7`. Khung main-frame đọc các cặp
+do engine commit ở cả bilingual và translation-only; không dịch lần hai,
+không thêm cache/DB. Có highlight/cuộn liên kết, reserve/minimize/close và
+controls TTS/MP3/thư viện cho đoạn đang chọn. Giữ weak bounded metadata,
+source/parent/route/restore guards và regression:
+[HTML_BILINGUAL_READING.md](HTML_BILINGUAL_READING.md).
+
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
 **Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`

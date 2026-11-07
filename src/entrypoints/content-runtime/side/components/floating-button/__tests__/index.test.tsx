@@ -53,6 +53,7 @@ vi.mock("../../../atoms", () => ({
   enablePageTranslationAtom: atom({ enabled: false }),
   isDraggingButtonAtom: atom(false),
   isSideOpenAtom: atom(false),
+  webBilingualOpenAtom: atom(false),
 }))
 
 vi.mock("../../../main", () => ({
@@ -459,7 +460,7 @@ describe("floatingButton controls", () => {
     renderFloatingButton()
 
     const mainButton = getMainButton()
-    expect(screen.getAllByRole("button")).toHaveLength(4)
+    expect(screen.getAllByRole("button")).toHaveLength(5)
 
     fireEvent.pointerDown(mainButton, {
       pointerId: 1,

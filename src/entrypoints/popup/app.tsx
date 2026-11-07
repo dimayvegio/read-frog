@@ -17,6 +17,7 @@ import TranslateButton from "./components/translate-button"
 import TranslatePromptSelector from "./components/translate-prompt-selector"
 import { TranslationHubButton } from "./components/translation-hub-button"
 import TranslationModeSelector from "./components/translation-mode-selector"
+import { WebBilingualButton } from "./components/web-bilingual-button"
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
             <TranslateButton className="min-w-0 flex-1" />
           </div>
           <SiteControlToggle />
+          <WebBilingualButton />
           <AlwaysTranslate />
           <Hotkey />
           <AISmartContext />

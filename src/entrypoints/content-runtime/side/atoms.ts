@@ -4,6 +4,7 @@ import { createTranslationStateAtomForContentScript } from "@/utils/atoms/transl
 export const store = createStore()
 
 export const isSideOpenAtom = atom(false)
+export const webBilingualOpenAtom = atom(false)
 
 export const isDraggingButtonAtom = atom(false)
 

@@ -26,7 +26,7 @@ interface TranslationInsertionContext {
   // and a site rewrite landing in the await window would be canonized as the
   // expected content. Not fired on the no-append early return, so stray empty
   // wrappers never enter tamper surveillance.
-  onContentInserted?: (wrapper: HTMLElement) => void
+  onContentInserted?: (wrapper: HTMLElement, content: HTMLElement) => void
   /**
    * Fills the translated span. Defaults to a single text node; bilingual
    * paragraphs with inline atoms (formulas) pass a renderer that rebuilds the
@@ -200,7 +200,7 @@ export async function insertTranslatedNodeIntoWrapper(
   }
   translatedWrapperNode.appendChild(translatedNode)
   // Synchronous, pre-await: see TranslationInsertionContext.onContentInserted.
-  onContentInserted?.(translatedWrapperNode)
+  onContentInserted?.(translatedWrapperNode, translatedNode)
   await decorateTranslationNode(translatedNode, translationNodeStyle)
 
   if (isCurrent && !isCurrent()) return

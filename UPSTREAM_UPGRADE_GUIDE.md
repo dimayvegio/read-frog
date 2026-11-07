@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.22` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.23` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.23` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.24` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/pdf-reading-panel`                  |
@@ -38,6 +38,14 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.24`, giữ **F21 — Khung song ngữ HTML** trong
+[HTML_BILINGUAL_READING.md](HTML_BILINGUAL_READING.md): đọc kết quả đã commit
+ở cả hai mode của engine, không tạo translator/queue/cache thứ hai. Giữ
+capture trước request, weak/bounded metadata, source/parent validity,
+route/restore epochs, main-frame isolated UI và cleanup khi đóng/thu gọn.
+Nhận fix upstream cho engine đồng thời điều chỉnh các hook sau commit;
+không bỏ guards của virtual/swap/fallback để UI dễ tích hợp. Không đổi schema.
 
 Từ build `1.58.0.23`, có thêm **F20 — PDF song ngữ theo đoạn** trong
 [PDF_BILINGUAL_READING.md](PDF_BILINGUAL_READING.md). Giữ hai khung, overlay
@@ -466,7 +474,7 @@ HTML mới nếu cần; cập nhật docs F/guide và hướng dẫn ghi đè c�
 > Nâng cấp bản local này lên tag upstream `<tag tôi chọn>`. Đọc AGENTS.md,
 > FORK_DIFFERENCES.md và UPSTREAM_UPGRADE_GUIDE.md trước. Bắt đầu từ nhánh local
 > mới nhất, lập bảng nhận/điều chỉnh/bỏ qua từng nhóm thay đổi upstream và giữ
-> các hành vi F01–F20, dữ liệu và định dạng đã phát hành. Nhận tính năng mới và
+> các hành vi F01–F21, dữ liệu và định dạng đã phát hành. Nhận tính năng mới và
 > bug fix phù hợp; chuyển phần dịch vụ về runtime riêng khi cần, không thay
 > toàn bộ source bằng upstream. Kiểm migration/import/export, production và
 > update cùng ID. Cập nhật tài liệu, commit/push nhánh riêng và giao một ZIP;

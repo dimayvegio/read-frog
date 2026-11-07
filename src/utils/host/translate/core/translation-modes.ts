@@ -60,6 +60,7 @@ import {
 import { translateTextForPage } from "../translate-variants"
 import { setTranslationDirAndLang } from "../translation-attributes"
 import { createSpinnerInside, getTranslatedTextAndRemoveSpinner } from "../ui/spinner"
+import { webBilingualPairs } from "../web-bilingual-pairs"
 import {
   createPageTranslationRequest,
   getDisplayTranslation,
@@ -131,6 +132,7 @@ async function translateVirtualParagraph(
   forceRetranslation: boolean = false,
 ): Promise<void> {
   const { unit, wrapper } = entry
+  const webCapture = webBilingualPairs.capture([], unit.text)
   const isCurrent = () => isVirtualParagraphGroupCurrent(group, wrapper)
   if (!isCurrent()) return
 
@@ -168,7 +170,15 @@ async function translateVirtualParagraph(
 
   await insertTranslatedNodeIntoWrapper(
     wrapper,
-    { isCurrent, layoutSource: group.layoutSource, sourceText: unit.text },
+    {
+      isCurrent,
+      layoutSource: group.layoutSource,
+      sourceText: unit.text,
+      onContentInserted: (_, content) =>
+        webBilingualPairs.commit(webCapture, content, wrapper, content.textContent ?? "", config, {
+          virtual: true,
+        }),
+    },
     translatedText,
     config.pageTranslation.translationNodeStyle,
     config,
@@ -487,6 +497,7 @@ export async function translateNodesBilingualMode(
       return
     }
 
+    const webCapture = webBilingualPairs.capture(transNodes)
     const ownerDoc = getOwnerDocument(insertionTarget)
     const { spinner, wrapper: translatedWrapperNode } = createBilingualWrapper(
       ownerDoc,
@@ -586,8 +597,15 @@ export async function translateNodesBilingualMode(
         // Wrapper-content integrity snapshot (#1918): armed synchronously at
         // append time so a site rewrite landing during the decorate await can
         // never be canonized as the expected content.
-        onContentInserted: (wrapper) => {
+        onContentInserted: (wrapper, content) => {
           if (bilingualState) bilingualState.wrapperTextContent = wrapper.textContent
+          webBilingualPairs.commit(
+            webCapture,
+            content,
+            layoutSource,
+            content.textContent ?? "",
+            config,
+          )
         },
         // Inline atoms are cloned into the translated span at their
         // placeholder positions; the tokenized text also stands in for the
@@ -998,6 +1016,7 @@ async function translateTranslationOnlyRun(
     // it to detect host mutations that happened while the request was in
     // flight (never swap over content the host has since rewritten).
     const sourceSnapshot = snapshotSourceTextNodes(transNodes)
+    const webCapture = webBilingualPairs.capture(transNodes)
 
     const translatedWrapperNode = ownerDoc.createElement("span")
     translatedWrapperNode.className = `${NOTRANSLATE_CLASS} ${CONTENT_WRAPPER_CLASS}`
@@ -1067,6 +1086,14 @@ async function translateTranslationOnlyRun(
           config,
           getTranslationOnlyAnchorState,
         )
+        webBilingualPairs.commit(
+          webCapture,
+          transNodes[0]!,
+          transNodes[0]!,
+          webCapture.texts.map((node) => node.data).join(""),
+          config,
+          { swapped: true },
+        )
       })
       return
     }
@@ -1088,6 +1115,14 @@ async function translateTranslationOnlyRun(
 
       registerTranslationOnlyOriginals(translatedWrapperNode, allChildNodes)
       allChildNodes.forEach((childNode) => childNode.remove())
+      webBilingualPairs.commit(
+        webCapture,
+        translatedWrapperNode,
+        translatedWrapperNode,
+        translatedWrapperNode.textContent ?? "",
+        config,
+        { detachedSource: true },
+      )
       // The wrapper now owns this run; kept swap records (restore-first
       // retranslation) would reference displaced nodes and read as
       // permanently stale — drop them.

@@ -36,6 +36,7 @@ import {
   unregisterVirtualParagraphWrapper,
 } from "../core/translation-state"
 import { cancelSpinnerAnimation } from "../ui/spinner"
+import { webBilingualPairs } from "../web-bilingual-pairs"
 
 export function removeShadowHostInTranslatedWrapper(wrapper: HTMLElement): void {
   // Remove React shadow hosts (for error components)
@@ -406,6 +407,7 @@ export function removeTranslatedWrapperWithRestore(wrapper: HTMLElement): ChildN
 }
 
 export function removeAllTranslatedWrapperNodes(root: Document | ShadowRoot = document): void {
+  webBilingualPairs.clear(root)
   const isInsideRoot = (source: HTMLElement) =>
     root.nodeType === Node.DOCUMENT_NODE
       ? source.ownerDocument === root && source.isConnected
