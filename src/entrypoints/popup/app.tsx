@@ -71,6 +71,14 @@ function App() {
           <button
             type="button"
             className="text-left text-[13px] underline"
+            data-open-pronunciation
+            onClick={() => void sendMessage("openPronunciation", undefined)}
+          >
+            Phát âm
+          </button>
+          <button
+            type="button"
+            className="text-left text-[13px] underline"
             onClick={() => void sendMessage("openSettingsSync", undefined)}
           >
             Đồng bộ cấu hình Edge

@@ -44,7 +44,7 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
-  openPronunciation: (data: PronunciationCapture) => void
+  openPronunciation: (data?: PronunciationCapture) => void
   consumePronunciationCapture: (data: { channel: string }) => PronunciationCapture | null
   clearPronunciationHistory: () => number
   openWebBilingualPanel: () => boolean

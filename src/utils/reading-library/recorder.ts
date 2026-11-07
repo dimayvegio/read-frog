@@ -1,5 +1,12 @@
 import { readingAssetId, validateReadingAsset } from "./db"
 import { MAX_READING_ASSET, type ReadingAsset } from "./schema"
+import { monitorRecordingSilence } from "./silence"
+
+interface RecordingOptions {
+  stopOnSilence?: boolean
+  onSilenceStop?: () => void
+  onSilenceUnavailable?: () => void
+}
 
 /** Microphone access is only requested by start(). Pending permissions are fenced by a generation. */
 export class ShadowRecorder {
@@ -8,11 +15,14 @@ export class ShadowRecorder {
   private stream: MediaStream | null = null
   private timer: ReturnType<typeof setTimeout> | null = null
   private discard = false
+  private stopSilenceMonitor: (() => void) | null = null
   constructor(
     private readonly onState: (state: "idle" | "requesting" | "recording") => void,
     private readonly maxDurationMs = 60000,
   ) {}
   stop(discard = false) {
+    this.stopSilenceMonitor?.()
+    this.stopSilenceMonitor = null
     this.discard = discard
     if (this.recorder && this.recorder.state !== "inactive") this.recorder.stop()
     else {
@@ -24,7 +34,7 @@ export class ShadowRecorder {
     if (this.timer) clearTimeout(this.timer)
     this.timer = null
   }
-  async start(): Promise<ReadingAsset | null> {
+  async start(options: RecordingOptions = {}): Promise<ReadingAsset | null> {
     this.stop(true)
     const generation = ++this.generation
     this.discard = false
@@ -55,6 +65,8 @@ export class ShadowRecorder {
         const cleanup = () => {
           stream.getTracks().forEach((track) => track.stop())
           if (this.recorder === recorder) {
+            this.stopSilenceMonitor?.()
+            this.stopSilenceMonitor = null
             this.recorder = null
             this.stream = null
             if (this.timer) clearTimeout(this.timer)
@@ -104,10 +116,34 @@ export class ShadowRecorder {
         recorder.start(500)
         this.onState("recording")
         this.timer = setTimeout(() => this.stop(), this.maxDurationMs)
+        if (options.stopOnSilence)
+          this.stopSilenceMonitor = monitorRecordingSilence(
+            stream,
+            () => {
+              if (
+                generation !== this.generation ||
+                this.recorder !== recorder ||
+                recorder.state !== "recording"
+              )
+                return
+              this.stop()
+              options.onSilenceStop?.()
+            },
+            () => {
+              if (
+                generation === this.generation &&
+                this.recorder === recorder &&
+                recorder.state === "recording"
+              )
+                options.onSilenceUnavailable?.()
+            },
+          )
       })
     } catch (error) {
       stream.getTracks().forEach((track) => track.stop())
       if (generation === this.generation) {
+        this.stopSilenceMonitor?.()
+        this.stopSilenceMonitor = null
         this.recorder = null
         this.stream = null
         this.onState("idle")

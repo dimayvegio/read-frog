@@ -13,7 +13,7 @@ const { default: puppeteer } = await import(
 const scratch = path.resolve(`.codex/pronunciation-${Date.now()}`),
   downloads = path.join(scratch, "downloads")
 await fs.mkdir(downloads, { recursive: true })
-const wav = Buffer.alloc(44 + 16000 * 2 * 5)
+const wav = Buffer.alloc(44 + 16000 * 2 * 6)
 wav.write("RIFF")
 wav.writeUInt32LE(wav.length - 8, 4)
 wav.write("WAVEfmt ", 8)
@@ -26,7 +26,7 @@ wav.writeUInt16LE(2, 32)
 wav.writeUInt16LE(16, 34)
 wav.write("data", 36)
 wav.writeUInt32LE(wav.length - 44, 40)
-for (let i = 0; i < 16000 * 5; i++)
+for (let i = 0; i < 16000 * 2.8; i++)
   wav.writeInt16LE(Math.round(Math.sin((2 * Math.PI * 440 * i) / 16000) * 6000), 44 + i * 2)
 const audioFile = path.join(scratch, "synthetic-microphone.wav")
 await fs.writeFile(audioFile, wav)
@@ -206,9 +206,30 @@ try {
       t.url().startsWith(base + "pronunciation.html?"),
     ),
     practice = await target.asPage()
+  check(
+    "The contextual Phát âm action opens a normal tab in the original browser window",
+    await worker.evaluate(
+      async ({ sourceURL, practiceURL }) => {
+        const tabs = await chrome.tabs.query({}),
+          from = tabs.find((t) => t.url === sourceURL),
+          to = tabs.find((t) => t.url === practiceURL)
+        return (
+          !!from &&
+          !!to &&
+          from.windowId === to.windowId &&
+          (await chrome.windows.get(to.windowId)).type === "normal"
+        )
+      },
+      { sourceURL: source.url(), practiceURL: target.url() },
+    ),
+  )
   practice.on("pageerror", (e) => errors.push(e.message))
   await practice.bringToFront()
   await practice.waitForSelector("#practice-text:not([disabled])")
+  check(
+    "End-of-speech automatic stopping is enabled and optional",
+    await practice.$eval("#auto-stop-recording", (node) => node.checked),
+  )
   check(
     "Practice opens through the real source button with opaque one-use capture",
     (await practice.$eval("#practice-text", (node) => node.value === "read it again")) &&
@@ -455,6 +476,37 @@ try {
     __pronunciationWordLegacy = false
     __pronunciationQualityLow = false
   })
+  const beforeAuto = await worker.evaluate(() => __pronunciationCalls.length)
+  await practice.click("#record-practice")
+  await practice.waitForFunction(() =>
+    document.querySelector("#record-practice").textContent.includes("Dừng thu"),
+  )
+  await practice.waitForSelector("#assess-practice:not([disabled])", { timeout: 15000 })
+  check(
+    "The real microphone/MediaRecorder auto-stops after tone then trailing silence and keeps playable audio",
+    await practice.evaluate(
+      () =>
+        document.querySelector(".notice")?.textContent.includes("Đã tự dừng") &&
+        !!document.querySelector("audio")?.src &&
+        __tracks.every((track) => track.readyState === "ended"),
+    ),
+  )
+  check(
+    "Silence stopping never submits or uploads the recording",
+    await worker.evaluate((count) => __pronunciationCalls.length === count, beforeAuto),
+  )
+  await practice.click("#auto-stop-recording")
+  await practice.click("#record-practice")
+  await practice.waitForFunction(() =>
+    document.querySelector("#record-practice").textContent.includes("Dừng thu"),
+  )
+  await pause(6000)
+  check(
+    "Turning automatic stop off preserves manual recording through the silent tail",
+    await practice.$eval("#record-practice", (node) => node.textContent.includes("Dừng thu")),
+  )
+  await practice.click("#record-practice")
+  await practice.waitForSelector("#assess-practice:not([disabled])")
   await practice.close()
   await source.bringToFront()
   await source.reload()
@@ -494,6 +546,103 @@ try {
   check(
     "A Chinese selection in an English page hides the pronunciation action",
     !(await source.$("body >>> [data-pronunciation]")),
+  )
+  const popup = await browser.newPage()
+  await source.bringToFront()
+  await popup.goto(base + "popup.html")
+  await popup.waitForSelector("[data-open-pronunciation]")
+  await popup.$eval("[data-open-pronunciation]", (node) => node.click())
+  const blank = await (
+    await browser.waitForTarget((t) => t.url() === base + "pronunciation.html")
+  ).asPage()
+  blank.on("pageerror", (e) => errors.push(e.message))
+  await blank.waitForSelector("#practice-text:not([disabled])")
+  check(
+    "The extension menu launches a regular standalone Phát âm page with no required selection",
+    (await blank.$eval("#practice-text", (node) => node.value === "")) &&
+      (await worker.evaluate(async (url) => {
+        const tab = (await chrome.tabs.query({})).find((t) => t.url === url)
+        return !!tab && (await chrome.windows.get(tab.windowId)).type === "normal"
+      }, blank.url())),
+  )
+  await blank.waitForSelector('[aria-label="Đoạn đã luyện"]')
+  const prior = await blank.$eval(
+    '[aria-label="Đoạn đã luyện"]',
+    (node) => [...node.options].find((o) => o.value)?.value,
+  )
+  await blank.select('[aria-label="Đoạn đã luyện"]', prior)
+  check(
+    "The standalone page retains history and resumes an existing word without an API call",
+    (await blank.$eval("#practice-text", (node) => node.value === "read")) &&
+      (await worker.evaluate((count) => __pronunciationCalls.length === count, beforeAuto)),
+  )
+  await blank.evaluate(() => {
+    globalThis.__blankTracks = []
+    const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const stream = await original(constraints)
+      __blankTracks.push(...stream.getTracks())
+      return stream
+    }
+  })
+  await blank.click("#record-practice")
+  await blank.waitForFunction(() =>
+    document.querySelector("#record-practice").textContent.includes("Dừng thu"),
+  )
+  await blank.evaluate(() => window.dispatchEvent(new PageTransitionEvent("pagehide")))
+  await blank.waitForSelector("#auto-stop-recording:not([disabled])")
+  check(
+    "Page-close cleanup stops active microphone tracks and discards the take",
+    await blank.evaluate(
+      () =>
+        __blankTracks.length > 0 &&
+        __blankTracks.every((track) => track.readyState === "ended") &&
+        !document.querySelector("audio"),
+    ),
+  )
+  await blank.close()
+  check("The tab launcher and silence monitor introduce no UI/runtime errors", errors.length === 0)
+  const legacyURL = await worker.evaluate(async (extensionBase) => {
+    const channel = crypto.randomUUID(),
+      url = extensionBase + "selection-result.html?selectionId=" + channel
+    await chrome.storage.session.set({
+      ["native-selection:" + channel]: {
+        id: crypto.randomUUID(),
+        text: "read it again",
+        tooLong: false,
+        createdAt: Date.now(),
+      },
+    })
+    await chrome.windows.create({ url, type: "popup", width: 480, height: 600 })
+    return url
+  }, base)
+  const legacy = await (await browser.waitForTarget((t) => t.url() === legacyURL)).asPage()
+  await legacy.waitForSelector("[data-pronunciation]")
+  const known = (await browser.pages()).map((p) => p.url())
+  await legacy.$eval("[data-pronunciation]", (node) => node.click())
+  const fromPDF = await (
+    await browser.waitForTarget(
+      (t) => t.url().startsWith(base + "pronunciation.html?") && !known.includes(t.url()),
+    )
+  ).asPage()
+  await fromPDF.waitForSelector("#practice-text:not([disabled])")
+  check(
+    "A native PDF selection popup also opens practice in a normal browser tab",
+    (await fromPDF.$eval("#practice-text", (node) => node.value === "read it again")) &&
+      (await worker.evaluate(
+        async ({ practiceURL, sourcePopupURL }) => {
+          const tabs = await chrome.tabs.query({}),
+            to = tabs.find((t) => t.url === practiceURL),
+            from = tabs.find((t) => t.url === sourcePopupURL)
+          return (
+            !!to &&
+            !!from &&
+            to.windowId !== from.windowId &&
+            (await chrome.windows.get(to.windowId)).type === "normal"
+          )
+        },
+        { practiceURL: fromPDF.url(), sourcePopupURL: legacyURL },
+      )),
   )
   evidence.errors = errors
 } catch (error) {

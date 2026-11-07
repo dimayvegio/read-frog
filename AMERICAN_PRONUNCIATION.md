@@ -12,9 +12,12 @@ nên cũng có nút này khi nhận diện tiếng Anh. Nút ẩn với văn b�
 hoặc chưa đủ căn cứ; nhận diện trên máy bằng chữ/từ thông dụng và franc, dùng
 ngữ cảnh thực của đoạn chọn cho từ ngắn, không gọi API chỉ để hiện nút. Từ quá
 ngắn/mơ hồ chưa xác định được có thể cần chọn cả câu tiếng Anh. Không coi mọi chữ
-Latin là tiếng Anh. Khung riêng của extension tránh yêu cầu quyền micro của site
-đang đọc; có thể di chuyển/resize như cửa sổ Edge thông thường. Nếu không mở được
-popup, mở tab dự phòng. Không tự ghim always-on-top của Windows.
+Latin là tiếng Anh. Từ `1.58.0.27`, Phát âm mở thành **tab bình thường** trong
+cửa sổ Edge thường, giống trang Chi phí và tốc độ OpenAI. Giữ cửa sổ nguồn khi
+đó là cửa sổ thường; từ popup dịch PDF, chuyển sang cửa sổ thường đã mở hoặc
+tạo cửa sổ thường khi không còn cửa sổ phù hợp. Menu
+extension cũng có **Phát âm** để mở trang trống, dán tiếng Anh hoặc chọn Đoạn
+đã luyện. Trang sở hữu bởi extension xin quyền micro riêng và giữ lịch sử cũ.
 
 1. Kiểm tra/sửa từ hoặc câu; đoạn dài có danh sách chọn câu trên máy. Tối đa
    80 token từ / 1.200 ký tự, bản thu mục tiêu tối đa 30 giây. Dấu gạch nối có
@@ -25,6 +28,9 @@ popup, mở tab dự phòng. Không tự ghim always-on-top của Windows.
    đặt chung và không gọi TTS khi mở khung.
 3. **Thu âm** xin quyền micro theo thao tác; **Dừng thu** để nghe lại. Mẫu/âm thanh
    đang nghe được dừng trước khi thu. Âm thanh chưa gửi tới OpenAI ở bước này.
+   **Tự dừng khi nói xong** bật mặc định trên trang: sau khi đã nhận được tiếng
+   nói và có khoảng **1,5 giây im lặng**, kết thúc bản thu để nghe lại. Có thể
+   bỏ chọn để chỉ dùng Dừng thủ công; tùy chọn khóa trong lượt thu hiện tại.
 4. **Chấm phát âm** mới gửi bản thu WAV, câu và ngữ cảnh tới OpenAI, có phí API.
    Xem điểm từng tiêu chí, nhận xét, lỗi nghe được, cách sửa và 1–3 mục tiêu lần sau.
    **Thử lại cùng đoạn** thu mới; các lần trước nằm ở lịch sử.
@@ -88,6 +94,36 @@ audio hoặc secret trong lỗi. Không còn gộp mọi trường hợp vào th
 quả theo parser cũ; không xóa lịch sử đã có và không phát sinh paid repair call.
 
 ## API, dữ liệu và cancellation
+
+### Trang Phát âm và tự dừng — 1.58.0.27
+
+Package `1.58.0-a.26`, baseline `54b4e74b`. RPC mở trang nhận capture optional:
+có capture → channel một lần như cũ; không có → tab trống, không đưa câu vào URL.
+Tab giữ cửa sổ nguồn khi sender có windowId của cửa sổ thường; từ popup PDF
+dùng normal window phù hợp, không gắn tab vào cửa sổ không có tab strip.
+Không còn normal window thì tạo type normal. Mở lỗi thì xóa channel tạm.
+Menu launcher không yêu cầu phải bôi đen từ; contextual button vẫn English-only.
+Mỗi thao tác mở một tab riêng để giữ nguyên lượt thu/chấm đang có ở tab trước.
+
+Tự dừng là **phân tích mức âm thanh tại máy**, không gọi ASR/VAD/model từ xa,
+không nhận biết ngữ nghĩa “đã nói xong”. Web Audio tạo một analyser graph trên
+chính MediaStream đang thu, không xin stream thứ hai hay nối micro ra loa.
+RMS poll 40 ms, hoạt động đủ khoảng 80 ms mới kích hoạt gate; initial silence
+không dừng sớm, khoảng nghỉ ngắn hơn 1,5 giây không kết thúc câu. Ngưỡng hoạt
+động/quiet có hysteresis; âm nền liên tục hoặc nói quá khẽ có thể cần Dừng tay.
+Giới hạn 30 giây vẫn giữ nguyên. Timer background có thể khiến dừng muộn hơn.
+
+Auto-stop giữ bản thu trên máy để nghe lại, **không tự chấm/upload**. Có thể
+bỏ chọn; lựa chọn ở phạm vi trang đang mở. Nếu Web Audio không khả dụng, báo
+dùng Dừng thủ công và tiếp tục thu với giới hạn thời gian. Stop/cancel/error/
+pagehide dọn interval, disconnect analyser/source, đóng AudioContext và dừng
+mic tracks; generation guard chặn callback/resume đến muộn. Recorder F19 mặc
+định vẫn 60 giây, không bật detector trừ khi caller opt-in.
+
+DB1/report1/canonical feedback v1, response adapter v2, cache identity, model,
+private credential boundary và cơ chế chấm do người dùng bấm giữ nguyên.
+
+### Luồng API và lưu trữ
 
 - Model nghe âm thanh **`gpt-audio-1.5`**, độc lập model dịch. Fixed POST
   `https://api.openai.com/v1/chat/completions`, `modalities:["text"]`, `store:false`,
@@ -215,3 +251,34 @@ giữ nguyên SHA-256 đã nêu. SHA-256 ZIP:
 Giải nén vào thư mục extension cũ, Reload extension, F5 trang và đóng/mở lại
 khung Phát âm cũ trước khi thử một từ. Nếu vẫn lỗi định dạng, mã PA và tên field
 hiển thị đủ để báo lỗi tiếp mà không gửi audio/key hoặc raw provider payload.
+
+## Báo cáo tab và tự dừng — 1.58.0.27
+
+- **Đã sửa:** tab Phát âm thường, launcher trong menu cạnh trang Chi phí và tốc
+  độ OpenAI, mở từ web/Dictionary/PDF popup vào normal browser, giữ capture/
+  history. Tự dừng local sau khi nói rồi im lặng khoảng 1,5 giây; có thể tắt,
+  giữ Dừng tay/cap 30 giây, không auto-submit, dọn graph/mic/timer khi đóng.
+  F19 vẫn mặc định manual/cap 60 giây; không đổi DB/rubric/response v2/model.
+- **Đã kiểm thử:** **4.297 test đạt, 1 free API bỏ qua chủ ý**, fmt/lint/type-check;
+  unit gồm initial silence/short impulse, ngắt nghỉ trong câu, phát âm tiếp,
+  cleanup/pending resume/unavailable fallback và recorder F19. Production Edge
+  `156.0.4314.58` đạt **37** assertion: tab cùng normal window, native PDF popup
+  chuyển normal tab, menu trang trống/history, auto-stop qua MediaRecorder và
+  Web Audio thật với tone + silence fixture, tắt auto-stop vẫn thu qua silent
+  tail, pagehide dừng tracks/bỏ bản thu, không tự gửi API và hồi quy từ đơn/
+  cache/report. Evidence `.codex/pronunciation-1794070549995/evidence.json`.
+  Screenshot desktop/390 px được giữ cùng evidence; desktop đã xem trực tiếp.
+- **Chưa kiểm thử:** mọi micro/âm nền/giọng rất khẽ và tab background throttling;
+  không dùng fixture để khẳng định chất lượng phát âm API live. Pagehide được
+  kích hoạt trong browser để xác minh cleanup trước khi đóng tab.
+- **Bị chặn:** không có.
+
+ZIP `ReadFrog-Edge-1.58.0A-Pronunciation-Tab.zip`: **446 file / 8.989.229 byte**,
+tăng **946 byte** so với ZIP sửa từ đơn trước; CRC/từng entry khớp build,
+manifest `1.58.0.27` / `1.58.0A`, không key fixture/profile, HTML ôn từ giữ hash
+đã nêu. SHA-256:
+`a818abc0d48dc242be9e156b03d5042214b6d2a8b9238bd71dc731b5f1780250`.
+
+Cập nhật cùng thư mục đã Load unpacked rồi Reload/F5. Vào menu extension →
+**Phát âm**, hoặc bôi đen tiếng Anh → Translate/Dictionary → Phát âm để mang
+đoạn chọn sang tab. Đóng khung Phát âm cũ sau khi cập nhật.

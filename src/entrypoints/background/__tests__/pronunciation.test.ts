@@ -61,12 +61,19 @@ beforeEach(async () => {
   )
 })
 afterEach(() => vi.unstubAllGlobals())
-it("keeps capture one-use and path-free, with popup failure falling back to a tab", async () => {
+it("opens a regular tab in the source window with a one-use path-free capture and supports the empty launcher", async () => {
   setupPronunciationHandlers()
-  vi.spyOn(browser.windows, "create").mockRejectedValueOnce(new Error("popup unavailable"))
+  const popup = vi.spyOn(browser.windows, "create")
+  vi.spyOn(browser.windows, "get").mockResolvedValue({ id: 7, type: "normal" } as any)
+  vi.spyOn(browser.windows, "getLastFocused").mockResolvedValue({ id: 8, type: "normal" } as any)
   const create = vi.spyOn(browser.tabs, "create").mockResolvedValueOnce({} as any)
   const capture = { text: "read", context: "Present tense" }
-  await handlers.get("openPronunciation")!({ sender: { id: browser.runtime.id }, data: capture })
+  await handlers.get("openPronunciation")!({
+    sender: { id: browser.runtime.id, tab: { windowId: 7 } },
+    data: capture,
+  })
+  expect(create).toHaveBeenCalledWith(expect.objectContaining({ active: true, windowId: 7 }))
+  expect(popup).not.toHaveBeenCalled()
   const url = create.mock.calls[0]![0].url!,
     channel = new URL(url).searchParams.get("channel")!
   expect(url).not.toContain("read&")
@@ -92,6 +99,36 @@ it("keeps capture one-use and path-free, with popup failure falling back to a ta
     capture,
   )
   expect(handlers.get("consumePronunciationCapture")!({ sender, data: { channel } })).toBeNull()
+  await handlers.get("openPronunciation")!({ sender: { id: browser.runtime.id }, data: undefined })
+  expect(create).toHaveBeenLastCalledWith({
+    url: browser.runtime.getURL("/pronunciation.html"),
+    active: true,
+    windowId: 8,
+  })
+})
+it("routes a PDF popup source into a normal browser and creates a normal window when none remains", async () => {
+  setupPronunciationHandlers()
+  vi.spyOn(browser.windows, "get").mockResolvedValue({ id: 9, type: "popup" } as any)
+  const normal = vi
+    .spyOn(browser.windows, "getLastFocused")
+    .mockResolvedValue({ id: 7, type: "normal" } as any)
+  const tabs = vi.spyOn(browser.tabs, "create").mockResolvedValue({} as any)
+  const windows = vi.spyOn(browser.windows, "create").mockResolvedValue({} as any)
+  const sender = { id: browser.runtime.id, tab: { windowId: 9 } }
+  await handlers.get("openPronunciation")!({ sender, data: undefined })
+  expect(tabs).toHaveBeenLastCalledWith({
+    url: browser.runtime.getURL("/pronunciation.html"),
+    active: true,
+    windowId: 7,
+  })
+  expect(windows).not.toHaveBeenCalled()
+  normal.mockRejectedValueOnce(new Error("No normal window"))
+  await handlers.get("openPronunciation")!({ sender, data: undefined })
+  expect(windows).toHaveBeenLastCalledWith({
+    url: browser.runtime.getURL("/pronunciation.html"),
+    type: "normal",
+    focused: true,
+  })
 })
 it("uses explicit audio input, fixed US rubric, private key and exact endpoint; cache never duplicates logs", async () => {
   const first = await assessPronunciation(payload(), new AbortController().signal)

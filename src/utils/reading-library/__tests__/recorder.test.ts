@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, it, expect, vi } from "vitest"
 import { ShadowRecorder } from "../recorder"
+const { monitor } = vi.hoisted(() => ({ monitor: vi.fn<(...args: any[]) => any>() }))
+vi.mock("../silence", () => ({ monitorRecordingSilence: monitor }))
 
 let recorders: FakeRecorder[] = []
 class FakeRecorder {
@@ -26,6 +28,7 @@ class FakeRecorder {
 }
 beforeEach(() => {
   recorders = []
+  monitor.mockReset()
   vi.stubGlobal("MediaRecorder", FakeRecorder)
 })
 afterEach(() => {
@@ -93,4 +96,42 @@ it("allows pronunciation practice to stop at thirty seconds without changing sha
   await vi.advanceTimersByTimeAsync(30000)
   expect(await pending).not.toBeNull()
   expect(stop).toHaveBeenCalled()
+})
+it("uses the existing mic stream for opt-in silence stop and releases analysis and tracks without discarding the take", async () => {
+  const stop = vi.fn<() => void>(),
+    dispose = vi.fn<() => void>(),
+    onAutoStop = vi.fn<() => void>()
+  let trigger!: () => void
+  monitor.mockImplementation((_stream, onSilence) => {
+    trigger = onSilence
+    return dispose
+  })
+  const stream = { getTracks: () => [{ stop }] },
+    media = vi.fn<(...args: any[]) => any>().mockResolvedValue(stream)
+  vi.stubGlobal("navigator", { mediaDevices: { getUserMedia: media } })
+  const recorder = new ShadowRecorder(() => {}, 30000),
+    pending = recorder.start({ stopOnSilence: true, onSilenceStop: onAutoStop })
+  await vi.waitFor(() => expect(monitor).toHaveBeenCalledTimes(1))
+  expect(monitor.mock.calls[0]![0]).toBe(stream)
+  trigger()
+  expect(await pending).not.toBeNull()
+  expect(media).toHaveBeenCalledTimes(1)
+  expect(dispose).toHaveBeenCalledTimes(1)
+  expect(stop).toHaveBeenCalled()
+  expect(onAutoStop).toHaveBeenCalledTimes(1)
+  trigger()
+  expect(onAutoStop).toHaveBeenCalledTimes(1)
+})
+it("retains manual recording and the old shadowing default when silence stop is disabled", async () => {
+  vi.stubGlobal("navigator", {
+    mediaDevices: {
+      getUserMedia: async () => ({ getTracks: () => [{ stop: vi.fn<() => void>() }] }),
+    },
+  })
+  const recorder = new ShadowRecorder(() => {}),
+    pending = recorder.start()
+  await vi.waitFor(() => expect(recorders).toHaveLength(1))
+  expect(monitor).not.toHaveBeenCalled()
+  recorder.stop()
+  expect(await pending).not.toBeNull()
 })

@@ -42,6 +42,12 @@ F22 sửa chấm **từ riêng lẻ** ở package `1.58.0-a.25` / manifest `1.58
 giữ unscored retry khi chưa nghe đủ rõ và mã chẩn đoán an toàn riêng cho lỗi
 định dạng. Không đổi model `gpt-audio-1.5`, rubric/DB/report hoặc engine dịch.
 
+F22 từ package `1.58.0-a.26` / manifest `1.58.0.27` mở **tab Phát âm** thông
+thường và có menu launcher. Thêm tự dừng local sau khi nói rồi im lặng khoảng
+1,5 giây (có thể tắt), giữ Dừng tay/30 giây, không tự gửi chấm. Detector dùng
+chung mic stream và dọn graph/track/timer khi dừng/đóng; F19 không bật tự dừng
+mặc định. Không đổi dữ liệu và giữ adapter sửa lỗi từ đơn.
+
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
 **Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`

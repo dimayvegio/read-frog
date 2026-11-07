@@ -51,21 +51,32 @@ export function setupPronunciationHandlers() {
   onMessage("openPronunciation", async (message) => {
     if (message.sender.id !== browser.runtime.id)
       throw practiceError("Invalid pronunciation sender")
-    const value = captureSchema.parse(message.data)
     for (const [key, item] of captures) if (Date.now() - item.at > 600000) captures.delete(key)
-    const channel = crypto.randomUUID()
-    if (captures.size >= 10) captures.delete(captures.keys().next().value!)
-    captures.set(channel, { value, at: Date.now() })
-    const url = `${pageURL()}?channel=${channel}`
+    let channel = ""
+    if (message.data !== undefined) {
+      const value = captureSchema.parse(message.data)
+      channel = crypto.randomUUID()
+      if (captures.size >= 10) captures.delete(captures.keys().next().value!)
+      captures.set(channel, { value, at: Date.now() })
+    }
+    const url = pageURL() + (channel ? `?channel=${channel}` : "")
     try {
-      try {
-        await browser.windows.create({ url, type: "popup", width: 800, height: 860 })
-      } catch {
-        await browser.tabs.create({ url, active: true })
-      }
+      const from =
+        message.sender.tab?.windowId === undefined
+          ? null
+          : await browser.windows.get(message.sender.tab.windowId).catch(() => null)
+      // Native PDF selections can originate inside an extension popup window,
+      // whose hidden tab strip is not a suitable home for the full practice page.
+      const target =
+        from?.type === "normal"
+          ? from
+          : await browser.windows.getLastFocused({ windowTypes: ["normal"] }).catch(() => null)
+      if (target?.id !== undefined)
+        await browser.tabs.create({ url, active: true, windowId: target.id })
+      else await browser.windows.create({ url, type: "normal", focused: true })
     } catch {
       captures.delete(channel)
-      throw practiceError("Không mở được khung phát âm.")
+      throw practiceError("Không mở được trang Phát âm.")
     }
   })
   onMessage("consumePronunciationCapture", (message) => {

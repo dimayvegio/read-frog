@@ -46,6 +46,7 @@ export function PronunciationPractice() {
   const [result, setResult] = useState<PronunciationResult | null>(null)
   const [history, setHistory] = useState<PronunciationAttempt[]>([])
   const [clearArmed, setClearArmed] = useState(false)
+  const [stopOnSilence, setStopOnSilence] = useState(true)
   const ownAudio = useRef<HTMLAudioElement | null>(null)
   const generation = useRef(0),
     request = useRef<AbortController | null>(null),
@@ -161,8 +162,22 @@ export function PronunciationPractice() {
     stop()
     ownAudio.current?.pause()
     const run = generation.current
+    let stoppedOnSilence = false
     try {
-      const asset = await recorder.start()
+      const asset = await recorder.start({
+        stopOnSilence,
+        onSilenceStop: () => {
+          stoppedOnSilence = true
+          if (run === generation.current)
+            setMessage("Đã tự dừng sau khi nói và im lặng khoảng 1,5 giây.")
+        },
+        onSilenceUnavailable: () => {
+          if (run === generation.current)
+            setMessage(
+              "Tự dừng chưa khả dụng trên thiết bị này. Bấm Dừng khi nói xong; giới hạn 30 giây vẫn hoạt động.",
+            )
+        },
+      })
       if (!asset || run !== generation.current) return
       setPreparing(true)
       const converted = await preparePracticeWav(
@@ -176,7 +191,10 @@ export function PronunciationPractice() {
       setRecordURL(
         URL.createObjectURL(new Blob([new Uint8Array(asset.bytes)], { type: asset.type })),
       )
-      setMessage("Đã thu trên máy. Nghe lại rồi bấm Chấm phát âm để gửi bản thu này tới OpenAI.")
+      setMessage(
+        (stoppedOnSilence ? "Đã tự dừng sau khoảng 1,5 giây im lặng. " : "Đã thu trên máy. ") +
+          "Nghe lại rồi bấm Chấm phát âm để gửi bản thu này tới OpenAI.",
+      )
     } catch (e) {
       if (run === generation.current) setMessage(messageOf(e))
     } finally {
@@ -338,6 +356,20 @@ export function PronunciationPractice() {
       </section>
       <section aria-labelledby="record-title">
         <h2 id="record-title">2. Thu và chấm</h2>
+        <label className="auto-stop-option">
+          <input
+            type="checkbox"
+            id="auto-stop-recording"
+            checked={stopOnSilence}
+            disabled={busy || preparing || recordState !== "idle"}
+            onChange={(event) => setStopOnSilence(event.target.checked)}
+          />
+          Tự dừng khi nói xong
+        </label>
+        <p className="muted">
+          Dừng sau khoảng 1,5 giây im lặng khi đã nhận được tiếng nói. Vẫn có thể bấm Dừng thủ công;
+          tự dừng không tự gửi chấm.
+        </p>
         <div className="actions">
           <button
             type="button"

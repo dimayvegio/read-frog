@@ -2,6 +2,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve F22's regular-tab launch and popup-menu entry in [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md), with optional one-use capture and source-window targeting. Preserve opt-in local silence stopping on the existing recording stream: speech-before-silence gate, manual/30-second fallback, no automatic grading/upload, bounded analyser polling, AudioContext/track/timer cleanup and late-resume cancellation. F19 recording stays manual by default with its existing 60-second cap; no published schema changes for this feature.
+
 - Preserve F22 response v2 in [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md): isolated-word prompts request only sound/stress/accuracy, app-owned rhythm/fluency N/A must not reject valid word feedback, safe wire normalization precedes the frozen canonical validator, and low-confidence/quality replies remain unscored retries. Keep half-step rounding, bounded numeric parsing, exact word guards, safe PA diagnostic codes and no automatic paid repair requests. Bump prompt/cache identity when changing this adapter, without rewriting published histories or schemas.
 
 - Before integrating an upstream release, read [FORK_DIFFERENCES.md](FORK_DIFFERENCES.md) and [UPSTREAM_UPGRADE_GUIDE.md](UPSTREAM_UPGRADE_GUIDE.md). Start from the latest local branch, preserve the F01–F22 behavior/data contracts and record which upstream changes are accepted, adapted, skipped or deferred. Protected behavior does not mean rejecting upstream bug fixes or freezing implementation files; only published migrations/formats are frozen.

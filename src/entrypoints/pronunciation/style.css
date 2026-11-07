@@ -79,6 +79,17 @@ body:has(.pronunciation-app) {
   display: block;
   font-weight: 600;
 }
+.pronunciation-app .auto-stop-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+.pronunciation-app input[type="checkbox"] {
+  accent-color: #226c4e;
+  width: 16px;
+  height: 16px;
+}
 .pronunciation-app textarea,
 .pronunciation-app select {
   display: block;
