@@ -9,10 +9,10 @@ export function SidebarTabBar() {
         <TabsTrigger
           key={section.id}
           value={section.id}
-          className="font-normal dark:text-foreground/60 dark:not-data-active:hover:text-foreground/80 dark:data-active:text-foreground"
+          className="min-w-0 flex-1 px-1.5 font-normal dark:text-foreground/60 dark:not-data-active:hover:text-foreground/80 dark:data-active:text-foreground [&>[data-slot=tabs-trigger-content]]:min-w-0"
         >
           {section.icon}
-          {section.title()}
+          <span className="truncate">{section.title()}</span>
         </TabsTrigger>
       ))}
     </TabsList>

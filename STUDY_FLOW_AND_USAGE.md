@@ -1,7 +1,7 @@
-# Đọc, xem và ôn từ — cập nhật 1.58.0-a.17
+# Đọc, xem và ôn từ — cập nhật 1.58.0-a.18
 
-Tiếp tục từ `014b6ef2` trên `codex/pdf-reading-panel`. Manifest numeric
-`1.58.0.18`, tên hiển thị `1.58.0A`. Config124/PDF DB2/image cache DB1 giữ
+Tiếp tục từ `7f409dd7` trên `codex/pdf-reading-panel`. Manifest numeric
+`1.58.0.19`, tên hiển thị `1.58.0A`. Config124/PDF DB2/image cache DB1 giữ
 nguyên; vocabulary thêm DB5, ZIP6; usage có DB1 riêng.
 
 ## Từ đang học trên nội dung thật
@@ -25,6 +25,31 @@ phụ đề dùng các span từ đang có; từ đã lưu mở dữ liệu loca
 refresh30s khi tab hiển thị. Tắt thì dọn ranges và không tải inventory.
 
 ## Luyện câu YouTube
+
+### Khung học tập di chuyển và đổi kích thước
+
+Từ build `1.58.0-a.18`, kéo tay nắm bên trái hoặc khoảng trống của thanh tiêu
+đề để di chuyển nguyên khung. Kéo bất kỳ cạnh/góc nào để đổi chiều ngang/dọc;
+góc dưới phải có dấu kéo. Nội dung cuộn bên trong, không remount transcript
+hoặc thay đổi playback khi kéo. Tab, nút đóng/đặt lại và vùng nhập không bắt
+đầu drag. Có pointer capture, bỏ qua ngón thứ hai và dọn khi mất capture/blur.
+
+Tay nắm có thể chọn bằng Tab: mũi tên di chuyển10px; Shift + mũi tên đổi
+kích thước10px. Nút **Đặt lại vị trí và kích thước khung** trở về bên phải,
+rộng400px/cao gần toàn màn hình. Min300×220px, tự giảm min nếu viewport nhỏ
+hơn; mọi cạnh và thanh tiêu đề luôn nằm trong vùng nhìn. Hỗ trợ VisualViewport
+offset và đi theo player khi fullscreen; thu viewport chỉ clamp tạm thời,
+phóng lại lấy kích thước/vị trí ưa thích trước đó.
+
+Geometry đi qua refs và CSS tối đa một lần mỗi animation frame; không cập
+nhật React state/transcript theo từng pointer move. Chỉ lưu khi kết thúc kéo
+hoặc debounce bàn phím, không lưu từng pixel. `storage.local` có key riêng
+`subtitlesSidebarWindowV1`, format `{version:1,rect:{left,top,width,height}}`;
+không chứa video/URL/text/key và không tham gia config124/Edge sync1. Nhớ sau
+đóng/mở, đổi video và reload trang; không áp kết quả đọc storage muộn lên thao
+tác mới. Reset chỉ xóa key geometry, không xóa cấu hình hay dữ liệu học.
+
+### Chia câu CC bằng OpenAI
 
 Logo Read Frog → **Learning** → transcript → **Luyện nghe từng câu**. Mặc
 định tắt, trạng thái không lưu sang video khác. Bật mới nhận J/K/L:
@@ -116,6 +141,27 @@ Thay giá sẽ tính lại ước tính cho các logs đang giữ. Không suy di
 Nguồn: [OpenAI pricing](https://developers.openai.com/api/docs/pricing),
 [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)
 và docs/source AI SDK đi kèm phiên bản cài trong repo.
+
+## Kiểm chứng khung Learning a.18 — 07/11/2026
+
+- **4.212 test đạt /1 bỏ qua**, lint/type/format đạt. Có19 unit test mới cho
+  tám cạnh/góc, neo cạnh đối diện, kích thước tối thiểu, viewport nhỏ/offset,
+  preference lỗi/đọc muộn, pointer/keyboard, close/reopen và reset. Dùng
+  `SKIP_FREE_API=true`, loại test live free-api theo hướng dẫn repo.
+- **59 assertion** production Edge `156.0.4314.58` đạt: pointer thật đổi hai
+  chiều, drag cả khung, không remount transcript, scroll khung nhỏ, header
+  không tràn ở min width, clamp ngoài màn hình, persist qua reload, thu/phóng
+  viewport, fullscreen thật và quay lại body, keyboard/reset. Luồng luyện
+  câu AI/đánh dấu từ/source passages/usage/PDF vẫn đạt; kéo khi tắt luyện nghe
+  không tự chạy segmentation. Video/CC và API là fixture, chưa test live
+  YouTube hoặc thiết bị cảm ứng thật; không dùng key người dùng.
+- ZIP `ReadFrog-Edge-1.58.0A-LearningWindow.zip`: **8.749.374 byte**, tăng
+  **3.970 byte** so với a.17; CRC và **429/429 file** khớp build đã kiểm tra.
+  SHA-256 `1b8341e0b704401017d3a14a64b5ba3f477c3906a7def05514ccfb6e78aadb8a`.
+  Evidence `.codex/study-flow-1794030844937`; script tái lập
+  `check-study-flow.mjs` gọi `check-sidebar-window.mjs`.
+- Không sửa schema, migration, credential, engine dịch hoặc buffer120s.
+  HTML ôn từ vẫn giữ hash của a.17. Không có chặn kỹ thuật còn tồn tại.
 
 ## Kiểm chứng cập nhật a.17 — 07/11/2026
 

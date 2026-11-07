@@ -24,6 +24,8 @@
 
 ## Testing Notes
 
+- Preserve the movable/resizable learning window in `STUDY_FLOW_AND_USAGE.md`: pointer capture and primary-pointer guards, anchored edge/corner resizing, keyboard/reset, viewport/fullscreen reachability and local-only versioned geometry. Drag updates must not remount the transcript or change subtitle playback/AI opt-in state; clean listeners, capture and animation frames on close.
+
 - `src/utils/host/translate/api/__tests__/free-api.test.ts` depends on live external translation services.
 - When running tests locally as an AI agent, set `SKIP_FREE_API=true`.
 - If `SKIP_FREE_API=true` is set, treat `free-api.test.ts` as intentionally skipped during local validation.

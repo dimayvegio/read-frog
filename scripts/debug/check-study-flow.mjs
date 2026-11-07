@@ -7,6 +7,7 @@ import path from "node:path"
 import { pathToFileURL } from "node:url"
 import JSZip from "jszip"
 import { bookFixture } from "./check-auto-pdf-reader.mjs"
+import { checkSidebarWindow } from "./check-sidebar-window.mjs"
 import { preparePdfWorker } from "./pdf-worker-fixture.mjs"
 const { default: puppeteer } = await import(
   pathToFileURL(
@@ -586,6 +587,11 @@ try {
     )
   check(
     "Normal YouTube playback never calls the new AI sentence segmenter",
+    (await studyRequests()) === 0,
+  )
+  await checkSidebarWindow({ page: yt, worker, check, scratch, evidence })
+  check(
+    "Learning window gestures do not trigger AI sentence preparation while listening mode is off",
     (await studyRequests()) === 0,
   )
   await yt.keyboard.press("Escape")

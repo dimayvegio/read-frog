@@ -1671,6 +1671,10 @@ shortcutKeySelector:
 subtitles:
   sidebar:
     close: Đóng bảng học tập
+    moveWindow: Di chuyển khung học tập
+    resizeWindow: Đổi kích thước khung học tập
+    resetWindow: Đặt lại vị trí và kích thước khung
+    windowHelp: Kéo tay nắm hoặc khoảng trống trên thanh tiêu đề để di chuyển. Kéo cạnh hoặc góc để đổi kích thước. Khi tay nắm có focus, phím mũi tên di chuyển và Shift + mũi tên đổi kích thước.
     needsSubtitles: Video này không có phụ đề — hãy thử tạo phụ đề bằng AI trước.
     menu:
       label: Học tập

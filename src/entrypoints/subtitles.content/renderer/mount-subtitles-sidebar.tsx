@@ -1,27 +1,17 @@
 import type { SubtitlesProvidersAdapter } from "../universal-adapter"
 import themeCSS from "@/assets/styles/theme.css?inline"
-import {
-  SUBTITLES_SIDEBAR_HOST_ID,
-  SUBTITLES_SIDEBAR_VIEWPORT_MARGIN,
-  SUBTITLES_SIDEBAR_WIDTH,
-  SUBTITLES_THEME,
-} from "@/utils/constants/subtitles"
+import { SUBTITLES_SIDEBAR_HOST_ID, SUBTITLES_THEME } from "@/utils/constants/subtitles"
 import {
   createReactShadowHost,
   removeReactShadowHost,
 } from "@/utils/react-shadow-host/create-shadow-host"
+import {
+  applySidebarRect,
+  defaultSidebarRect,
+  sidebarViewport,
+} from "@/utils/subtitles/sidebar-window"
 import { SubtitlesSidebar } from "../ui/subtitles-sidebar"
 import { SubtitlesProviders } from "../ui/subtitles-ui-context"
-
-const HOST_STYLE = `
-  position: fixed;
-  top: ${SUBTITLES_SIDEBAR_VIEWPORT_MARGIN}px;
-  right: ${SUBTITLES_SIDEBAR_VIEWPORT_MARGIN}px;
-  bottom: ${SUBTITLES_SIDEBAR_VIEWPORT_MARGIN}px;
-  width: ${SUBTITLES_SIDEBAR_WIDTH}px;
-  pointer-events: none;
-  z-index: 2147483000;
-`
 
 /**
  * Fullscreen renders only the fullscreen element's subtree, so the host has to
@@ -59,7 +49,14 @@ export function mountSubtitlesSidebar(adapter: SubtitlesProvidersAdapter): void 
   )
 
   shadowHost.id = SUBTITLES_SIDEBAR_HOST_ID
-  shadowHost.style.cssText = HOST_STYLE
+  Object.assign(shadowHost.style, {
+    transition: "none",
+    position: "fixed",
+    pointerEvents: "none",
+    zIndex: "2147483000",
+  })
+  // An already-open shell may have restored its geometry during flushSync.
+  if (!shadowHost.style.left) applySidebarRect(shadowHost, defaultSidebarRect(sidebarViewport()))
 
   mountedSidebar = { host: shadowHost, stopFollowing: followFullscreen(shadowHost) }
 }

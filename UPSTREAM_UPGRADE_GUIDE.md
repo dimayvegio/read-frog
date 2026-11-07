@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.17` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.18` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.18` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.19` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,11 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.19`, giữ khung Learning kéo/resize độc lập hai chiều, pointer
+capture, keyboard/reset, clamp viewport/fullscreen và preference local
+`subtitlesSidebarWindowV1`. Không remount transcript theo pointer move, không
+gửi geometry qua config124/Edge sync1. Xem [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md).
 
 Từ build `1.58.0.18`, giữ track luyện nghe YouTube riêng chỉ gọi OpenAI khi bật,
 chia câu bằng chỉ số CC có kiểm tra đầy đủ, giữ câu ngắn và carry câu cuối qua

@@ -1818,6 +1818,10 @@ shortcutKeySelector:
 subtitles:
   sidebar:
     close: Close the learning panel
+    moveWindow: Move the learning panel
+    resizeWindow: Resize the learning panel
+    resetWindow: Reset panel position and size
+    windowHelp: Drag the grip or empty header to move. Drag an edge or corner to resize. With the grip focused, arrow keys move and Shift + arrows resize.
     needsSubtitles: This video has no subtitles — try generating AI subtitles first.
     menu:
       label: Learning
