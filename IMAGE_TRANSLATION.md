@@ -1,5 +1,23 @@
 # Chụp vùng và dịch ảnh
 
+## Sửa ngôn ngữ đích — 1.58.0-a.17 / manifest 1.58.0.18
+
+Ngôn ngữ được chọn trong khung dịch ảnh/PDF luôn là đích của phần văn bản dịch,
+kể cả prompt riêng viết cứng “Chinese” hoặc thiếu `{{targetLanguage}}`. Giữ
+format, tên riêng, code và glossary từ prompt, không sửa template đã lưu của
+người dùng. Cả fast và hai bước dùng cùng chỉ dẫn đích rõ ràng ở system prompt.
+Không đổi prompt/engine dịch trang web hoặc phụ đề.
+
+Cache text ảnh/PDF có thêm namespace và target code rõ ràng; fast fingerprint
+có phiên bản đích mới. Kết quả sai ngôn ngữ đã lưu từ build cũ không còn khớp,
+không cần xóa key/cài lại extension/xóa toàn bộ dữ liệu. Cache OCR vẫn tái dùng
+khi đổi ngôn ngữ. Không sửa schema DB1/PDF DB2 hay migrations đã phát hành.
+
+Kiểm hồi quy có template cố định tiếng Trung không chứa biến ngôn ngữ, chọn
+Trung → Việt → Anh và cache riêng từng đích; network OpenAI mô phỏng. Chỉ
+chứng minh yêu cầu đúng ngôn ngữ và cách ly cache, không giả là kiểm chất lượng
+dịch của model thật.
+
 ## Cập nhật 1.58.0-a.13 / manifest 1.58.0.14
 
 Tiếp tục từ `f4737d6c`, giữ tên **1.58.0A**, config124, PDF DB2 và vocabulary

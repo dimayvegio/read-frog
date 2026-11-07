@@ -1,8 +1,16 @@
 import { beforeEach, expect, it, vi } from "vitest"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { getTranslatePromptFromConfig } from "@/utils/prompts/translate"
+import { getOpenAIOutputIdentity } from "@/utils/providers/openai-profile"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { translateNativeSelection } from "@/utils/selection-result/translate"
-import { imageCacheDB, clearImageCache } from "../cache"
+import {
+  imageCacheDB,
+  clearImageCache,
+  imageCacheKey,
+  saveImageCache,
+  readImageCache,
+} from "../cache"
 import { recognizeImage } from "../recognize"
 await vi.hoisted(async () => {
   const fake = await import("fake-indexeddb")
@@ -91,6 +99,71 @@ it("caches OCR and normal text translation separately, including corrected sourc
   await translate(first.original)
   expect(ocr).toHaveBeenCalledTimes(1)
   expect(text).toHaveBeenCalledTimes(3)
+})
+it("cannot reuse an old wrong-language image cache from a custom template with no target token", async () => {
+  config.language.targetCode = "vie"
+  config.pageTranslation.customPromptsConfig = {
+    promptId: "fixed-chinese",
+    patterns: [
+      {
+        id: "fixed-chinese",
+        name: "Technical",
+        systemPrompt: "Translate into Chinese. Keep code unchanged.",
+        prompt: "{{input}}",
+      },
+    ],
+  }
+  const original = "使用 semaphore 时需要初始化吗?"
+  const old = getTranslatePromptFromConfig(config.pageTranslation, "Vietnamese", original)
+  const oldKey = imageCacheKey(
+    "text",
+    old.systemPrompt,
+    old.prompt,
+    getOpenAIOutputIdentity(config.providersConfig[0]!),
+    revision,
+    [true, false],
+  )
+  await saveImageCache(
+    oldKey,
+    "text",
+    { original, translation: "使用 semaphore 前需要初始化。" },
+    (await readImageCache(oldKey)).epoch,
+    new AbortController().signal,
+  )
+  text.mockResolvedValue({
+    output: "Có cần khởi tạo semaphore không?",
+    thinking: { status: "complete", text: "" },
+  })
+  expect((await translate(original)).output).toBe("Có cần khởi tạo semaphore không?")
+  expect(text).toHaveBeenCalledTimes(1)
+  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vie)")
+  await translate(original)
+  expect(text).toHaveBeenCalledTimes(1)
+  config.language.targetCode = "eng"
+  await translate(original)
+  expect(text).toHaveBeenCalledTimes(2)
+  expect(text.mock.calls[1]![0].instructions).toContain("English (eng)")
+})
+it("uses the same explicit target contract for fast image output and custom-prompt fallback", async () => {
+  config.language.targetCode = "vie"
+  await recognize()
+  expect(fast.mock.calls[0]![0].instructions).toContain("Vietnamese (vie)")
+  config.pageTranslation.customPromptsConfig = {
+    promptId: "no-token",
+    patterns: [
+      {
+        id: "no-token",
+        name: "No language variable",
+        systemPrompt: "Translate into Chinese.",
+        prompt: "{{input}}",
+      },
+    ],
+  }
+  const result = await recognize()
+  expect(result.pretranslated).toBeUndefined()
+  await translate(result.original)
+  expect(ocr).toHaveBeenCalledTimes(1)
+  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vie)")
 })
 it("force read and regenerate bypass caches without discarding the normal pipeline", async () => {
   const first = await recognize()

@@ -52,6 +52,31 @@ describe("native PDF selected-text translation", () => {
     })
     expect(stream.mock.calls[0]?.[0].instructions).toContain("Edge browser")
   })
+  it("gives the explicit Vietnamese picker priority over a custom Chinese-only template without a language token", async () => {
+    const config = structuredClone(DEFAULT_CONFIG)
+    config.language.targetCode = "vie"
+    config.glossary.enabled = false
+    config.pageTranslation.customPromptsConfig = {
+      promptId: "fixed-chinese",
+      patterns: [
+        {
+          id: "fixed-chinese",
+          name: "Technical style",
+          systemPrompt: "Translate into Chinese. Preserve code and headings.",
+          prompt: "{{input}}",
+        },
+      ],
+    }
+    await run("使用 semaphore 时需要初始化吗?", config)
+    const payload = stream.mock.calls[0]![0]
+    expect(payload.instructions).toContain("Preserve code and headings.")
+    expect(payload.instructions).toContain("Vietnamese (vie)")
+    expect(payload.instructions).toContain("overrides any different target language")
+    expect(payload.prompt).toBe("使用 semaphore 时需要初始化吗?")
+    expect(config.pageTranslation.customPromptsConfig.patterns[0]!.systemPrompt).toBe(
+      "Translate into Chinese. Preserve code and headings.",
+    )
+  })
 
   it("aborts before dispatch when cancelled while the glossary is loading", async () => {
     let finish!: (value: unknown) => void

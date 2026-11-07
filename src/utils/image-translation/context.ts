@@ -1,9 +1,8 @@
 import type { Config } from "@/types/config/config"
 import type { PdfTextOptions } from "@/utils/selection-result/pdf-text"
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { sha256 } from "js-sha256"
 import { sendMessage } from "@/utils/message"
-import { getTranslatePromptFromConfig } from "@/utils/prompts/translate"
+import { getNativeTranslatePrompt } from "@/utils/prompts/native-translate"
 import { getOpenAIOutputIdentity } from "@/utils/providers/openai-profile"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { ProviderSetupError } from "@/utils/providers/provider-setup-error"
@@ -27,11 +26,7 @@ export async function imageTranslationContext(config: Config, options: PdfTextOp
         })
       : null,
   ])
-  const prompt = getTranslatePromptFromConfig(
-    config.pageTranslation,
-    LANG_CODE_TO_EN_NAME[config.language.targetCode],
-    "[TEXT_TRANSCRIBED_FROM_THE_IMAGE]",
-  )
+  const prompt = getNativeTranslatePrompt(config, "[TEXT_TRANSCRIBED_FROM_THE_IMAGE]")
   const profile = getOpenAIOutputIdentity(provider.config)
   const fastInstructions = fastImageInstructions(prompt.systemPrompt)
   const reason = glossary?.entries.length
@@ -49,7 +44,7 @@ export async function imageTranslationContext(config: Config, options: PdfTextOp
     fastInstructions,
     identity: sha256(
       JSON.stringify([
-        "image-fast-v1",
+        "image-fast-v2-explicit-target",
         profile,
         credential.revision,
         config.language.targetCode,

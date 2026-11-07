@@ -197,6 +197,90 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
       (await calls()) === newTarget + 1 &&
         (await worker.evaluate(() => JSON.stringify(__pdfCalls.at(-1).body).includes("English"))),
     )
+    // Reproduce a custom template which hard-codes Chinese and has no language token.
+    await worker.evaluate(async () => {
+      const { config } = await chrome.storage.local.get("config")
+      config.language.targetCode = "cmn"
+      config.pageTranslation.customPromptsConfig = {
+        promptId: "fixed-chinese-target-fixture",
+        patterns: [
+          {
+            id: "fixed-chinese-target-fixture",
+            name: "Technical style",
+            systemPrompt: "Translate into Chinese. Keep code and headings.",
+            prompt: "{{input}}",
+          },
+        ],
+      }
+      globalThis.__pdfTextOutput = (body) => {
+        const prompt = JSON.stringify(body)
+        return prompt.includes("Vietnamese (vie)")
+          ? "Có cần khởi tạo semaphore không?"
+          : prompt.includes("English (eng)")
+            ? "Does semaphore need initialization?"
+            : "使用 semaphore 时需要初始化吗？"
+      }
+      await chrome.storage.local.set({ config })
+    })
+    await page.reload()
+    await load(page, image)
+    await page.select('[aria-label="Chế độ dịch ảnh"]', "fast")
+    await readButton(page)
+    const imageUploads = () =>
+      worker.evaluate(
+        () =>
+          __pdfCalls.filter((entry) =>
+            entry.body.input?.some(
+              (item) =>
+                Array.isArray(item.content) &&
+                item.content.some((part) => part.type === "input_image"),
+            ),
+          ).length,
+      )
+    const customUploads = await imageUploads()
+    for (const [code, expected] of [
+      ["vie", "Có cần khởi tạo semaphore không?"],
+      ["eng", "Does semaphore need initialization?"],
+    ]) {
+      await worker.evaluate(async (targetCode) => {
+        const { config } = await chrome.storage.local.get("config")
+        config.language.targetCode = targetCode
+        await chrome.storage.local.set({ config })
+      }, code)
+      await page.reload()
+      await load(page, image)
+      const beforeTarget = await calls()
+      await readButton(page)
+      check(
+        `Custom Chinese-only template honors the explicit ${code} picker and never reuses the previous language's cache`,
+        (await calls()) === beforeTarget + 1 &&
+          (await page.$eval(
+            '[data-testid="native-selection-output"]',
+            (node, text) => node.textContent.includes(text),
+            expected,
+          )),
+      )
+      const warmTarget = await calls()
+      await readButton(page)
+      check(
+        `The corrected custom-prompt ${code} translation has its own warm cache`,
+        (await calls()) === warmTarget,
+      )
+      if (code === "vie") {
+        await page.screenshot({
+          path: path.join(scratch, "image-vietnamese-custom-prompt.png"),
+          fullPage: true,
+        })
+        evidence.screenshots.push("image-vietnamese-custom-prompt.png")
+      }
+    }
+    check(
+      "Target changes in the custom image path reuse OCR rather than uploading the image again",
+      (await imageUploads()) === customUploads,
+    )
+    await worker.evaluate(() => {
+      delete globalThis.__pdfTextOutput
+    })
     await worker.evaluate(async (config) => chrome.storage.local.set({ config }), snapshot)
     await page.reload()
     await load(page, image)
@@ -256,6 +340,9 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
     }
     await page.screenshot({ path: path.join(scratch, "fast-image.png"), fullPage: true })
     evidence.screenshots.push("fast-image.png")
+
+    // Language/cancellation regressions do not need to re-run the historical latency benchmark.
+    if (process.env.PDF_IMAGE_SKIP_BENCHMARK === "1") return
 
     // Compare the shipped a.12 build against this production build using the
     // same browser, image, model configuration and deterministic mock RTT.

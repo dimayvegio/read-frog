@@ -1,7 +1,6 @@
 import type { BackgroundTextStreamSnapshot } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
 import { createGlossaryMatcher } from "@/utils/glossary/matcher"
@@ -9,7 +8,7 @@ import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { imageCacheKey, readImageCache, saveImageCache } from "@/utils/image-translation/cache"
 import { imageTranslationContext } from "@/utils/image-translation/context"
 import { sendMessage } from "@/utils/message"
-import { getTranslatePromptFromConfig } from "@/utils/prompts/translate"
+import { getNativeTranslatePrompt } from "@/utils/prompts/native-translate"
 import { getOpenAIOutputIdentity } from "@/utils/providers/openai-profile"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { ProviderSetupError } from "@/utils/providers/provider-setup-error"
@@ -83,12 +82,7 @@ export async function translateNativeSelection({
     : null
   signal.throwIfAborted()
   const glossaryTerms = glossary ? createGlossaryMatcher(glossary.entries).match(preparedText) : []
-  const { systemPrompt, prompt } = getTranslatePromptFromConfig(
-    config.pageTranslation,
-    LANG_CODE_TO_EN_NAME[config.language.targetCode],
-    preparedText,
-    { glossaryTerms },
-  )
+  const { systemPrompt, prompt } = getNativeTranslatePrompt(config, preparedText, { glossaryTerms })
   const payload = {
     providerKind: "local",
     providerId: provider.config.id,
@@ -107,6 +101,8 @@ export async function translateNativeSelection({
       signal.throwIfAborted()
       imageTextKey = imageCacheKey(
         "text",
+        "explicit-target-v1",
+        config.language.targetCode,
         payload.instructions,
         payload.prompt,
         getOpenAIOutputIdentity(provider.config),
@@ -136,6 +132,8 @@ export async function translateNativeSelection({
       const status = await sendMessage("getOpenAIKeyStatus", undefined)
       signal.throwIfAborted()
       cacheId = pdfCacheKey(document.id, [
+        "explicit-target-v1",
+        config.language.targetCode,
         payload.instructions,
         payload.prompt,
         getOpenAIOutputIdentity(provider.config),
