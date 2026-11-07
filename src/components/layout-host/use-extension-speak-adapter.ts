@@ -18,11 +18,15 @@ interface LatestTTS {
   play: ReturnType<typeof useTextToSpeech>["play"]
   stop: () => void
   ttsConfig: TTSConfig
+  onSpeech?: (text: string) => void
 }
 
 // `autoplay` reads the trigger the layout marks `data-speak-autoplay` once the
 // layout is done. Where a layout is only previewed, it stays off.
-export function useExtensionSpeakAdapter(autoplay = false): LayoutSpeakOptions {
+export function useExtensionSpeakAdapter(
+  autoplay = false,
+  onSpeech?: (text: string) => void,
+): LayoutSpeakOptions {
   const ttsConfig = useAtomValue(configFieldsAtomMap.tts)
   const { play, stop, isPlaying } = useTextToSpeech()
   const latestRef = useRef<LatestTTS>({ play, stop, ttsConfig })
@@ -31,7 +35,7 @@ export function useExtensionSpeakAdapter(autoplay = false): LayoutSpeakOptions {
   const pendingStartRef = useRef<(() => void) | null>(null)
 
   useLayoutEffect(() => {
-    latestRef.current = { play, stop, ttsConfig }
+    latestRef.current = { play, stop, ttsConfig, onSpeech }
   })
 
   // Only the first start of a run counts: between chunks isPlaying drops back
@@ -57,6 +61,7 @@ export function useExtensionSpeakAdapter(autoplay = false): LayoutSpeakOptions {
         // calls stop() right after aborting, which silences it.
         signal.addEventListener("abort", forget, { once: true })
         const { play: playText, ttsConfig: config } = latestRef.current
+        latestRef.current.onSpeech?.(text)
         const language = speechLanguageFromTag(lang)
         // useTextToSpeech reports failures with its own toast, except for a
         // run nobody pressed for; the rejection only has to end the run.

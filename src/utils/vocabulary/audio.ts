@@ -37,8 +37,8 @@ export function isMp3(bytes: Uint8Array): boolean {
   return offset === bytes.length && frames >= 2
 }
 
-function pcm16(bytes: Uint8Array) {
-  if (!isWav(bytes) || bytes.length > MAX_AUDIO_BYTES) return null
+function pcm16(bytes: Uint8Array, maxBytes = MAX_AUDIO_BYTES) {
+  if (!isWav(bytes) || bytes.length > maxBytes) return null
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   if (view.getUint32(4, true) + 8 !== bytes.length) return null
   let format: { channels: number; rate: number } | undefined, data: Uint8Array | undefined
@@ -73,6 +73,10 @@ function pcm16(bytes: Uint8Array) {
         : Math.round((source.getInt16(i * 4, true) + source.getInt16(i * 4 + 2, true)) / 2)
   return { samples, rate: format.rate }
 }
+
+// Same parser, with an explicit size budget for standalone speech downloads.
+// Vocabulary keeps its published default budget and encoding path unchanged.
+export { pcm16 as parseWavPcm16 }
 
 async function zipSize(bytes: Uint8Array) {
   // Compare actual DEFLATE sizes: silence or a tiny WAV may beat lossy MP3.

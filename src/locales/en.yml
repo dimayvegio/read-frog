@@ -2113,6 +2113,12 @@ languages:
   hif: Fiji Hindi
 
 openaiTts:
+  download: Download MP3
+  downloadCancel: Cancel MP3 creation
+  downloadSaving: Saving MP3…
+  downloadDescription: Download only when pressed. Reuses available audio; missing audio uses your selected OpenAI voice and may incur API charges. Up to 20,000 characters per file.
+  downloadFailed: Unable to create or save MP3. Check your OpenAI settings and try again.
+  downloadTooLong: Select a shorter passage (up to $1 characters per MP3).
   provider: Speech provider
   providerDescription: Choose the service used by all read-aloud buttons, including PDF selections.
   description: AI-generated speech. OpenAI API usage is billed to your account. Microsoft voice settings are saved separately.

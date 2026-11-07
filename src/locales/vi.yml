@@ -1966,6 +1966,12 @@ languages:
   hif: Tiếng Hindi Fiji
 
 openaiTts:
+  download: Tải MP3
+  downloadCancel: Hủy tạo MP3
+  downloadSaving: Đang lưu MP3…
+  downloadDescription: Chỉ tải khi bấm. Dùng lại audio đã có; phần còn thiếu dùng giọng OpenAI đang chọn và có thể phát sinh phí API. Tối đa 20.000 ký tự mỗi file.
+  downloadFailed: Không thể tạo hoặc lưu MP3. Kiểm tra cấu hình OpenAI rồi thử lại.
+  downloadTooLong: Chọn đoạn ngắn hơn (tối đa $1 ký tự mỗi MP3).
   provider: Dịch vụ đọc
   providerDescription: Chọn dịch vụ cho các nút đọc thành tiếng, kể cả đoạn bôi đen trong PDF.
   description: Giọng nói được tạo bởi AI. Phí API OpenAI được tính vào tài khoản của bạn. Cấu hình giọng Microsoft được lưu riêng.

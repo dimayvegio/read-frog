@@ -13,6 +13,7 @@ import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { splitTextByUtf8Bytes } from "@/utils/server/edge-tts/chunk"
+import { getOpenAIAudio } from "@/utils/tts-playback/openai-audio-cache"
 import {
   claimSpeechSynthesis,
   releaseSpeechSynthesis,
@@ -273,22 +274,17 @@ export function useTextToSpeech() {
           ...ttsConfig.openai,
           voice: selectedVoice as typeof ttsConfig.openai.voice,
         }
-        const cacheKey = [
-          "tts-audio",
-          "openai",
-          { text: chunk, ...config, credentialRevision: keyStatus!.revision },
-        ]
-        const cached = queryClient.getQueryData<SynthesizedAudioChunk>(cacheKey)
-        if (cached) return cached
-        const audio = await createPortStreamPromise<OpenAITTSAudioResult>(
-          OPENAI_TTS_PORT,
-          { requestId, text: chunk, config },
-          { signal },
-        )
-        signal.throwIfAborted()
-        if ("cancelled" in audio) throw new DOMException("Speech request superseded", "AbortError")
-        queryClient.setQueryData(cacheKey, audio)
-        return audio
+        return getOpenAIAudio(queryClient, chunk, config, keyStatus!.revision, signal, async () => {
+          const audio = await createPortStreamPromise<OpenAITTSAudioResult>(
+            OPENAI_TTS_PORT,
+            { requestId, text: chunk, config },
+            { signal },
+          )
+          signal.throwIfAborted()
+          if ("cancelled" in audio)
+            throw new DOMException("Speech request superseded", "AbortError")
+          return audio
+        })
       }
       logger.info("[TextToSpeech] Fetching chunk audio", {
         text: chunk,

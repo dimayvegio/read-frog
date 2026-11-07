@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.18` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.19` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.19` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.20` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/pdf-reading-panel`                  |
@@ -38,6 +38,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.20`, hợp đồng F09 có thêm **Tải MP3 OpenAI**. Đọc
+[OPENAI_TTS_DOWNLOAD.md](OPENAI_TTS_DOWNLOAD.md): giữ cache dùng chung và
+in-flight reuse, ghép đủ toàn đoạn bằng một encoder, tải theo thao tác người dùng
+và cancellation riêng với playback/sổ từ. Quyền `downloads` và RPC/port mới phải
+giữ sender/size/MP3 validation. Không thêm migration hoặc đổi transport/model TTS.
 
 Từ build `1.58.0.19`, giữ khung Learning kéo/resize độc lập hai chiều, pointer
 capture, keyboard/reset, clamp viewport/fullscreen và preference local

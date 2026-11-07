@@ -3,6 +3,7 @@ import { IconLoader2, IconPlayerStopFilled, IconVolume } from "@tabler/icons-rea
 import { useAtomValue } from "jotai"
 import { createContext, use, useCallback } from "react"
 import { toastManager } from "@/components/ui/base-ui/toast"
+import { DownloadTTSButton } from "@/components/ui/selection-popover/download-tts-button"
 import {
   SelectionToolbarTooltip,
   useSelectionTooltipState,
@@ -88,6 +89,7 @@ export function useSelectionSpeech(): SelectionSpeech {
 }
 
 export function SpeakButton() {
+  const selectionContent = useAtomValue(selectionContentAtom)
   const { isFetching, isPlaying, label: tooltipText, toggle } = useSelectionSpeech()
   const { speak } = useAtomValue(configFieldsAtomMap.selectionToolbar).features
   const {
@@ -103,26 +105,29 @@ export function SpeakButton() {
   }, [handlePress, toggle])
 
   return (
-    <SelectionToolbarTooltip
-      content={<ShortcutTooltipLabel label={tooltipText} shortcut={getSpeakShortcut(speak)} />}
-      open={tooltipOpen}
-      onOpenChange={handleTooltipOpenChange}
-      render={
-        <button
-          type="button"
-          className="flex h-7 cursor-pointer items-center justify-center px-2 hover:bg-muted"
-          onClick={handleClick}
-          aria-label={tooltipText}
-        />
-      }
-    >
-      {isFetching ? (
-        <IconLoader2 className="size-4.5 animate-spin" strokeWidth={1.6} />
-      ) : isPlaying ? (
-        <IconPlayerStopFilled className="size-4.5" strokeWidth={1.6} />
-      ) : (
-        <IconVolume className="size-4.5" strokeWidth={1.6} />
-      )}
-    </SelectionToolbarTooltip>
+    <>
+      <SelectionToolbarTooltip
+        content={<ShortcutTooltipLabel label={tooltipText} shortcut={getSpeakShortcut(speak)} />}
+        open={tooltipOpen}
+        onOpenChange={handleTooltipOpenChange}
+        render={
+          <button
+            type="button"
+            className="flex h-7 cursor-pointer items-center justify-center px-2 hover:bg-muted"
+            onClick={handleClick}
+            aria-label={tooltipText}
+          />
+        }
+      >
+        {isFetching ? (
+          <IconLoader2 className="size-4.5 animate-spin" strokeWidth={1.6} />
+        ) : isPlaying ? (
+          <IconPlayerStopFilled className="size-4.5" strokeWidth={1.6} />
+        ) : (
+          <IconVolume className="size-4.5" strokeWidth={1.6} />
+        )}
+      </SelectionToolbarTooltip>
+      <DownloadTTSButton text={selectionContent ?? undefined} />
+    </>
   )
 }

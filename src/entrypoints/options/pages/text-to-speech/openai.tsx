@@ -11,6 +11,7 @@ import {
   SelectItem,
 } from "@/components/ui/base-ui/select"
 import { Textarea } from "@/components/ui/base-ui/textarea"
+import { DownloadTTSButton } from "@/components/ui/selection-popover/download-tts-button"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { OPENAI_TTS_MODELS, OPENAI_TTS_VOICES } from "@/types/openai-tts"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
@@ -171,16 +172,20 @@ export function OpenAITTSSection() {
           onChange={(event) => setSample(event.target.value)}
           rows={3}
         />
-        <Button
-          onClick={() => {
-            if (busy) stop()
-            else void play(sample, tts).catch(() => {})
-          }}
-          disabled={!sample.trim()}
-        >
-          {busy ? <IconPlayerStopFilled /> : <IconPlayerPlayFilled />}
-          {busy ? i18n.t("openaiTts.stop") : i18n.t("openaiTts.preview")}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => {
+              if (busy) stop()
+              else void play(sample, tts).catch(() => {})
+            }}
+            disabled={!sample.trim()}
+          >
+            {busy ? <IconPlayerStopFilled /> : <IconPlayerPlayFilled />}
+            {busy ? i18n.t("openaiTts.stop") : i18n.t("openaiTts.preview")}
+          </Button>
+          <DownloadTTSButton text={sample} showLabel />
+        </div>
+        <p className="text-xs text-muted-foreground">{i18n.t("openaiTts.downloadDescription")}</p>
       </ConfigItem>
     </ConfigSection>
   )

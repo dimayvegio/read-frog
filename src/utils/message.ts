@@ -42,6 +42,7 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  downloadOpenAITTSMp3: (data: { audioBase64: string }) => { saved: boolean }
   openSettingsSync: () => void
   getEdgeSettingsSync: () => EdgeSyncView
   setEdgeSettingsSyncEnabled: (data: { enabled: boolean }) => EdgeSyncView

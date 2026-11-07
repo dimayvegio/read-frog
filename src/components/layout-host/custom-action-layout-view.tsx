@@ -4,7 +4,8 @@ import type { LayoutRenderReport, LayoutWarnCode } from "@read-frog/layout-engin
 import type { SelectionToolbarCustomActionOutputField } from "@/types/config/selection-toolbar"
 import { DEFAULT_LAYOUT } from "@read-frog/layout-engine/presets"
 import { LayoutView } from "@read-frog/layout-engine/react"
-import { useMemo, useRef } from "react"
+import { useMemo, useRef, useState } from "react"
+import { DownloadTTSButton } from "@/components/ui/selection-popover/download-tts-button"
 import { buildCustomActionLayoutScope, CUSTOM_ACTION_LAYOUT_HOST } from "@/utils/layout-host/host"
 import { loadLayoutMath } from "@/utils/layout-host/math"
 import { logger } from "@/utils/logger"
@@ -72,7 +73,10 @@ export function CustomActionLayoutView({
     () => buildCustomActionLayoutScope({ outputSchema, value, selection, targetCode, status }),
     [outputSchema, value, selection, targetCode, status],
   )
-  const speak = useExtensionSpeakAdapter(autoplay)
+  const [spoken, setSpoken] = useState<{ selection: string; source: string; text: string } | null>(
+    null,
+  )
+  const speak = useExtensionSpeakAdapter(autoplay, (text) => setSpoken({ selection, source, text }))
 
   // The layout reports whenever anything about the render changes; callers
   // only hear about changes to what they are shown. LayoutView always calls
@@ -87,19 +91,26 @@ export function CustomActionLayoutView({
   }
 
   return (
-    <LayoutView
-      host={CUSTOM_ACTION_LAYOUT_HOST}
-      theme={theme}
-      source={source}
-      scope={scope}
-      status={status}
-      fallbackSources={FALLBACK_SOURCES}
-      speak={speak}
-      math={loadLayoutMath}
-      onReport={handleReport}
-      onWarn={logLayoutWarning}
-      className={className}
-      fallback={<FallbackFieldList outputSchema={outputSchema} value={value} status={status} />}
-    />
+    <>
+      <LayoutView
+        host={CUSTOM_ACTION_LAYOUT_HOST}
+        theme={theme}
+        source={source}
+        scope={scope}
+        status={status}
+        fallbackSources={FALLBACK_SOURCES}
+        speak={speak}
+        math={loadLayoutMath}
+        onReport={handleReport}
+        onWarn={logLayoutWarning}
+        className={className}
+        fallback={<FallbackFieldList outputSchema={outputSchema} value={value} status={status} />}
+      />
+      {spoken?.selection === selection && spoken.source === source && (
+        <div className="flex justify-end px-2 py-1">
+          <DownloadTTSButton text={spoken.text} showLabel />
+        </div>
+      )}
+    </>
   )
 }

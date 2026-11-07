@@ -8,6 +8,14 @@ file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ u
 
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
+**Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`
+(vẫn hiển thị `1.58.0A`), phát triển trên HEAD `816c12b5`, mở rộng **F09** bằng
+nút tải MP3 OpenAI toàn đoạn. Giữ cache chung, export cancellation độc lập,
+không đổi model hoặc dữ liệu đã phát hành. Source, giới hạn và regression nằm
+trong [OPENAI_TTS_DOWNLOAD.md](OPENAI_TTS_DOWNLOAD.md). Bảng mốc/audit bên dưới
+vẫn mô tả snapshot `7ccf0ad7`; khi nâng cấp cần bao gồm cả bổ sung này và các
+commit mới hơn trên nhánh hiện hành.
+
 | Mục                       | Giá trị                                                        |
 | ------------------------- | -------------------------------------------------------------- |
 | Repo gốc                  | `https://github.com/mengxi-ream/read-frog.git`                 |

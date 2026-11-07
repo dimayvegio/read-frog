@@ -2,6 +2,7 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai"
 import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { Textarea } from "@/components/ui/base-ui/textarea"
+import { DownloadTTSButton } from "@/components/ui/selection-popover/download-tts-button"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { DEFAULT_TRANSLATE_PROMPT_ID } from "@/utils/constants/prompt"
@@ -93,6 +94,7 @@ export function TextInput() {
             className={cn("h-3.5 w-3.5", isFetching && "animate-spin")}
           />
         </Button>
+        <DownloadTTSButton text={value} />
         <Button onClick={handleTranslate} disabled={!value.trim()} size="sm">
           {i18n.t("translationHub.translate")}
           <span className="ml-1.5 text-xs">⌘↵</span>

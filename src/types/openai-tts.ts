@@ -14,6 +14,8 @@ export const OPENAI_TTS_VOICES = [
   "cedar",
 ] as const
 export const OPENAI_TTS_PORT = "openai-tts"
+export const OPENAI_TTS_FILE_PORT = "openai-tts-file"
+export const OPENAI_TTS_EXPORT_MAX_TEXT_LENGTH = 20000
 export const OPENAI_TTS_MAX_TEXT_LENGTH = 4000
 
 export const openAITTSConfigSchema = z.strictObject({

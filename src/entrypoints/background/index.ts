@@ -1,7 +1,7 @@
 import "@/utils/zod-config"
 import type { Config, UiLanguage } from "@/types/config/config"
 import { browser, defineBackground } from "#imports"
-import { OPENAI_TTS_PORT } from "@/types/openai-tts"
+import { OPENAI_TTS_PORT, OPENAI_TTS_FILE_PORT } from "@/types/openai-tts"
 import { storageAdapter } from "@/utils/atoms/storage-adapter"
 import { setBackgroundConfigReadyResolver } from "@/utils/config/readiness"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
@@ -30,7 +30,7 @@ import { setupLLMGenerateTextMessageHandlers } from "./llm-generate-text"
 import { setupNativePanelHandlers } from "./native-panel"
 import { setupNativeSelectionHandlers } from "./native-selection"
 import { setupOpenAISettingsHandlers } from "./openai-settings"
-import { handleOpenAITTSPort } from "./openai-tts"
+import { handleOpenAITTSPort, handleOpenAITTSFilePort } from "./openai-tts"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { setupPdfReaderHandlers } from "./pdf-reader"
 import { handleSentenceStudyPort } from "./sentence-study"
@@ -38,6 +38,7 @@ import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { translationMessage } from "./translation-signal"
+import { setupTTSDownloadHandlers } from "./tts-download"
 import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
 import { setupUsageHandlers } from "./usage"
 import { setupVideoSummaryHandlers } from "./video-summary"
@@ -81,6 +82,11 @@ export default defineBackground({
         handleOpenAITTSPort(port)
         return
       }
+      if (port.name === OPENAI_TTS_FILE_PORT) {
+        if (port.sender?.id === browser.runtime.id) handleOpenAITTSFilePort(port)
+        else port.disconnect()
+        return
+      }
       dispatchBackgroundStreamPort(port)
     })
     onMessage("clearAllTranslationRelatedCache", async () => {
@@ -106,6 +112,7 @@ export default defineBackground({
     setupGlossaryMessageHandlers()
     setupEdgeTTSMessageHandlers()
     setupTTSPlaybackMessageHandlers()
+    setupTTSDownloadHandlers()
     setupLLMGenerateTextMessageHandlers()
     setupIframeInjection()
     setUpConfigBackup()

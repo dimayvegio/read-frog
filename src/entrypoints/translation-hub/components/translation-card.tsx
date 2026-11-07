@@ -6,6 +6,7 @@ import { Icon } from "@/components/local-icon"
 import ProviderIcon from "@/components/provider-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { anchoredToastManager } from "@/components/ui/base-ui/toast"
+import { DownloadTTSButton } from "@/components/ui/selection-popover/download-tts-button"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { PROVIDER_ITEMS } from "@/utils/constants/providers"
@@ -194,6 +195,7 @@ export function TranslationCard({
               />
             </Button>
           )}
+          {mutation.data && !mutation.isPending && <DownloadTTSButton text={mutation.data} />}
           {mutation.data && !mutation.isPending && (
             <Button
               ref={copyButtonRef}

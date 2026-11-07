@@ -140,6 +140,12 @@ thanh theo dịch vụ/model/giọng/tốc độ/phong cách và phiên bản cr
 đóng cửa sổ hoặc bắt đầu lượt đọc mới sẽ hủy tổng hợp cũ; phản hồi trễ không phát
 đè lượt mới. Migration v122 và import/export giữ lựa chọn TTS cùng cấu hình Microsoft.
 
+Khi chọn OpenAI, bấm **Tải MP3** cạnh nút loa để lưu toàn bộ đoạn đọc thành một
+file. Có nút tải trong bản dịch web/PDF/ảnh, Translation Hub và phần nghe thử;
+custom action/từ điển tải trường vừa bấm đọc. Dùng lại audio còn trong cache;
+những đoạn chưa có sẽ gọi API theo giọng/model đang chọn. Có thể hủy tạo file,
+tối đa 20.000 ký tự mỗi lần. Xem [hướng dẫn và hợp đồng MP3](OPENAI_TTS_DOWNLOAD.md).
+
 ## Chạy và đóng gói
 
 Dùng Node 26.13+ và pnpm 12.16.1 theo package.json/lockfile.

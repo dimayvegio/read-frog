@@ -6,6 +6,7 @@ import { useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { i18n } from "@/utils/i18n"
 import { cn } from "@/utils/styles/utils"
+import { DownloadTTSButton } from "./download-tts-button"
 import { SelectionPopoverTooltip, useSelectionTooltipState } from "./selection-tooltip"
 
 export function SpeakButton({ text }: { text: string | undefined }) {
@@ -43,19 +44,22 @@ export function SpeakButton({ text }: { text: string | undefined }) {
   )
 
   return (
-    <SelectionPopoverTooltip
-      content={tooltipText}
-      open={tooltipOpen}
-      onOpenChange={handleTooltipOpenChange}
-      render={
-        <button
-          type="button"
-          className={cn(buttonVariants({ variant: "ghost-secondary", size: "icon-sm" }))}
-          onClick={handleClick}
-        />
-      }
-    >
-      {icon}
-    </SelectionPopoverTooltip>
+    <>
+      <SelectionPopoverTooltip
+        content={tooltipText}
+        open={tooltipOpen}
+        onOpenChange={handleTooltipOpenChange}
+        render={
+          <button
+            type="button"
+            className={cn(buttonVariants({ variant: "ghost-secondary", size: "icon-sm" }))}
+            onClick={handleClick}
+          />
+        }
+      >
+        {icon}
+      </SelectionPopoverTooltip>
+      <DownloadTTSButton text={text} />
+    </>
   )
 }

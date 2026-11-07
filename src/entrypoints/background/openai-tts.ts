@@ -316,3 +316,10 @@ export const handleOpenAITTSPort = createStreamPortHandler(
   },
   createStartMessageParser<OpenAITTSPayload>(openAITTSPayloadSchema),
 )
+
+/** Explicit file generation does not claim, stop or inherit the playback request. */
+export const handleOpenAITTSFilePort = createStreamPortHandler(
+  async (payload: OpenAITTSPayload, options: StreamRuntimeOptions<TTSAudioChunk>) =>
+    generateOpenAIAudio(payload, options.signal ?? new AbortController().signal),
+  createStartMessageParser<OpenAITTSPayload>(openAITTSPayloadSchema),
+)
