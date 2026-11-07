@@ -9,6 +9,7 @@ import { initI18n, setUiLanguage } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { onMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
+import { SENTENCE_STUDY_PORT } from "@/utils/subtitles/study-segmentation"
 import { runAiSegmentSubtitles } from "./ai-segmentation"
 import { dispatchBackgroundStreamPort } from "./background-stream"
 import { initializeActionIcons, registerActionIconListeners } from "./browser-action-icon"
@@ -32,6 +33,7 @@ import { setupOpenAISettingsHandlers } from "./openai-settings"
 import { handleOpenAITTSPort } from "./openai-tts"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { setupPdfReaderHandlers } from "./pdf-reader"
+import { handleSentenceStudyPort } from "./sentence-study"
 import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
@@ -66,6 +68,10 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === SENTENCE_STUDY_PORT) {
+        handleSentenceStudyPort(port)
+        return
+      }
       if (port.name === VOCABULARY_PORT) {
         if (port.sender?.id === browser.runtime.id) handleVocabularyPort(port)
         else port.disconnect()

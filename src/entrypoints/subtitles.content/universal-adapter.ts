@@ -37,6 +37,7 @@ import {
   currentVideoIdAtom,
   sourceLanguageAtom,
   sourceTrackAtom,
+  studySourceTrackAtom,
   translatedTrackAtom,
   videoSummaryPartialAtom,
   subtitlesPositionAtom,
@@ -87,6 +88,7 @@ export interface SubtitlesProvidersAdapter {
   generateVideoSummary: (config: Config, videoId?: string | null) => Promise<string | null>
   hasSubtitlesAvailable: () => Promise<boolean>
   ensureSourceTrackPublished: () => Promise<void>
+  getSentenceStudySource: (signal: AbortSignal) => Promise<SubtitlesFragment[]>
   seekTo: (seconds: number) => void
   getVideoElement: () => HTMLVideoElement | null
   /** The platform's link to the playing video, when the page URL does not name it. */
@@ -289,6 +291,16 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
   hasSubtitlesAvailable = () => this.fetcher.hasAvailableSubtitles()
 
+  /** Native CC before display optimization; only called by the opt-in YouTube study runtime. */
+  getSentenceStudySource = async (signal: AbortSignal): Promise<SubtitlesFragment[]> => {
+    if (this.source !== SUBTITLES_SOURCE.NATIVE) throw new NoSubtitlesError()
+    const operationId = this.switchOperationId
+    const source = await this.getOrLoadSourceSubtitles(signal)
+    signal.throwIfAborted()
+    if (this.isSuperseded(operationId)) throw new DOMException("Video changed", "AbortError")
+    return source.map(({ text, start, end }) => ({ text, start, end }))
+  }
+
   /**
    * The transcript reads `sourceTrackAtom`, which only fills once a subtitles
    * session starts. Publishing it here does not put captions on the video:
@@ -441,6 +453,10 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     assertCurrent()
 
     if (useSameTrack && this.sourceVideoId === currentVideoId && this.sourceSubtitles.length > 0) {
+      subtitlesStore.set(
+        studySourceTrackAtom,
+        this.source === SUBTITLES_SOURCE.NATIVE ? this.sourceSubtitles : [],
+      )
       return this.sourceSubtitles
     }
 
@@ -463,6 +479,10 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
 
     this.sourceVideoId = currentVideoId
     this.sourceSubtitles = subtitles
+    subtitlesStore.set(
+      studySourceTrackAtom,
+      this.source === SUBTITLES_SOURCE.NATIVE ? subtitles : [],
+    )
     this.sourceProcessedSubtitles = this.buildSourceProcessedSubtitles(subtitles)
 
     return subtitles
@@ -481,6 +501,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
   private clearSourceCache() {
     this.sourceCacheVersion++
     this.sourceSubtitles = []
+    subtitlesStore.set(studySourceTrackAtom, [])
     this.clearSourceProcessedSubtitles()
     this.sourceVideoId = null
   }

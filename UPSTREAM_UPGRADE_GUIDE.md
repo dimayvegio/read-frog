@@ -17,8 +17,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.16` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.17` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.17` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.18` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 
@@ -28,6 +28,14 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.18`, giữ track luyện nghe YouTube riêng chỉ gọi OpenAI khi bật,
+chia câu bằng chỉ số CC có kiểm tra đầy đủ, giữ câu ngắn và carry câu cuối qua
+cửa sổ. Không đưa qua display optimizer, giữ hủy port/guard và dung sai seek
+khi browser làm tròn mốc thời gian ước lượng. Giữ ngôn ngữ đích rõ ràng cho
+dịch ảnh/PDF với prompt riêng và cache tách theo target code. Xem
+[STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md),
+[IMAGE_TRANSLATION.md](IMAGE_TRANSLATION.md).
 
 Từ build `1.58.0.17`, giữ Edge native configuration sync opt-in, DB riêng1 và
 transport1 frozen config124: gzip/chunks/checksum, head-last commit, vector

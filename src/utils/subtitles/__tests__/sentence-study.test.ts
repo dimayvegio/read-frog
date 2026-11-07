@@ -25,6 +25,53 @@ function fixture() {
   return { media, player, changed }
 }
 describe("opt-in sentence playback", () => {
+  it("does not jump back and pause the preceding sentence after a browser-rounded fractional seek", () => {
+    const { media } = fixture()
+    let clock = 0
+    Object.defineProperty(media, "currentTime", {
+      get: () => clock,
+      set: (value: number) => {
+        clock = Math.floor(value * 1000000) / 1000000
+      },
+    })
+    const boundary = (2000 * 4) / 11
+    const player = new SentenceStudyPlayer(
+      media,
+      [
+        { start: 0, end: boundary },
+        { start: boundary, end: 2000 },
+      ],
+      () => {},
+    )
+    player.preferences(1, true)
+    player.tick()
+    player.command("next")
+    player.seeking()
+    player.seeked()
+    player.tick()
+    expect(player.index).toBe(1)
+    media.currentTime = 0.75
+    player.tick()
+    expect(player.index).toBe(1)
+    expect(media.pause).not.toHaveBeenCalled()
+  })
+  it("keeps the current repeat count and paused boundary when AI appends more prepared sentences", () => {
+    const { media, player } = fixture()
+    player.preferences(2, true)
+    media.currentTime = 1.01
+    player.tick()
+    player.seeked()
+    player.updateCues([
+      { start: 0, end: 1000 },
+      { start: 1200, end: 2200 },
+      { start: 3000, end: 4000 },
+      { start: 4500, end: 5500 },
+    ])
+    media.currentTime = 1.01
+    player.tick()
+    expect(media.pause).toHaveBeenCalledTimes(1)
+    expect(media.currentTime).toBe(0.97)
+  })
   it("observes time without changing playback by default", () => {
     const { media, player } = fixture()
     media.currentTime = 1.05

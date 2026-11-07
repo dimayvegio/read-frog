@@ -35,6 +35,9 @@ export const sourceLanguageAtom = atom<LangCodeISO6393 | null>(null)
 /** Best original track (baseline or AI-segmented). Read-only for display/coordinator consumers. */
 export const sourceTrackAtom = atom<SubtitlesFragment[]>([])
 
+/** Native CC before any display/AI re-cut. Listening preparation never mutates it. */
+export const studySourceTrackAtom = atom<SubtitlesFragment[]>([])
+
 /** The scheduler's translated cues, for consumers that need the whole track
  * rather than whichever one covers now. */
 export const translatedTrackAtom = atom<SubtitlesFragment[]>([])

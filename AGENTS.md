@@ -20,6 +20,8 @@
 - Published fork migrations are frozen; upstream migration numbers may conflict and must be adapted as a new fork schema step.
 - Preserve opt-in Edge account configuration sync in [EDGE_SETTINGS_SYNC.md](EDGE_SETTINGS_SYNC.md): native storage.sync, trusted-page RPC, gzip/chunk limits, head-last commit, checksum validation, vector-clock conflicts, stale-choice guards and persistent local recovery/undo. Sync format v1 is frozen for fork config124; do not project away newer fields. Keep OpenAI credentials, glossary rows, vocabulary/audio/progress/logs, PDF/image/usage databases outside this transport. Do not claim storage.sync writes prove Microsoft cloud delivery or change the existing extension ID silently. Keep the legacy Send feedback action removed.
 
+- Preserve the opt-in YouTube OpenAI listening sentence track in `STUDY_FLOW_AND_USAGE.md`: raw native CC, index-only validated boundaries, short sentences kept separate, no display optimizer, bounded windows with unfinished-tail carry, independent cache identity and abort-on-disable/navigation/CC/ad guards. The normal subtitle translation buffer and optional display segmentation remain independent. Label interpolated timing honestly.
+
 ## Testing Notes
 
 - `src/utils/host/translate/api/__tests__/free-api.test.ts` depends on live external translation services.

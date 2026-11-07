@@ -21,13 +21,34 @@ export class SentenceStudyPlayer {
     private cues: readonly StudyCue[],
     private changed: (index: number) => void,
   ) {
+    this.updateCues(cues)
+  }
+  /** Incremental AI preparation must not reset repeats or a user's paused sentence. */
+  updateCues(cues: readonly StudyCue[]) {
+    const selected = this.cues[this.index]
     this.cues = [...cues]
       .filter(
         (cue) => Number.isFinite(cue.start) && Number.isFinite(cue.end) && cue.end > cue.start,
       )
       .sort((a, b) => a.start - b.start)
+    const next = selected
+      ? this.cues.findIndex((cue) => cue.start === selected.start && cue.end === selected.end)
+      : -1
+    if (next !== this.index) {
+      this.index = next
+      this.changed(next)
+    }
+    if (selected && next < 0) {
+      this.passes = 0
+      this.stoppedAt = -1
+    }
   }
   private activeAt(time: number) {
+    // HTMLMediaElement rounds seeks to microseconds. Keep an explicitly selected
+    // sentence when its interpolated CC start is a fraction above that value;
+    // otherwise the first tick can select and auto-pause the previous sentence.
+    const selected = this.cues[this.index]
+    if (selected && time < selected.start && selected.start - time < 0.01) return this.index
     let lo = 0,
       hi = this.cues.length - 1,
       index = -1

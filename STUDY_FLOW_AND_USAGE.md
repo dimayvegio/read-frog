@@ -1,7 +1,7 @@
-# Đọc, xem và ôn từ — 1.58.0-a.15
+# Đọc, xem và ôn từ — cập nhật 1.58.0-a.17
 
-Tiếp tục từ `2b484d4e` trên `codex/pdf-reading-panel`. Manifest numeric
-`1.58.0.16`, tên hiển thị `1.58.0A`. Config124/PDF DB2/image cache DB1 giữ
+Tiếp tục từ `014b6ef2` trên `codex/pdf-reading-panel`. Manifest numeric
+`1.58.0.18`, tên hiển thị `1.58.0A`. Config124/PDF DB2/image cache DB1 giữ
 nguyên; vocabulary thêm DB5, ZIP6; usage có DB1 riêng.
 
 ## Từ đang học trên nội dung thật
@@ -32,9 +32,35 @@ J câu trước, K nghe lại, L câu sau. Không bắt phím trong ô nhập, k
 modifier, lúc quảng cáo/loading hoặc khi phụ đề đã tắt. Tắt trả phím YouTube.
 
 Lặp1–3 lần, dừng cuối câu, ẩn/hiện bản dịch ở cả overlay và transcript.
-Điều khiển cue từ track hiện có; không tạo CC, không gọi thêm OpenAI và không
-đổi bộ đệm120s. Playback observer dọn khi unmount/navigation; không tự play
-khi chỉ bật chế độ. X/Netflix/ani.pm không có controller luyện câu mới.
+Từ build `1.58.0-a.17` / numeric `1.58.0.18`, bật chế độ này mới dùng OpenAI
+chia lại **CC native trước tối ưu hiển thị**, bằng model phụ đề đang chọn.
+Không phụ thuộc công tắc **AI phân đoạn thông minh** của phụ đề thường.
+Ưu tiên câu trọn nghĩa, giữ riêng câu ngắn và không áp giới hạn hiển thị15 từ;
+câu quá dài chia ở mệnh đề tự nhiên, tối đa45 giây để luyện. Không gộp lại bằng
+optimizer. Chỉ AI chọn chỉ số từ cuối câu: text/timing dựng từ CC; phản hồi thiếu
+từ, sai thứ tự, ngoài phạm vi hoặc nối qua khoảng lặng >1.500ms bị từ chối.
+
+Khung Learning hiện câu AI đang luyện, trạng thái chuẩn bị và nút thử lại khi
+lỗi. Overlay/transcript/dịch phụ đề thường giữ track riêng. Luồng mới không tạo
+CC hay gửi audio, không sửa translation/glossary/stream/queue, không đổi bộ đệm
+dịch120s. CC có thời gian từng từ thì giữ; CC chỉ có thời gian cả dòng thì
+chia thời gian tương đối theo độ dài chữ và báo rõ **ước lượng**.
+
+Chuẩn bị từng cửa sổ tối đa120s/600 từ/24.000 ký tự quanh vị trí xem, dự trữ
+ít nhất vùng120s phía trước khi có dữ liệu. Giữ câu cuối chưa hoàn chỉnh sang
+lượt kế tiếp để không cắt cứng tại ranh giới cửa sổ; một cửa sổ tiếp theo có thể
+vượt vùng dự trữ120s. Seek xa lấy thêm30s phía trước vị trí tua làm ngữ cảnh.
+Chỉ một request chạy tại một thời điểm. Tắt/đổi video/đổi CC/quảng cáo/loading
+hoặc ẩn phụ đề hủy port và signal, không áp kết quả muộn, không tự play chỉ vì
+bật. Không tự retry trả phí vô hạn, không giả gắn nhãn AI cho cue fallback.
+X/Netflix/ani.pm không có controller luyện câu mới.
+
+Cache dùng store `aiSegmentationCache` hiện có, namespace prompt riêng v1,
+hash toàn bộ word/timing + profile model/params + credential revision; cache
+chỉ lưu JSON ranh giới, không thêm schema/migration/config sync. Cache không
+trộn với phân đoạn hiển thị cũ. Usage ghi task segmentation/cached riêng trong
+dashboard hiện có. Port chỉ nhận top-frame HTTPS YouTube của đúng extension,
+request giới hạn90s, thông báo lỗi không chứa key hoặc raw provider payload.
 
 ## Nhiều câu nguồn cho một từ
 
@@ -91,7 +117,31 @@ Nguồn: [OpenAI pricing](https://developers.openai.com/api/docs/pricing),
 [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching)
 và docs/source AI SDK đi kèm phiên bản cài trong repo.
 
-## Kiểm chứng phát hành — 07/11/2026
+## Kiểm chứng cập nhật a.17 — 07/11/2026
+
+- Production Edge `156.0.4314.58`: **39 assertion** của `check-study-flow.mjs`
+  đạt, gồm tắt không gọi AI, bật dùng model phụ đề, J/K/L/lặp/auto-pause, giữ
+  riêng “Yes.” và “I agree.” trong cùng CC, ghép mệnh đề qua hai cue, không
+  cắt câu >15 từ, cache bật lại không trả phí thêm, ad/input/SPA guards,
+  source passages/1.000 từ/usage và PDF highlights/jump. Đã sửa lỗi seek
+  làm tròn microsecond khiến quay về câu trước khi cắt bên trong CC.
+- **80 assertion** PDF/image regression đạt, có prompt ghi cứng Chinese
+  không chứa token ngôn ngữ, chọn Việt/Anh và cache riêng; OCR không upload
+  lại. Không chạy lại benchmark độ trễ lịch sử a.12 trong lần kiểm này.
+- Unit suite/lint/type/format được chạy với `SKIP_FREE_API=true`; test live
+  free-api chủ động loại. API/model và DOM YouTube trong browser là fixture;
+  MP4, media seek/play, extension runtime, private credential routing và
+  IndexedDB/cache/UI đều thật. **Chưa kiểm chứng chất lượng chia câu/dịch của
+  OpenAI thật hoặc live YouTube**; không dùng key của người dùng.
+- Config124/PDF DB2/image DB1/vocabulary DB5/ZIP6/Edge sync1 giữ nguyên;
+  HTML ôn từ giữ SHA-256 `ecc40069a312ad4a274606d42dcf57db7186c7c1bea1b162e64adadf5f2dd589`.
+- ZIP **429/429 file** khớp byte với build đã test, CRC đạt, **8.745.404 byte**,
+  tăng4.247 byte so với EdgeSync. `ReadFrog-Edge-1.58.0A-YouTubeAI-FixImage.zip`,
+  SHA-256 `d4e947a7a2bc5f4b22ff70cf215136ed9030b523c6f2d8c9e558b0943394e165`.
+  Evidence local: `.codex/study-flow-1794028819970`,
+  `.codex/pdf-reading-1794028662563`. Không có chặn kỹ thuật còn tồn tại.
+
+## Kiểm chứng bản a.15 — 07/11/2026
 
 - Source: **4.145 test đạt, 1 bỏ qua**, 410 file đạt/1 file bỏ qua;
   `SKIP_FREE_API=true`, loại test live free-api. Lint/type-check và format đạt.

@@ -1,6 +1,7 @@
 import type { ControlsConfig } from "@/entrypoints/subtitles.content/platforms"
 import type { SubtitlesProvidersAdapter } from "@/entrypoints/subtitles.content/universal-adapter"
 import type { Config } from "@/types/config/config"
+import type { SubtitlesFragment } from "@/utils/subtitles/types"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Provider as JotaiProvider } from "jotai"
 import { createContext, use, useMemo } from "react"
@@ -16,6 +17,7 @@ interface SubtitlesUIContextValue {
   generateVideoSummary: (config: Config, videoId?: string | null) => Promise<string | null>
   hasSubtitlesAvailable: () => Promise<boolean>
   ensureSourceTrackPublished: () => Promise<void>
+  getSentenceStudySource: (signal: AbortSignal) => Promise<SubtitlesFragment[]>
   seekTo: (seconds: number) => void
   getVideoElement: () => HTMLVideoElement | null
   getVideoPageUrl: () => string | null
@@ -55,6 +57,7 @@ export function SubtitlesProviders({
       generateVideoSummary: adapter.generateVideoSummary,
       hasSubtitlesAvailable: adapter.hasSubtitlesAvailable,
       ensureSourceTrackPublished: adapter.ensureSourceTrackPublished,
+      getSentenceStudySource: adapter.getSentenceStudySource,
       seekTo: adapter.seekTo,
       getVideoElement: adapter.getVideoElement,
       getVideoPageUrl: adapter.getVideoPageUrl,

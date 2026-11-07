@@ -467,6 +467,20 @@ try {
   // MAIN bridge, subtitle fetcher, sidebar and media controller together.
   await worker.evaluate(async () => {
     globalThis.__pdfTextOutput = (body) => {
+      if (JSON.stringify(body).includes("natural listening-practice sentences")) {
+        const input =
+          typeof body.input === "string"
+            ? body.input
+            : body.input
+                .filter((item) => item.role === "user")
+                .flatMap((item) => item.content ?? [])
+                .map((part) => part.text ?? "")
+                .join("")
+        const { words } = JSON.parse(input)
+        return JSON.stringify({
+          ends: words.filter((word) => /[.!?]$/.test(word.t)).map((word) => word.i),
+        })
+      }
       const text =
         typeof body.input === "string"
           ? body.input
@@ -563,6 +577,17 @@ try {
     "YouTube sentence study controls ship in the real subtitle sidebar and default off",
     !(await yt.$eval('pierce/[data-slot="sentence-study"] input', (n) => n.checked)),
   )
+  const studyRequests = () =>
+    worker.evaluate(
+      () =>
+        __pdfCalls.filter((entry) =>
+          JSON.stringify(entry.body).includes("natural listening-practice sentences"),
+        ).length,
+    )
+  check(
+    "Normal YouTube playback never calls the new AI sentence segmenter",
+    (await studyRequests()) === 0,
+  )
   await yt.keyboard.press("Escape")
   await yt.click("h1")
   await yt.$eval("video", (video) => video.play())
@@ -591,6 +616,16 @@ try {
     }
     return false
   })
+  check(
+    "Opt-in prepares a separate sentence track with one real private-runtime API request",
+    (await studyRequests()) === 1,
+  )
+  check(
+    "AI study preparation is visible and uses the current subtitle model",
+    await yt.$eval('pierce/[data-slot="study-preparation"]', (node) =>
+      node.textContent.includes("Đã chuẩn bị 3 câu"),
+    ),
+  )
   for (let attempt = 0; attempt < 30; attempt++) {
     const before = await counts()
     await new Promise((resolve) => setTimeout(resolve, 750))
@@ -754,6 +789,99 @@ try {
     return false
   })
   check("SPA video navigation resets opt-in sentence practice", true)
+  cues.splice(
+    0,
+    cues.length,
+    { tStartMs: 0, dDurationMs: 2000, segs: [{ utf8: "Yes. I agree." }] },
+    { tStartMs: 2000, dDurationMs: 2500, segs: [{ utf8: "When we arrived at the station" }] },
+    {
+      tStartMs: 4500,
+      dDurationMs: 2000,
+      segs: [{ utf8: "we discovered the last train had left without any warning that evening." }],
+    },
+  )
+  await yt.goto("https://www.youtube.com/watch?v=RFNatural01")
+  await yt.click("h1")
+  await yt.waitForSelector('pierce/button[aria-label="Subtitle Translation Panel"]')
+  await yt.$eval('pierce/button[aria-label="Subtitle Translation Panel"]', (node) => node.click())
+  await yt.waitForFunction(() =>
+    [...document.querySelectorAll("*")].some((host) =>
+      [...(host.shadowRoot?.querySelectorAll("button") ?? [])].some((button) =>
+        button.textContent.includes("Learning"),
+      ),
+    ),
+  )
+  await yt.evaluate(() => {
+    for (const host of document.querySelectorAll("*")) {
+      const button = [...(host.shadowRoot?.querySelectorAll("button") ?? [])].find((node) =>
+        node.textContent.includes("Learning"),
+      )
+      if (button) {
+        button.click()
+        break
+      }
+    }
+  })
+  await yt.waitForSelector('pierce/[data-slot="sentence-study"] input')
+  await yt.$eval('pierce/[data-slot="sentence-study"] input', (node) => node.click())
+  await yt.waitForFunction(() =>
+    [...document.querySelectorAll("*")].some(
+      (host) =>
+        host.shadowRoot?.querySelector('[data-slot="study-sentence"]')?.textContent === "Yes.",
+    ),
+  )
+  check(
+    "AI learning keeps a complete one-word sentence separate from its neighboring sentence",
+    true,
+  )
+  await yt.$eval('pierce/[data-slot="sentence-study"]', (panel) =>
+    [...panel.querySelectorAll("button")]
+      .find((node) => node.textContent.includes("Câu sau"))
+      .click(),
+  )
+  await yt.waitForFunction(() =>
+    [...document.querySelectorAll("*")].some(
+      (host) =>
+        host.shadowRoot?.querySelector('[data-slot="study-sentence"]')?.textContent === "I agree.",
+    ),
+  )
+  check(
+    "A second short sentence remains independently replayable inside the same original CC cue",
+    await yt.$eval("video", (video) => video.currentTime >= 0.39 && video.currentTime < 1),
+  )
+  await yt.$eval('pierce/[data-slot="sentence-study"]', (panel) =>
+    [...panel.querySelectorAll("button")]
+      .find((node) => node.textContent.includes("Câu sau"))
+      .click(),
+  )
+  await yt.waitForFunction(() =>
+    [...document.querySelectorAll("*")].some(
+      (host) =>
+        host.shadowRoot?.querySelector('[data-slot="study-sentence"]')?.textContent ===
+        "When we arrived at the station we discovered the last train had left without any warning that evening.",
+    ),
+  )
+  check(
+    "AI learning joins a dependent clause across two CC cues and keeps its sentence above fifteen words intact",
+    await yt.$eval("video", (video) => video.currentTime >= 2 && video.currentTime < 3),
+  )
+  await yt.$eval("video", (video) => video.pause())
+  const preparedRequests = await studyRequests()
+  await yt.$eval('pierce/[data-slot="sentence-study"] input', (node) => node.click())
+  await yt.$eval('pierce/[data-slot="sentence-study"] input', (node) => node.click())
+  await yt.waitForFunction(() =>
+    [...document.querySelectorAll("*")].some((host) =>
+      host.shadowRoot
+        ?.querySelector('[data-slot="study-preparation"]')
+        ?.textContent.includes("Đã chuẩn bị 3 câu"),
+    ),
+  )
+  check(
+    "Turning listening off and on reuses its validated sentence cache without another OpenAI request",
+    (await studyRequests()) === preparedRequests,
+  )
+  await yt.screenshot({ path: path.join(scratch, "youtube-natural-sentences.png") })
+  evidence.screenshots.push("youtube-natural-sentences.png")
   const pdfBytes = bookFixture("They reverse the decision.", 5),
     pdfDigest = hash(pdfBytes),
     pdfPath = path.join(scratch, "Study-sources.pdf")
