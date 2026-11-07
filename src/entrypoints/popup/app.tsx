@@ -55,6 +55,13 @@ function App() {
           <button
             type="button"
             className="text-left text-[13px] underline"
+            onClick={() => void sendMessage("openReadingLab", undefined)}
+          >
+            {i18n.t("readingLab.library")}
+          </button>
+          <button
+            type="button"
+            className="text-left text-[13px] underline"
             onClick={() => void sendMessage("openUsageDashboard", undefined)}
           >
             Chi phí và tốc độ OpenAI

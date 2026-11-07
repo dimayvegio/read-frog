@@ -4,6 +4,7 @@ import { IconLoader2 } from "@tabler/icons-react"
 import { Activity } from "react"
 import { Thinking } from "@/components/thinking"
 import { CopyButton } from "@/components/ui/selection-popover/copy-button"
+import { ReadingLabButton } from "@/components/ui/selection-popover/reading-lab-button"
 import { SaveVocabularyButton } from "@/components/ui/selection-popover/save-vocabulary-button"
 import { SelectionSourceContent } from "@/components/ui/selection-popover/selection-source-content"
 import { SpeakButton } from "@/components/ui/selection-popover/speak-button"
@@ -44,6 +45,15 @@ export function TranslationContent({
           </div>
         </Activity>
       </div>
+      {!isTranslating && selectionContent && translatedText && (
+        <div className="mt-3">
+          <ReadingLabButton
+            original={selectionContent}
+            translation={translatedText}
+            title={vocabularySource?.sourceTitle}
+          />
+        </div>
+      )}
       {!isTranslating && selectionContent && translatedText && (
         <SaveVocabularyButton
           capture={{

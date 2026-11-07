@@ -1,4 +1,5 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { ReadingCapture } from "./reading-library/schema"
 import type {
   PdfReadingPosition,
   PdfPositionState,
@@ -42,6 +43,8 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  openReadingLab: (data?: ReadingCapture) => void
+  consumeReadingCapture: (data: { channel: string }) => ReadingCapture | null
   downloadOpenAITTSMp3: (data: { audioBase64: string }) => { saved: boolean }
   openSettingsSync: () => void
   getEdgeSettingsSync: () => EdgeSyncView

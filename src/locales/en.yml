@@ -2112,6 +2112,11 @@ languages:
   rar: Rarotongan
   hif: Fiji Hindi
 
+readingLab:
+  open: Listening practice / Save passage
+  library: Listening & passage library
+  openFailed: Unable to open listening practice. Select a shorter passage (up to 20,000 characters per side).
+
 openaiTts:
   download: Download MP3
   downloadCancel: Cancel MP3 creation

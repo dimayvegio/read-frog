@@ -146,6 +146,13 @@ custom action/từ điển tải trường vừa bấm đọc. Dùng lại audio
 những đoạn chưa có sẽ gọi API theo giọng/model đang chọn. Có thể hủy tạo file,
 tối đa 20.000 ký tự mỗi lần. Xem [hướng dẫn và hợp đồng MP3](OPENAI_TTS_DOWNLOAD.md).
 
+**Luyện nghe & Thư viện đoạn đọc:** từ khung Translate bấm **Luyện nghe / Lưu
+đoạn**, hoặc mở qua popup extension. Nghe câu gốc rồi bản dịch, chỉnh nghỉ/lặp,
+tải MP3 xen kẽ; lưu đoạn/audio vào thư mục, tìm kiếm/yêu thích và nhập/xuất ZIP.
+Chọn câu để nghe mẫu, thu micro và nghe đối chiếu ngay trên máy. Tạo audio và
+ghép câu AI chỉ gọi OpenAI khi bấm; bản thu không upload. Xem
+[cách dùng và hợp đồng F19](READING_LAB.md).
+
 ## Chạy và đóng gói
 
 Dùng Node 26.13+ và pnpm 12.16.1 theo package.json/lockfile.

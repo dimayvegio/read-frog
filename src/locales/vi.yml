@@ -1965,6 +1965,11 @@ languages:
   rar: Tiếng Rarotongan
   hif: Tiếng Hindi Fiji
 
+readingLab:
+  open: Luyện nghe / Lưu đoạn
+  library: Luyện nghe & Thư viện đoạn đọc
+  openFailed: Không mở được bài nghe. Hãy chọn đoạn ngắn hơn (tối đa 20.000 ký tự mỗi bên).
+
 openaiTts:
   download: Tải MP3
   downloadCancel: Hủy tạo MP3

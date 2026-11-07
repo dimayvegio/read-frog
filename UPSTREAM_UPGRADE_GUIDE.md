@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58-openai`               |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.0-a.20` (SemVer hợp lệ)              |
-| `manifest.version` trong `wxt.config.ts` | `1.58.0.21` (số hợp lệ cho Edge/Chromium)  |
+| `package.json`                           | `1.58.0-a.21` (SemVer hợp lệ)              |
+| `manifest.version` trong `wxt.config.ts` | `1.58.0.22` (số hợp lệ cho Edge/Chromium)  |
 | `manifest.version_name`                  | `1.58.0A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/pdf-reading-panel`                  |
@@ -38,6 +38,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Từ build `1.58.0.22`, danh mục có thêm **F19** trong
+[READING_LAB.md](READING_LAB.md): nghe xen kẽ/MP3, thư viện DB1/ZIP1 và
+shadowing local. Giữ sender guards, one-use capture, index-only AI alignment,
+private TTS, epoch/revision và cleanup micro. Đừng kéo thư viện/bản thu vào
+config sync hoặc biến shadowing thành điểm đúng/sai của sổ từ.
 
 Từ build `1.58.0.20`, hợp đồng F09 có thêm **Tải MP3 OpenAI**. Đọc
 [OPENAI_TTS_DOWNLOAD.md](OPENAI_TTS_DOWNLOAD.md): giữ cache dùng chung và

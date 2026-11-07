@@ -9,6 +9,7 @@ import { initI18n, setUiLanguage } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { onMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
+import { READING_LAB_PORT } from "@/utils/reading-library/schema"
 import { SENTENCE_STUDY_PORT } from "@/utils/subtitles/study-segmentation"
 import { runAiSegmentSubtitles } from "./ai-segmentation"
 import { dispatchBackgroundStreamPort } from "./background-stream"
@@ -33,6 +34,7 @@ import { setupOpenAISettingsHandlers } from "./openai-settings"
 import { handleOpenAITTSPort, handleOpenAITTSFilePort } from "./openai-tts"
 import { setupPageTranslationHandlers } from "./page-translation"
 import { setupPdfReaderHandlers } from "./pdf-reader"
+import { handleReadingLabPort, setupReadingLabHandlers } from "./reading-lab"
 import { handleSentenceStudyPort } from "./sentence-study"
 import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
@@ -69,6 +71,10 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === READING_LAB_PORT) {
+        handleReadingLabPort(port)
+        return
+      }
       if (port.name === SENTENCE_STUDY_PORT) {
         handleSentenceStudyPort(port)
         return
@@ -107,6 +113,7 @@ export default defineBackground({
     setupSubtitlesTranslationHandlers()
     setupVideoSummaryHandlers()
     setupVocabularyHandlers()
+    setupReadingLabHandlers()
     setupUsageHandlers()
     setupSettingsSyncHandlers()
     setupGlossaryMessageHandlers()

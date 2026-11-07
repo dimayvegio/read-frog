@@ -6,6 +6,14 @@ Các mã F01–F18 dưới đây là danh mục hành vi cần bảo toàn, khô
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.
 
+**F19 — Luyện nghe và thư viện đoạn đọc:** thêm từ release `1.58.0-a.21` /
+manifest `1.58.0.22` trên HEAD `9ad04eec`: nghe nguồn–dịch theo cặp câu, lặp/
+khoảng nghỉ, MP3 xen kẽ, thư mục/tìm kiếm/yêu thích, ZIP thư viện và thu giọng
+shadowing local. Đây là phần bổ sung sau danh mục F01–F18 của snapshot lịch sử;
+phải giữ khi merge. DB riêng `read-frog-reading-library` v1, ZIP
+`read-frog-reading-library` v1; không đổi các DB/config/ZIP cũ. Quy tắc và
+source/regression tại [READING_LAB.md](READING_LAB.md).
+
 ## Mốc đối chiếu đã xác minh ngày 07/11/2026
 
 **Bổ sung sau mốc kiểm toán:** release `1.58.0-a.19` / manifest `1.58.0.20`
