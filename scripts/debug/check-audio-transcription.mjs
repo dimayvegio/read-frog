@@ -26,12 +26,19 @@ const check = (name, condition) => {
   console.log(`PASS ${name}`)
 }
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-const server = http.createServer((_request, response) =>
+const sourceViewTest = Boolean(process.env.AUDIO_YOUTUBE || process.env.AUDIO_SOURCE_VIEW)
+const sourceHTML = `<!doctype html><meta charset="utf-8"><title>Live source fixture</title><style>body{background:#101110;color:#eee;font:18px system-ui;margin:26px}#movie_player{background:linear-gradient(140deg,#16303c,#264b32);height:560px;width:900px;display:grid;place-content:center;border-radius:18px}h1{font-size:32px}button{padding:12px;margin:8px;font:inherit}#native-cc{color:#ced6be}</style><h3>Read Frog · Live source test fixture</h3><div id="movie_player"><h1>Live listening · Bilingual transcript</h1><p>Streaming audio + contextual translation</p><button id="play">Play synthetic audio</button><button id="fullscreen">Fullscreen video</button><p id="native-cc">Native CC unchanged</p></div><script>play.onclick=()=>{window.ctx=new AudioContext();window.tone=ctx.createOscillator();const gain=ctx.createGain();gain.gain.value=.12;tone.connect(gain).connect(ctx.destination);tone.start();ctx.resume()};fullscreen.onclick=()=>document.querySelector('#movie_player').requestFullscreen()</script>`
+const server = http.createServer((request, response) =>
   response.end(
-    `<!doctype html><title>Tab audio fixture</title><button id="play">Play synthetic audio</button><button id="work">Work: 0</button><script>play.onclick=()=>{window.ctx=new AudioContext();window.tone=ctx.createOscillator();const gain=ctx.createGain();gain.gain.value=.12;tone.connect(gain).connect(ctx.destination);tone.start();ctx.resume()};work.onclick=()=>work.textContent='Work: '+(Number(work.textContent.split(': ')[1])+1)</script>`,
+    request.url === "/source-view"
+      ? sourceHTML
+      : `<!doctype html><title>Tab audio fixture</title><button id="play">Play synthetic audio</button><button id="work">Work: 0</button><script>play.onclick=()=>{window.ctx=new AudioContext();window.tone=ctx.createOscillator();const gain=ctx.createGain();gain.gain.value=.12;tone.connect(gain).connect(ctx.destination);tone.start();ctx.resume()};work.onclick=()=>work.textContent='Work: '+(Number(work.textContent.split(': ')[1])+1)</script>`,
   ),
 )
 await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
+const embeddedSourceURL = process.env.AUDIO_YOUTUBE
+  ? "https://live-player.read-frog.test/embedded-player"
+  : `http://localhost:${server.address().port}/embedded-player`
 const browser = await puppeteer.launch({
   executablePath:
     process.env.VOCAB_BROWSER || "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
@@ -94,8 +101,8 @@ try {
       )
     ).worker()
     check(
-      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.2",
-      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.2"),
+      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.3",
+      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.3"),
     )
     check(
       "in-place upgrade preserves public configuration byte-for-byte",
@@ -357,6 +364,14 @@ try {
     if (process.env.AUDIO_YOUTUBE) {
       await source.setRequestInterception(true)
       source.on("request", (request) => {
+        if (request.url() === embeddedSourceURL) {
+          void request.respond({
+            status: 200,
+            contentType: "text/html",
+            body: '<!doctype html><meta charset="utf-8"><button id="work">Work: 0</button><script>work.onclick=()=>work.textContent="Work: "+(Number(work.textContent.split(": ")[1])+1)</script>',
+          })
+          return
+        }
         if (
           request.isNavigationRequest() &&
           request.url().startsWith("https://www.youtube.com/watch")
@@ -364,12 +379,15 @@ try {
           void request.respond({
             status: 200,
             contentType: "text/html",
-            body: `<!doctype html><meta charset="utf-8"><title>YouTube live fixture</title><style>body{background:#101110;color:#eee;font:18px system-ui;margin:26px}#movie_player{background:linear-gradient(140deg,#16303c,#264b32);height:560px;width:900px;display:grid;place-content:center;border-radius:18px}h1{font-size:32px}button{padding:12px;margin:8px;font:inherit}#native-cc{color:#ced6be}</style><h3>Read Frog · YouTube test fixture</h3><div id="movie_player"><h1>Live listening · Bilingual transcript</h1><p>Streaming audio + contextual translation</p><button id="play">Play synthetic audio</button><button id="fullscreen">Fullscreen video</button><p id="native-cc">Native CC unchanged</p></div><script>play.onclick=()=>{window.ctx=new AudioContext();window.tone=ctx.createOscillator();const gain=ctx.createGain();gain.gain.value=.12;tone.connect(gain).connect(ctx.destination);tone.start();ctx.resume()};fullscreen.onclick=()=>document.querySelector('#movie_player').requestFullscreen()</script>`,
+            body: sourceHTML,
           })
         else void request.continue()
       })
       await source.goto("https://www.youtube.com/watch?v=readfrog-live-fixture")
-    } else await source.goto(`http://127.0.0.1:${server.address().port}`)
+    } else
+      await source.goto(
+        `http://127.0.0.1:${server.address().port}${sourceViewTest ? "/source-view" : ""}`,
+      )
     await source.click("#play")
     const launchFromSource = async () => {
       await source.bringToFront()
@@ -378,14 +396,16 @@ try {
       })
       const targetInfo = targetInfos.find((target) => target.url === source.url())
       if (!targetInfo) throw new Error("Missing browser tab target")
+      const priorTargets = new Set(browser.targets())
       await cdp.send("Extensions.triggerAction", { id, targetId: targetInfo.targetId })
       const popup = await (
-        await browser.waitForTarget((t) => t.url() === base + "popup.html")
+        await browser.waitForTarget((t) => !priorTargets.has(t) && t.url() === base + "popup.html")
       ).asPage()
       await popup.waitForSelector("[data-open-audio-transcription]")
       await popup.click("[data-open-audio-transcription]")
-      const target = await browser.waitForTarget((t) =>
-        t.url().startsWith(base + "audio-transcription.html?source="),
+      const target = await browser.waitForTarget(
+        (t) =>
+          !priorTargets.has(t) && t.url().startsWith(base + "audio-transcription.html?source="),
       )
       const monitor = await target.page()
       await monitor.waitForSelector(".modes input")
@@ -468,7 +488,7 @@ try {
     const peer = globalThis.__serverPeer = new RTCPeerConnection(); globalThis.__receivedAudio = false
     peer.ontrack = () => { __receivedAudio=true }
     peer.ondatachannel = e => {
-      const dc = globalThis.__serverDC = e.channel; let index=0, previous=null; globalThis.__commitTimes=[]; globalThis.__replyText=${process.env.AUDIO_YOUTUBE ? '""' : '"Live finalized words."'}
+      const dc = globalThis.__serverDC = e.channel; let index=0, previous=null; globalThis.__commitTimes=[]; globalThis.__replyText=${sourceViewTest ? '""' : '"Live finalized words."'}
       globalThis.__emitFinal=(text)=>{const id="turn-"+index++; dc.send(JSON.stringify({type:"input_audio_buffer.committed",item_id:id,previous_item_id:previous}));dc.send(JSON.stringify({type:"conversation.item.input_audio_transcription.completed",item_id:id,transcript:text}));previous=id}
       globalThis.__pushPending=(text)=>dc.send(JSON.stringify({type:"conversation.item.input_audio_transcription.delta",item_id:"turn-"+index,delta:text}));
       const initial=()=>{ globalThis.__openedAt=performance.now(); dc.send(JSON.stringify({type:'conversation.item.input_audio_transcription.delta',item_id:'turn-0',delta:'Live partial words'})) }
@@ -488,22 +508,25 @@ try {
       "live deltas are visible before stopping or finalizing a turn",
       (await live.$(".pending")) !== null,
     )
-    if (process.env.AUDIO_YOUTUBE)
-      await checkYouTubeLiveView({ source, live, worker, offEval, check, scratch }).catch(
-        async (error) => {
-          console.log(
-            JSON.stringify({
-              calls: await worker.evaluate(() => __pdfCalls.map((c) => c.body)),
-              pane: await source.$eval(
-                "#read-frog-live-transcript",
-                (h) => h.shadowRoot.textContent,
-              ),
-              monitor: await live.$eval(".transcript", (n) => n.textContent),
-            }),
-          )
-          throw error
-        },
-      )
+    if (sourceViewTest)
+      await checkYouTubeLiveView({
+        source,
+        live,
+        worker,
+        offEval,
+        check,
+        scratch,
+        embedURL: embeddedSourceURL,
+      }).catch(async (error) => {
+        console.log(
+          JSON.stringify({
+            calls: await worker.evaluate(() => __pdfCalls.map((c) => c.body)),
+            pane: await source.$eval("#read-frog-live-transcript", (h) => h.shadowRoot.textContent),
+            monitor: await live.$eval(".transcript", (n) => n.textContent),
+          }),
+        )
+        throw error
+      })
     await work.bringToFront()
     await work.click("#work")
     await pause(1500)
@@ -513,7 +536,7 @@ try {
         `(async()=>{const stats=await __serverPeer.getStats();return [...stats.values()].some(s=>s.type==='inbound-rtp'&&s.kind==='audio'&&s.bytesReceived>0)})()`,
       ),
     )
-    if (process.env.AUDIO_YOUTUBE) {
+    if (sourceViewTest) {
       await source.bringToFront()
       await offEval(`__emitFinal('Live finalized words.')`)
       await source.$eval("pierce/.live-toolbar button:last-child", (node) => node.click())
@@ -549,7 +572,7 @@ try {
     await live.screenshot({ path: path.join(scratch, "audio-desktop.png"), fullPage: true })
     await offEval(`__serverPeer.close()`)
     await live.close()
-    if (process.env.AUDIO_YOUTUBE) {
+    if (sourceViewTest) {
       await source.waitForSelector("#read-frog-live-transcript", { hidden: true })
       check("closing the Audio owner removes its source view and translation state", true)
     }
@@ -569,6 +592,37 @@ try {
       "closing the owner page stops all tab capture tracks",
       await offEval(`__captureStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))`),
     )
+    if (sourceViewTest) {
+      const reloading = await launchFromSource()
+      await (await reloading.$$(".modes input"))[1].click()
+      await click(reloading, "Bắt đầu thu tab")
+      await reloading.waitForFunction(() => document.body.innerText.includes("Đang thu trên máy"))
+      await source.reload()
+      for (
+        let i = 0;
+        i < 50 &&
+        !(await offEval(
+          "__captureStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))",
+        ));
+        i++
+      )
+        await pause(100)
+      check(
+        "reloading the source stops capture even when its URL is unchanged",
+        await offEval("__captureStreams.every(s=>s.getTracks().every(t=>t.readyState==='ended'))"),
+      )
+      await reloading.close()
+      const stale = await launchFromSource()
+      await source.reload()
+      await (await stale.$$(".modes input"))[1].click()
+      await click(stale, "Bắt đầu thu tab")
+      await stale.waitForSelector(".error")
+      check(
+        "reloading a source invalidates its unconsumed launch channel",
+        await stale.$eval(".error", (node) => node.textContent.includes("hết hạn")),
+      )
+      await stale.close()
+    }
   }
 } finally {
   await fs.writeFile(path.join(scratch, "evidence.json"), JSON.stringify(evidence, null, 2))

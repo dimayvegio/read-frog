@@ -24,15 +24,16 @@ export const liveTranslationCommand = z.strictObject({
 })
 export type LiveTranslationCommand = z.infer<typeof liveTranslationCommand>
 
-export function isYouTubeSource(url: string | undefined): boolean {
+export function liveTranscriptSourceURL(url: string | undefined): string | null {
   try {
     const value = new URL(url ?? "")
-    return (
-      value.protocol === "https:" &&
-      ["www.youtube.com", "youtube.com", "m.youtube.com"].includes(value.hostname)
-    )
+    return ["http:", "https:", "file:"].includes(value.protocol) &&
+      !value.username &&
+      !value.password
+      ? value.href
+      : null
   } catch {
-    return false
+    return null
   }
 }
 export const sourceViewSchema = z.strictObject({

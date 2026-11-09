@@ -31,6 +31,12 @@ không sửa native CC/Learning; key/model qua private runtime, bounded RAM,
 không đổi config/DB/ZIP. Hợp đồng và tham khảo mã nguồn mở trong
 [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
 
+F23 từ package `1.58.1-a.3` / manifest `1.58.1.3` (baseline `05aced5b`)
+mở khung live sang các trang HTTP/HTTPS và file có quyền content script,
+không giới hạn YouTube. Giữ đúng source URL/tab/top-frame, lazy-load view
+khi dùng, probe tối đa 3 giây và fallback Audio nếu trang không chèn được UI.
+Nguồn có khung dùng cap 6s; không đổi model/credentials/config/DB/ZIP.
+
 Các mã F01–F18 dưới đây là danh mục hành vi cần bảo toàn, không phải danh sách
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.

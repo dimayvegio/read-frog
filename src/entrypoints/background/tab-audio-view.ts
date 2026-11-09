@@ -4,7 +4,7 @@ import { LiveTranslationController } from "@/utils/audio-transcription/live-tran
 import { MAX_TRANSCRIPT } from "@/utils/audio-transcription/schema"
 import {
   sourceActionSchema,
-  isYouTubeSource,
+  liveTranscriptSourceURL,
   sourceViewSchema,
   liveTranslationCommand,
   type SourceView,
@@ -17,6 +17,7 @@ import { createLiveTranslator } from "./tab-audio-translation"
 let scope: {
   source: number
   owner: number
+  url: string
   view: SourceView
   translator: LiveTranslationController
 } | null = null
@@ -34,7 +35,8 @@ function ownsSource(sender: Browser.runtime.MessageSender) {
   return (
     sender.id === browser.runtime.id &&
     sender.frameId === 0 &&
-    isYouTubeSource(sender.url) &&
+    scope !== null &&
+    liveTranscriptSourceURL(sender.url) === scope.url &&
     scope?.source === sender.tab?.id
   )
 }
@@ -58,10 +60,11 @@ export function beginTabAudioView(
   session: string,
   source: number,
   owner: number,
-  enabled: boolean,
+  sourceURL: string | null,
 ) {
   clearTabAudioView()
-  if (!enabled) return
+  const url = liveTranscriptSourceURL(sourceURL ?? undefined)
+  if (!url) return
   const translator = new LiveTranslationController(createLiveTranslator(), (translation) => {
     if (scope?.view.session !== session) return
     scope.view.translation = translation
@@ -70,6 +73,7 @@ export function beginTabAudioView(
   scope = {
     source,
     owner,
+    url,
     translator,
     view: {
       session,

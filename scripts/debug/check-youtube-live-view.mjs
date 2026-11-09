@@ -17,7 +17,15 @@ async function drag(source, selector, dx, dy) {
   await source.mouse.move(x + dx, y + dy, { steps: 8 })
   await source.mouse.up()
 }
-export async function checkYouTubeLiveView({ source, live, worker, offEval, check, scratch }) {
+export async function checkYouTubeLiveView({
+  source,
+  live,
+  worker,
+  offEval,
+  check,
+  scratch,
+  embedURL,
+}) {
   await source.waitForSelector(host)
   await source.waitForFunction(
     () =>
@@ -28,11 +36,11 @@ export async function checkYouTubeLiveView({ source, live, worker, offEval, chec
     { polling: 100 },
   )
   check(
-    "YouTube auto-returns to the selected video with a passive partial transcript pane",
-    await worker.evaluate(async () =>
-      (await chrome.tabs.query({ active: true, currentWindow: true }))[0].url.startsWith(
-        "https://www.youtube.com/watch",
-      ),
+    "live capture auto-returns to the selected source with a passive partial transcript pane",
+    await worker.evaluate(
+      async (url) =>
+        (await chrome.tabs.query({ active: true, currentWindow: true }))[0].url === url,
+      source.url(),
     ),
   )
   check(
@@ -181,10 +189,80 @@ export async function checkYouTubeLiveView({ source, live, worker, offEval, chec
   )
   await source.evaluate(() => document.exitFullscreen())
   await source.waitForFunction(() => !document.fullscreenElement, { polling: 100 })
+  // An iframe/video is a replaced element: the view must use the parent top layer,
+  // never append its shadow host into fallback children that cannot render.
+  for (const tag of ["iframe", "video"]) {
+    await source.evaluate(
+      ({ frameTag, frameURL }) => {
+        const target = document.createElement(frameTag)
+        target.id = "fullscreen-replaced"
+        if (frameTag === "iframe") target.src = frameURL
+        Object.assign(target.style, {
+          position: "fixed",
+          left: "20px",
+          top: "20px",
+          width: "200px",
+          height: "120px",
+        })
+        document.body.append(target)
+        const button = document.createElement("button")
+        button.id = "fullscreen-replaced-trigger"
+        button.textContent = "Fullscreen " + frameTag
+        Object.assign(button.style, {
+          position: "fixed",
+          left: "20px",
+          top: "200px",
+          zIndex: "2147483002",
+        })
+        button.onclick = () => target.requestFullscreen()
+        document.body.append(button)
+      },
+      { frameTag: tag, frameURL: embedURL },
+    )
+    await source.click("#fullscreen-replaced-trigger")
+    await source.waitForFunction(
+      () =>
+        document.fullscreenElement?.id === "fullscreen-replaced" &&
+        document.querySelector("#read-frog-live-transcript")?.matches(":popover-open"),
+      { polling: 100 },
+    )
+    await source.waitForSelector(shadow(".live-fullscreen-note"))
+    check(
+      "pane remains visible above fullscreen " + tag + " without child-frame access",
+      await source.$eval("#read-frog-live-transcript", (h) => {
+        return (
+          h.parentElement === document.body &&
+          h === window.__liveHost &&
+          h.checkVisibility() &&
+          h.shadowRoot.querySelector(".live-fullscreen-note").textContent.includes("Esc") &&
+          [...h.shadowRoot.querySelectorAll("button")].every((button) => !button.checkVisibility())
+        )
+      }),
+    )
+    if (tag === "iframe") {
+      const embedded = await source.waitForFrame((frame) => frame.url() === embedURL)
+      await embedded.waitForSelector("#work")
+      await embedded.click("#work")
+      check(
+        "native fullscreen transcript lets playback-frame clicks pass through",
+        await embedded.$eval("#work", (node) => node.textContent === "Work: 1"),
+      )
+    }
+    await source.evaluate(() => document.exitFullscreen())
+    await source.waitForFunction(
+      () =>
+        !document.fullscreenElement &&
+        !document.querySelector("#read-frog-live-transcript").hasAttribute("popover"),
+      { polling: 100 },
+    )
+    await source.evaluate(() => {
+      document.querySelector("#fullscreen-replaced").remove()
+      document.querySelector("#fullscreen-replaced-trigger").remove()
+    })
+  }
+  for (let i = 0; i < 80 && !(await offEval("__commitTimes.length>0")); i++) await pause(100)
   // Real wheel intent; later deltas must not pull the reader down.
-  await offEval(
-    `__serverDC.send(JSON.stringify({type:'conversation.item.input_audio_transcription.delta',item_id:'turn-2',delta:${JSON.stringify("A new provisional line.\n".repeat(150))}}))`,
-  )
+  await offEval(`__pushPending(${JSON.stringify("A new provisional line.\n".repeat(150))})`)
   await source.waitForFunction(
     () =>
       document.querySelector("#read-frog-live-transcript").shadowRoot.querySelector(".live-text")
@@ -233,7 +311,7 @@ export async function checkYouTubeLiveView({ source, live, worker, offEval, chec
   )
   await source.click(shadow('[aria-label="Đặt lại vị trí khung"]'))
   await source.screenshot({
-    path: path.join(scratch, "youtube-live-bilingual.png"),
+    path: path.join(scratch, "source-live-bilingual.png"),
     fullPage: true,
   })
   await source.$eval(shadow("footer button"), (node) => node.click())
@@ -245,7 +323,7 @@ export async function checkYouTubeLiveView({ source, live, worker, offEval, chec
   await source.bringToFront()
   for (let i = 0; i < 80 && !(await offEval("__commitTimes.length>0")); i++) await pause(100)
   check(
-    "continuous YouTube speech commits within the six-second local cap instead of fifteen seconds",
+    "continuous source speech commits within the six-second local cap instead of fifteen seconds",
     await offEval(
       "__commitTimes.length>0 && __commitTimes[0]-__openedAt>=5000 && __commitTimes[0]-__openedAt<7500",
     ),

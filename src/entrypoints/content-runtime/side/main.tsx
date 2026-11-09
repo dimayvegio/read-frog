@@ -26,6 +26,7 @@ import { queryClient } from "@/utils/tanstack-query"
 import { getLocalThemeMode } from "@/utils/theme"
 import App from "./app"
 import { store } from "./atoms"
+import { setupLiveTranscriptLauncher } from "./components/live-transcript/loader"
 
 const ReactQueryDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -50,10 +51,7 @@ export let shadowWrapper: HTMLElement | null = null
 // The floating button and side panel. Runs inside the shared content runtime,
 // which the loader content script imports (see entrypoints/content-runtime).
 export async function runSideContent(ctx: ContentScriptContext) {
-  if (window === window.top && /^(www\.|m\.)?youtube\.com$/.test(location.hostname)) {
-    const { setupLiveTranscriptView } = await import("./components/live-transcript")
-    if (!ctx.isInvalid) ctx.onInvalidated(setupLiveTranscriptView())
-  }
+  ctx.onInvalidated(setupLiveTranscriptLauncher())
   const config = (await getLocalConfig()) ?? DEFAULT_CONFIG
 
   // Check global site control

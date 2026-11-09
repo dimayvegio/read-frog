@@ -241,3 +241,14 @@
   border-right: 2px solid #a3bd88;
   border-bottom: 2px solid #a3bd88;
 }
+
+.live-pane [hidden] {
+  display: none !important;
+}
+.live-window[data-native-fullscreen] .live-pane {
+  pointer-events: none;
+}
+.live-fullscreen-note {
+  padding: 8px 12px;
+  border-bottom: 1px solid #3d4738;
+}

@@ -52,9 +52,9 @@ beforeEach(() => {
   stop.mockResolvedValue(true)
   translate.mockImplementation(async (rows) => rows.map(() => "Bản dịch."))
   setupTabAudioViewHandlers(stop)
-  beginTabAudioView(id, 9, 7, true)
+  beginTabAudioView(id, 9, 7, source().url)
 })
-it("only the selected YouTube top frame receives snapshots or controls, never another tab/iframe/origin", async () => {
+it("only the selected source top frame receives snapshots or controls, never another tab/iframe/origin", async () => {
   expect(call("getTabAudioView", undefined).view.session).toBe(id)
   for (const sender of [
     audio(),
@@ -129,4 +129,19 @@ it("source may stop or focus Audio; only its Audio owner may focus the video", a
   )
   expect(await call("tabAudioViewAction", { session: id, action: "video" }, audio())).toBe(true)
   expect(activate).toHaveBeenLastCalledWith(9, { active: true })
+})
+it("supports a selected ordinary HTTP/HTTPS/file document without authorizing a different route in the same tab", () => {
+  for (const url of [
+    "http://localhost:8123/video",
+    "https://lectures.test/watch",
+    "file:///C:/audio.html",
+  ]) {
+    beginTabAudioView(id, 9, 7, url)
+    const sender = { ...source(), url }
+    expect(call("getTabAudioView", undefined, sender).view.session).toBe(id)
+    expect(call("getTabAudioView", undefined, { ...sender, url: url + "?other" }).view).toBeNull()
+    expect(call("getTabAudioView", undefined, { ...sender, frameId: 2 }).view).toBeNull()
+  }
+  beginTabAudioView(id, 9, 7, "edge://settings/")
+  expect(call("getTabAudioView", undefined).view).toBeNull()
 })

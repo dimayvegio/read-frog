@@ -27,6 +27,71 @@ phiên live được người dùng bật tại YouTube có khung chép lời ri
 - File/text chỉ ở RAM trong lượt đang mở; tải kết quả trước khi đóng. Chưa có
   transcript history, speaker labels, word timing hoặc SRT đồng bộ video.
 
+## Khung live trên các trang — build 1.58.1.3
+
+Baseline: local `05aced5bb89615465b4a76c08ccee3832408c36b`; upstream vẫn
+`v1.58.1`, tên cài `1.58.1A`, package `1.58.1-a.3`. Không đổi schema đã phát hành.
+
+- Tại trang đang phát video/audio, mở popup → **Audio → Văn bản** →
+  **Chép lời trực tiếp** → bắt đầu. Trang HTTP/HTTPS hoặc file có quyền
+  extension sẽ hiện cùng khung kéo/resize/thu gọn, chữ tạm/final, chọn ngôn ngữ
+  và dịch ngữ cảnh như YouTube. Giữ trang Audio mở; nút **Về tab đang phát**
+  quay đúng nguồn. Thu trước/chuyển sau và upload file vẫn ở trang Audio.
+- Khung thuộc đúng tab nguồn, không tự sao chép transcript sang các tab khác.
+  Video nằm trong iframe vẫn lấy âm thanh từ tab; không xin micro hoặc đọc
+  DOM của iframe. Native CC/Learning và TTS độc lập như trước.
+- Trình duyệt không cho content script vào trang nội bộ, PDF viewer mặc định,
+  một số trang được bảo vệ hoặc file chưa cấp quyền. Probe UI tối đa 3s;
+  nếu không sẵn sàng thì giữ người dùng ở Audio, báo rõ và chép lời tại đó
+  nếu browser vẫn cho thu âm. Không hứa mọi nội dung DRM đều capture được.
+- View nguồn có cap local 6s/turn và silence gate 900ms; fallback không view
+  vẫn 15s. Đây là giới hạn chốt local, không phải độ trễ end-to-end OpenAI.
+- Loader nhỏ đăng ký ở top frame trước site-control, chỉ tải chunk React khi
+  bắt đầu phiên hoặc phục hồi view đang thuộc nguồn. Không tạo shadow host,
+  polling timer hay paid request khi duyệt trang bình thường. Không đổi quyền
+  host hoặc âm thanh đã có; file chỉ dùng được nếu người dùng đã cho file access.
+- Fullscreen theo container player giữ controls như YouTube. Fullscreen trực
+  tiếp của `video`/`iframe` dùng native manual popover ở top document để đọc
+  lời, tự theo dõi chữ mới, ẩn controls và không chặn click vào player; có nhắc
+  **Esc để điều khiển khung**. Không append view vào fallback children của media,
+  không vào child-frame DOM hoặc đổi fullscreen của website. Thoát fullscreen
+  khôi phục controls/geometry trên cùng host, không tạo ASR/dịch khác.
+  Popover được feature-detect; browser thiếu native API có thể xem ở Audio.
+  Cơ chế top layer tham chiếu [HTML popover](https://html.spec.whatwg.org/multipage/popover.html)
+  và [Fullscreen](https://fullscreen.spec.whatwg.org/); khả năng tương tác được
+  quyết định theo kiểm thử browser, không chỉ dựa vào việc nhìn thấy khung.
+- Authorization so đúng URL chuẩn hóa, tab ID, frame 0, extension ID và UUID
+  session. Không nới quyền lấy lời sang website khác/cùng tab khác route.
+  Source reload/navigation dừng phiên và vô hiệu source channel chưa dùng;
+  owner khởi tạo trang lần đầu không làm mất source channel.
+
+Hợp đồng cache/dịch, export TXT, ownership, giới hạn dữ liệu và lifecycle ở
+phần build `1.58.1.2` bên dưới tiếp tục áp dụng. Không thêm config, DB, ZIP,
+hosted service hoặc model mới. Key/audio/text vẫn đi theo đường private/RAM cũ.
+
+### Kiểm chứng build 1.58.1.3
+
+- **Đã sửa:** khung live đa trang, probe/lazy load và fallback Audio, bind URL,
+  source reload cleanup; fullscreen video/iframe có view chỉ đọc không chặn player.
+- **Đã kiểm thử:** 4.356 unit tests pass, 1 skipped; loại bộ `free-api.test.ts`
+  theo `SKIP_FREE_API=true`. Type-aware lint/format/build pass. Production Chrome
+  `156.0.8078.80`, profile riêng: 43 checks nguồn HTTP thông thường, 43 YouTube
+  fixture và 24 cập nhật cùng thư mục từ ZIP build `1.58.1.2`; giữ ID/config/key
+  sentinel. Bao gồm native iframe/video fullscreen, click-through, dừng khi reload
+  nguồn cùng URL, và source channel cũ không được dùng sau reload. Unit tests
+  kiểm false/failed/stalled probe 3s, URL/scheme và iframe/tab/sender isolation.
+- **Chưa kiểm thử:** OpenAI thật/độ trễ và chất lượng thật; mọi player/sites bên
+  thứ ba, live file URL/DRM, và profile Edge của người dùng. Browser fixture dùng
+  actual tab capture/WebRTC peer local, audio tổng hợp và API mock, không chứng
+  minh độ đúng của model hoặc khả năng capture mọi nội dung bảo vệ.
+- **Bị chặn:** môi trường Edge kiểm thử trước đó thoát trước DevTools; kiểm tra
+  production bằng Chrome, không sửa policy/profile Edge để vượt qua giới hạn.
+
+Regression: `AUDIO_SOURCE_VIEW=1` và `AUDIO_YOUTUBE=1` trong
+`check-audio-transcription.mjs`; `AUDIO_UPGRADE_FROM=<ZIP cũ>` cho cập nhật đè.
+ZIP phải so khớp từng entry với build, qua CRC, manifest không key và giữ hash
+`vocabulary-review.html` như các build trước. Không đổi schema/config dữ liệu.
+
 ## Khung YouTube và dịch theo ngữ cảnh — build 1.58.1.2
 
 Baseline trước thay đổi: local `7ecdd82db0883d7587d6472113ec1b32e2bd6ec0`,

@@ -1,6 +1,6 @@
 import type { Browser } from "wxt/browser"
 import { browser } from "#imports"
-import { isYouTubeSource } from "@/utils/audio-transcription/source-view"
+import { liveTranscriptSourceURL } from "@/utils/audio-transcription/source-view"
 import {
   LIVE_TRANSCRIPTION_MODEL,
   tabCommand,
@@ -22,7 +22,10 @@ import { beginUsage } from "./usage"
 
 const pageURL = () => browser.runtime.getURL("/audio-transcription.html")
 const offscreenURL = () => browser.runtime.getURL("/offscreen.html")
-const channels = new Map<string, { source: number; owner: number; at: number; youtube: boolean }>()
+const channels = new Map<
+  string,
+  { source: number; owner: number; at: number; url: string | null }
+>()
 type Session = {
   id: string
   owner: number
@@ -36,6 +39,20 @@ type Session = {
 let current: Session | null = null
 const trusted = (sender: Browser.runtime.MessageSender, url: string) =>
   isTrustedOptionsSender(sender, browser.runtime.id, url)
+
+async function sourceViewAvailable(tabId: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      sendMessage("tabAudioViewAvailable", undefined, { tabId, frameId: 0 }).catch(() => false),
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), 3000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
+  }
+}
 
 export async function openTranscriptionPage(sender: Browser.runtime.MessageSender) {
   if (!trusted(sender, browser.runtime.getURL("/popup.html")))
@@ -57,7 +74,7 @@ export async function openTranscriptionPage(sender: Browser.runtime.MessageSende
       source: source.id,
       owner: tab.id,
       at: Date.now(),
-      youtube: isYouTubeSource(source.url),
+      url: liveTranscriptSourceURL(source.url),
     })
   }
 }
@@ -99,9 +116,18 @@ export function setupTabAudioHandlers() {
         offered: false,
       }
       current = session
-      const youtube = data.mode === "live" && channel.youtube
-      beginTabAudioView(session.id, session.source, session.owner, youtube)
       try {
+        const sourceView =
+          data.mode === "live" &&
+          channel.url !== null &&
+          (await sourceViewAvailable(session.source))
+        session.controller.signal.throwIfAborted()
+        beginTabAudioView(
+          session.id,
+          session.source,
+          session.owner,
+          sourceView ? channel.url : null,
+        )
         await ensureInitializedConfig()
         if (data.mode === "live") {
           const status = await readOpenAIKeyStatus()
@@ -127,12 +153,12 @@ export function setupTabAudioHandlers() {
         await sendMessage("tabAudioStartOffscreen", {
           session: session.id,
           streamId,
-          shortTurns: youtube,
+          shortTurns: sourceView,
           ...session.options,
         })
         session.controller.signal.throwIfAborted()
-        if (youtube) await browser.tabs.update(session.source, { active: true }).catch(() => {})
-        return { ok: true, session: session.id, youtube }
+        if (sourceView) await browser.tabs.update(session.source, { active: true }).catch(() => {})
+        return { ok: true, session: session.id, sourceView }
       } catch {
         await stop(session, true)
         throw new Error(
@@ -253,10 +279,14 @@ export function setupTabAudioHandlers() {
     if (current && (current.source === id || current.owner === id)) void stop(current, true)
   })
   browser.tabs.onUpdated.addListener((id, info) => {
-    if (info.url || info.status === "loading") clearTabAudioView(id)
+    if (info.url || info.status === "loading") {
+      clearTabAudioView(id)
+      for (const [key, value] of channels) if (value.source === id) channels.delete(key)
+    }
     if (
       current &&
-      ((info.url && current.source === id) || (info.status === "loading" && current.owner === id))
+      ((info.url && current.source === id) ||
+        (info.status === "loading" && (current.owner === id || current.source === id)))
     )
       void stop(current, true)
   })

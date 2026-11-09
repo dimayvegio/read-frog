@@ -51,7 +51,8 @@ import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
   openAudioTranscription: () => void
-  tabAudioControl: (data: TabCommand) => { session?: string; ok: boolean; youtube?: boolean }
+  tabAudioControl: (data: TabCommand) => { session?: string; ok: boolean; sourceView?: boolean }
+  tabAudioViewAvailable: () => boolean
   getTabAudioView: () => SourceSnapshot
   tabAudioViewChanged: (data: SourceSnapshot) => void
   tabAudioViewAction: (data: SourceAction) => boolean

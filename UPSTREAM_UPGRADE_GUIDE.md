@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.1-a.2` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.1.2` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.58.1-a.3` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.1.3` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.1A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.58.1-openai`             |
@@ -48,6 +48,9 @@ bounds và cleanup. Không đưa audio/transcript vào sync hoặc dùng hosted 
 Offscreen dùng chung TTS không được đóng khi dừng riêng một tác vụ.
 Từ build `1.58.1.2`, giữ khung chép lời YouTube kéo/resize/fullscreen và dịch
 ngữ cảnh opt-in của F23; nguồn top-frame đúng session mới được xem/điều khiển.
+Từ build `1.58.1.3`, view này hỗ trợ các nguồn web/file có content script;
+không đưa lại điều kiện YouTube-only khi merge. Giữ exact source URL/tab/top-frame,
+lazy import, probe 3s/fallback Audio và cleanup khi nguồn reload/đổi trang.
 Dịch chỉ nhận final, tối đa hai job, bounded recent queue/cache RAM, không retry
 tự động; hủy target/route/owner/config phải loại kết quả lỗi thời. Không nối
 track này vào native CC hoặc track luyện nghe. Xem [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).

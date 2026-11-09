@@ -9,7 +9,10 @@ import {
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import { browser } from "#imports"
 import { useSidebarWindow } from "@/entrypoints/subtitles.content/ui/subtitles-sidebar/use-sidebar-window"
-import { isYouTubeSource, sourceSnapshotSchema } from "@/utils/audio-transcription/source-view"
+import {
+  liveTranscriptSourceURL,
+  sourceSnapshotSchema,
+} from "@/utils/audio-transcription/source-view"
 import { onMessage, sendMessage } from "@/utils/message"
 import {
   createReactShadowHost,
@@ -24,6 +27,14 @@ const targets = [
   "vie",
   ...langCodeISO6393Schema.options.filter((code) => code !== "eng" && code !== "vie"),
 ] as LangCodeISO6393[]
+function isNativeFullscreen() {
+  return Boolean(
+    document.fullscreenElement &&
+    ["IFRAME", "VIDEO", "AUDIO", "EMBED", "OBJECT", "CANVAS", "IMG"].includes(
+      document.fullscreenElement.tagName,
+    ),
+  )
+}
 function makeStore(initial: SourceView) {
   let value = initial
   const listeners = new Set<() => void>()
@@ -50,16 +61,26 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
     [following, setFollowing] = useState(true),
     [message, setMessage] = useState("")
   const scroller = useRef<HTMLDivElement>(null)
+  const [readOnly, setReadOnly] = useState(isNativeFullscreen)
+  useLayoutEffect(() => {
+    const update = () => {
+      const native = isNativeFullscreen()
+      setReadOnly(native)
+      if (native) setFollowing(true)
+    }
+    document.addEventListener("fullscreenchange", update)
+    return () => document.removeEventListener("fullscreenchange", update)
+  }, [])
   useLayoutEffect(() => {
     if (scroller.current) scroller.current.style.fontSize = `${fontSize}px`
     if (
       following &&
-      !compact &&
+      (!compact || readOnly) &&
       (view.text || view.pending || view.translation.rows.length) &&
       scroller.current
     )
       scroller.current.scrollTop = scroller.current.scrollHeight
-  }, [view.text, view.pending, view.translation, following, compact, fontSize])
+  }, [view.text, view.pending, view.translation, following, compact, fontSize, readOnly])
   const translation = (enabled: boolean, target = view.translation.target, retry = false) => {
     void sendMessage("setTabAudioTranslation", {
       session: view.session,
@@ -79,6 +100,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
     <div
       ref={rootRef}
       className="live-window"
+      data-native-fullscreen={readOnly || undefined}
       onPointerMove={move}
       onPointerUp={end}
       onPointerCancel={end}
@@ -89,12 +111,13 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
     >
       <section
         className="live-pane"
-        aria-label="Chép lời trực tiếp YouTube"
-        style={{ height: compact ? "auto" : "100%" }}
+        aria-label="Chép lời trực tiếp của tab"
+        style={{ height: compact && !readOnly ? "auto" : "100%" }}
       >
         <header onPointerDown={(event) => start(event, "move")}>
           <button
             type="button"
+            hidden={readOnly}
             data-sidebar-move
             aria-label="Di chuyển khung chép lời"
             aria-describedby={helpId}
@@ -108,6 +131,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
           </strong>
           <button
             type="button"
+            hidden={readOnly}
             title="Vị trí mặc định"
             aria-label="Đặt lại vị trí khung"
             onClick={reset}
@@ -116,20 +140,26 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
           </button>
           <button
             type="button"
+            hidden={readOnly}
             aria-label={compact ? "Mở rộng khung chép lời" : "Thu gọn khung chép lời"}
             aria-expanded={!compact}
             onClick={() => setCompact(!compact)}
           >
             {compact ? "＋" : "−"}
           </button>
-          {view.status === "stopped" && (
+          {view.status === "stopped" && !readOnly && (
             <button type="button" aria-label="Đóng khung chép lời" onClick={onClose}>
               ×
             </button>
           )}
         </header>
-        <div className="live-body" hidden={compact}>
-          <div className="live-toolbar">
+        <div className="live-body" hidden={compact && !readOnly}>
+          {readOnly && (
+            <small className="live-fullscreen-note">
+              Đang xem lời · Nhấn Esc để điều khiển khung
+            </small>
+          )}
+          <div className="live-toolbar" hidden={readOnly}>
             <button
               type="button"
               disabled={fontSize <= 14}
@@ -163,7 +193,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
               Dừng
             </button>
           </div>
-          <div className="live-translation-controls">
+          <div className="live-translation-controls" hidden={readOnly}>
             <label>
               <input
                 type="checkbox"
@@ -234,12 +264,12 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
               </p>
             )}
           </div>
-          {!following && (
+          {!following && !readOnly && (
             <button className="follow" type="button" onClick={() => setFollowing(true)}>
               ↓ Theo dõi chữ mới
             </button>
           )}
-          <footer>
+          <footer hidden={readOnly}>
             <div>
               <button type="button" onClick={() => action("audio")}>
                 Mở Audio / Tải TXT ↗
@@ -278,6 +308,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
         Kéo thanh tiêu đề để di chuyển. Phím mũi tên di chuyển; Shift và mũi tên đổi kích thước.
       </span>
       {!compact &&
+        !readOnly &&
         edges.map((edge) => (
           <button
             type="button"
@@ -295,7 +326,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
 
 /** Passive, source-bound view. Opening it never starts capture or calls a provider. */
 export function setupLiveTranscriptView() {
-  if (window !== window.top || !isYouTubeSource(location.href)) return () => {}
+  if (window !== window.top || !liveTranscriptSourceURL(location.href)) return () => {}
   let host: HTMLElement | null = null,
     store: ReturnType<typeof makeStore> | null = null,
     session: string | null = null,
@@ -313,8 +344,39 @@ export function setupLiveTranscriptView() {
     session = null
   }
   const followFullscreen = () => {
-    const parent = document.fullscreenElement ?? document.body
-    if (host && host.parentElement !== parent) parent.append(host)
+    if (!host) return
+    const fullscreen = document.fullscreenElement
+    const replaced =
+      fullscreen &&
+      ["IFRAME", "VIDEO", "AUDIO", "EMBED", "OBJECT", "CANVAS", "IMG"].includes(fullscreen.tagName)
+    // Replaced fullscreen elements cannot render appended HTML children.
+    // A passive top-layer view remains readable without intercepting playback
+    // input or accessing the iframe's child document. Escape restores controls.
+    if (replaced && typeof host.showPopover === "function") {
+      if (host.parentElement !== document.body) document.body.append(host)
+      host.popover = "manual"
+      Object.assign(host.style, {
+        margin: "0",
+        padding: "0",
+        border: "0",
+        background: "transparent",
+        overflow: "visible",
+      })
+      if (!host.matches(":popover-open")) {
+        try {
+          host.showPopover()
+        } catch {
+          /* Fullscreen may have ended meanwhile. */
+        }
+      }
+    } else {
+      if (host.hasAttribute("popover")) {
+        if (host.matches(":popover-open")) host.hidePopover()
+        host.removeAttribute("popover")
+      }
+      const parent = !replaced && fullscreen ? fullscreen : document.body
+      if (host.parentElement !== parent) parent.append(host)
+    }
   }
   const apply = (raw: SourceSnapshot, resetRevision = false) => {
     const parsed = sourceSnapshotSchema.safeParse(raw)

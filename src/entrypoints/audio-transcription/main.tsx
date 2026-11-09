@@ -72,7 +72,8 @@ function App() {
     [captureMessage, setCaptureMessage] = useState("")
   const [liveText, setLiveText] = useState(""),
     [pending, setPending] = useState("")
-  const [youtubeSession, setYouTubeSession] = useState<string | null>(null)
+  const [sourceViewSession, setSourceViewSession] = useState<string | null>(null)
+  const [viewFallback, setViewFallback] = useState(false)
   const controller = useRef<AbortController | null>(null),
     capture = useRef<string | null>(null),
     starting = useRef(false),
@@ -277,7 +278,10 @@ function App() {
         ...config,
       })
       if (starting.current && result.session) capture.current = result.session
-      if (result.session && result.youtube) setYouTubeSession(result.session)
+      if (result.session) {
+        setSourceViewSession(result.sourceView ? result.session : null)
+        setViewFallback(mode === "live" && !result.sourceView)
+      }
     } catch (issue) {
       setCaptureState("idle")
       setError(issue instanceof Error ? issue.message : "Chưa mở được luồng âm thanh.")
@@ -415,22 +419,27 @@ function App() {
           Tại tab đang phát, mở popup Read Frog → <b>Audio → Văn bản</b> để chọn nguồn. Thu tối đa
           30 phút. Chuyển tab được; đóng hoặc tải lại trang Audio sẽ dừng thu.
         </p>
-        {youtubeSession && (
+        {viewFallback && (
+          <p role="status">
+            Trang nguồn chưa cho phép hiện khung nổi. Xem và tải văn bản ngay tại trang Audio này.
+          </p>
+        )}
+        {sourceViewSession && (
           <div className="row">
             <button
               type="button"
               onClick={() =>
                 void sendMessage("tabAudioViewAction", {
-                  session: youtubeSession,
+                  session: sourceViewSession,
                   action: "video",
                 }).catch(() => setError("Chưa mở lại được tab video."))
               }
             >
-              Về video YouTube ↗
+              Về tab đang phát ↗
             </button>
             <small>
-              Khung chép lời hiện ngay trên YouTube, có thể kéo/đổi kích thước và thu gọn. Giữ trang
-              Audio này mở trong lúc nghe.
+              Khung chép lời hiện ngay trên trang nguồn, có thể kéo/đổi kích thước và thu gọn. Giữ
+              trang Audio này mở trong lúc nghe.
             </small>
           </div>
         )}

@@ -38,7 +38,7 @@ beforeEach(() => {
   session = undefined
   credential.mockResolvedValue({ apiKey: "permanent-tab-sentinel", revision: 4 })
   status.mockResolvedValue({ configured: true, revision: 4 })
-  send.mockResolvedValue(undefined)
+  send.mockImplementation(async (name) => (name === "tabAudioViewAvailable" ? true : undefined))
   prepare.mockResolvedValue(undefined)
   vi.spyOn(browser.tabs, "query").mockResolvedValue([
     { id: 9, url: "https://source.test/private-meeting", windowId: 11 },
@@ -198,4 +198,65 @@ it("uses shorter local turns and returns to the source only for an explicitly st
   )
   expect(activate).toHaveBeenCalledWith(9, { active: true })
   expect(fetch).not.toHaveBeenCalled()
+})
+it("opens the same source view and short turns for an ordinary website with a ready content runtime", async () => {
+  const activate = vi.spyOn(browser.tabs, "update").mockResolvedValue({} as any)
+  await start("live")
+  expect(send).toHaveBeenCalledWith("tabAudioViewAvailable", undefined, { tabId: 9, frameId: 0 })
+  expect(send).toHaveBeenCalledWith(
+    "tabAudioStartOffscreen",
+    expect.objectContaining({ shortTurns: true }),
+  )
+  expect(activate).toHaveBeenCalledWith(9, { active: true })
+  expect(
+    handlers.get("getTabAudioView")!({
+      sender: {
+        id: browser.runtime.id,
+        frameId: 0,
+        tab: { id: 9 },
+        url: "https://source.test/private-meeting",
+      },
+    }).view.session,
+  ).toBe(session)
+})
+it("keeps transcription in the Audio owner when a browser-restricted document cannot mount the view", async () => {
+  send.mockImplementation(async (name) => {
+    if (name === "tabAudioViewAvailable") throw new Error("Receiving end does not exist")
+  })
+  const activate = vi.spyOn(browser.tabs, "update").mockResolvedValue({} as any)
+  await start("live")
+  expect(send).toHaveBeenCalledWith(
+    "tabAudioStartOffscreen",
+    expect.objectContaining({ shortTurns: false }),
+  )
+  expect(activate).not.toHaveBeenCalled()
+  expect(fetch).not.toHaveBeenCalled()
+  expect(
+    handlers.get("getTabAudioView")!({
+      sender: {
+        id: browser.runtime.id,
+        frameId: 0,
+        tab: { id: 9 },
+        url: "https://source.test/private-meeting",
+      },
+    }).view,
+  ).toBeNull()
+})
+it("falls back to the Audio page after a bounded wait for a stalled source-view import", async () => {
+  vi.useFakeTimers()
+  try {
+    send.mockImplementation(async (name) => {
+      if (name === "tabAudioViewAvailable") return new Promise(() => {})
+      return undefined
+    })
+    const pending = start("live")
+    await vi.advanceTimersByTimeAsync(3001)
+    await pending
+    expect(send).toHaveBeenCalledWith(
+      "tabAudioStartOffscreen",
+      expect.objectContaining({ shortTurns: false }),
+    )
+  } finally {
+    vi.useRealTimers()
+  }
 })
