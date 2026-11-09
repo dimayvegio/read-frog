@@ -36,7 +36,8 @@ Take a break and return tomorrow. Regular practice helps us remember new words.<
 <p id="tail">A long story continues below. Learning a little every day is more effective than studying a lot once a week.</p>
 <button id="counter">Counter: 0</button></article></main><script>window.clicks=0;document.querySelector('#counter').onclick=()=>{document.querySelector('#counter').textContent='Counter: '+(++window.clicks)};window.originalFirst=document.querySelector('#first');window.originalLink=document.querySelector('#original-link');window.linkClicks=0;window.originalLink.addEventListener('click',()=>window.linkClicks++);</script></html>`
 const browser = await puppeteer.launch({
-  executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  executablePath:
+    process.env.VOCAB_BROWSER ?? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   userDataDir: path.join(scratch, "profile"),
   headless: false,
   pipe: true,

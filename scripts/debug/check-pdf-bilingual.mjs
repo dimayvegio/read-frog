@@ -68,7 +68,8 @@ await fs.writeFile(file, fixture())
 await fs.writeFile(renamed, fixture())
 await fs.writeFile(scan, fixture(true))
 const browser = await puppeteer.launch({
-  executablePath: "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
+  executablePath:
+    process.env.VOCAB_BROWSER ?? "C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe",
   userDataDir: path.join(scratch, "profile"),
   headless: false,
   pipe: true,

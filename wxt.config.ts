@@ -38,8 +38,8 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.58.0.27",
-    version_name: "1.58.0A",
+    version: "1.58.1.1",
+    version_name: "1.58.1A",
     commands: {
       "capture-and-translate": {
         suggested_key: { default: "Alt+Shift+S" },

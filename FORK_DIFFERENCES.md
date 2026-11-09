@@ -3,6 +3,19 @@
 Tài liệu đối chiếu để nâng cấp tiếp mà giữ các chức năng đã phát triển riêng.
 Đọc cùng [hướng dẫn merge](UPSTREAM_UPGRADE_GUIDE.md) và [AGENTS.md](AGENTS.md).
 
+## Mốc tích hợp hiện tại: 1.58.1A
+
+- Upstream release mới nhất đã xác minh 09/11/2026: `v1.58.1`,
+  `8f015c4a830951dd98fd836989e7348849e60cea`.
+- Local trước merge: `6bb2038a` (đã gồm F23), nhánh nhận
+  `codex/upstream-1.58.1-openai`; package `1.58.1-a.1`, manifest `1.58.1.1`.
+- Nhận cả ba patch menu placement, stable subtitle cache và stale-host cleanup;
+  giữ mọi F01–F23, geometry Learning và runtime OpenAI-only. Không đổi config124,
+  credential DB1 hoặc DB/ZIP/report/transport đã phát hành.
+- Quyết định từng commit, kiểm thử và giới hạn:
+  [UPSTREAM_1_58_1_REPORT.md](UPSTREAM_1_58_1_REPORT.md).
+- Các bảng kiểm toán 1.58.0 bên dưới là snapshot lịch sử, không phải tag mới nhất.
+
 **F23 — Audio → Văn bản:** thêm từ baseline local `1ea3c17e`. Trang riêng tải
 file đa ngôn ngữ; thu tab chạy nền với hai chế độ thu trước/chép lời trực tiếp.
 File dùng `gpt-transcribe`, live dùng `gpt-live-transcribe` qua WebRTC; giữ key

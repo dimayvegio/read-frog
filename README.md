@@ -1,14 +1,14 @@
 # Read Frog — Edge / OpenAI text + OpenAI / Microsoft TTS
 
-Fork local đã tích hợp tag upstream v1.58.0 tại
-48dccd04cfdf8432994608215ccad6db329f952b, giữ các thay đổi riêng phát triển từ 1.57.0.
+Fork local đã tích hợp tag upstream v1.58.1 tại
+8f015c4a830951dd98fd836989e7348849e60cea, giữ các thay đổi riêng phát triển từ 1.57.0.
 Giữ engine dịch trang, hai chế độ bilingual/translation-only, selection,
 annotation, custom actions, streaming, queue, glossary và Microsoft TTS; có thêm
 lựa chọn đọc bằng OpenAI.
 
-Bản source hiện tại là **1.58.0A** (`1.58.0-a.18` / manifest `1.58.0.19`).
+Bản source hiện tại là **1.58.1A** (`1.58.1-a.1` / manifest `1.58.1.1`).
 Để nâng cấp upstream tiếp mà giữ tính năng riêng, đọc
-[bảng khác biệt và hợp đồng F01–F18](FORK_DIFFERENCES.md), rồi làm theo
+[bảng khác biệt và hợp đồng F01–F23](FORK_DIFFERENCES.md), rồi làm theo
 [quy trình merge và kiểm thử](UPSTREAM_UPGRADE_GUIDE.md). Các tài liệu này
 phân biệt tính năng thêm riêng, thay đổi dịch vụ có chủ ý và phần kế thừa từ
 upstream; có source map, ledger dữ liệu và mẫu báo cáo cho bản nâng cấp sau.
@@ -39,9 +39,9 @@ theo tiếng audio và khôi phục lựa chọn khi tắt như bản gốc. Xem
 [X_NETFLIX_SUBTITLES.md](X_NETFLIX_SUBTITLES.md) và
 [ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md) để bảo trì các adapter.
 
-Tạo phụ đề từ âm thanh khi thiếu CC chưa được tích hợp. OpenAI có Speech-to-Text
-và Realtime transcription; để dùng cho video cần thêm lấy âm thanh và đồng bộ
-timeline. Không tự thu âm hoặc gọi dịch vụ nhận dạng giọng nói khi bật dịch CC.
+Có trang Audio riêng để chép lời từ tiếng tab khi thiếu CC; chưa tạo overlay
+phụ đề/SRT đồng bộ video từ âm thanh. Không tự thu hoặc gọi nhận dạng giọng nói
+khi bật dịch CC. Xem [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
 
 ## Sổ từ vựng và HTML ôn tập
 
@@ -132,6 +132,15 @@ glossary chung; không áp dụng glossary theo website cho PDF. Vùng chọn t�
 xóa khi đóng cửa sổ kết quả hoặc tab nguồn; vùng chọn quá 30 phút không được dùng
 lại và được dọn khi có yêu cầu tiếp theo. PDF scan không có text copy được dùng
 **Chụp vùng & dịch ảnh** để OCR phần đã chọn; không tự OCR hoặc upload toàn file.
+
+## Audio thành văn bản
+
+Muốn chuyển file âm thanh hoặc tiếng video thành chữ, mở popup **Audio → Văn bản**.
+Có tải MP3/M4A/WAV/WebM và các định dạng OpenAI hỗ trợ, chọn nhiều ngôn ngữ,
+preview, TXT/ZIP; thu âm tab chạy nền với chế độ thu trước hoặc chép lời trực tiếp.
+Các preset Anh–Nhật, Anh–Nhật–Việt và Anh–Trung dùng chung một phiên nhận dạng.
+Xem [Audio thành văn bản](AUDIO_TRANSCRIPTION.md) và
+[báo cáo nâng cấp 1.58.1A](UPSTREAM_1_58_1_REPORT.md).
 
 ## Đọc thành tiếng
 
