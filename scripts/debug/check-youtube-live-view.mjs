@@ -1,0 +1,254 @@
+import path from "node:path"
+
+const host = "#read-frog-live-transcript"
+const shadow = (selector) => `pierce/${selector}`
+const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const box = (source) =>
+  source.$eval(host, (node) => {
+    const rect = node.getBoundingClientRect()
+    return { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+  })
+async function drag(source, selector, dx, dy) {
+  const bounds = await (await source.$(shadow(selector))).boundingBox()
+  const x = bounds.x + bounds.width / 2,
+    y = bounds.y + bounds.height / 2
+  await source.mouse.move(x, y)
+  await source.mouse.down()
+  await source.mouse.move(x + dx, y + dy, { steps: 8 })
+  await source.mouse.up()
+}
+export async function checkYouTubeLiveView({ source, live, worker, offEval, check, scratch }) {
+  await source.waitForSelector(host)
+  await source.waitForFunction(
+    () =>
+      document
+        .querySelector("#read-frog-live-transcript")
+        ?.shadowRoot.querySelector("[data-live-pending]")
+        ?.textContent.includes("Live partial words"),
+    { polling: 100 },
+  )
+  check(
+    "YouTube auto-returns to the selected video with a passive partial transcript pane",
+    await worker.evaluate(async () =>
+      (await chrome.tabs.query({ active: true, currentWindow: true }))[0].url.startsWith(
+        "https://www.youtube.com/watch",
+      ),
+    ),
+  )
+  check(
+    "opening the view makes no text-generation request",
+    await worker.evaluate(() => __pdfCalls.length === 0),
+  )
+  await source.evaluate(() => {
+    window.__liveHost = document.querySelector("#read-frog-live-transcript")
+  })
+  const before = await box(source)
+  await drag(source, "[data-sidebar-move]", -180, 40)
+  const moved = await box(source)
+  check(
+    "pane can move without remounting the transcript",
+    moved.x < before.x - 50 &&
+      (await source.evaluate(
+        () => __liveHost === document.querySelector("#read-frog-live-transcript"),
+      )),
+  )
+  await drag(source, '[data-live-resize="se"]', 90, -60)
+  const resized = await box(source)
+  check(
+    "pane resizes independently in width and height",
+    resized.width > moved.width + 50 && resized.height < moved.height - 30,
+  )
+  await source.click(shadow('[aria-label="Thu gọn khung chép lời"]'))
+  check(
+    "minimizing hides content and retains recording",
+    (await source.$eval(shadow(".live-body"), (node) => node.hidden)) &&
+      (await worker.evaluate(async () =>
+        (await chrome.tabCapture.getCapturedTabs()).some((tab) => tab.status === "active"),
+      )),
+  )
+  await source.click(shadow('[aria-label="Mở rộng khung chép lời"]'))
+  await source.click(shadow('[aria-label="Chữ lớn hơn"]'))
+  check(
+    "font controls apply immediately",
+    await source.$eval(shadow(".live-text"), (node) => getComputedStyle(node).fontSize === "20px"),
+  )
+  check(
+    "English and Vietnamese are the first target languages with dark readable options",
+    await source.$$eval(
+      shadow(".live-translation-controls option"),
+      (nodes) => nodes[0].value === "eng" && nodes[1].value === "vie",
+    ),
+  )
+  await source.click(shadow(".live-translation-controls input"))
+  await pause(200)
+  check(
+    "translation opt-in still never sends provisional speech",
+    await worker.evaluate(() => __pdfCalls.length === 0),
+  )
+  await offEval(`__emitFinal('We are discussing a bank.')`)
+  await source.waitForFunction(
+    () =>
+      document
+        .querySelector("#read-frog-live-transcript")
+        ?.shadowRoot.querySelector("[data-live-translation]")
+        ?.textContent.includes("Ngân hàng"),
+    { polling: 100 },
+  )
+  await offEval(`__emitFinal('It has branches for customers.')`)
+  await source.waitForFunction(
+    () =>
+      [
+        ...document
+          .querySelector("#read-frog-live-transcript")
+          .shadowRoot.querySelectorAll("[data-live-translation]"),
+      ].filter((node) => node.textContent.includes("Ngân hàng")).length >= 2,
+    { polling: 100 },
+  )
+  check(
+    "final turns display paired source/translation using preceding original context",
+    await worker.evaluate(() => {
+      const body = __pdfCalls.at(-1).body
+      const data = JSON.parse(
+        body.input.flatMap((item) => item.content ?? []).find((part) => part.type === "input_text")
+          .text,
+      )
+      return (
+        data.targetLanguage === "Vietnamese" &&
+        data.rows.some(
+          (row) =>
+            row.precedingContext.includes("discussing a bank") && row.source.includes("branches"),
+        )
+      )
+    }),
+  )
+  const calls = await worker.evaluate(() => __pdfCalls.length)
+  await source.click(shadow(".live-translation-controls input"))
+  await source.click(shadow(".live-translation-controls input"))
+  await pause(200)
+  check(
+    "toggling or moving the view retains completed translations without paid repeat requests",
+    await worker.evaluate((count) => __pdfCalls.length === count, calls),
+  )
+  await source.select(shadow('[aria-label="Ngôn ngữ bản dịch trực tiếp"]'), "eng")
+  await source.waitForFunction(
+    () =>
+      [
+        ...document
+          .querySelector("#read-frog-live-transcript")
+          .shadowRoot.querySelectorAll("[data-live-translation]"),
+      ].every((node) => node.textContent.includes("The bank")),
+    { polling: 100 },
+  )
+  check(
+    "changing target uses English and replaces the old target output",
+    await worker.evaluate(() => {
+      const body = __pdfCalls.at(-1).body
+      return (
+        JSON.parse(
+          body.input
+            .flatMap((item) => item.content ?? [])
+            .find((part) => part.type === "input_text").text,
+        ).targetLanguage === "English"
+      )
+    }),
+  )
+  await source.select(shadow('[aria-label="Ngôn ngữ bản dịch trực tiếp"]'), "vie")
+  await source.waitForFunction(
+    () =>
+      document
+        .querySelector("#read-frog-live-transcript")
+        .shadowRoot.querySelector("[data-live-translation]")
+        .textContent.includes("Ngân hàng"),
+    { polling: 100 },
+  )
+  check(
+    "native CC is untouched by the separate audio transcript pane",
+    await source.$eval("#native-cc", (node) => node.textContent === "Native CC unchanged"),
+  )
+  // User-gesture fullscreen, same shadow host reparented without losing capture/state.
+  await source.click("#fullscreen")
+  await source.waitForFunction(
+    () =>
+      document.querySelector("#read-frog-live-transcript")?.parentElement ===
+      document.fullscreenElement,
+    { polling: 100 },
+  )
+  check(
+    "pane remains reachable in fullscreen without remounting",
+    await source.evaluate(
+      () => __liveHost === document.querySelector("#read-frog-live-transcript"),
+    ),
+  )
+  await source.evaluate(() => document.exitFullscreen())
+  await source.waitForFunction(() => !document.fullscreenElement, { polling: 100 })
+  // Real wheel intent; later deltas must not pull the reader down.
+  await offEval(
+    `__serverDC.send(JSON.stringify({type:'conversation.item.input_audio_transcription.delta',item_id:'turn-2',delta:${JSON.stringify("A new provisional line.\n".repeat(150))}}))`,
+  )
+  await source.waitForFunction(
+    () =>
+      document.querySelector("#read-frog-live-transcript").shadowRoot.querySelector(".live-text")
+        .scrollHeight > 1500,
+    { polling: 100 },
+  )
+  await source.$eval(shadow(".live-text"), (node) => {
+    node.scrollTop = 0
+    node.dispatchEvent(new Event("scroll"))
+  })
+  await source.waitForSelector(shadow(".follow"))
+  await offEval(`__pushPending('Updated partial.')`)
+  await pause(150)
+  check(
+    "new text respects manual scroll position",
+    await source.$eval(shadow(".live-text"), (node) => node.scrollTop === 0),
+  )
+  await source.click(shadow(".follow"))
+  await source.waitForFunction(
+    () => {
+      const node = document
+        .querySelector("#read-frog-live-transcript")
+        .shadowRoot.querySelector(".live-text")
+      return node.scrollTop > 0
+    },
+    { polling: 100 },
+  )
+  check("follow-new-text button restores scrolling", true)
+  // Restore a legible fixture view for a raw screenshot; model outputs remain mocks.
+  await offEval(`__emitFinal('Live captions can be read while the video keeps playing.')`)
+  await source.waitForFunction(
+    () =>
+      !document
+        .querySelector("#read-frog-live-transcript")
+        .shadowRoot.querySelector("[data-live-pending]"),
+    { polling: 100 },
+  )
+  await source.waitForFunction(
+    () =>
+      [
+        ...document
+          .querySelector("#read-frog-live-transcript")
+          .shadowRoot.querySelectorAll("[data-live-translation]"),
+      ].every((node) => node.textContent.includes("Ngân hàng")),
+    { polling: 100 },
+  )
+  await source.click(shadow('[aria-label="Đặt lại vị trí khung"]'))
+  await source.screenshot({
+    path: path.join(scratch, "youtube-live-bilingual.png"),
+    fullPage: true,
+  })
+  await source.$eval(shadow("footer button"), (node) => node.click())
+  await live.waitForFunction(() => document.visibilityState === "visible", { polling: 100 })
+  check(
+    "pane opens the existing Audio owner without starting another capture",
+    await worker.evaluate(() => __audioCalls.filter((call) => call.kind === "secret").length === 1),
+  )
+  await source.bringToFront()
+  for (let i = 0; i < 80 && !(await offEval("__commitTimes.length>0")); i++) await pause(100)
+  check(
+    "continuous YouTube speech commits within the six-second local cap instead of fifteen seconds",
+    await offEval(
+      "__commitTimes.length>0 && __commitTimes[0]-__openedAt>=5000 && __commitTimes[0]-__openedAt<7500",
+    ),
+  )
+  await offEval(`__replyText='Live finalized words.'`)
+}

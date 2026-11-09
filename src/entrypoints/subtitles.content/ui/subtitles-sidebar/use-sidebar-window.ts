@@ -23,7 +23,7 @@ interface Gesture {
 }
 
 /** Transient pointer geometry lives in refs/CSS, not in the transcript's React tree. */
-export function useSidebarWindow() {
+export function useSidebarWindow(storageKey = SIDEBAR_WINDOW_STORAGE_KEY) {
   const rootRef = useRef<HTMLDivElement>(null),
     hostRef = useRef<HTMLElement | null>(null)
   const rectRef = useRef<SidebarRect | null>(null),
@@ -49,7 +49,7 @@ export function useSidebarWindow() {
     if (!host || !rect) return
     hostPreferences.set(host, { ...rect })
     void browser.storage.local
-      .set({ [SIDEBAR_WINDOW_STORAGE_KEY]: { version: 1, rect: { ...rect } } })
+      .set({ [storageKey]: { version: 1, rect: { ...rect } } })
       .catch(() => {})
   }
   const finish = (persist = true) => {
@@ -86,10 +86,10 @@ export function useSidebarWindow() {
     let disposed = false
     if (!cached)
       void browser.storage.local
-        .get(SIDEBAR_WINDOW_STORAGE_KEY)
+        .get(storageKey)
         .then((data) => {
           if (disposed || dirtyRef.current) return
-          preferredRef.current = savedSidebarRect(data[SIDEBAR_WINDOW_STORAGE_KEY])
+          preferredRef.current = savedSidebarRect(data[storageKey])
           hostPreferences.set(host, preferredRef.current)
           update()
         })
@@ -112,7 +112,7 @@ export function useSidebarWindow() {
       window.visualViewport?.removeEventListener("scroll", update)
       hostRef.current = null
     }
-    // eslint-disable-next-line react/exhaustive-effect-dependencies -- One host-bound controller; callbacks read current refs only.
+    // eslint-disable-next-line react/exhaustive-effect-dependencies, react-hooks/exhaustive-deps -- One host-bound controller with a fixed preference key; callbacks read current refs only.
   }, [])
 
   const start = (event: PointerEvent<HTMLElement>, kind: SidebarGesture) => {
@@ -199,7 +199,7 @@ export function useSidebarWindow() {
     if (hostRef.current) hostPreferences.set(hostRef.current, null)
     rectRef.current = defaultSidebarRect(sidebarViewport())
     flush()
-    void browser.storage.local.remove(SIDEBAR_WINDOW_STORAGE_KEY).catch(() => {})
+    void browser.storage.local.remove(storageKey).catch(() => {})
   }
   return { rootRef, helpId, start, move, end, key, reset }
 }

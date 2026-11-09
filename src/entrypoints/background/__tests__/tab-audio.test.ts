@@ -186,3 +186,16 @@ it("detects credential revocation during a session and stops without a paid retr
   expect(send).toHaveBeenCalledWith("tabAudioStopOffscreen", { session, discard: true })
   expect(fetch).not.toHaveBeenCalled()
 })
+it("uses shorter local turns and returns to the source only for an explicitly started YouTube live session", async () => {
+  vi.mocked(browser.tabs.query).mockResolvedValue([
+    { id: 9, url: "https://www.youtube.com/watch?v=fixture", windowId: 11 },
+  ] as any)
+  const activate = vi.spyOn(browser.tabs, "update").mockResolvedValue({} as any)
+  await start("live")
+  expect(send).toHaveBeenCalledWith(
+    "tabAudioStartOffscreen",
+    expect.objectContaining({ shortTurns: true, mode: "live" }),
+  )
+  expect(activate).toHaveBeenCalledWith(9, { active: true })
+  expect(fetch).not.toHaveBeenCalled()
+})

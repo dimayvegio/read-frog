@@ -43,7 +43,7 @@ class TabCapture {
   private completions = new Set<string>()
   constructor(
     readonly session: string,
-    private options: TabOptions,
+    private options: TabOptions & { shortTurns?: boolean },
   ) {}
   private notice(value: TabNotice) {
     void browser.runtime
@@ -248,7 +248,7 @@ class TabCapture {
         )
         if (rms >= 0.008) voiced += 50
         const now = this.context.currentTime
-        if (detector.push(rms, now * 1000) || now - started >= 15) {
+        if (detector.push(rms, now * 1000) || now - started >= (this.options.shortTurns ? 6 : 15)) {
           if (voiced >= 100) this.commit()
           else this.channel.send(JSON.stringify({ type: "input_audio_buffer.clear" }))
           detector = new SpeechEndDetector(900)

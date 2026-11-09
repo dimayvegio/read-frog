@@ -1,0 +1,243 @@
+.live-window {
+  position: relative;
+  height: 100%;
+  pointer-events: none;
+  font:
+    14px/1.5 system-ui,
+    sans-serif;
+  color: #f3f4ef;
+}
+.live-pane {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #4b5148;
+  border-radius: 14px;
+  background: #171b17f5;
+  box-shadow: 0 8px 35px #0006;
+}
+.live-pane * {
+  box-sizing: border-box;
+}
+.live-pane button {
+  font: inherit;
+  color: inherit;
+  background: #30392c;
+  border: 1px solid #485440;
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 5px 9px;
+}
+.live-pane button:hover:not(:disabled) {
+  background: #45543d;
+}
+.live-pane button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.live-pane button:focus-visible,
+.live-pane select:focus-visible,
+.live-text:focus-visible {
+  outline: 2px solid #c1df96;
+  outline-offset: -2px;
+}
+.live-pane header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px;
+  border-bottom: 1px solid #3d4738;
+  cursor: move;
+  touch-action: none;
+}
+.live-pane header strong {
+  flex: 1;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.live-dot {
+  display: inline-block;
+  margin-right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #8e9b84;
+}
+.live-dot.listening {
+  background: #bade89;
+}
+.live-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.live-body[hidden] {
+  display: none;
+}
+.live-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  font-size: 12px;
+}
+.live-toolbar span {
+  flex: 1;
+  color: #b5c4a9;
+}
+.live-text {
+  flex: 1;
+  min-height: 100px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px 18px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.live-text p {
+  margin: 0 0 16px;
+}
+.live-translation-controls {
+  flex-shrink: 0;
+  padding: 0 10px 8px;
+  border-bottom: 1px solid #3d4738;
+}
+.live-translation-controls label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+}
+.live-translation-controls input {
+  accent-color: #bade89;
+}
+.live-translation-controls select {
+  width: 100%;
+  margin: 5px 0;
+  padding: 5px;
+  border-radius: 5px;
+  background: #263021;
+  color: #f3f4ef;
+  border: 1px solid #485440;
+  font: inherit;
+  font-size: 12px;
+  color-scheme: dark;
+}
+.live-translation-controls option {
+  background: #263021;
+  color: #f3f4ef;
+}
+.live-pair {
+  margin-bottom: 18px;
+  border-bottom: 1px solid #35402e;
+}
+.live-pair p {
+  margin-bottom: 8px;
+}
+.live-translated {
+  color: #d3efad;
+}
+.live-placeholder {
+  color: #a9b3a1;
+}
+.live-pending {
+  color: #c5e3a2;
+  border-left: 2px solid #809a65;
+  padding-left: 10px;
+}
+.live-pane small {
+  display: block;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #acb6a5;
+}
+.live-pane footer {
+  padding: 10px;
+  border-top: 1px solid #3d4738;
+}
+.live-pane footer div {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.follow {
+  margin: 4px 10px;
+}
+.live-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.live-resize {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  z-index: 2;
+}
+.live-resize.n,
+.live-resize.s {
+  left: 16px;
+  right: 16px;
+  height: 8px;
+  cursor: ns-resize;
+}
+.live-resize.n {
+  top: -4px;
+}
+.live-resize.s {
+  bottom: -4px;
+}
+.live-resize.w,
+.live-resize.e {
+  top: 16px;
+  bottom: 16px;
+  width: 8px;
+  cursor: ew-resize;
+}
+.live-resize.w {
+  left: -4px;
+}
+.live-resize.e {
+  right: -4px;
+}
+.live-resize.nw,
+.live-resize.ne,
+.live-resize.sw,
+.live-resize.se {
+  width: 16px;
+  height: 16px;
+}
+.live-resize.nw {
+  top: -4px;
+  left: -4px;
+  cursor: nwse-resize;
+}
+.live-resize.ne {
+  top: -4px;
+  right: -4px;
+  cursor: nesw-resize;
+}
+.live-resize.sw {
+  bottom: -4px;
+  left: -4px;
+  cursor: nesw-resize;
+}
+.live-resize.se {
+  bottom: -4px;
+  right: -4px;
+  cursor: nwse-resize;
+  border-right: 2px solid #a3bd88;
+  border-bottom: 2px solid #a3bd88;
+}

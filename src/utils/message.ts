@@ -1,4 +1,9 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type {
+  LiveTranslationCommand,
+  SourceAction,
+  SourceSnapshot,
+} from "./audio-transcription/source-view"
 import type { TabCommand, TabOptions } from "./audio-transcription/tab-schema"
 import type { PronunciationCapture } from "./pronunciation/schema"
 import type { ReadingCapture } from "./reading-library/schema"
@@ -46,11 +51,17 @@ import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
   openAudioTranscription: () => void
-  tabAudioControl: (data: TabCommand) => { session?: string; ok: boolean }
+  tabAudioControl: (data: TabCommand) => { session?: string; ok: boolean; youtube?: boolean }
+  getTabAudioView: () => SourceSnapshot
+  tabAudioViewChanged: (data: SourceSnapshot) => void
+  tabAudioViewAction: (data: SourceAction) => boolean
+  setTabAudioTranslation: (data: LiveTranslationCommand) => SourceSnapshot
   tabAudioOffer: (data: { session: string; sdp: string }) => string
   tabAudioAlive: (data: { session: string }) => boolean
   tabAudioEnded: (data: { session: string; failed: boolean }) => void
-  tabAudioStartOffscreen: (data: TabOptions & { session: string; streamId: string }) => void
+  tabAudioStartOffscreen: (
+    data: TabOptions & { session: string; streamId: string; shortTurns?: boolean },
+  ) => void
   tabAudioStopOffscreen: (data: { session: string; discard: boolean }) => void
   tabAudioReleaseOffscreen: (data: { session: string; url: string }) => void
   openPronunciation: (data?: PronunciationCapture) => void

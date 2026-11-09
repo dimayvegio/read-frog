@@ -1,0 +1,56 @@
+import { langCodeISO6393Schema } from "@read-frog/definitions"
+import { z } from "zod"
+
+export const liveRowSchema = z.strictObject({
+  id: z.number().int().nonnegative(),
+  source: z.string().max(4000),
+  translation: z.string().max(6000),
+  state: z.enum(["waiting", "working", "done"]),
+})
+export type LiveRow = z.infer<typeof liveRowSchema>
+export const liveTranslationSchema = z.strictObject({
+  enabled: z.boolean(),
+  target: langCodeISO6393Schema,
+  rows: z.array(liveRowSchema).max(24),
+  message: z.string().max(300),
+  failed: z.boolean(),
+})
+export type LiveTranslation = z.infer<typeof liveTranslationSchema>
+export const liveTranslationCommand = z.strictObject({
+  session: z.string().uuid(),
+  enabled: z.boolean(),
+  target: langCodeISO6393Schema,
+  retry: z.boolean().optional(),
+})
+export type LiveTranslationCommand = z.infer<typeof liveTranslationCommand>
+
+export function isYouTubeSource(url: string | undefined): boolean {
+  try {
+    const value = new URL(url ?? "")
+    return (
+      value.protocol === "https:" &&
+      ["www.youtube.com", "youtube.com", "m.youtube.com"].includes(value.hostname)
+    )
+  } catch {
+    return false
+  }
+}
+export const sourceViewSchema = z.strictObject({
+  session: z.string().uuid(),
+  status: z.enum(["connecting", "listening", "stopping", "stopped"]),
+  text: z.string().max(16000),
+  pending: z.string().max(4000),
+  message: z.string().max(2000),
+  translation: liveTranslationSchema,
+})
+export type SourceView = z.infer<typeof sourceViewSchema>
+export const sourceSnapshotSchema = z.strictObject({
+  revision: z.number().int().nonnegative(),
+  view: sourceViewSchema.nullable(),
+})
+export type SourceSnapshot = z.infer<typeof sourceSnapshotSchema>
+export const sourceActionSchema = z.strictObject({
+  session: z.string().uuid(),
+  action: z.enum(["stop", "audio", "video"]),
+})
+export type SourceAction = z.infer<typeof sourceActionSchema>

@@ -50,6 +50,10 @@ export let shadowWrapper: HTMLElement | null = null
 // The floating button and side panel. Runs inside the shared content runtime,
 // which the loader content script imports (see entrypoints/content-runtime).
 export async function runSideContent(ctx: ContentScriptContext) {
+  if (window === window.top && /^(www\.|m\.)?youtube\.com$/.test(location.hostname)) {
+    const { setupLiveTranscriptView } = await import("./components/live-transcript")
+    if (!ctx.isInvalid) ctx.onInvalidated(setupLiveTranscriptView())
+  }
   const config = (await getLocalConfig()) ?? DEFAULT_CONFIG
 
   // Check global site control

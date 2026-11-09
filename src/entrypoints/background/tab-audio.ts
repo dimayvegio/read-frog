@@ -1,5 +1,6 @@
 import type { Browser } from "wxt/browser"
 import { browser } from "#imports"
+import { isYouTubeSource } from "@/utils/audio-transcription/source-view"
 import {
   LIVE_TRANSCRIPTION_MODEL,
   tabCommand,
@@ -9,12 +10,19 @@ import { onMessage, sendMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
 import { readOpenAIExecutionCredential, readOpenAIKeyStatus } from "./openai-credentials"
 import { isTrustedOptionsSender } from "./settings-sender"
+import {
+  beginTabAudioView,
+  clearTabAudioView,
+  finishTabAudioView,
+  setupTabAudioViewHandlers,
+  stoppingTabAudioView,
+} from "./tab-audio-view"
 import { prepareAudioOffscreen } from "./tts-playback"
 import { beginUsage } from "./usage"
 
 const pageURL = () => browser.runtime.getURL("/audio-transcription.html")
 const offscreenURL = () => browser.runtime.getURL("/offscreen.html")
-const channels = new Map<string, { source: number; owner: number; at: number }>()
+const channels = new Map<string, { source: number; owner: number; at: number; youtube: boolean }>()
 type Session = {
   id: string
   owner: number
@@ -45,18 +53,30 @@ export async function openTranscriptionPage(sender: Browser.runtime.MessageSende
   })
   if (channel && source?.id !== undefined && tab.id !== undefined) {
     if (channels.size >= 20) channels.delete(channels.keys().next().value!)
-    channels.set(channel, { source: source.id, owner: tab.id, at: Date.now() })
+    channels.set(channel, {
+      source: source.id,
+      owner: tab.id,
+      at: Date.now(),
+      youtube: isYouTubeSource(source.url),
+    })
   }
 }
 
 async function stop(session: Session, discard: boolean) {
+  stoppingTabAudioView(session.id)
   session.controller.abort()
   await sendMessage("tabAudioStopOffscreen", { session: session.id, discard }).catch(() => {})
   await session.span?.finish(discard ? "cancelled" : "complete")
+  finishTabAudioView(session.id)
   if (current === session) current = null
 }
 
 export function setupTabAudioHandlers() {
+  setupTabAudioViewHandlers(async (id, source) => {
+    if (!current || current.id !== id || current.source !== source) return false
+    await stop(current, false)
+    return true
+  })
   onMessage("tabAudioControl", async (message) => {
     if (!trusted(message.sender, pageURL()) || message.sender.tab?.id === undefined)
       throw new Error("Invalid tab audio controller")
@@ -79,6 +99,8 @@ export function setupTabAudioHandlers() {
         offered: false,
       }
       current = session
+      const youtube = data.mode === "live" && channel.youtube
+      beginTabAudioView(session.id, session.source, session.owner, youtube)
       try {
         await ensureInitializedConfig()
         if (data.mode === "live") {
@@ -105,10 +127,12 @@ export function setupTabAudioHandlers() {
         await sendMessage("tabAudioStartOffscreen", {
           session: session.id,
           streamId,
+          shortTurns: youtube,
           ...session.options,
         })
         session.controller.signal.throwIfAborted()
-        return { ok: true, session: session.id }
+        if (youtube) await browser.tabs.update(session.source, { active: true }).catch(() => {})
+        return { ok: true, session: session.id, youtube }
       } catch {
         await stop(session, true)
         throw new Error(
@@ -218,15 +242,18 @@ export function setupTabAudioHandlers() {
       const session = current
       await session.span?.finish(message.data.failed ? "error" : "complete")
       session.controller.abort()
+      finishTabAudioView(session.id)
       if (current === session) current = null
     }
   })
   browser.tabs.onRemoved.addListener((id) => {
+    clearTabAudioView(id)
     for (const [key, value] of channels)
       if (value.source === id || value.owner === id) channels.delete(key)
     if (current && (current.source === id || current.owner === id)) void stop(current, true)
   })
   browser.tabs.onUpdated.addListener((id, info) => {
+    if (info.url || info.status === "loading") clearTabAudioView(id)
     if (
       current &&
       ((info.url && current.source === id) || (info.status === "loading" && current.owner === id))

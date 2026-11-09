@@ -24,6 +24,13 @@ riêng, opt-in và partial/final đúng trạng thái. Audio/text ở RAM, khôn
 schema cũ, không tự thay track CC hoặc upload microphone. Khi nâng upstream,
 giữ source ownership, cleanup, TTS chung offscreen và các tests trong
 [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
+F23 mở rộng ở package `1.58.1-a.2` / manifest `1.58.1.2` từ HEAD `7ecdd82d`:
+YouTube tự hiện khung chép lời trực tiếp có kéo/resize/thu gọn/fullscreen,
+bản gốc tạm/final và dịch ngữ cảnh theo lựa chọn ngôn ngữ. Dùng chung capture,
+không sửa native CC/Learning; key/model qua private runtime, bounded RAM,
+không đổi config/DB/ZIP. Hợp đồng và tham khảo mã nguồn mở trong
+[AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
+
 Các mã F01–F18 dưới đây là danh mục hành vi cần bảo toàn, không phải danh sách
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.
