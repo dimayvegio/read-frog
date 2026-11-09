@@ -99,7 +99,7 @@ class ChromeOffscreenPlaybackAdapter implements TTSPlaybackAdapter {
       try {
         await chromeApi.offscreen.createDocument({
           url: OFFSCREEN_DOCUMENT_PATH,
-          reasons: [OFFSCREEN_REASON],
+          reasons: [OFFSCREEN_REASON, "USER_MEDIA"],
           justification: OFFSCREEN_JUSTIFICATION,
         })
       } catch (error) {
@@ -210,6 +210,11 @@ function createTTSPlaybackAdapter(): TTSPlaybackAdapter {
   }
 
   return new UnsupportedPlaybackAdapter(import.meta.env.BROWSER)
+}
+
+// The same document hosts tab capture and TTS; never close it to stop one job.
+export async function prepareAudioOffscreen() {
+  await new ChromeOffscreenPlaybackAdapter().prepare()
 }
 
 export function setupTTSPlaybackMessageHandlers() {

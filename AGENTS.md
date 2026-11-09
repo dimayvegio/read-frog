@@ -2,6 +2,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve F23 in [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md): explicit multilingual file transcription and tab audio capture in a regular page, separate record-first/live modes, private fixed endpoints and credentials, one-use owned source channels and offers, transcription-only WebRTC, bounded partial/final ordering, local turn gating and capture cleanup while multitasking. Keep TTS independent in the shared offscreen document, no microphone capture or automatic paid retries, RAM-only audio/text and honest unknown live usage costs. No config/DB/ZIP schema changes for this feature.
+
 - Preserve F22's regular-tab launch and popup-menu entry in [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md), with optional one-use capture and source-window targeting. Preserve opt-in local silence stopping on the existing recording stream: speech-before-silence gate, manual/30-second fallback, no automatic grading/upload, bounded analyser polling, AudioContext/track/timer cleanup and late-resume cancellation. F19 recording stays manual by default with its existing 60-second cap; no published schema changes for this feature.
 
 - Preserve F22 response v2 in [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md): isolated-word prompts request only sound/stress/accuracy, app-owned rhythm/fluency N/A must not reject valid word feedback, safe wire normalization precedes the frozen canonical validator, and low-confidence/quality replies remain unscored retries. Keep half-step rounding, bounded numeric parsing, exact word guards, safe PA diagnostic codes and no automatic paid repair requests. Bump prompt/cache identity when changing this adapter, without rewriting published histories or schemas.

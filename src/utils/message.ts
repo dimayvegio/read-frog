@@ -1,4 +1,5 @@
 import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { TabCommand, TabOptions } from "./audio-transcription/tab-schema"
 import type { PronunciationCapture } from "./pronunciation/schema"
 import type { ReadingCapture } from "./reading-library/schema"
 import type {
@@ -44,6 +45,14 @@ import type { EdgeTTSVoice } from "@/utils/server/edge-tts/types"
 import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
+  openAudioTranscription: () => void
+  tabAudioControl: (data: TabCommand) => { session?: string; ok: boolean }
+  tabAudioOffer: (data: { session: string; sdp: string }) => string
+  tabAudioAlive: (data: { session: string }) => boolean
+  tabAudioEnded: (data: { session: string; failed: boolean }) => void
+  tabAudioStartOffscreen: (data: TabOptions & { session: string; streamId: string }) => void
+  tabAudioStopOffscreen: (data: { session: string; discard: boolean }) => void
+  tabAudioReleaseOffscreen: (data: { session: string; url: string }) => void
   openPronunciation: (data?: PronunciationCapture) => void
   consumePronunciationCapture: (data: { channel: string }) => PronunciationCapture | null
   clearPronunciationHistory: () => number

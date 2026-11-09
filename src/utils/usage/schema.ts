@@ -75,6 +75,22 @@ export const DEFAULT_PRICES: UsagePrice[] = [
     audioMinute: null,
     checkedAt: "2026-11-07",
   },
+  {
+    model: "gpt-transcribe",
+    input: 0,
+    output: 0,
+    cachedInput: 0,
+    audioMinute: 0.0045,
+    checkedAt: "2026-11-09",
+  },
+  {
+    model: "gpt-live-transcribe",
+    input: 0,
+    output: 0,
+    cachedInput: 0,
+    audioMinute: 0.017,
+    checkedAt: "2026-11-09",
+  },
 ]
 export function estimateUsage(entry: UsageEntry, price?: UsagePrice): number | null {
   if (entry.status === "cache") return 0
@@ -82,7 +98,7 @@ export function estimateUsage(entry: UsageEntry, price?: UsagePrice): number | n
   // have no modality breakdown. Never apply a text tariff to these totals.
   if (entry.model.startsWith("gpt-audio")) return null
   if (!price) return null
-  if (entry.task === "tts")
+  if (entry.task === "tts" || ["gpt-transcribe", "gpt-live-transcribe"].includes(entry.model))
     return price.audioMinute !== null && entry.audioMs !== null
       ? (entry.audioMs / 60000) * price.audioMinute
       : null

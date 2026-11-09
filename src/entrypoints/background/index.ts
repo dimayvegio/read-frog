@@ -3,6 +3,7 @@ import type { Config, UiLanguage } from "@/types/config/config"
 import { browser, defineBackground } from "#imports"
 import { OPENAI_TTS_PORT, OPENAI_TTS_FILE_PORT } from "@/types/openai-tts"
 import { storageAdapter } from "@/utils/atoms/storage-adapter"
+import { TRANSCRIPTION_PORT } from "@/utils/audio-transcription/schema"
 import { setBackgroundConfigReadyResolver } from "@/utils/config/readiness"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
 import { initI18n, setUiLanguage } from "@/utils/i18n"
@@ -13,6 +14,7 @@ import { PRONUNCIATION_PORT } from "@/utils/pronunciation/schema"
 import { READING_LAB_PORT } from "@/utils/reading-library/schema"
 import { SENTENCE_STUDY_PORT } from "@/utils/subtitles/study-segmentation"
 import { runAiSegmentSubtitles } from "./ai-segmentation"
+import { handleTranscriptionPort, setupTranscriptionHandlers } from "./audio-transcription"
 import { dispatchBackgroundStreamPort } from "./background-stream"
 import { initializeActionIcons, registerActionIconListeners } from "./browser-action-icon"
 import { ensureInitializedConfig } from "./config"
@@ -41,6 +43,7 @@ import { handleSentenceStudyPort } from "./sentence-study"
 import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
+import { setupTabAudioHandlers } from "./tab-audio"
 import { translationMessage } from "./translation-signal"
 import { setupTTSDownloadHandlers } from "./tts-download"
 import { setupTTSPlaybackMessageHandlers } from "./tts-playback"
@@ -73,6 +76,10 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === TRANSCRIPTION_PORT) {
+        handleTranscriptionPort(port)
+        return
+      }
       if (port.name === PRONUNCIATION_PORT) {
         handlePronunciationPort(port)
         return
@@ -121,6 +128,8 @@ export default defineBackground({
     setupVocabularyHandlers()
     setupReadingLabHandlers()
     setupPronunciationHandlers()
+    setupTranscriptionHandlers()
+    setupTabAudioHandlers()
     setupUsageHandlers()
     setupSettingsSyncHandlers()
     setupGlossaryMessageHandlers()

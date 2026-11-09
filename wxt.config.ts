@@ -68,7 +68,7 @@ export default defineConfig({
       "contextMenus",
       "scripting",
       "webNavigation",
-      ...(browser !== "firefox" ? ["offscreen", "sidePanel"] : []),
+      ...(browser !== "firefox" ? ["offscreen", "sidePanel", "tabCapture"] : []),
     ],
     host_permissions: [
       "<all_urls>", // Translation hosts and captureVisibleTab; capture is restricted to a popup click.

@@ -39,6 +39,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 
 ## Những tính chất và tính năng bắt buộc giữ
 
+Giữ **F23 — Audio → Văn bản** theo [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md):
+file đa ngôn ngữ, thu tab khi chuyển tab, record-first và WebRTC live riêng;
+private credentials/one-use source/offer, local turn gate, partial/final ordering,
+bounds và cleanup. Không đưa audio/transcript vào sync hoặc dùng hosted ASR.
+Offscreen dùng chung TTS không được đóng khi dừng riêng một tác vụ.
+
 Từ build `1.58.0.25`, giữ **F22 — Luyện phát âm Mỹ** trong
 [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md): nút Translate/Dictionary,
 explicit audio upload, rubric nửa điểm, conservative feedback và logs/report riêng.

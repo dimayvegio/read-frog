@@ -2,6 +2,14 @@
 
 Tài liệu đối chiếu để nâng cấp tiếp mà giữ các chức năng đã phát triển riêng.
 Đọc cùng [hướng dẫn merge](UPSTREAM_UPGRADE_GUIDE.md) và [AGENTS.md](AGENTS.md).
+
+**F23 — Audio → Văn bản:** thêm từ baseline local `1ea3c17e`. Trang riêng tải
+file đa ngôn ngữ; thu tab chạy nền với hai chế độ thu trước/chép lời trực tiếp.
+File dùng `gpt-transcribe`, live dùng `gpt-live-transcribe` qua WebRTC; giữ key
+riêng, opt-in và partial/final đúng trạng thái. Audio/text ở RAM, không đổi
+schema cũ, không tự thay track CC hoặc upload microphone. Khi nâng upstream,
+giữ source ownership, cleanup, TTS chung offscreen và các tests trong
+[AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
 Các mã F01–F18 dưới đây là danh mục hành vi cần bảo toàn, không phải danh sách
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.
@@ -183,8 +191,9 @@ upstream trùng số đè các snapshot đã chạy. Bước fork kế tiếp b�
 
 ## Những giới hạn không được viết thành tính năng đã có
 
-- Chưa có tạo phụ đề từ âm thanh khi video thiếu CC. Không tự thu âm hoặc gọi
-  lại Read Frog hosted ASR sau merge. OCR ảnh thủ công là luồng khác.
+- F23 có chép lời từ âm thanh tab kể cả thiếu CC, nhưng chưa tạo track phụ đề
+  overlay/SRT đồng bộ với timeline video. Không tự thu hoặc gọi hosted ASR
+  upstream; OCR ảnh thủ công là luồng khác.
 - Native Edge PDF chỉ lấy vùng chọn khi file có text copy được; PDF scan dùng
   crop/OCR hoặc reader Read Frog. Autosave vị trí chỉ có trong reader riêng.
 - Ghim popup web không phải Windows always-on-top. Learning frame nằm trong

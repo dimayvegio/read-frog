@@ -1,5 +1,8 @@
 import { onMessage } from "@/utils/message"
 import { DOMAudioPlaybackController } from "@/utils/tts-playback/dom-audio-controller"
+import { setupOffscreenTabAudio } from "./tab-audio"
+
+setupOffscreenTabAudio()
 
 const playbackController = new DOMAudioPlaybackController(
   "Failed to play audio in offscreen document",
