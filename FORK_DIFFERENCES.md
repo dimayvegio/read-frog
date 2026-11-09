@@ -12,6 +12,7 @@ Tài liệu đối chiếu để nâng cấp tiếp mà giữ các chức năng 
 - Nhận cả ba patch menu placement, stable subtitle cache và stale-host cleanup;
   giữ mọi F01–F23, geometry Learning và runtime OpenAI-only. Không đổi config124,
   credential DB1 hoặc DB/ZIP/report/transport đã phát hành.
+- Commit merge: `74e721a9c110526d17e7d8a3aa3e28644b1b18d7`.
 - Quyết định từng commit, kiểm thử và giới hạn:
   [UPSTREAM_1_58_1_REPORT.md](UPSTREAM_1_58_1_REPORT.md).
 - Các bảng kiểm toán 1.58.0 bên dưới là snapshot lịch sử, không phải tag mới nhất.

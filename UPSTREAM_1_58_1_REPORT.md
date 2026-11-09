@@ -8,6 +8,8 @@
 - Upstream nhận: `v1.58.1` / `8f015c4a830951dd98fd836989e7348849e60cea`.
 - Nhánh kết quả: `codex/upstream-1.58.1-openai`; merge giữ ancestry của cả fork
   và upstream. Không thay source local bằng checkout upstream.
+- Merge commit đã xác minh: `74e721a9c110526d17e7d8a3aa3e28644b1b18d7`,
+  hai parent là `6bb2038a815ee4bec7970063b0f1423e7cfa23a2` và tag upstream trên.
 - Package `1.58.1-a.1`; manifest numeric `1.58.1.1`; `version_name:1.58.1A`.
 
 ## Quyết định nhận thay đổi upstream
