@@ -46,7 +46,12 @@ chế độ SRT opt-in dùng timestamp segment API `whisper-1` (legacy, dự ki�
 RAM bounds, không timing giả/paid repair và không đổi config/DB/format cũ.
 Xem hợp đồng và giới hạn kiểm thử trong [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
 
-Các mã F01–F18 dưới đây là danh mục hành vi cần bảo toàn, không phải danh sách
+F23 từ build `1.58.1-a.5` / manifest `1.58.1.5` sửa bật dịch live
+sau điều hướng SPA: xác thực current top-frame URL/documentId từ browser, không
+dựa riêng vào MessageSender.url có thể cũ. Giữ exact route, reject stale async
+ownership và mọi bounds/cache/cleanup F23; không thay model hoặc schema.
+
+Các mã F01–F18 là danh mục hành vi cần bảo toàn, không phải danh sách
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.
 

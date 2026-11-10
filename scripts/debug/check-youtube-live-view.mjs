@@ -106,6 +106,27 @@ export async function checkYouTubeLiveView({
     ),
   )
   await source.click(shadow(".live-translation-controls input"))
+  await source.waitForFunction(
+    () =>
+      document
+        .querySelector("#read-frog-live-transcript")
+        ?.shadowRoot.querySelector(".live-translation-controls input")?.checked,
+    { polling: 100 },
+  )
+  check("contextual translation checkbox stays enabled after the real source command", true)
+  if (process.env.AUDIO_SPA_SOURCE) {
+    check(
+      "a SPA sender retaining its initial URL is authorized using its current browser frame and matching document ID",
+      await worker.evaluate((url) => {
+        const entry = __viewDiagnostics.at(-1)
+        return (
+          entry.url !== url &&
+          entry.currentFrame.url === url &&
+          entry.documentId === entry.currentFrame.documentId
+        )
+      }, source.url()),
+    )
+  }
   await pause(200)
   check(
     "translation opt-in still never sends provisional speech",
@@ -147,9 +168,54 @@ export async function checkYouTubeLiveView({
       )
     }),
   )
+  if (process.env.AUDIO_FACEBOOK) {
+    await source.click(shadow(".live-translation-controls input"))
+    await source.waitForFunction(
+      () =>
+        !document
+          .querySelector("#read-frog-live-transcript")
+          .shadowRoot.querySelector(".live-translation-controls input").checked,
+    )
+    const count = await worker.evaluate(() => __pdfCalls.length)
+    await offEval(`__emitFinal('The bank has many more customers.')`)
+    await source.waitForFunction(() =>
+      document
+        .querySelector("#read-frog-live-transcript")
+        .shadowRoot.textContent.includes("many more customers"),
+    )
+    check(
+      "accumulated speech remains untranslated while contextual translation is off",
+      await worker.evaluate((n) => __pdfCalls.length === n, count),
+    )
+    await source.click(shadow(".live-translation-controls input"))
+    await source.waitForFunction(
+      () =>
+        [
+          ...document
+            .querySelector("#read-frog-live-transcript")
+            .shadowRoot.querySelectorAll("[data-live-translation]"),
+        ].filter((node) => node.textContent.includes("Ngân hàng")).length >= 3,
+    )
+    check(
+      "enabling translation after speech has accumulated translates the new final turn once",
+      await worker.evaluate((n) => __pdfCalls.length === n + 1, count),
+    )
+  }
   const calls = await worker.evaluate(() => __pdfCalls.length)
   await source.click(shadow(".live-translation-controls input"))
+  await source.waitForFunction(
+    () =>
+      !document
+        .querySelector("#read-frog-live-transcript")
+        .shadowRoot.querySelector(".live-translation-controls input").checked,
+  )
   await source.click(shadow(".live-translation-controls input"))
+  await source.waitForFunction(
+    () =>
+      document
+        .querySelector("#read-frog-live-transcript")
+        .shadowRoot.querySelector(".live-translation-controls input").checked,
+  )
   await pause(200)
   check(
     "toggling or moving the view retains completed translations without paid repeat requests",
@@ -162,7 +228,7 @@ export async function checkYouTubeLiveView({
         ...document
           .querySelector("#read-frog-live-transcript")
           .shadowRoot.querySelectorAll("[data-live-translation]"),
-      ].every((node) => node.textContent.includes("The bank")),
+      ].filter((node) => node.textContent.includes("The bank")).length >= 2,
     { polling: 100 },
   )
   check(

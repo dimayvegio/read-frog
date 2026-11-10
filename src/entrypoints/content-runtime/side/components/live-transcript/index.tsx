@@ -93,6 +93,7 @@ function Pane({
       scroller.current.scrollTop = scroller.current.scrollHeight
   }, [view.text, view.pending, view.translation, following, compact, fontSize, readOnly])
   const translation = (enabled: boolean, target = view.translation.target, retry = false) => {
+    setMessage("")
     void sendMessage("setTabAudioTranslation", {
       session: view.session,
       enabled,

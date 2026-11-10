@@ -31,14 +31,31 @@ function notify(source: number) {
   // No transcript is broadcast to other tabs or subframes.
   void sendMessage("tabAudioViewChanged", snapshot(), { tabId: source, frameId: 0 }).catch(() => {})
 }
-function ownsSource(sender: Browser.runtime.MessageSender) {
-  return (
-    sender.id === browser.runtime.id &&
-    sender.frameId === 0 &&
-    scope !== null &&
-    liveTranscriptSourceURL(sender.url) === scope.url &&
-    scope?.source === sender.tab?.id
+async function ownsSource(sender: Browser.runtime.MessageSender) {
+  const selected = scope
+  if (
+    !selected ||
+    sender.id !== browser.runtime.id ||
+    sender.frameId !== 0 ||
+    selected.source !== sender.tab?.id
   )
+    return false
+  try {
+    // Chromium can retain the document's initial URL in MessageSender after
+    // history.pushState. Read the current top-frame URL from the browser and
+    // bind it to the actual sending document, never a caller-provided URL.
+    const frame = await browser.webNavigation.getFrame({ tabId: selected.source, frameId: 0 })
+    if (!frame || scope !== selected || liveTranscriptSourceURL(frame.url) !== selected.url)
+      return false
+    if (frame.documentId || sender.documentId)
+      return Boolean(
+        frame.documentId && sender.documentId && frame.documentId === sender.documentId,
+      )
+    // Legacy browsers without document IDs keep the strict URL-only path.
+    return liveTranscriptSourceURL(sender.url) === selected.url
+  } catch {
+    return false
+  }
 }
 function ownsAudio(sender: Browser.runtime.MessageSender) {
   return (
@@ -144,12 +161,12 @@ export function setupTabAudioViewHandlers(
   browser.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes.config) scope?.translator.invalidate()
   })
-  onMessage("getTabAudioView", (message) =>
-    ownsSource(message.sender) ? snapshot() : { revision: 0, view: null },
+  onMessage("getTabAudioView", async (message) =>
+    (await ownsSource(message.sender)) ? snapshot() : { revision: 0, view: null },
   )
-  onMessage("setTabAudioTranslation", (message) => {
+  onMessage("setTabAudioTranslation", async (message) => {
     const data = liveTranslationCommand.parse(message.data)
-    if (!ownsSource(message.sender) || !scope || data.session !== scope.view.session)
+    if (!(await ownsSource(message.sender)) || !scope || data.session !== scope.view.session)
       throw new Error("Invalid live translation source")
     scope.translator.configure(data.enabled, data.target, data.retry)
     return snapshot()
@@ -159,7 +176,8 @@ export function setupTabAudioViewHandlers(
     if (!scope || data.session !== scope.view.session) return false
     if (data.action === "video") {
       if (!ownsAudio(message.sender)) throw new Error("Invalid audio view owner")
-    } else if (!ownsSource(message.sender)) throw new Error("Invalid source view sender")
+    } else if (!(await ownsSource(message.sender)) || !scope || data.session !== scope.view.session)
+      throw new Error("Invalid source view sender")
     if (data.action === "stop") return stop(data.session, scope.source)
     const tab = await browser.tabs
       .get(data.action === "video" ? scope.source : scope.owner)

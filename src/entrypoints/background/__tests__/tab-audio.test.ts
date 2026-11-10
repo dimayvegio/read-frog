@@ -44,6 +44,11 @@ beforeEach(() => {
     { id: 9, url: "https://source.test/private-meeting", windowId: 11 },
   ] as any)
   vi.spyOn(browser.tabs, "create").mockResolvedValue({ id: 7 } as any)
+  vi.spyOn(browser.webNavigation, "getFrame").mockImplementation(async () => ({
+    url: "https://source.test/private-meeting",
+    parentFrameId: -1,
+    errorOccurred: false,
+  }))
   vi.stubGlobal("chrome", {
     tabCapture: {
       getMediaStreamId: vi.fn<(...args: any[]) => any>().mockResolvedValue("one-use-stream"),
@@ -209,14 +214,16 @@ it("opens the same source view and short turns for an ordinary website with a re
   )
   expect(activate).toHaveBeenCalledWith(9, { active: true })
   expect(
-    handlers.get("getTabAudioView")!({
-      sender: {
-        id: browser.runtime.id,
-        frameId: 0,
-        tab: { id: 9 },
-        url: "https://source.test/private-meeting",
-      },
-    }).view.session,
+    (
+      await handlers.get("getTabAudioView")!({
+        sender: {
+          id: browser.runtime.id,
+          frameId: 0,
+          tab: { id: 9 },
+          url: "https://source.test/private-meeting",
+        },
+      })
+    ).view.session,
   ).toBe(session)
 })
 it("keeps transcription in the Audio owner when a browser-restricted document cannot mount the view", async () => {
@@ -232,14 +239,16 @@ it("keeps transcription in the Audio owner when a browser-restricted document ca
   expect(activate).not.toHaveBeenCalled()
   expect(fetch).not.toHaveBeenCalled()
   expect(
-    handlers.get("getTabAudioView")!({
-      sender: {
-        id: browser.runtime.id,
-        frameId: 0,
-        tab: { id: 9 },
-        url: "https://source.test/private-meeting",
-      },
-    }).view,
+    (
+      await handlers.get("getTabAudioView")!({
+        sender: {
+          id: browser.runtime.id,
+          frameId: 0,
+          tab: { id: 9 },
+          url: "https://source.test/private-meeting",
+        },
+      })
+    ).view,
   ).toBeNull()
 })
 it("falls back to the Audio page after a bounded wait for a stalled source-view import", async () => {

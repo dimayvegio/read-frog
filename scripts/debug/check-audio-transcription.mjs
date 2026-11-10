@@ -27,7 +27,9 @@ const check = (name, condition) => {
   console.log(`PASS ${name}`)
 }
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-const sourceViewTest = Boolean(process.env.AUDIO_YOUTUBE || process.env.AUDIO_SOURCE_VIEW)
+const sourceViewTest = Boolean(
+  process.env.AUDIO_YOUTUBE || process.env.AUDIO_FACEBOOK || process.env.AUDIO_SOURCE_VIEW,
+)
 const sourceHTML = `<!doctype html><meta charset="utf-8"><title>Live source fixture</title><style>body{background:#101110;color:#eee;font:18px system-ui;margin:26px}#movie_player{background:linear-gradient(140deg,#16303c,#264b32);height:560px;width:900px;display:grid;place-content:center;border-radius:18px}h1{font-size:32px}button{padding:12px;margin:8px;font:inherit}#native-cc{color:#ced6be}</style><h3>Read Frog · Live source test fixture</h3><div id="movie_player"><h1>Live listening · Bilingual transcript</h1><p>Streaming audio + contextual translation</p><button id="play">Play synthetic audio</button><button id="fullscreen">Fullscreen video</button><p id="native-cc">Native CC unchanged</p></div><script>play.onclick=()=>{window.ctx=new AudioContext();window.tone=ctx.createOscillator();const gain=ctx.createGain();gain.gain.value=.12;tone.connect(gain).connect(ctx.destination);tone.start();ctx.resume()};fullscreen.onclick=()=>document.querySelector('#movie_player').requestFullscreen()</script>`
 const server = http.createServer((request, response) =>
   response.end(
@@ -102,8 +104,8 @@ try {
       )
     ).worker()
     check(
-      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.4",
-      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.4"),
+      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.5",
+      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.5"),
     )
     check(
       "in-place upgrade preserves public configuration byte-for-byte",
@@ -381,7 +383,10 @@ try {
       `(() => { const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices); globalThis.__captureStreams=[]; navigator.mediaDevices.getUserMedia=async (...args)=>{ const stream=await original(...args); __captureStreams.push(stream); return stream }; })()`,
     )
     source = await browser.newPage()
-    if (process.env.AUDIO_YOUTUBE) {
+    if (process.env.AUDIO_YOUTUBE || process.env.AUDIO_FACEBOOK) {
+      const sourceURL = process.env.AUDIO_FACEBOOK
+        ? "https://www.facebook.com/"
+        : "https://www.youtube.com/watch?v=readfrog-live-fixture"
       await source.setRequestInterception(true)
       source.on("request", (request) => {
         if (request.url() === embeddedSourceURL) {
@@ -392,10 +397,7 @@ try {
           })
           return
         }
-        if (
-          request.isNavigationRequest() &&
-          request.url().startsWith("https://www.youtube.com/watch")
-        )
+        if (request.isNavigationRequest() && request.url().startsWith(new URL(sourceURL).origin))
           void request.respond({
             status: 200,
             contentType: "text/html",
@@ -403,7 +405,7 @@ try {
           })
         else void request.continue()
       })
-      await source.goto("https://www.youtube.com/watch?v=readfrog-live-fixture")
+      await source.goto(sourceURL)
     } else
       await source.goto(
         `http://127.0.0.1:${server.address().port}${sourceViewTest ? "/source-view" : ""}`,
@@ -485,7 +487,29 @@ try {
         "audio.webm",
     )
     await recorded.close()
+    if (process.env.AUDIO_SPA_SOURCE) {
+      await source.evaluate(() => history.pushState({}, "", "?spa-source=1"))
+      await pause(500)
+    }
     const live = await launchFromSource()
+    await worker.evaluate(() => {
+      globalThis.__viewDiagnostics = []
+      chrome.runtime.onMessage.addListener((message, sender) => {
+        if (message?.type === "setTabAudioTranslation") {
+          const entry = {
+            url: sender.url,
+            tab: sender.tab?.id,
+            frame: sender.frameId,
+            documentId: sender.documentId,
+            data: message.data,
+          }
+          __viewDiagnostics.push(entry)
+          void chrome.webNavigation.getFrame({ tabId: sender.tab.id, frameId: 0 }).then((frame) => {
+            entry.currentFrame = frame
+          })
+        }
+      })
+    })
     await click(live, "Anh + Nhật + Việt")
     check(
       "meeting preset selects exactly English, Japanese and Vietnamese",
@@ -551,8 +575,12 @@ try {
         console.log(
           JSON.stringify({
             calls: await worker.evaluate(() => __pdfCalls.map((c) => c.body)),
-            pane: await source.$eval("#read-frog-live-transcript", (h) => h.shadowRoot.textContent),
+            pane: await source.$eval(
+              "#read-frog-live-transcript",
+              (h) => h.shadowRoot.querySelector(".live-pane")?.innerText,
+            ),
             monitor: await live.$eval(".transcript", (n) => n.textContent),
+            controls: await worker.evaluate(() => __viewDiagnostics),
           }),
         )
         throw error

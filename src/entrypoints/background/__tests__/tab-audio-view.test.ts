@@ -50,12 +50,17 @@ beforeEach(() => {
   handlers.clear()
   send.mockResolvedValue(undefined)
   stop.mockResolvedValue(true)
+  vi.spyOn(browser.webNavigation, "getFrame").mockImplementation(async () => ({
+    url: source().url,
+    parentFrameId: -1,
+    errorOccurred: false,
+  }))
   translate.mockImplementation(async (rows) => rows.map(() => "Bản dịch."))
   setupTabAudioViewHandlers(stop)
   beginTabAudioView(id, 9, 7, source().url)
 })
 it("only the selected source top frame receives snapshots or controls, never another tab/iframe/origin", async () => {
-  expect(call("getTabAudioView", undefined).view.session).toBe(id)
+  expect((await call("getTabAudioView", undefined)).view.session).toBe(id)
   for (const sender of [
     audio(),
     { ...source(), frameId: 1 },
@@ -63,13 +68,13 @@ it("only the selected source top frame receives snapshots or controls, never ano
     { ...source(), tab: { id: 10 } },
     { ...source(), url: "https://youtube.com.evil.test/watch" },
   ]) {
-    expect(call("getTabAudioView", undefined, sender).view).toBeNull()
+    expect((await call("getTabAudioView", undefined, sender)).view).toBeNull()
     await expect(
       call("tabAudioViewAction", { session: id, action: "stop" }, sender),
     ).rejects.toThrow(/Invalid|abort/i)
-    expect(() =>
+    await expect(
       call("setTabAudioTranslation", { session: id, target: "vie", enabled: true }, sender),
-    ).toThrow(/Invalid/)
+    ).rejects.toThrow(/Invalid/)
   }
   expect(stop).not.toHaveBeenCalled()
   expect(translate).not.toHaveBeenCalled()
@@ -78,16 +83,16 @@ it("only the selected source top frame receives snapshots or controls, never ano
     frameId: 0,
   })
 })
-it("relays only trusted bounded transcript notices, rejecting recording blob URLs, stale sessions and oversized data", () => {
+it("relays only trusted bounded transcript notices, rejecting recording blob URLs, stale sessions and oversized data", async () => {
   receiveTabAudioViewNotice(notice("started"), offscreen())
   receiveTabAudioViewNotice(
     notice("text", { text: "a".repeat(50000), pending: "p".repeat(9000) }),
     offscreen(),
   )
-  const view = call("getTabAudioView", undefined).view
+  const view = (await call("getTabAudioView", undefined)).view
   expect(view.text).toHaveLength(16000)
   expect(view.pending).toHaveLength(4000)
-  const revision = call("getTabAudioView", undefined).revision
+  const revision = (await call("getTabAudioView", undefined)).revision
   for (const raw of [
     notice("recording", { url: "blob:secret" }),
     notice("text", { text: "x".repeat(500001), pending: "" }),
@@ -95,7 +100,7 @@ it("relays only trusted bounded transcript notices, rejecting recording blob URL
   ])
     receiveTabAudioViewNotice(raw, offscreen())
   receiveTabAudioViewNotice(notice("stopped", { message: "forged" }), source() as any)
-  expect(call("getTabAudioView", undefined).revision).toBe(revision)
+  expect((await call("getTabAudioView", undefined)).revision).toBe(revision)
   expect(JSON.stringify(send.mock.calls)).not.toContain("blob:")
 })
 it("translates finalized original text only after explicit source opt-in and retains a stopped view until owner/source closes", async () => {
@@ -104,15 +109,15 @@ it("translates finalized original text only after explicit source opt-in and ret
     offscreen(),
   )
   expect(translate).not.toHaveBeenCalled()
-  call("setTabAudioTranslation", { session: id, target: "vie", enabled: true })
+  await call("setTabAudioTranslation", { session: id, target: "vie", enabled: true })
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(translate.mock.calls[0]![0]).toEqual([{ id: 0, source: "Hello.", context: "" }])
   finishTabAudioView(id)
-  expect(call("getTabAudioView", undefined).view.status).toBe("stopped")
+  expect((await call("getTabAudioView", undefined)).view.status).toBe("stopped")
   clearTabAudioView(88)
-  expect(call("getTabAudioView", undefined).view).not.toBeNull()
+  expect((await call("getTabAudioView", undefined)).view).not.toBeNull()
   clearTabAudioView(7)
-  expect(call("getTabAudioView", undefined).view).toBeNull()
+  expect((await call("getTabAudioView", undefined)).view).toBeNull()
 })
 it("source may stop or focus Audio; only its Audio owner may focus the video", async () => {
   vi.spyOn(browser.tabs, "get").mockImplementation(
@@ -130,18 +135,97 @@ it("source may stop or focus Audio; only its Audio owner may focus the video", a
   expect(await call("tabAudioViewAction", { session: id, action: "video" }, audio())).toBe(true)
   expect(activate).toHaveBeenLastCalledWith(9, { active: true })
 })
-it("supports a selected ordinary HTTP/HTTPS/file document without authorizing a different route in the same tab", () => {
+it("supports a selected ordinary HTTP/HTTPS/file document without authorizing a different route in the same tab", async () => {
   for (const url of [
     "http://localhost:8123/video",
     "https://lectures.test/watch",
     "file:///C:/audio.html",
   ]) {
     beginTabAudioView(id, 9, 7, url)
+    vi.mocked(browser.webNavigation.getFrame).mockImplementation(async () => ({
+      url,
+      parentFrameId: -1,
+      errorOccurred: false,
+    }))
     const sender = { ...source(), url }
-    expect(call("getTabAudioView", undefined, sender).view.session).toBe(id)
-    expect(call("getTabAudioView", undefined, { ...sender, url: url + "?other" }).view).toBeNull()
-    expect(call("getTabAudioView", undefined, { ...sender, frameId: 2 }).view).toBeNull()
+    expect((await call("getTabAudioView", undefined, sender)).view.session).toBe(id)
+    expect(
+      (await call("getTabAudioView", undefined, { ...sender, url: url + "?other" })).view,
+    ).toBeNull()
+    expect((await call("getTabAudioView", undefined, { ...sender, frameId: 2 })).view).toBeNull()
   }
   beginTabAudioView(id, 9, 7, "edge://settings/")
-  expect(call("getTabAudioView", undefined).view).toBeNull()
+  expect((await call("getTabAudioView", undefined)).view).toBeNull()
+})
+
+it("accepts a browser-verified current SPA document even when MessageSender retains its initial URL", async () => {
+  const url = "https://www.facebook.com/watch/?v=selected"
+  const documentId = crypto.randomUUID()
+  beginTabAudioView(id, 9, 7, url)
+  vi.mocked(browser.webNavigation.getFrame).mockImplementation(async () => ({
+    url,
+    documentId,
+    parentFrameId: -1,
+    errorOccurred: false,
+  }))
+  const sender = { ...source(), url: "https://www.facebook.com/", documentId }
+  expect((await call("getTabAudioView", undefined, sender)).view.session).toBe(id)
+  receiveTabAudioViewNotice(
+    notice("text", { text: "Hello.", pending: "Still speaking" }),
+    offscreen(),
+  )
+  await call("setTabAudioTranslation", { session: id, enabled: true, target: "vie" }, sender)
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  expect(translate).toHaveBeenCalledTimes(1)
+  expect(translate.mock.calls[0]![0]).toEqual([{ id: 0, source: "Hello.", context: "" }])
+  expect(await call("tabAudioViewAction", { session: id, action: "stop" }, sender)).toBe(true)
+  expect(stop).toHaveBeenCalledWith(id, 9)
+})
+
+it("rejects a changed current URL or a stale document ID without translating or stopping a new source", async () => {
+  const documentId = crypto.randomUUID()
+  for (const [frame, sender] of [
+    [
+      { url: source().url + "&other=1", documentId },
+      { ...source(), documentId },
+    ],
+    [
+      { url: source().url, documentId },
+      { ...source(), documentId: crypto.randomUUID() },
+    ],
+    [{ url: source().url, documentId }, source()],
+    [{ url: source().url }, { ...source(), documentId }],
+  ]) {
+    vi.mocked(browser.webNavigation.getFrame).mockImplementation(async () => ({
+      parentFrameId: -1,
+      errorOccurred: false,
+      ...frame,
+    }))
+    expect((await call("getTabAudioView", undefined, sender)).view).toBeNull()
+    await expect(
+      call("setTabAudioTranslation", { session: id, target: "vie", enabled: true }, sender),
+    ).rejects.toThrow(/Invalid/)
+    await expect(
+      call("tabAudioViewAction", { session: id, action: "stop" }, sender),
+    ).rejects.toThrow(/Invalid/)
+  }
+  expect(translate).not.toHaveBeenCalled()
+  expect(stop).not.toHaveBeenCalled()
+})
+
+it("fails closed when frame lookup fails or the owned session changes while lookup is pending", async () => {
+  vi.mocked(browser.webNavigation.getFrame).mockRejectedValueOnce(new Error("Missing frame"))
+  expect((await call("getTabAudioView", undefined)).view).toBeNull()
+  let resolve!: (value: any) => void
+  vi.mocked(browser.webNavigation.getFrame).mockImplementationOnce(
+    () =>
+      new Promise((done) => {
+        resolve = done
+      }),
+  )
+  const pending = call("setTabAudioTranslation", { session: id, target: "vie", enabled: true })
+  beginTabAudioView(crypto.randomUUID(), 9, 7, source().url)
+  resolve({ url: source().url, parentFrameId: -1, errorOccurred: false })
+  await expect(pending).rejects.toThrow(/Invalid/)
+  expect(translate).not.toHaveBeenCalled()
 })

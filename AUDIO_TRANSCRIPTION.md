@@ -28,6 +28,50 @@ phiên live được người dùng bật tại YouTube có khung chép lời ri
   `1.58.1.4` có SRT theo segment khi chọn riêng chế độ phụ đề cho file. Chưa có
   transcript history, speaker labels, word timing hoặc SRT cho phiên live.
 
+## Sửa bật dịch sau điều hướng nội bộ — build 1.58.1.5
+
+Baseline local `a4a2afae39a565556e4cb8dea5cea5b246cc8a1a`, nhánh
+`codex/upstream-1.58.1-openai`; package `1.58.1-a.5`, manifest `1.58.1.5`,
+tên cài `1.58.1A`. Upstream vẫn `v1.58.1`, không thay đổi model, config,
+permission hoặc các schema đã phát hành.
+
+- **Đã sửa:** nút **Dịch theo ngữ cảnh** bị từ chối nhầm trên trang SPA như
+  Facebook. Tái hiện bằng production build cũ: sau `history.pushState` trước
+  khi mở phiên Audio, `MessageSender.url` vẫn là URL lúc load document, còn
+  source channel đã bind URL mới. Khung nhận lời bình thường nhưng bật dịch
+  bị lỗi ownership, giống thông báo trong ảnh người dùng gửi.
+- Background nay lấy current top frame bằng `webNavigation.getFrame`, so đúng
+  URL nguồn và `documentId` do browser cung cấp với document gửi lệnh. Không
+  dùng URL do caller tự khai, không nới sang cùng-origin hoặc mọi route. Nếu
+  browser trả document IDs thì phải có cả hai và trùng; browser cũ không có IDs
+  ở cả hai phía vẫn yêu cầu URL khớp tuyệt đối. Lookup lỗi, session bị đổi trong
+  lúc await, sai tab/frame/document/route đều bị từ chối trước provider/stop.
+- Áp dụng chung cho đọc snapshot, bật/tắt/đổi đích dịch, Dừng và mở Audio từ
+  khung nguồn. Giữ hủy khi nguồn thay route/reload sau khi đã bắt đầu phiên,
+  final-only opt-in, cache/queue/credential guards và không paid auto-retry.
+  Thao tác bật dịch mới xóa cảnh báo UI cũ; lỗi mới vẫn báo rõ.
+- **Đã kiểm thử:** unit checks cho URL ban đầu cũ nhưng current document hợp lệ,
+  route/document ID sai, thiếu một ID, lookup thất bại và lookup trả sau khi
+  session đã đổi. Production browser tái hiện lỗi trên build cũ rồi kiểm tra
+  bản sửa với Facebook/YouTube origin fixtures có điều hướng SPA trước capture,
+  actual tab capture/WebRTC peer local và provider mock. Kiểm bật dịch sau khi
+  đã có lời, bật/tắt không dịch lại dữ liệu đã cache và đổi ngôn ngữ thực sự
+  hoàn tất trước khi assert; không coi placeholder là bản dịch thành công.
+  **4.366 unit tests pass, 1 skipped**; free API được loại theo
+  `SKIP_FREE_API=true`. Chrome production `157.0.8103.40` đạt **122 checks**:
+  50 Facebook SPA fixture, 48 YouTube SPA fixture và 24 cập nhật đè từ build
+  `1.58.1.4` giữ ID/config/private key. Type-aware lint, format và ZIP build pass.
+- **Chưa kiểm thử:** Facebook đăng nhập/Teams và OpenAI thật trong profile Edge
+  người dùng. Fixture kiểm cơ chế browser và extension, không mô phỏng toàn bộ
+  ứng dụng Facebook hay chất lượng model.
+- **Bị chặn:** môi trường Edge kiểm thử trước đó thoát trước DevTools; dùng
+  Chrome production profile riêng, không sửa policy/profile đang dùng.
+
+Regression mới: `AUDIO_FACEBOOK=1 AUDIO_SPA_SOURCE=1` và
+`AUDIO_YOUTUBE=1 AUDIO_SPA_SOURCE=1` với `check-audio-transcription.mjs`.
+Tài liệu browser: [MessageSender](https://developer.chrome.com/docs/extensions/reference/api/runtime#type-MessageSender),
+[webNavigation/getFrame và document identity](https://developer.chrome.com/docs/extensions/reference/api/webNavigation#method-getFrame).
+
 ## Ghim khung và phụ đề file SRT — build 1.58.1.4
 
 Baseline trước sửa: local `c0fb01a3821fa8b9c7c18ed6df7811e13bffb3fa`, nhánh
