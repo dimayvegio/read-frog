@@ -1,6 +1,7 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest"
 import { browser } from "#imports"
 import { openTranscriptionPage, setupTabAudioHandlers } from "../tab-audio"
+import { receiveTabAudioViewNotice } from "../tab-audio-view"
 const { credential, status, prepare, send, finish, handlers } = vi.hoisted(() => ({
   credential: vi.fn<(...args: any[]) => any>(),
   status: vi.fn<(...args: any[]) => any>(),
@@ -38,12 +39,13 @@ beforeEach(() => {
   session = undefined
   credential.mockResolvedValue({ apiKey: "permanent-tab-sentinel", revision: 4 })
   status.mockResolvedValue({ configured: true, revision: 4 })
-  send.mockImplementation(async (name) => (name === "tabAudioViewAvailable" ? true : undefined))
+  send.mockImplementation(async (name) => (name === "renderTabAudioSourcePane" ? true : undefined))
   prepare.mockResolvedValue(undefined)
   vi.spyOn(browser.tabs, "query").mockResolvedValue([
     { id: 9, url: "https://source.test/private-meeting", windowId: 11 },
   ] as any)
   vi.spyOn(browser.tabs, "create").mockResolvedValue({ id: 7 } as any)
+  vi.spyOn(browser.scripting, "executeScript").mockImplementation(async () => [])
   vi.spyOn(browser.webNavigation, "getFrame").mockImplementation(async () => ({
     url: "https://source.test/private-meeting",
     parentFrameId: -1,
@@ -192,6 +194,11 @@ it("detects credential revocation during a session and stops without a paid retr
   expect(fetch).not.toHaveBeenCalled()
 })
 it("uses shorter local turns and returns to the source only for an explicitly started YouTube live session", async () => {
+  vi.mocked(browser.webNavigation.getFrame).mockImplementation(async () => ({
+    url: "https://www.youtube.com/watch?v=fixture",
+    parentFrameId: -1,
+    errorOccurred: false,
+  }))
   vi.mocked(browser.tabs.query).mockResolvedValue([
     { id: 9, url: "https://www.youtube.com/watch?v=fixture", windowId: 11 },
   ] as any)
@@ -207,7 +214,7 @@ it("uses shorter local turns and returns to the source only for an explicitly st
 it("opens the same source view and short turns for an ordinary website with a ready content runtime", async () => {
   const activate = vi.spyOn(browser.tabs, "update").mockResolvedValue({} as any)
   await start("live")
-  expect(send).toHaveBeenCalledWith("tabAudioViewAvailable", undefined, { tabId: 9, frameId: 0 })
+  expect(send).toHaveBeenCalledWith("renderTabAudioSourcePane", undefined, { tabId: 9, frameId: 0 })
   expect(send).toHaveBeenCalledWith(
     "tabAudioStartOffscreen",
     expect.objectContaining({ shortTurns: true }),
@@ -226,9 +233,9 @@ it("opens the same source view and short turns for an ordinary website with a re
     ).view.session,
   ).toBe(session)
 })
-it("keeps transcription in the Audio owner when a browser-restricted document cannot mount the view", async () => {
+it("keeps the owned bounded transcript for explicit view recovery when a document cannot mount the view", async () => {
   send.mockImplementation(async (name) => {
-    if (name === "tabAudioViewAvailable") throw new Error("Receiving end does not exist")
+    if (name === "renderTabAudioSourcePane") throw new Error("Receiving end does not exist")
   })
   const activate = vi.spyOn(browser.tabs, "update").mockResolvedValue({} as any)
   await start("live")
@@ -248,14 +255,14 @@ it("keeps transcription in the Audio owner when a browser-restricted document ca
           url: "https://source.test/private-meeting",
         },
       })
-    ).view,
-  ).toBeNull()
+    ).view.session,
+  ).toBe(session)
 })
 it("falls back to the Audio page after a bounded wait for a stalled source-view import", async () => {
   vi.useFakeTimers()
   try {
     send.mockImplementation(async (name) => {
-      if (name === "tabAudioViewAvailable") return new Promise(() => {})
+      if (name === "renderTabAudioSourcePane") return new Promise(() => {})
       return undefined
     })
     const pending = start("live")
@@ -268,4 +275,47 @@ it("falls back to the Audio page after a bounded wait for a stalled source-view 
   } finally {
     vi.useRealTimers()
   }
+})
+
+it("only the owning Audio page can reopen the same live transcript without another capture or paid request", async () => {
+  send.mockImplementation(async (name) => (name === "renderTabAudioSourcePane" ? false : undefined))
+  await start("live")
+  receiveTabAudioViewNotice(
+    {
+      target: "read-frog-tab-audio-notice",
+      session,
+      type: "text",
+      text: "Already heard.",
+      pending: "Still speaking",
+    },
+    offscreen(),
+  )
+  const injections = vi.mocked(browser.scripting.executeScript).mock.calls.length
+  for (const sender of [
+    { ...owner(), tab: { id: 8 } },
+    { ...owner(), frameId: 1 },
+    { ...owner(), url: "https://evil.test/" },
+  ])
+    await expect(handlers.get("showTabAudioView")!({ sender, data: { session } })).rejects.toThrow(
+      /Invalid/,
+    )
+  expect(browser.scripting.executeScript).toHaveBeenCalledTimes(injections)
+  send.mockImplementation(async (name) => (name === "renderTabAudioSourcePane" ? true : undefined))
+  expect(await handlers.get("showTabAudioView")!({ sender: owner(), data: { session } })).toEqual({
+    ok: true,
+  })
+  expect(send.mock.calls.filter(([name]) => name === "tabAudioStartOffscreen")).toHaveLength(1)
+  expect(send).toHaveBeenCalledWith("tabAudioUseSourceView", { session })
+  expect(fetch).not.toHaveBeenCalled()
+  expect(credential).not.toHaveBeenCalled()
+  const snapshot = await handlers.get("getTabAudioView")!({
+    sender: {
+      id: browser.runtime.id,
+      frameId: 0,
+      tab: { id: 9 },
+      url: "https://source.test/private-meeting",
+    },
+  })
+  expect(snapshot.view.text).toBe("Already heard.")
+  expect(snapshot.view.pending).toBe("Still speaking")
 })

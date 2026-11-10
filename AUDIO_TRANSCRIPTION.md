@@ -28,6 +28,68 @@ phiên live được người dùng bật tại YouTube có khung chép lời ri
   `1.58.1.4` có SRT theo segment khi chọn riêng chế độ phụ đề cho file. Chưa có
   transcript history, speaker labels, word timing hoặc SRT cho phiên live.
 
+## Sửa mất khung nguồn và phục hồi giao diện — build 1.58.1.6
+
+Baseline `8689671eb7366697acc0a316000f30afcdac549a`, cùng nhánh local và upstream
+`v1.58.1`; package `1.58.1-a.6`, manifest numeric `1.58.1.6`, tên `1.58.1A`.
+
+- **Đã sửa:** ảnh người dùng xác nhận ASR vẫn chạy nhưng source-view probe trả
+  fallback. Luồng cũ phải qua shared content-runtime và dynamic import; khi
+  module lỗi/không kịp load, giao diện chỉ báo dự phòng rồi không có cách mở
+  lại khung. Chưa kết luận chính xác lỗi mạng/CSP/timing nào xảy ra trên Edge
+  của người dùng; đây là đường lỗi được tái hiện có kiểm soát trong regression.
+- Khung nay là **bundle riêng được background nạp trực tiếp vào isolated world**
+  sau thao tác Audio rõ ràng. Không phụ thuộc module/locale/theme/query providers
+  của giao diện chung. Bundle không chạy trên các trang chưa dùng Audio và
+  không được thêm vào manifest content scripts. Chỉ inject fixed file thuộc
+  extension, đúng source URL/top frame/documentId do browser xác nhận; không
+  nhận URL/script từ caller và không thêm permission.
+- Probe tối đa 3 giây, chỉ báo sẵn sàng sau khi host đã mount. Handshake riêng
+  `renderTabAudioSourcePane` tránh listener probe cũ trả false thắng response.
+  Một job injection đang chờ cho mỗi phiên; bấm thử lại không nhân đôi job đang
+  treo. Kết quả trễ phải qua guards source/session/cancellation trước tác động.
+- Trong Audio có **Mở lại khung trên trang đang nghe**, kèm build number và mã
+  chẩn đoán an toàn `UI-LOAD-TIMEOUT`, `UI-LOAD-FAILED`, `UI-SOURCE-CHANGED`.
+  RPC chỉ cho Audio owner top-frame của đúng phiên. Bật lại khung dùng luồng
+  capture/WebRTC và transcript RAM hiện tại; không lấy stream ID, secret,
+  offer hoặc trả phí ASR mới. Phiên đang chạy vẫn tính phí live như trước.
+- Bản gốc/final/partial được giữ bounded ở source scope kể cả khi UI chưa
+  nạp được, để phục hồi không mất lời trước đó. Sau khôi phục thành công, local
+  turn cap chuyển từ fallback 15s sang 6s trên cùng stream. Không đổi model,
+  không tự reconnect/retry provider hoặc gửi provisional speech để dịch.
+- Reinject cùng build là idempotent, mở lại khung đã có không remount React
+  hoặc xóa bản dịch; giữ pin, fullscreen/click-through, scroll intent và geometry
+  `liveTranscriptWindowV1`. Lightweight shadow host giữ dấu loại khỏi engine
+  dịch trang và cleanup React/styles/listeners như trước. Context invalidate
+  dọn host; vẫn hủy capture khi nguồn/owner đóng hoặc điều hướng.
+- **Đã kiểm thử:** 4.370 unit tests pass, 1 skipped (loại free API theo
+  `SKIP_FREE_API=true`); tests riêng kiểm fixed injection, document targeting,
+  sai URL/owner/frame/session, pending-job dedup, timeout 3s, late cancellation
+  và phục hồi final/partial không khởi động capture/provider khác. Production
+  Chrome fixture chặn **request content-runtime thật**, cố ý làm lần nạp view
+  đầu thất bại, rồi phục hồi hai lần: cùng host/session, chỉ một secret/RTC.
+  Đồng thời kiểm dịch ngữ cảnh/đổi đích/cache, fullscreen/di chuyển/resize,
+  silence, cap 6s, SRT, PiP và cleanup khi đóng/reload.
+  Chrome `157.0.8103.40` đạt **136 checks**: 56 Facebook lỗi-nạp/phục-hồi,
+  56 YouTube/SRT/PiP và 24 cập nhật cùng thư mục từ `1.58.1.5`, giữ ID/config/
+  private key. Type-aware lint, format, build và kiểm CRC/từng entry ZIP pass.
+- **Chưa kiểm thử:** Facebook/Teams đăng nhập và OpenAI thật trong profile Edge
+  của người dùng. Browser fixtures dùng actual tab capture/WebRTC peer local,
+  âm thanh tổng hợp và API mock; không chứng minh chất lượng hoặc latency thật.
+- **Bị chặn:** lượt kiểm tra trực tiếp trước bị Computer Use dừng vì không xác
+  nhận được URL Edge đủ chắc chắn. Không dùng đường khác để điều khiển profile
+  đó; bằng chứng tự động hiện là Chrome profile kiểm thử độc lập.
+
+Regression: `AUDIO_FACEBOOK=1 AUDIO_SPA_SOURCE=1 AUDIO_BLOCK_CONTENT_RUNTIME=1
+AUDIO_VIEW_RECOVERY=1`; YouTube + `AUDIO_PIN_SRT=1`; cập nhật cùng thư mục bằng
+`AUDIO_UPGRADE_FROM=<ZIP build 1.58.1.5>`. Không đổi config/DB/ZIP/report/sync
+đã phát hành; private credentials, TTS, native CC và Learning vẫn độc lập.
+
+ZIP: 456 file, 9.132.397 byte; bundle view riêng 363.577 byte và không có dynamic
+import. ZIP tăng 104.922 byte so với build 1.58.1.5; không thêm mã chạy trên mọi
+trang. SHA-256 `5adabb7a1ead592653217a6dbdd7ec0788bdb3dce8c282b91f0666aa0dfcfcef`.
+Manifest không key; standalone vocabulary review giữ hash cũ.
+
 ## Sửa bật dịch sau điều hướng nội bộ — build 1.58.1.5
 
 Baseline local `a4a2afae39a565556e4cb8dea5cea5b246cc8a1a`, nhánh

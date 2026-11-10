@@ -1,6 +1,9 @@
 import { langCodeISO6393Schema } from "@read-frog/definitions"
 import { z } from "zod"
 
+export type SourceViewFailure = "UI-LOAD-TIMEOUT" | "UI-LOAD-FAILED" | "UI-SOURCE-CHANGED"
+export type SourceViewResult = { ok: true } | { ok: false; reason: SourceViewFailure }
+
 export const liveRowSchema = z.strictObject({
   id: z.number().int().nonnegative(),
   source: z.string().max(4000),

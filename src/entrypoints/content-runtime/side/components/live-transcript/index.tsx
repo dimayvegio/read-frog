@@ -14,10 +14,7 @@ import {
   sourceSnapshotSchema,
 } from "@/utils/audio-transcription/source-view"
 import { onMessage, sendMessage } from "@/utils/message"
-import {
-  createReactShadowHost,
-  removeReactShadowHost,
-} from "@/utils/react-shadow-host/create-shadow-host"
+import { createLiveHost, removeLiveHost } from "./host"
 import { keepLiveTranscriptVisible } from "./keep-visible"
 import style from "./style.css?inline"
 
@@ -371,7 +368,7 @@ export function setupLiveTranscriptView() {
     unkeep = undefined
     if (poll) clearInterval(poll)
     poll = null
-    if (host) removeReactShadowHost(host)
+    if (host) removeLiveHost(host)
     host = null
     store = null
     session = null
@@ -470,13 +467,13 @@ export function setupLiveTranscriptView() {
     }
     remove()
     const stale = document.getElementById(HOST_ID)
-    if (stale) removeReactShadowHost(stale)
+    if (stale) removeLiveHost(stale)
     session = view.session
     boundURL = liveTranscriptSourceURL(location.href) ?? ""
     detachedURL = ""
     pinned = true
     store = makeStore(view)
-    host = createReactShadowHost(
+    host = createLiveHost(
       <Pane
         store={store}
         onPinChange={(value) => {
@@ -490,13 +487,7 @@ export function setupLiveTranscriptView() {
           remove()
         }}
       />,
-      {
-        position: "block",
-        inheritStyles: false,
-        cssContent: [style],
-        forcedTheme: "dark",
-        style: { height: "100%" },
-      },
+      style,
     )
     host.id = HOST_ID
     Object.assign(host.style, { position: "fixed", zIndex: "2147483001", pointerEvents: "none" })
@@ -504,13 +495,15 @@ export function setupLiveTranscriptView() {
     unkeep = keepLiveTranscriptVisible(host, followFullscreen)
     syncPoll(view)
   }
-  const pull = () => {
+  const pull = async () => {
     const start = ++generation
-    void sendMessage("getTabAudioView", undefined)
-      .then((value) => {
-        if (start === generation) apply(value, true)
-      })
-      .catch(() => {})
+    try {
+      const value = await sendMessage("getTabAudioView", undefined)
+      if (start === generation) apply(value, true)
+      return Boolean(!disposed && host?.isConnected && store && !store.get().detached)
+    } catch {
+      return false
+    }
   }
   const syncPoll = (view: SourceView) => {
     if (view.status === "stopped") {
@@ -527,8 +520,19 @@ export function setupLiveTranscriptView() {
     generation++
     apply(message.data)
   })
+  const unready = onMessage("renderTabAudioSourcePane", async (message) => {
+    if (
+      message.sender.id !== browser.runtime.id ||
+      message.sender.url !== browser.runtime.getURL("/background.js")
+    )
+      return false
+    hiddenSession = null
+    await pull()
+    followFullscreen()
+    return Boolean(!disposed && host?.isConnected && store && !store.get().detached)
+  })
   const visible = () => {
-    if (document.visibilityState === "visible") pull()
+    if (document.visibilityState === "visible") void pull()
   }
   const changedURL = () => {
     if (store && boundURL && liveTranscriptSourceURL(location.href) !== boundURL) {
@@ -544,10 +548,11 @@ export function setupLiveTranscriptView() {
   window.addEventListener("focus", pull)
   document.addEventListener("visibilitychange", visible)
   document.addEventListener("fullscreenchange", followFullscreen)
-  pull()
+  void pull()
   return () => {
     disposed = true
     unsubscribe()
+    unready()
     remove()
     navigation?.removeEventListener("currententrychange", changedURL)
     window.removeEventListener("popstate", changedURL)

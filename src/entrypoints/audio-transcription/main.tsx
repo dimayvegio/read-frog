@@ -76,6 +76,8 @@ function App() {
     [pending, setPending] = useState("")
   const [sourceViewSession, setSourceViewSession] = useState<string | null>(null)
   const [viewFallback, setViewFallback] = useState(false)
+  const [viewOpening, setViewOpening] = useState(false),
+    [viewError, setViewError] = useState("")
   const [pinSource, setPinSource] = useState<"live" | "file">("file")
   const [fileOutput, setFileOutput] = useState<"text" | "subtitles">("text"),
     [subtitleLanguage, setSubtitleLanguage] = useState(""),
@@ -290,6 +292,9 @@ function App() {
       setCaptureMessage("")
       setLiveText("")
       setPending("")
+      setViewFallback(false)
+      setViewError("")
+      setSourceViewSession(null)
       const result = await sendMessage("tabAudioControl", {
         command: "start",
         channel: channel.current,
@@ -300,6 +305,7 @@ function App() {
       if (result.session) {
         setSourceViewSession(result.sourceView ? result.session : null)
         setViewFallback(mode === "live" && !result.sourceView)
+        setViewError(result.viewError ?? "")
       }
     } catch (issue) {
       setCaptureState("idle")
@@ -319,6 +325,25 @@ function App() {
         setError("Kết nối thu âm đã đóng. Phần chưa chốt là bản nháp.")
       },
     )
+  }
+  const showSourceView = async () => {
+    const session = capture.current
+    if (!session || viewOpening) return
+    setViewOpening(true)
+    try {
+      const result = await sendMessage("showTabAudioView", { session })
+      if (capture.current !== session) return
+      setViewFallback(!result.ok)
+      setSourceViewSession(result.ok ? session : null)
+      setViewError(result.ok ? "" : result.reason)
+    } catch {
+      if (capture.current === session) {
+        setViewFallback(true)
+        setViewError("UI-LOAD-FAILED")
+      }
+    } finally {
+      if (mounted.current) setViewOpening(false)
+    }
   }
   const exportAll = async () => {
     const { default: JSZip } = await import("jszip")
@@ -351,6 +376,7 @@ function App() {
       <header>
         <div>
           <span className="brand">READ FROG / AUDIO</span>
+          <small>Build {browser.runtime.getManifest().version}</small>
           <h1>Âm thanh thành văn bản.</h1>
           <p>
             Tải file hoặc nghe âm thanh từ tab đang phát. Giữ trang này mở và tiếp tục làm việc trên
@@ -459,8 +485,25 @@ function App() {
         </p>
         {viewFallback && (
           <p role="status">
-            Trang nguồn chưa cho phép hiện khung nổi. Xem và tải văn bản ngay tại trang Audio này.
+            Chưa nạp được khung trên trang nguồn{viewError ? ` (${viewError})` : ""}. Bấm mở lại bên
+            dưới.{" "}
+            {captureState === "idle"
+              ? "Bản chép lời vẫn ở trang Audio này."
+              : "Âm thanh vẫn đang được chép tại đây."}
           </p>
+        )}
+        {mode === "live" && captureState !== "idle" && (
+          <div className="row">
+            <button
+              type="button"
+              data-show-live-view
+              disabled={viewOpening || captureState !== "recording"}
+              onClick={() => void showSourceView()}
+            >
+              {viewOpening ? "Đang mở khung…" : "Mở lại khung trên trang đang nghe"}
+            </button>
+            <small>Dùng phiên thu hiện tại; không kết nối hoặc tính phí chép lời lần nữa.</small>
+          </div>
         )}
         {sourceViewSession && (
           <div className="row">

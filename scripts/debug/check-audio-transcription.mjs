@@ -56,7 +56,9 @@ const browser = await puppeteer.launch({
     "--autoplay-policy=no-user-gesture-required",
   ],
 })
-let source, offscreen
+let source,
+  offscreen,
+  blockedRuntimeRequests = 0
 try {
   let extensionPath = path.resolve(".output/edge-mv3")
   if (process.env.AUDIO_UPGRADE_FROM) {
@@ -104,8 +106,8 @@ try {
       )
     ).worker()
     check(
-      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.5",
-      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.5"),
+      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.6",
+      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.6"),
     )
     check(
       "in-place upgrade preserves public configuration byte-for-byte",
@@ -389,6 +391,14 @@ try {
         : "https://www.youtube.com/watch?v=readfrog-live-fixture"
       await source.setRequestInterception(true)
       source.on("request", (request) => {
+        if (
+          process.env.AUDIO_BLOCK_CONTENT_RUNTIME &&
+          /\/content-runtime(?:\.js|\/)/.test(request.url())
+        ) {
+          blockedRuntimeRequests++
+          void request.abort()
+          return
+        }
         if (request.url() === embeddedSourceURL) {
           void request.respond({
             status: 200,
@@ -492,6 +502,17 @@ try {
       await pause(500)
     }
     const live = await launchFromSource()
+    if (process.env.AUDIO_VIEW_RECOVERY) {
+      await worker.evaluate(() => {
+        const original = chrome.scripting.executeScript.bind(chrome.scripting)
+        globalThis.__viewLoadAttempts = 0
+        chrome.scripting.executeScript = (...args) => {
+          if (args[0].files?.includes("/live-transcript-view.js") && ++__viewLoadAttempts === 1)
+            return Promise.reject(new Error("Simulated first view load failure"))
+          return original(...args)
+        }
+      })
+    }
     await worker.evaluate(() => {
       globalThis.__viewDiagnostics = []
       chrome.runtime.onMessage.addListener((message, sender) => {
@@ -552,6 +573,63 @@ try {
       "live deltas are visible before stopping or finalizing a turn",
       (await live.$(".pending")) !== null,
     )
+    if (process.env.AUDIO_VIEW_RECOVERY) {
+      check(
+        "a failed view load preserves active ASR and shows a retryable view-only diagnostic",
+        await live.evaluate(
+          () =>
+            document.body.innerText.includes("UI-LOAD-FAILED") &&
+            Boolean(document.querySelector(".pending")),
+        ),
+      )
+      check(
+        "a failed initial load does not leave a misleading empty pane on the source",
+        !(await source.$("#read-frog-live-transcript")),
+      )
+      await live.bringToFront()
+      await live.click("[data-show-live-view]")
+      await source.waitForSelector("#read-frog-live-transcript")
+      await live.waitForFunction(() => !document.querySelector("[data-show-live-view]").disabled, {
+        polling: 100,
+      })
+      check(
+        "explicit reopening restores the same session without another paid ASR negotiation",
+        await worker.evaluate(
+          () =>
+            __audioCalls.filter((c) => c.kind === "secret").length === 1 &&
+            __audioCalls.filter((c) => c.kind === "rtc").length === 1 &&
+            __viewLoadAttempts === 2,
+        ),
+      )
+      check(
+        "recovered source view shows the already-received provisional transcript",
+        await source.$eval("#read-frog-live-transcript", (h) =>
+          h.shadowRoot
+            .querySelector("[data-live-pending]")
+            ?.textContent.includes("Live partial words"),
+        ),
+      )
+      await source.evaluate(() => {
+        window.__recoveredHost = document.querySelector("#read-frog-live-transcript")
+      })
+      await live.bringToFront()
+      await live.click("[data-show-live-view]")
+      await live.waitForFunction(() => !document.querySelector("[data-show-live-view]").disabled, {
+        polling: 100,
+      })
+      check(
+        "reopening an already mounted pane keeps the same React host and capture",
+        (await source.evaluate(
+          () => __recoveredHost === document.querySelector("#read-frog-live-transcript"),
+        )) &&
+          (await worker.evaluate(() => __audioCalls.filter((c) => c.kind === "rtc").length === 1)),
+      )
+    }
+    if (process.env.AUDIO_BLOCK_CONTENT_RUNTIME)
+      check(
+        "the dedicated live view works while actual shared content-runtime module requests are blocked",
+        blockedRuntimeRequests > 0,
+      )
     if (process.env.AUDIO_PIN_SRT && !sourceViewTest) {
       await live.bringToFront()
       await live.click("[data-pin-audio]")

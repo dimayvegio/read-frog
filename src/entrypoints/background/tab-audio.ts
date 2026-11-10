@@ -1,4 +1,5 @@
 import type { Browser } from "wxt/browser"
+import { z } from "zod"
 import { browser } from "#imports"
 import { liveTranscriptSourceURL } from "@/utils/audio-transcription/source-view"
 import {
@@ -17,6 +18,7 @@ import {
   setupTabAudioViewHandlers,
   stoppingTabAudioView,
 } from "./tab-audio-view"
+import { SourceViewBootstrap } from "./tab-audio-view-bootstrap"
 import { prepareAudioOffscreen } from "./tts-playback"
 import { beginUsage } from "./usage"
 
@@ -35,24 +37,11 @@ type Session = {
   options: TabOptions
   offered: boolean
   span?: Awaited<ReturnType<typeof beginUsage>>
+  view?: SourceViewBootstrap
 }
 let current: Session | null = null
 const trusted = (sender: Browser.runtime.MessageSender, url: string) =>
   isTrustedOptionsSender(sender, browser.runtime.id, url)
-
-async function sourceViewAvailable(tabId: number) {
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    return await Promise.race([
-      sendMessage("tabAudioViewAvailable", undefined, { tabId, frameId: 0 }).catch(() => false),
-      new Promise<false>((resolve) => {
-        timer = setTimeout(() => resolve(false), 3000)
-      }),
-    ])
-  } finally {
-    clearTimeout(timer)
-  }
-}
 
 export async function openTranscriptionPage(sender: Browser.runtime.MessageSender) {
   if (!trusted(sender, browser.runtime.getURL("/popup.html")))
@@ -94,6 +83,28 @@ export function setupTabAudioHandlers() {
     await stop(current, false)
     return true
   })
+  onMessage("showTabAudioView", async (message) => {
+    const data = z.strictObject({ session: z.string().uuid() }).parse(message.data)
+    const selected = current
+    if (
+      !trusted(message.sender, pageURL()) ||
+      !selected ||
+      selected.owner !== message.sender.tab?.id ||
+      selected.id !== data.session ||
+      !selected.view
+    )
+      throw new Error("Invalid source view owner")
+    const result = await selected.view.open()
+    if (current !== selected || selected.controller.signal.aborted)
+      return { ok: false, reason: "UI-SOURCE-CHANGED" }
+    if (result.ok) {
+      await sendMessage("tabAudioUseSourceView", { session: selected.id }).catch(() => {})
+      if (current !== selected || selected.controller.signal.aborted)
+        return { ok: false, reason: "UI-SOURCE-CHANGED" }
+      await browser.tabs.update(selected.source, { active: true }).catch(() => {})
+    }
+    return result
+  })
   onMessage("tabAudioControl", async (message) => {
     if (!trusted(message.sender, pageURL()) || message.sender.tab?.id === undefined)
       throw new Error("Invalid tab audio controller")
@@ -117,17 +128,21 @@ export function setupTabAudioHandlers() {
       }
       current = session
       try {
-        const sourceView =
-          data.mode === "live" &&
-          channel.url !== null &&
-          (await sourceViewAvailable(session.source))
-        session.controller.signal.throwIfAborted()
         beginTabAudioView(
           session.id,
           session.source,
           session.owner,
-          sourceView ? channel.url : null,
+          data.mode === "live" ? channel.url : null,
         )
+        if (data.mode === "live" && channel.url)
+          session.view = new SourceViewBootstrap(
+            session.source,
+            channel.url,
+            () => current === session && !session.controller.signal.aborted,
+          )
+        const viewResult = await session.view?.open()
+        const sourceView = viewResult?.ok === true
+        session.controller.signal.throwIfAborted()
         await ensureInitializedConfig()
         if (data.mode === "live") {
           const status = await readOpenAIKeyStatus()
@@ -158,7 +173,12 @@ export function setupTabAudioHandlers() {
         })
         session.controller.signal.throwIfAborted()
         if (sourceView) await browser.tabs.update(session.source, { active: true }).catch(() => {})
-        return { ok: true, session: session.id, sourceView }
+        return {
+          ok: true,
+          session: session.id,
+          sourceView,
+          ...(viewResult && !viewResult.ok ? { viewError: viewResult.reason } : {}),
+        }
       } catch {
         await stop(session, true)
         throw new Error(

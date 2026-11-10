@@ -3,6 +3,8 @@ import type {
   LiveTranslationCommand,
   SourceAction,
   SourceSnapshot,
+  SourceViewFailure,
+  SourceViewResult,
 } from "./audio-transcription/source-view"
 import type { TabCommand, TabOptions } from "./audio-transcription/tab-schema"
 import type { PronunciationCapture } from "./pronunciation/schema"
@@ -51,8 +53,14 @@ import { defineExtensionMessaging } from "@webext-core/messaging"
 
 interface ProtocolMap {
   openAudioTranscription: () => void
-  tabAudioControl: (data: TabCommand) => { session?: string; ok: boolean; sourceView?: boolean }
-  tabAudioViewAvailable: () => boolean
+  tabAudioControl: (data: TabCommand) => {
+    session?: string
+    ok: boolean
+    sourceView?: boolean
+    viewError?: SourceViewFailure
+  }
+  showTabAudioView: (data: { session: string }) => SourceViewResult
+  renderTabAudioSourcePane: () => boolean
   getTabAudioView: () => SourceSnapshot
   tabAudioViewChanged: (data: SourceSnapshot) => void
   tabAudioViewAction: (data: SourceAction) => boolean
@@ -64,6 +72,7 @@ interface ProtocolMap {
     data: TabOptions & { session: string; streamId: string; shortTurns?: boolean },
   ) => void
   tabAudioStopOffscreen: (data: { session: string; discard: boolean }) => void
+  tabAudioUseSourceView: (data: { session: string }) => void
   tabAudioReleaseOffscreen: (data: { session: string; url: string }) => void
   openPronunciation: (data?: PronunciationCapture) => void
   consumePronunciationCapture: (data: { channel: string }) => PronunciationCapture | null

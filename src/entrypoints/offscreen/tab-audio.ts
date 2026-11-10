@@ -40,6 +40,9 @@ class TabCapture {
   private timers: ReturnType<typeof setInterval>[] = []
   private transcript = new LiveTranscript()
   private commits = 0
+  useSourceView() {
+    if (!this.disposed && this.options.mode === "live") this.options.shortTurns = true
+  }
   private completions = new Set<string>()
   constructor(
     readonly session: string,
@@ -314,6 +317,10 @@ class TabCapture {
 }
 
 export function setupOffscreenTabAudio() {
+  onMessage("tabAudioUseSourceView", (message) => {
+    checkSender(message.sender)
+    if (active?.session === message.data.session) active.useSourceView()
+  })
   onMessage("tabAudioStartOffscreen", (message) => {
     checkSender(message.sender)
     if (active) throw new Error("Tab capture is busy")

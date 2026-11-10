@@ -51,6 +51,13 @@ sau điều hướng SPA: xác thực current top-frame URL/documentId từ brow
 dựa riêng vào MessageSender.url có thể cũ. Giữ exact route, reject stale async
 ownership và mọi bounds/cache/cleanup F23; không thay model hoặc schema.
 
+F23 từ `1.58.1-a.6` / manifest `1.58.1.6` thay đường nạp live pane: fixed
+isolated bundle theo thao tác người dùng, không qua shared page runtime/dynamic
+import. Probe xác nhận host đã mount, và Audio owner có nút mở lại khung trong
+cùng phiên với bounded transcript RAM ngay cả sau fallback. Reopen không tạo
+stream/secret/WebRTC/provider call thứ hai; giữ idempotency, exact document,
+timeout/cancellation và cap 6s khi view đã phục hồi. Không đổi permission/schema.
+
 Các mã F01–F18 là danh mục hành vi cần bảo toàn, không phải danh sách
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.
