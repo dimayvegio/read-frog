@@ -24,8 +24,106 @@ phiên live được người dùng bật tại YouTube có khung chép lời ri
   ngôn ngữ thực sự dự kiến dùng; hint không ép hoặc dịch nội dung. Text giữ
   nguyên ngữ, kể cả đổi ngôn ngữ giữa câu. Không hứa độ chính xác khi chưa thử
   audio thật; live model không trả dự đoán ngôn ngữ nhận dạng.
-- File/text chỉ ở RAM trong lượt đang mở; tải kết quả trước khi đóng. Chưa có
-  transcript history, speaker labels, word timing hoặc SRT đồng bộ video.
+- File/text chỉ ở RAM trong lượt đang mở; tải kết quả trước khi đóng. Từ build
+  `1.58.1.4` có SRT theo segment khi chọn riêng chế độ phụ đề cho file. Chưa có
+  transcript history, speaker labels, word timing hoặc SRT cho phiên live.
+
+## Ghim khung và phụ đề file SRT — build 1.58.1.4
+
+Baseline trước sửa: local `c0fb01a3821fa8b9c7c18ed6df7811e13bffb3fa`, nhánh
+`codex/upstream-1.58.1-openai`. Upstream vẫn `v1.58.1`; package `1.58.1-a.4`,
+manifest numeric `1.58.1.4`, tên cài `1.58.1A`. Không đổi config, DB hoặc schema
+ZIP/report/sync đã phát hành. Đối tượng người dùng báo lỗi là Teams trên Edge.
+
+### Ghim khi họp hoặc chuyển tab
+
+- Khung tại nguồn có nút **📌**, mặc định ghim trong phiên. Không tự đóng lúc
+  im lặng; nếu ứng dụng gỡ host khỏi DOM thì gắn lại **cùng** React host, giữ
+  vị trí/kích thước và trạng thái cuộn. Chỉ quan sát direct mount parents và
+  body attributes, không quan sát toàn bộ subtree Teams. Repair dùng rAF gộp,
+  health check 2 giây khi trang visible; đóng khung dọn observer/timer/rAF.
+- Phiên kết thúc hoặc Audio đóng: khung ghim vẫn hiện phần lời gần nhất với
+  nhãn **Đã dừng**, vô hiệu controls cần phiên và không tự kết nối lại. Lời
+  tạm vẫn được ghi rõ chưa chốt. Đổi URL nguồn trong SPA xóa lời/bản dịch cũ
+  khỏi khung; không chuyển quyền đọc sang route mới. Full document unload
+  vẫn hủy khung. Bỏ ghim dùng lại vòng đời cũ; đây không phải lưu transcript.
+- Muốn khung nổi trên cùng khi dùng tab khác: tại trang **Audio → Văn bản**
+  bấm **Ghim cửa sổ trên cùng**. Dùng Document Picture-in-Picture cùng origin,
+  portal từ chính Audio owner; không mở capture, peer WebRTC, provider request
+  hoặc quyền nguồn thứ hai. Hiện final/partial, Dừng thu và theo dõi chữ mới;
+  giữ tối đa 16.000 ký tự final + 4.000 draft trong view. Bản đầy đủ/TXT/SRT
+  vẫn ở Audio. File và live có lựa chọn nguồn hiển thị riêng để không nhảy về
+  kết quả file cũ sau khi dừng live.
+- Giữ tab Audio mở. Đóng cửa sổ nổi không dừng thu; đóng/tải lại Audio đóng
+  cửa sổ và dừng capture như trước. Bấm ghim cần thao tác trực tiếp; browser
+  không hỗ trợ API báo rõ fallback về khung nguồn. Website không ấn định tọa
+  độ OS của cửa sổ PiP. Pin/unpin/move/close không gọi AI hoặc tự nối lại.
+- Ghim không làm Teams desktop hoặc microphone trở thành nguồn capture.
+  Native video/iframe fullscreen vẫn giữ view chỉ đọc và click-through đã có.
+  Tham khảo [Document Picture-in-Picture](https://developer.chrome.com/docs/web-platform/document-picture-in-picture).
+
+### File audio thành SRT có mốc thời gian
+
+1. Chọn file tại Audio, đổi **Đầu ra file → Phụ đề SRT có thời gian**. Chọn
+   tự nhận dạng hoặc một ngôn ngữ (có mã ISO 639-1 khác). Nhóm ngôn ngữ live
+   bên trên không bị thay đổi và không được gửi vào chế độ này.
+2. Bấm chuyển file/hàng đợi rõ ràng. Một request `whisper-1` tại fixed private
+   `/v1/audio/transcriptions`, `response_format=verbose_json`,
+   `timestamp_granularities[]=segment`, một `language` nếu có; không streaming.
+   Chép lời text mặc định vẫn `gpt-transcribe`; live vẫn `gpt-live-transcribe`.
+3. Xem mốc đầu/cuối của tối đa 100 cue trong UI, bấm **Tải SRT**. File xuất đủ
+   cue, UTF-8, `HH:MM:SS,mmm`, giữ khoảng im lặng và mốc API; không nội suy
+   thời gian từ độ dài chữ hay đồng hồ giao diện. ZIP TXT/SRT gồm từng cặp kết
+   quả đủ điều kiện; download/preview/khôi phục text không gọi lại OpenAI.
+
+Mốc số hữu hạn, thứ tự và overlap sau làm tròn mili giây được kiểm cả lúc
+nhận và xuất. Tối đa 20.000 cue, 500.000 ký tự, timeline 24 giờ, response 8 MiB;
+giới hạn file 25 MB và hàng đợi cũ vẫn áp dụng. Thiếu/không hợp lệ timestamp
+báo lỗi, không chế timing giả hoặc tự gọi paid repair. Hủy/đổi key/đóng trang
+vẫn dùng guards/cleanup private port cũ. Sửa plain text khóa SRT; nút khôi phục
+text gốc có timing mở lại xuất local, không căn lại thời gian tự động.
+
+**Giới hạn model:** tài liệu OpenAI xác minh 10/11/2026 chỉ hỗ trợ
+`timestamp_granularities[]` qua legacy `whisper-1`, dự kiến shutdown
+**26/02/2027**. UI ghi rõ model/ngày này; không âm thầm đổi model mặc định
+hoặc hứa timing chuẩn từng từ. Lần nâng cấp tiếp cần kiểm tra API thay thế
+chính thức trước shutdown. Đây là mốc ASR ước lượng từ API, chưa đối chiếu
+audio thật. [Speech-to-text / timestamps](https://developers.openai.com/api/docs/guides/speech-to-text).
+
+Audio/text/segments và cửa sổ nổi chỉ ở RAM. Usage chỉ ghi model/usage số thực
+API; duration timeline không được giả thành billed seconds. Chưa có giá mặc
+định riêng cho Whisper trong máy thì cost hiển thị unknown, không ghi 0.
+
+### Kiểm chứng build 1.58.1.4
+
+- **Đã sửa:** pin nguồn chống mất DOM, giữ khung dừng/redact khi đổi URL,
+  cửa sổ PiP từ Audio, file subtitle mode và tải SRT/ZIP có timestamp API.
+- **Đã kiểm thử:** production Chrome với profile riêng, actual tab capture,
+  WebRTC peer local, audio tổng hợp và API mock: host bị gỡ được gắn lại không
+  remount, silence không ẩn khung, đổi route xóa lời, PiP thật hiển thị partial
+  khi owner chạy nền và đóng PiP không dừng capture; download SRT giữ cue gaps,
+  UTF-8 và milliseconds, sửa text khóa export, không phát sinh paid request
+  khi ghim/khôi phục/tải. Unit tests kiểm timeline sai/thiếu, duration vs usage,
+  fixed request/multilingual rejection và observer cleanup không quét subtree.
+  Tổng **4.363 unit tests pass, 1 skipped**, loại free API theo
+  `SKIP_FREE_API=true`; type-aware lint/format/build pass. Browser **147 checks**:
+  46 nguồn HTTP, 46 YouTube fixture, 31 SRT/PiP/capture và 24 cập nhật cùng thư
+  mục từ build `1.58.1.3`, giữ ID/config/private key và revision.
+- **Chưa kiểm thử:** cuộc họp Teams thật, OpenAI thật, chất lượng/timing/độ trễ
+  thực tế, mọi phiên bản Edge/OS hoặc nội dung DRM. Mock không chứng minh các
+  kết quả đó; chưa khẳng định đã tìm đúng nguyên nhân lần mất khung trên Teams.
+- **Bị chặn:** Edge kiểm thử ở môi trường trước thoát trước DevTools; không sửa
+  policy hoặc profile đang dùng. Chrome production là bằng chứng hiện có.
+
+Regression: `AUDIO_PIN_SRT=1` (file/SRT và PiP live), `AUDIO_SOURCE_VIEW=1`,
+`AUDIO_YOUTUBE=1`; `AUDIO_UPGRADE_FROM=<ZIP build 1.58.1.3>` kiểm cập nhật cùng
+thư mục/ID. Cả ba mode giữ microphone không capture, native CC/TTS độc lập,
+và không đổi schema đã phát hành.
+
+ZIP build: 458 file, **9.027.394 byte**, CRC và từng entry trùng production
+build. SHA-256 `9649f55f339ae122e5d73114d2fc8ccb40a1c8f78c387aad9416579bb21054aa`;
+manifest không key, hash standalone vocabulary review giữ nguyên. So với ZIP
+`1.58.1.3` tăng 4.621 byte, không thêm framework hoặc model local nặng.
 
 ## Khung live trên các trang — build 1.58.1.3
 

@@ -9,7 +9,9 @@ import {
   languageCode,
   type TranscriptionResult,
 } from "@/utils/audio-transcription/schema"
+import { subtitleTimestamp, toSrt } from "@/utils/audio-transcription/subtitles"
 import { sendMessage } from "@/utils/message"
+import { PinnedTranscript } from "./pinned-transcript"
 import "./style.css"
 
 type Item = {
@@ -74,6 +76,10 @@ function App() {
     [pending, setPending] = useState("")
   const [sourceViewSession, setSourceViewSession] = useState<string | null>(null)
   const [viewFallback, setViewFallback] = useState(false)
+  const [pinSource, setPinSource] = useState<"live" | "file">("file")
+  const [fileOutput, setFileOutput] = useState<"text" | "subtitles">("text"),
+    [subtitleLanguage, setSubtitleLanguage] = useState(""),
+    [subtitleOther, setSubtitleOther] = useState("")
   const controller = useRef<AbortController | null>(null),
     capture = useRef<string | null>(null),
     starting = useRef(false),
@@ -84,7 +90,18 @@ function App() {
     )
   const active = items.find((item) => item.id === selected)
   const locked = busy || captureState !== "idle"
-  const options = () => {
+  const options = (forFile = false) => {
+    if (forFile && fileOutput === "subtitles") {
+      const hint =
+        subtitleLanguage === "other" ? subtitleOther.trim().toLowerCase() : subtitleLanguage
+      if (hint && !/^[a-z]{2}$/.test(hint)) throw new Error("Invalid subtitle language")
+      if (subtitleLanguage === "other" && !hint) throw new Error("Missing subtitle language")
+      return {
+        output: "subtitles" as const,
+        languages: hint ? [hint] : [],
+        prompt: prompt.trim(),
+      }
+    }
     const languages = auto
       ? []
       : [
@@ -134,12 +151,13 @@ function App() {
     if (controller.current || captureState !== "idle") return
     let config: ReturnType<typeof options>
     try {
-      config = options()
+      config = options(true)
     } catch {
       setError("Mã ngôn ngữ chưa hợp lệ. Ví dụ: en, zh, ja, vi, fr, ko.")
       return
     }
     const abort = (controller.current = new AbortController())
+    setPinSource("file")
     setBusy(true)
     setError("")
     try {
@@ -267,6 +285,7 @@ function App() {
     try {
       const config = options()
       starting.current = true
+      setPinSource("live")
       setCaptureState("connecting")
       setCaptureMessage("")
       setLiveText("")
@@ -314,6 +333,10 @@ function App() {
       )
     if (liveText || pending)
       zip.file("Tab-transcript.txt", liveText + (pending ? "\n\n[CHƯA CHỐT]\n" + pending : ""))
+    items.forEach((item, index) => {
+      if (item.status === "done" && item.result?.segments?.length && item.text === item.result.text)
+        zip.file(`${index + 1}-${cleanName(item.file.name)}.srt`, toSrt(item.result.segments))
+    })
     download(
       await zip.generateAsync({
         type: "blob",
@@ -341,6 +364,21 @@ function App() {
           OpenAI Settings ↗
         </button>
       </header>
+      <PinnedTranscript
+        text={pinSource === "live" ? liveText : (active?.text ?? "")}
+        pending={pinSource === "live" ? pending : ""}
+        status={
+          captureState === "recording"
+            ? "Đang nghe tab nguồn"
+            : captureState === "connecting"
+              ? "Đang kết nối…"
+              : pinSource === "live"
+                ? captureMessage
+                : active?.message || ""
+        }
+        canStop={captureState === "recording" || captureState === "connecting"}
+        stop={() => void stopCapture()}
+      />
       <section className="settings" aria-label="Cấu hình chép lời">
         <div>
           <strong>Gợi ý ngôn ngữ</strong>
@@ -541,6 +579,60 @@ function App() {
           }}
         >
           <h2>File âm thanh</h2>
+          <label>
+            Đầu ra file
+            <select
+              aria-label="Đầu ra file audio"
+              disabled={locked}
+              value={fileOutput}
+              onChange={(event) => setFileOutput(event.target.value as "text" | "subtitles")}
+            >
+              <option value="text">Văn bản · gpt-transcribe</option>
+              <option value="subtitles">Phụ đề SRT có thời gian · whisper-1</option>
+            </select>
+          </label>
+          {fileOutput === "subtitles" && (
+            <div className="subtitle-settings">
+              <label>
+                Ngôn ngữ file SRT
+                <select
+                  aria-label="Ngôn ngữ file SRT"
+                  value={subtitleLanguage}
+                  disabled={locked}
+                  onChange={(event) => setSubtitleLanguage(event.target.value)}
+                >
+                  <option value="">Tự nhận dạng</option>
+                  <option value="en">Tiếng Anh</option>
+                  <option value="vi">Tiếng Việt</option>
+                  <option value="zh">Tiếng Trung</option>
+                  <option value="ja">Tiếng Nhật</option>
+                  <option value="ko">Tiếng Hàn</option>
+                  <option value="fr">Tiếng Pháp</option>
+                  <option value="de">Tiếng Đức</option>
+                  <option value="es">Tiếng Tây Ban Nha</option>
+                  <option value="other">Mã ngôn ngữ khác…</option>
+                </select>
+              </label>
+              {subtitleLanguage === "other" && (
+                <label>
+                  Mã ISO 639-1 được OpenAI hỗ trợ
+                  <input
+                    aria-label="Mã ngôn ngữ SRT khác"
+                    placeholder="Ví dụ: it, pt, th"
+                    value={subtitleOther}
+                    maxLength={2}
+                    disabled={locked}
+                    onChange={(event) => setSubtitleOther(event.target.value)}
+                  />
+                </label>
+              )}
+              <small>
+                Gửi toàn file một lượt để nhận mốc bắt đầu/kết thúc từ OpenAI, có tính phí. Whisper
+                chỉ nhận một gợi ý ngôn ngữ hoặc tự nhận dạng; không dùng nhóm ngôn ngữ live bên
+                trên. Model legacy dự kiến ngừng 26/02/2027.
+              </small>
+            </div>
+          )}
           <p>MP3, M4A, MP4, WAV, WebM, OGG, FLAC, MPEG, MPGA · ≤25 MB/file.</p>
           <label className="picker">
             ＋ Chọn hoặc thả file
@@ -562,7 +654,10 @@ function App() {
                 type="button"
                 key={item.id}
                 className={selected === item.id ? "selected" : ""}
-                onClick={() => setSelected(item.id)}
+                onClick={() => {
+                  setSelected(item.id)
+                  setPinSource("file")
+                }}
               >
                 <b>{item.file.name}</b>
                 <small>
@@ -642,12 +737,47 @@ function App() {
                   {active.result.model} ·{" "}
                   {active.result.languages.length
                     ? `Ngôn ngữ nhận dạng: ${active.result.languages.join(", ")}`
-                    : "API không trả dự đoán ngôn ngữ"}{" "}
+                    : "Không có mã ngôn ngữ nhận dạng trong kết quả"}{" "}
                   ·{" "}
                   {active.result.seconds === null
                     ? "API chưa trả thời lượng tính phí"
                     : `${active.result.seconds} giây theo API`}
                 </p>
+              )}
+              {active.result?.segments && (
+                <section aria-label="Các đoạn phụ đề có thời gian" className="subtitle-cues">
+                  <h3>Phụ đề · {active.result.segments.length} đoạn</h3>
+                  <small>
+                    Mốc thời gian nhận dạng từ âm thanh, không nội suy từ TXT. Có thể cần hiệu chỉnh
+                    khi dựng video.
+                  </small>
+                  {active.text !== active.result.text && (
+                    <p>
+                      TXT đã chỉnh sửa nên tạm khóa xuất SRT để tránh lệch lời và mốc thời gian.{" "}
+                      <button
+                        type="button"
+                        disabled={locked}
+                        onClick={() => update(active.id, { text: active.result!.text })}
+                      >
+                        Khôi phục văn bản có timing
+                      </button>
+                    </p>
+                  )}
+                  <div>
+                    {active.result.segments.slice(0, 100).map((cue) => (
+                      <p key={`${cue.start}:${cue.end}`}>
+                        <code>
+                          {subtitleTimestamp(cue.start)} → {subtitleTimestamp(cue.end)}
+                        </code>
+                        <br />
+                        {cue.text}
+                      </p>
+                    ))}
+                  </div>
+                  {active.result.segments.length > 100 && (
+                    <small>Xem trước 100 đoạn; file SRT chứa toàn bộ đoạn đã nhận dạng.</small>
+                  )}
+                </section>
               )}
               <div className="row">
                 <button
@@ -661,6 +791,27 @@ function App() {
                 >
                   Copy
                 </button>
+                {active.result?.segments && (
+                  <button
+                    type="button"
+                    data-download-srt
+                    disabled={
+                      active.status !== "done" ||
+                      !active.result.segments.length ||
+                      active.text !== active.result.text
+                    }
+                    onClick={() =>
+                      download(
+                        new Blob([toSrt(active.result!.segments!)], {
+                          type: "application/x-subrip;charset=utf-8",
+                        }),
+                        `${cleanName(active.file.name)}.srt`,
+                      )
+                    }
+                  >
+                    Tải SRT
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={!active.text}
@@ -695,8 +846,8 @@ function App() {
       )}
       <footer>
         <p>
-          File/bản thu: gpt-transcribe · khoảng $0,0045/phút. Giá tham khảo 09/11/2026; chi phí thực
-          tế theo OpenAI. Kết quả là nguyên ngữ, chưa dịch. Không tự xử lý file hoặc tự gửi lại khi
+          Văn bản: gpt-transcribe · khoảng $0,0045/phút. Giá tham khảo 09/11/2026; chi phí thực tế
+          theo OpenAI. Kết quả là nguyên ngữ, chưa dịch. Không tự xử lý file hoặc tự gửi lại khi
           lỗi.
         </p>
         <button
@@ -706,7 +857,7 @@ function App() {
             void exportAll().catch(() => setError("Chưa tạo được ZIP. Bạn có thể tải từng TXT."))
           }
         >
-          Tải tất cả TXT trong ZIP
+          Tải TXT/SRT trong ZIP
         </button>
       </footer>
     </main>

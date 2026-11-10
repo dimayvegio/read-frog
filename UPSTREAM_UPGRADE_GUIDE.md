@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.1-a.3` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.1.3` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.58.1-a.4` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.1.4` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.1A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.58.1-openai`             |
@@ -54,6 +54,15 @@ lazy import, probe 3s/fallback Audio và cleanup khi nguồn reload/đổi trang
 Dịch chỉ nhận final, tối đa hai job, bounded recent queue/cache RAM, không retry
 tự động; hủy target/route/owner/config phải loại kết quả lỗi thời. Không nối
 track này vào native CC hoặc track luyện nghe. Xem [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
+
+Từ build `1.58.1.4`, giữ pin source/Document PiP và file SRT: repair cùng host,
+observer không subtree và cleanup/rAF bounds; giữ view dừng nhưng redact lời
+khi đổi source URL. PiP thuộc Audio owner, view-only không gọi provider hoặc
+capture mới. SRT chỉ từ validated segment timestamps qua một request explicit,
+không nội suy/paid repair; sửa TXT khóa SRT. Chế độ legacy `whisper-1` có ngày
+shutdown 26/02/2027, cần kiểm API timing thay thế khi merge tiếp; text/live
+không bị đổi model mặc định. Thêm regression `AUDIO_PIN_SRT=1`; không đổi DB,
+config hoặc ZIP/report schemas đã phát hành.
 
 Từ build `1.58.0.25`, giữ **F22 — Luyện phát âm Mỹ** trong
 [AMERICAN_PRONUNCIATION.md](AMERICAN_PRONUNCIATION.md): nút Translate/Dictionary,

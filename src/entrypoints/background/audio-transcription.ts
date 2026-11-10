@@ -10,7 +10,10 @@ import {
   type TranscriptionStart,
   type TranscriptionMessage,
 } from "@/utils/audio-transcription/schema"
-import { TRANSCRIPTION_MODEL } from "@/utils/audio-transcription/schema"
+import {
+  TRANSCRIPTION_MODEL,
+  SUBTITLE_TRANSCRIPTION_MODEL,
+} from "@/utils/audio-transcription/schema"
 import { onMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
 import { readOpenAIExecutionCredential, readOpenAIKeyStatus } from "./openai-credentials"
@@ -38,6 +41,13 @@ export async function executeTranscription(
   onText: (text: string) => void,
 ) {
   signal.throwIfAborted()
+  const timed = metadata.output === "subtitles"
+  if (
+    timed &&
+    (metadata.languages.length > 1 || metadata.languages.some((code) => !/^[a-z]{2}$/.test(code)))
+  )
+    throw error("Chế độ SRT nhận một mã ISO ngôn ngữ hoặc tự nhận dạng.")
+  const model = timed ? SUBTITLE_TRANSCRIPTION_MODEL : TRANSCRIPTION_MODEL
   const credential = await readOpenAIExecutionCredential()
   if (credential.revision !== revision)
     throw error("Khóa OpenAI đã đổi. Hãy bấm chuyển lại với cấu hình mới.")
@@ -49,12 +59,17 @@ export async function executeTranscription(
     `audio.${metadata.format}`,
   )
   parts.length = 0
-  body.append("model", TRANSCRIPTION_MODEL)
-  body.append("response_format", "json")
-  body.append("stream", "true")
-  for (const code of metadata.languages) body.append("languages[]", code)
+  body.append("model", model)
+  body.append("response_format", timed ? "verbose_json" : "json")
+  if (timed) {
+    body.append("timestamp_granularities[]", "segment")
+    if (metadata.languages[0]) body.append("language", metadata.languages[0])
+  } else {
+    body.append("stream", "true")
+    for (const code of metadata.languages) body.append("languages[]", code)
+  }
   if (metadata.prompt) body.append("prompt", metadata.prompt)
-  const span = await beginUsage("other", TRANSCRIPTION_MODEL)
+  const span = await beginUsage("other", model)
   try {
     signal.throwIfAborted()
     const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
@@ -69,7 +84,7 @@ export async function executeTranscription(
       await response.body?.cancel().catch(() => {})
       throw error(
         response.status === 401 || response.status === 403
-          ? "OpenAI từ chối khóa hoặc quyền dùng gpt-transcribe. Kiểm tra OpenAI Settings."
+          ? "OpenAI từ chối khóa hoặc quyền dùng model chép lời. Kiểm tra OpenAI Settings."
           : response.status === 429
             ? "OpenAI giới hạn yêu cầu hoặc hết hạn mức. Kiểm tra tài khoản rồi thử lại."
             : response.status === 400 || response.status === 413 || response.status === 415
@@ -79,11 +94,13 @@ export async function executeTranscription(
     }
     let parsed
     try {
-      parsed = await readTranscriptionResponse(response, signal, onText)
+      parsed = await readTranscriptionResponse(response, signal, onText, timed)
     } catch (issue) {
       if (signal.aborted) throw issue
       throw error(
-        "Luồng chép lời chưa hoàn tất hoặc vượt giới hạn. Phần đang hiện chỉ là bản nháp; có thể thử lại.",
+        timed
+          ? "OpenAI chưa trả mốc phụ đề hợp lệ hoặc phản hồi vượt giới hạn. Chưa tạo SRT; không tự gửi lại."
+          : "Luồng chép lời chưa hoàn tất hoặc vượt giới hạn. Phần đang hiện chỉ là bản nháp; có thể thử lại.",
       )
     }
     const usage = parsed.usage

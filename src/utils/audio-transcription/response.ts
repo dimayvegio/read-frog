@@ -5,6 +5,7 @@ import {
   TRANSCRIPTION_MODEL,
   type TranscriptionResult,
 } from "./schema"
+import { subtitleResult } from "./subtitles"
 
 const usageSchema = z.union([
   z.object({ type: z.literal("duration"), seconds: z.number().finite().nonnegative().max(86400) }),
@@ -39,6 +40,7 @@ export async function readTranscriptionResponse(
   response: Response,
   signal: AbortSignal,
   onText: (text: string) => void,
+  timed = false,
 ) {
   if (!response.body) throw new Error("OpenAI không trả về bản chép lời.")
   const reader = response.body.getReader(),
@@ -79,6 +81,8 @@ export async function readTranscriptionResponse(
     return null
   }
   try {
+    if (timed && streaming)
+      throw new Error("Timed transcription requires a completed timestamp response")
     while (true) {
       signal.throwIfAborted()
       const { done, value } = await reader.read()
@@ -110,6 +114,14 @@ export async function readTranscriptionResponse(
       value = JSON.parse(buffer)
     } catch {
       throw new Error("OpenAI trả bản chép lời chưa hợp lệ.")
+    }
+    if (timed) {
+      const result = subtitleResult(value)
+      const usage = usageSchema.safeParse(
+        value && typeof value === "object" && "usage" in value ? value.usage : null,
+      )
+      if (usage.success && usage.data.type === "duration") result.seconds = usage.data.seconds
+      return { result, usage: usage.success ? usage.data : null }
     }
     return transcriptionFinal(value)
   } finally {

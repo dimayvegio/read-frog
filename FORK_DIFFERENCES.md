@@ -37,6 +37,15 @@ không giới hạn YouTube. Giữ đúng source URL/tab/top-frame, lazy-load vi
 khi dùng, probe tối đa 3 giây và fallback Audio nếu trang không chèn được UI.
 Nguồn có khung dùng cap 6s; không đổi model/credentials/config/DB/ZIP.
 
+F23 từ package `1.58.1-a.4` / manifest `1.58.1.4` (baseline `c0fb01a3`):
+khung nguồn ghim mặc định trong phiên, phục hồi cùng host khi ứng dụng gỡ DOM,
+giữ nhãn dừng khi phiên kết thúc và xóa lời khi source URL đổi. Audio có cửa
+sổ nổi Document PiP từ chính owner, không tạo capture/AI job thứ hai. File có
+chế độ SRT opt-in dùng timestamp segment API `whisper-1` (legacy, dự kiến dừng
+26/02/2027); text/live vẫn model cũ. Giữ private credential/sender/epoch guards,
+RAM bounds, không timing giả/paid repair và không đổi config/DB/format cũ.
+Xem hợp đồng và giới hạn kiểm thử trong [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md).
+
 Các mã F01–F18 dưới đây là danh mục hành vi cần bảo toàn, không phải danh sách
 file phải giữ nguyên. Có thể nhận cách triển khai tốt hơn từ upstream nếu vẫn
 đáp ứng hành vi, dữ liệu và kiểm thử tương ứng.

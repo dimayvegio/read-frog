@@ -98,7 +98,10 @@ export function estimateUsage(entry: UsageEntry, price?: UsagePrice): number | n
   // have no modality breakdown. Never apply a text tariff to these totals.
   if (entry.model.startsWith("gpt-audio")) return null
   if (!price) return null
-  if (entry.task === "tts" || ["gpt-transcribe", "gpt-live-transcribe"].includes(entry.model))
+  if (
+    entry.task === "tts" ||
+    ["gpt-transcribe", "gpt-live-transcribe", "whisper-1"].includes(entry.model)
+  )
     return price.audioMinute !== null && entry.audioMs !== null
       ? (entry.audioMs / 60000) * price.audioMinute
       : null

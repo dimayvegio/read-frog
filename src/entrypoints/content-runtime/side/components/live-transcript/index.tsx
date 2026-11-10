@@ -18,6 +18,7 @@ import {
   createReactShadowHost,
   removeReactShadowHost,
 } from "@/utils/react-shadow-host/create-shadow-host"
+import { keepLiveTranscriptVisible } from "./keep-visible"
 import style from "./style.css?inline"
 
 const HOST_ID = "read-frog-live-transcript"
@@ -35,7 +36,8 @@ function isNativeFullscreen() {
     ),
   )
 }
-function makeStore(initial: SourceView) {
+type PaneView = SourceView & { detached?: boolean }
+function makeStore(initial: PaneView) {
   let value = initial
   const listeners = new Set<() => void>()
   return {
@@ -46,20 +48,29 @@ function makeStore(initial: SourceView) {
         listeners.delete(listener)
       }
     },
-    set: (next: SourceView) => {
+    set: (next: PaneView) => {
       value = next
       listeners.forEach((listener) => listener())
     },
   }
 }
 const edges: SidebarResizeEdge[] = ["n", "s", "w", "e", "nw", "ne", "sw", "se"]
-function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose: () => void }) {
+function Pane({
+  store,
+  onClose,
+  onPinChange,
+}: {
+  store: ReturnType<typeof makeStore>
+  onClose: () => void
+  onPinChange: (pinned: boolean) => void
+}) {
   const view = useSyncExternalStore(store.subscribe, store.get)
   const { rootRef, helpId, start, move, end, key, reset } = useSidebarWindow(STORAGE_KEY)
   const [compact, setCompact] = useState(false),
     [fontSize, setFontSize] = useState(18),
     [following, setFollowing] = useState(true),
     [message, setMessage] = useState("")
+  const [pinned, setPinned] = useState(true)
   const scroller = useRef<HTMLDivElement>(null)
   const [readOnly, setReadOnly] = useState(isNativeFullscreen)
   useLayoutEffect(() => {
@@ -132,6 +143,19 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
           <button
             type="button"
             hidden={readOnly}
+            aria-pressed={pinned}
+            aria-label={pinned ? "Bỏ ghim khung chép lời" : "Ghim khung chép lời"}
+            title={pinned ? "Đang ghim · Không tự ẩn" : "Ghim để giữ khung hiện"}
+            onClick={() => {
+              setPinned(!pinned)
+              onPinChange(!pinned)
+            }}
+          >
+            {pinned ? "📌" : "⌖"}
+          </button>
+          <button
+            type="button"
+            hidden={readOnly}
             title="Vị trí mặc định"
             aria-label="Đặt lại vị trí khung"
             onClick={reset}
@@ -198,6 +222,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
               <input
                 type="checkbox"
                 checked={view.translation.enabled}
+                disabled={view.detached}
                 onChange={(event) => translation(event.target.checked)}
               />{" "}
               Dịch theo ngữ cảnh
@@ -205,6 +230,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
             <select
               aria-label="Ngôn ngữ bản dịch trực tiếp"
               value={view.translation.target}
+              disabled={view.detached}
               onChange={(event) =>
                 translation(view.translation.enabled, event.target.value as LangCodeISO6393)
               }
@@ -217,7 +243,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
             </select>
             <small>Dịch đoạn đã chốt và phần gần nhất · OpenAI có tính phí riêng.</small>
             {view.translation.message && <small role="status">{view.translation.message}</small>}
-            {view.translation.enabled && view.translation.failed && (
+            {view.translation.enabled && view.translation.failed && !view.detached && (
               <button
                 type="button"
                 onClick={() => translation(true, view.translation.target, true)}
@@ -271,7 +297,7 @@ function Pane({ store, onClose }: { store: ReturnType<typeof makeStore>; onClose
           )}
           <footer hidden={readOnly}>
             <div>
-              <button type="button" onClick={() => action("audio")}>
+              <button type="button" disabled={view.detached} onClick={() => action("audio")}>
                 Mở Audio / Tải TXT ↗
               </button>
               <button
@@ -334,8 +360,14 @@ export function setupLiveTranscriptView() {
   let disposed = false,
     revision = -1,
     generation = 0
-  let poll: ReturnType<typeof setInterval> | null = null
+  let poll: ReturnType<typeof setInterval> | null = null,
+    unkeep: (() => void) | undefined,
+    pinned = true,
+    boundURL = "",
+    detachedURL = ""
   const remove = () => {
+    unkeep?.()
+    unkeep = undefined
     if (poll) clearInterval(poll)
     poll = null
     if (host) removeReactShadowHost(host)
@@ -343,7 +375,34 @@ export function setupLiveTranscriptView() {
     store = null
     session = null
   }
+  const freezePinnedView = () => {
+    const currentURL = liveTranscriptSourceURL(location.href) ?? ""
+    if (store?.get().detached && detachedURL === currentURL) return
+    if (pinned && store) {
+      const previous = store.get()
+      const sameURL = liveTranscriptSourceURL(location.href) === boundURL
+      store.set({
+        ...previous,
+        status: "stopped",
+        detached: true,
+        text: sameURL ? previous.text : "",
+        pending: sameURL ? previous.pending : "",
+        translation: {
+          ...previous.translation,
+          enabled: sameURL && previous.translation.enabled,
+          rows: sameURL ? previous.translation.rows : [],
+        },
+        message: sameURL
+          ? "Phiên thu đã kết thúc. Khung vẫn được ghim; không tự kết nối lại. Bản đầy đủ ở tab Audio nếu tab đó còn mở."
+          : "Trang nguồn đã đổi nên đã dừng thu và xóa lời cũ khỏi khung. Mở Audio lại từ trang cần nghe.",
+      })
+      if (poll) clearInterval(poll)
+      poll = null
+    } else remove()
+    detachedURL = currentURL
+  }
   const followFullscreen = () => {
+    if (store && boundURL && liveTranscriptSourceURL(location.href) !== boundURL) freezePinnedView()
     if (!host) return
     const fullscreen = document.fullscreenElement
     const replaced =
@@ -353,7 +412,11 @@ export function setupLiveTranscriptView() {
     // A passive top-layer view remains readable without intercepting playback
     // input or accessing the iframe's child document. Escape restores controls.
     if (replaced && typeof host.showPopover === "function") {
-      if (host.parentElement !== document.body) document.body.append(host)
+      const parent =
+        document.body && getComputedStyle(document.body).display !== "none"
+          ? document.body
+          : document.documentElement
+      if (host.parentElement !== parent) parent.append(host)
       host.popover = "manual"
       Object.assign(host.style, {
         margin: "0",
@@ -374,7 +437,12 @@ export function setupLiveTranscriptView() {
         if (host.matches(":popover-open")) host.hidePopover()
         host.removeAttribute("popover")
       }
-      const parent = !replaced && fullscreen ? fullscreen : document.body
+      const parent =
+        !replaced && fullscreen
+          ? fullscreen
+          : document.body && getComputedStyle(document.body).display !== "none"
+            ? document.body
+            : document.documentElement
       if (host.parentElement !== parent) parent.append(host)
     }
   }
@@ -382,9 +450,15 @@ export function setupLiveTranscriptView() {
     const parsed = sourceSnapshotSchema.safeParse(raw)
     if (disposed || !parsed.success || (!resetRevision && parsed.data.revision < revision)) return
     revision = parsed.data.revision
-    const view = parsed.data.view
+    const incoming = parsed.data.view
+    const view =
+      incoming?.session === session &&
+      boundURL &&
+      liveTranscriptSourceURL(location.href) !== boundURL
+        ? null
+        : incoming
     if (!view) {
-      remove()
+      freezePinnedView()
       return
     }
     if (view.session === hiddenSession) return
@@ -397,10 +471,19 @@ export function setupLiveTranscriptView() {
     const stale = document.getElementById(HOST_ID)
     if (stale) removeReactShadowHost(stale)
     session = view.session
+    boundURL = liveTranscriptSourceURL(location.href) ?? ""
+    detachedURL = ""
+    pinned = true
     store = makeStore(view)
     host = createReactShadowHost(
       <Pane
         store={store}
+        onPinChange={(value) => {
+          pinned = value
+          unkeep?.()
+          unkeep = undefined
+          if (pinned && host) unkeep = keepLiveTranscriptVisible(host, followFullscreen)
+        }}
         onClose={() => {
           hiddenSession = session
           remove()
@@ -417,6 +500,7 @@ export function setupLiveTranscriptView() {
     host.id = HOST_ID
     Object.assign(host.style, { position: "fixed", zIndex: "2147483001", pointerEvents: "none" })
     followFullscreen()
+    unkeep = keepLiveTranscriptVisible(host, followFullscreen)
     syncPoll(view)
   }
   const pull = () => {
@@ -445,6 +529,17 @@ export function setupLiveTranscriptView() {
   const visible = () => {
     if (document.visibilityState === "visible") pull()
   }
+  const changedURL = () => {
+    if (store && boundURL && liveTranscriptSourceURL(location.href) !== boundURL) {
+      generation++
+      freezePinnedView()
+    }
+  }
+  const navigation = (window as Window & { navigation?: EventTarget }).navigation
+  navigation?.addEventListener("currententrychange", changedURL)
+  window.addEventListener("popstate", changedURL)
+  window.addEventListener("hashchange", changedURL)
+  window.addEventListener("extension:URLChange", changedURL)
   window.addEventListener("focus", pull)
   document.addEventListener("visibilitychange", visible)
   document.addEventListener("fullscreenchange", followFullscreen)
@@ -453,6 +548,10 @@ export function setupLiveTranscriptView() {
     disposed = true
     unsubscribe()
     remove()
+    navigation?.removeEventListener("currententrychange", changedURL)
+    window.removeEventListener("popstate", changedURL)
+    window.removeEventListener("hashchange", changedURL)
+    window.removeEventListener("extension:URLChange", changedURL)
     window.removeEventListener("focus", pull)
     document.removeEventListener("visibilitychange", visible)
     document.removeEventListener("fullscreenchange", followFullscreen)

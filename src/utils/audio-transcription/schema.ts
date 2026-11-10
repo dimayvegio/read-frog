@@ -2,6 +2,7 @@ import { z } from "zod"
 
 export const TRANSCRIPTION_PORT = "read-frog-audio-transcription-v1"
 export const TRANSCRIPTION_MODEL = "gpt-transcribe"
+export const SUBTITLE_TRANSCRIPTION_MODEL = "whisper-1"
 export const MAX_AUDIO_FILE = 25_000_000
 export const AUDIO_CHUNK = 192 * 1024
 export const MAX_TRANSCRIPT = 500_000
@@ -32,14 +33,21 @@ export const startSchema = z.strictObject({
     .max(16)
     .refine((codes) => new Set(codes).size === codes.length),
   prompt: z.string().trim().max(1000),
+  output: z.enum(["text", "subtitles"]).optional(),
 })
 export type TranscriptionStart = z.infer<typeof startSchema>
-export type TranscriptionOptions = Pick<TranscriptionStart, "languages" | "prompt">
+export type TranscriptionOptions = Pick<TranscriptionStart, "languages" | "prompt" | "output">
+export interface TranscriptionSegment {
+  start: number
+  end: number
+  text: string
+}
 export interface TranscriptionResult {
   text: string
   languages: string[]
   seconds: number | null
-  model: typeof TRANSCRIPTION_MODEL
+  model: typeof TRANSCRIPTION_MODEL | typeof SUBTITLE_TRANSCRIPTION_MODEL
+  segments?: TranscriptionSegment[]
 }
 export type TranscriptionMessage =
   | { type: "ack"; id: string; index: number; loaded: number }

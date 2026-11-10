@@ -4,6 +4,7 @@ import http from "node:http"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
 import JSZip from "jszip"
+import { checkPinAndSrt } from "./check-pin-srt.mjs"
 import { checkYouTubeLiveView } from "./check-youtube-live-view.mjs"
 import { preparePdfWorker } from "./pdf-worker-fixture.mjs"
 const { default: puppeteer } = await import(
@@ -101,8 +102,8 @@ try {
       )
     ).worker()
     check(
-      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.3",
-      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.3"),
+      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.4",
+      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.4"),
     )
     check(
       "in-place upgrade preserves public configuration byte-for-byte",
@@ -168,8 +169,25 @@ try {
           bytes: file.size,
           model: data.get("model"),
           languages: data.getAll("languages[]"),
+          responseFormat: data.get("response_format"),
+          language: data.get("language"),
+          stream: data.get("stream"),
+          timestamps: data.getAll("timestamp_granularities[]"),
           authorized: request.headers.get("authorization") === "Bearer pdf-reading-test-sentinel",
         })
+        if (data.get("model") === "whisper-1")
+          return new Response(
+            JSON.stringify({
+              text: "Hello. Xin chào.",
+              duration: 1,
+              segments: [
+                { start: 0.125, end: 0.45, text: "Hello." },
+                { start: 0.7, end: 0.95, text: "Xin chào." },
+              ],
+              usage: { type: "duration", seconds: 1 },
+            }),
+            { headers: { "content-type": "application/json" } },
+          )
         const delay = __audioDelay
         return new Response(
           new ReadableStream({
@@ -301,6 +319,8 @@ try {
   await worker.evaluate(() => {
     __audioDelay = 0
   })
+  if (process.env.AUDIO_PIN_SRT)
+    await checkPinAndSrt({ page, browser, worker, check, downloads, scratch })
   await page.setViewport({ width: 390, height: 844 })
   check(
     "mobile layout fits without horizontal overflow",
@@ -433,7 +453,7 @@ try {
     )
     check(
       "record-only mode does not call OpenAI",
-      (await worker.evaluate(() => __audioCalls.length)) === 2,
+      (await worker.evaluate(() => __audioCalls.length)) === (process.env.AUDIO_PIN_SRT ? 3 : 2),
     )
     await recorded.bringToFront()
     await click(recorded, "Dừng thu")
@@ -508,6 +528,16 @@ try {
       "live deltas are visible before stopping or finalizing a turn",
       (await live.$(".pending")) !== null,
     )
+    if (process.env.AUDIO_PIN_SRT && !sourceViewTest) {
+      await live.bringToFront()
+      await live.click("[data-pin-audio]")
+      await live.waitForFunction(() =>
+        documentPictureInPicture.window?.document
+          .querySelector("[data-pinned-pending]")
+          ?.textContent.includes("Live partial words"),
+      )
+      check("actual pinned window mirrors live partial speech without a second capture", true)
+    }
     if (sourceViewTest)
       await checkYouTubeLiveView({
         source,
@@ -536,6 +566,25 @@ try {
         `(async()=>{const stats=await __serverPeer.getStats();return [...stats.values()].some(s=>s.type==='inbound-rtp'&&s.kind==='audio'&&s.bytesReceived>0)})()`,
       ),
     )
+    if (process.env.AUDIO_PIN_SRT && !sourceViewTest) {
+      check(
+        "pinned live transcript survives background work without opening another WebRTC session",
+        (await live.evaluate(() =>
+          Boolean(documentPictureInPicture.window && !documentPictureInPicture.window.closed),
+        )) &&
+          (await worker.evaluate(
+            () => __audioCalls.filter((v) => v.kind === "secret").length === 1,
+          )),
+      )
+      await live.evaluate(() => documentPictureInPicture.window.close())
+      await live.waitForFunction(() => !documentPictureInPicture.window)
+      check(
+        "closing live Picture-in-Picture leaves the original captured stream running",
+        (await worker.evaluate(() => chrome.tabCapture.getCapturedTabs())).some(
+          (v) => v.status === "active",
+        ),
+      )
+    }
     if (sourceViewTest) {
       await source.bringToFront()
       await offEval(`__emitFinal('Live finalized words.')`)
@@ -573,8 +622,33 @@ try {
     await offEval(`__serverPeer.close()`)
     await live.close()
     if (sourceViewTest) {
+      await source.bringToFront()
+      await source.waitForSelector('pierce/[aria-label="Đóng khung chép lời"]')
+      check(
+        "closing the Audio owner leaves the pinned view visibly stopped without capture or translation",
+        await source.$eval("#read-frog-live-transcript", (host) =>
+          host.shadowRoot.textContent.includes("Khung vẫn được ghim"),
+        ),
+      )
+      await source.evaluate(() =>
+        history.pushState({}, "", location.pathname + "?changed-source=1"),
+      )
+      await source.waitForFunction(() =>
+        document
+          .querySelector("#read-frog-live-transcript")
+          ?.shadowRoot.textContent.includes("Trang nguồn đã đổi"),
+      )
+      check(
+        "a pinned ended session erases source text and translations on a different SPA route",
+        await source.$eval(
+          "#read-frog-live-transcript",
+          (host) =>
+            !host.shadowRoot.textContent.includes("Live finalized words") &&
+            !host.shadowRoot.querySelector("[data-live-final]"),
+        ),
+      )
+      await source.click('pierce/[aria-label="Đóng khung chép lời"]')
       await source.waitForSelector("#read-frog-live-transcript", { hidden: true })
-      check("closing the Audio owner removes its source view and translation state", true)
     }
     const closing = await launchFromSource()
     await (await closing.$$(".modes input"))[1].click()

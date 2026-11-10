@@ -107,6 +107,57 @@ it("rejects late results after key replacement and preserves actual usage", asyn
   ).rejects.toThrow(/đổi/)
   expect(finish).toHaveBeenCalledWith("complete", expect.objectContaining({ audioMs: 10000 }))
 })
+it("uses the explicitly selected timed model with one private upload and real segment timestamps", async () => {
+  vi.mocked(fetch).mockResolvedValue(
+    new Response(
+      JSON.stringify({
+        text: "Hello",
+        duration: 10,
+        segments: [{ start: 2.5, end: 4.75, text: "Hello" }],
+        usage: { type: "duration", seconds: 10 },
+      }),
+    ),
+  )
+  const result = await executeTranscription(
+    { ...metadata(), languages: ["en"], output: "subtitles" },
+    [bytes()],
+    4,
+    new AbortController().signal,
+    () => {},
+  )
+  const body = vi.mocked(fetch).mock.calls[0]![1]!.body as FormData
+  expect(body.get("model")).toBe("whisper-1")
+  expect(body.get("response_format")).toBe("verbose_json")
+  expect(body.getAll("timestamp_granularities[]")).toEqual(["segment"])
+  expect(body.get("stream")).toBeNull()
+  expect(body.get("language")).toBe("en")
+  expect(body.get("languages[]")).toBeNull()
+  expect((body.get("file") as File).name).toBe("audio.wav")
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(result.segments).toEqual([{ start: 2.5, end: 4.75, text: "Hello" }])
+})
+it("does not send an unsupported multi-language hint to the timed model or repair missing timestamp data", async () => {
+  await expect(
+    executeTranscription(
+      { ...metadata(), output: "subtitles" },
+      [bytes()],
+      4,
+      new AbortController().signal,
+      () => {},
+    ),
+  ).rejects.toThrow(/ngôn ngữ/)
+  expect(fetch).not.toHaveBeenCalled()
+  await expect(
+    executeTranscription(
+      { ...metadata(), languages: [], output: "subtitles" },
+      [bytes()],
+      4,
+      new AbortController().signal,
+      () => {},
+    ),
+  ).rejects.toThrow(/Chưa tạo SRT/)
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
 function port() {
   const listeners = new Set<(data: unknown) => void | Promise<void>>(),
     disconnected = new Set<() => void>()

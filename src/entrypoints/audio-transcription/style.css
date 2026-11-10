@@ -54,6 +54,7 @@ header {
 }
 button,
 input,
+select,
 textarea {
   font: inherit;
   color: inherit;
@@ -89,12 +90,45 @@ textarea:focus-visible,
   background: #d4ecb2;
 }
 input:not([type="checkbox"], [type="radio"], [type="file"]),
+select,
 textarea {
   width: 100%;
   background: #141713;
   border: 1px solid #41493d;
   border-radius: 7px;
   padding: 10px;
+}
+select {
+  color-scheme: dark;
+}
+option {
+  color: #edece7;
+  background: #141713;
+}
+.subtitle-settings small,
+.subtitle-cues small {
+  display: block;
+  color: #b8beb5;
+  font-size: 12px;
+  margin: 7px 0;
+}
+.subtitle-cues {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #41493d;
+  border-radius: 8px;
+}
+.subtitle-cues > div {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.subtitle-cues p {
+  padding: 9px 0;
+  border-bottom: 1px solid #343b30;
+}
+.subtitle-cues code {
+  font-size: 12px;
+  overflow-wrap: anywhere;
 }
 textarea {
   resize: vertical;

@@ -50,6 +50,24 @@ export async function checkYouTubeLiveView({
   await source.evaluate(() => {
     window.__liveHost = document.querySelector("#read-frog-live-transcript")
   })
+  await source.$eval(host, (node) => node.remove())
+  await source.waitForSelector(host)
+  check(
+    "pinned source view restores the same React host after a Teams-like DOM removal",
+    await source.evaluate(
+      () => __liveHost === document.querySelector("#read-frog-live-transcript"),
+    ),
+  )
+  await source.evaluate(() => window.ctx.suspend())
+  await pause(1200)
+  check(
+    "silence never hides the pinned source view or ends tab capture",
+    (await source.$eval(host, (node) => node.checkVisibility())) &&
+      (await worker.evaluate(async () =>
+        (await chrome.tabCapture.getCapturedTabs()).some((tab) => tab.status === "active"),
+      )),
+  )
+  await source.evaluate(() => window.ctx.resume())
   const before = await box(source)
   await drag(source, "[data-sidebar-move]", -180, 40)
   const moved = await box(source)
@@ -321,11 +339,19 @@ export async function checkYouTubeLiveView({
     await worker.evaluate(() => __audioCalls.filter((call) => call.kind === "secret").length === 1),
   )
   await source.bringToFront()
-  for (let i = 0; i < 80 && !(await offEval("__commitTimes.length>0")); i++) await pause(100)
+  for (
+    let i = 0;
+    i < 100 &&
+    !(await offEval(
+      "__commitTimes.some((at,i)=>{const gap=at-(i?__commitTimes[i-1]:__openedAt);return gap>=5000&&gap<7500})",
+    ));
+    i++
+  )
+    await pause(100)
   check(
     "continuous source speech commits within the six-second local cap instead of fifteen seconds",
     await offEval(
-      "__commitTimes.length>0 && __commitTimes[0]-__openedAt>=5000 && __commitTimes[0]-__openedAt<7500",
+      "__commitTimes.some((at,i)=>{const gap=at-(i?__commitTimes[i-1]:__openedAt);return gap>=5000&&gap<7500})",
     ),
   )
   await offEval(`__replyText='Live finalized words.'`)
