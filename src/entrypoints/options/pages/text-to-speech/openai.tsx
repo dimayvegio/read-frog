@@ -21,42 +21,17 @@ import { ConfigItem } from "../../components/config-item"
 import { ConfigSection } from "../../components/config-section"
 import { SpeechDialInput } from "./speech"
 
-const PROVIDERS = [
-  { value: "microsoft", label: "Microsoft / Edge TTS" },
-  { value: "openai", label: "OpenAI" },
-] as const
 const MODELS = OPENAI_TTS_MODELS.map((value) => ({ value, label: value }))
 const VOICES = OPENAI_TTS_VOICES.map((value) => ({ value, label: value }))
 const speedSchema = z.coerce.number().min(0.25).max(1.5)
 
 export function TTSProviderSection() {
-  const [tts, setTts] = useAtom(configFieldsAtomMap.tts)
   return (
-    <ConfigSection id="tts-provider" title={i18n.t("openaiTts.provider")}>
-      <ConfigItem
-        id="tts-provider-item"
-        title={i18n.t("openaiTts.provider")}
-        description={i18n.t("openaiTts.providerDescription")}
-      >
-        <Select
-          value={tts.provider}
-          items={PROVIDERS}
-          onValueChange={(value) => {
-            if (value) void setTts({ provider: value })
-          }}
-        >
-          <SelectTrigger id="tts-provider-choice" className="w-60">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PROVIDERS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </ConfigItem>
+    <ConfigSection id="tts-provider" title="OpenAI TTS">
+      <p>
+        Giọng đọc gửi trực tiếp tới OpenAI bằng API key trên máy. Microsoft TTS và dịch vụ trung
+        gian đã tắt trong bản này.
+      </p>
     </ConfigSection>
   )
 }

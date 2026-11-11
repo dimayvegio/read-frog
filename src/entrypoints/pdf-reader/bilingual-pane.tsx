@@ -1,3 +1,4 @@
+import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Ref } from "react"
 import type { PdfParagraph } from "./paragraphs"
 import type { PdfViewport } from "./viewport"
@@ -23,6 +24,7 @@ import { configAtom, configFieldsAtomMap } from "@/utils/atoms/config"
 import { getLocalConfig } from "@/utils/config/storage"
 import { sendMessage } from "@/utils/message"
 import { getPdfHistoryEpoch } from "@/utils/selection-result/pdf-history"
+import { PdfBatchTranslation } from "./batch-translation"
 import { PdfBilingualSession, translationConfigIdentity } from "./bilingual-session"
 import { mergeParagraphs, splitParagraph } from "./paragraph-edits"
 
@@ -80,6 +82,7 @@ function LanguageChoice() {
 }
 export function PdfBilingualPane({
   viewport,
+  pdf,
   document,
   pageCount,
   ref,
@@ -87,6 +90,7 @@ export function PdfBilingualPane({
   textOptions,
 }: {
   viewport: PdfViewport
+  pdf: PDFDocumentProxy
   document: PdfDocument
   pageCount: number
   ref?: Ref<PdfBilingualHandle>
@@ -174,6 +178,7 @@ export function PdfBilingualPane({
           key={JSON.stringify([identity, context])}
           ref={ref}
           viewport={viewport}
+          pdf={pdf}
           document={document}
           pageCount={pageCount}
           config={config}
@@ -193,6 +198,7 @@ export function PdfBilingualPane({
 }
 function BilingualWorkspace({
   viewport,
+  pdf,
   document,
   pageCount,
   config,
@@ -203,6 +209,7 @@ function BilingualWorkspace({
   textOptions,
 }: {
   viewport: PdfViewport
+  pdf: PDFDocumentProxy
   document: PdfDocument
   pageCount: number
   config: Config
@@ -226,26 +233,26 @@ function BilingualWorkspace({
     viewport.paragraphs.subscribe,
     viewport.paragraphs.getSnapshot,
   )
-  const [session] = useState(
-    () =>
-      new PdfBilingualSession(
-        config,
-        document,
-        async () => {
-          const [current, next] = await Promise.all([
-            getLocalConfig(),
-            readContext(document, config, true),
-          ])
-          return (
-            translationConfigIdentity(current) === translationConfigIdentity(config) &&
-            JSON.stringify(next) === JSON.stringify(context)
-          )
-        },
-        onInvalidate,
-        undefined,
-        textOptions,
-      ),
-  )
+  const createSession = () =>
+    new PdfBilingualSession(
+      config,
+      document,
+      async () => {
+        const [current, next] = await Promise.all([
+          getLocalConfig(),
+          readContext(document, config, true),
+        ])
+        return (
+          translationConfigIdentity(current) === translationConfigIdentity(config) &&
+          JSON.stringify(next) === JSON.stringify(context)
+        )
+      },
+      onInvalidate,
+      undefined,
+      textOptions,
+    )
+  const [session] = useState(createSession)
+  const [batchBusy, setBatchBusy] = useState(false)
   const translations = useSyncExternalStore(session.subscribe, session.getSnapshot)
   useEffect(() => () => session.destroy(), [session])
   useEffect(() => {
@@ -253,17 +260,18 @@ function BilingualWorkspace({
     if (snapshot.status === "ready") void session.restoreCache()
   }, [session, snapshot.page, snapshot.paragraphs, snapshot.status])
   useEffect(() => {
-    onBusy(translations.busy)
+    onBusy(translations.busy || batchBusy)
     return () => onBusy(false)
-  }, [onBusy, translations.busy])
+  }, [onBusy, translations.busy, batchBusy])
   useImperativeHandle(
     ref,
     () => ({
       translatePage: () => {
-        if (context.configured && workspace.ready && !workspace.busy) void session.translatePage()
+        if (context.configured && workspace.ready && !workspace.busy && !batchBusy)
+          void session.translatePage()
       },
     }),
-    [session, context.configured, workspace.ready, workspace.busy],
+    [session, context.configured, workspace.ready, workspace.busy, batchBusy],
   )
   useLayoutEffect(() => {
     if (
@@ -347,6 +355,17 @@ function BilingualWorkspace({
           </button>
         )}
       </div>
+      <PdfBatchTranslation
+        pdf={pdf}
+        viewport={viewport}
+        createSession={createSession}
+        configured={context.configured && workspace.ready && !workspace.busy}
+        onBusy={(value) => {
+          if (value) session.cancel()
+          setBatchBusy(value)
+        }}
+        onComplete={() => void session.restoreCache()}
+      />
       {!context.configured && (
         <p className="rf-bilingual-note">
           Lưu API key trong OpenAI Settings để dịch. Mở hoặc cuộn không gọi API.
@@ -548,6 +567,13 @@ function ParagraphEditor({
           }
         >
           {paragraph.excluded ? "Cho dịch lại đoạn này" : "Bỏ qua đoạn này"}
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => change(() => paragraphs.filter((p) => p.id !== paragraph.id))}
+        >
+          Xóa phần nhận diện
         </button>
       </div>
     </div>

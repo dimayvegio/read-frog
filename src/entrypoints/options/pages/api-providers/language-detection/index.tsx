@@ -9,7 +9,7 @@ export function LanguageDetectionConfig() {
     <ConfigSection id="language-detection" title="Language detection">
       <p className="text-sm text-muted-foreground">
         Local detection works without an API key. Optional OpenAI detection falls back locally when
-        unavailable, including for Microsoft TTS.
+        unavailable, when used for text translation.
       </p>
       <div className="flex gap-6">
         <label className="flex gap-2">

@@ -178,3 +178,8 @@ describe("SelectionSpeechProvider", () => {
     expect(tts.stop).not.toHaveBeenCalled()
   })
 })
+
+// MP3 export has separate routing/ownership tests; these cases isolate speech controls.
+vi.mock("@/components/ui/selection-popover/download-tts-button", () => ({
+  DownloadTTSButton: () => null,
+}))

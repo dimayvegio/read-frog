@@ -1,12 +1,14 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Annotation, StudyDocument } from "./study-data"
 import type { StudyTool } from "./study-layer"
+import type { TextNote } from "./text-notes"
 import type { PdfViewport } from "./viewport"
 import type { InkStyle } from "./workspace"
 import {
   Search,
   PanelLeft,
   MousePointer2,
+  Hand,
   Move,
   Pencil,
   Circle,
@@ -17,6 +19,8 @@ import {
   Eraser,
   StickyNote,
   Highlighter,
+  Underline,
+  TextCursorInput,
   Undo2,
   Redo2,
   MessageSquareText,
@@ -30,12 +34,16 @@ import {
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { PdfBookmarks } from "./bookmarks"
 import { LocalPdfOcr } from "./local-ocr"
-import { loadStudy, saveStudy, compilePdfSearch, STUDY_COLORS } from "./study-data"
+import { PdfPageRange, readPageRange } from "./page-range"
+import { createPdfSourceMatcher, DEFAULT_PDF_SEARCH, type PdfSearchOptions } from "./search"
+import { loadStudy, saveStudy, STUDY_COLORS } from "./study-data"
 import { PdfStudyLayer } from "./study-layer"
 import { StudyPanel } from "./study-panel"
 import { PdfTextIndex } from "./text-index"
+import { PdfTextNoteLayer } from "./text-note-layer"
+import { PdfTextNotePanel } from "./text-note-panel"
 
-type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr" | "bookmarks"
+type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr" | "bookmarks" | "text"
 type Outline = { title: string; dest: string | unknown[] | null; depth: number }
 type Hit = { page: number; text: string; index: number }
 export function PdfStudyTools({
@@ -72,14 +80,22 @@ export function PdfStudyTools({
   const [query, setQuery] = useState(""),
     [hits, setHits] = useState<Hit[]>([]),
     [searching, setSearching] = useState(false)
+  const [searchOptions, setSearchOptions] = useState<PdfSearchOptions>(DEFAULT_PDF_SEARCH),
+    [searchPreset, setSearchPreset] = useState("guide")
+  const [searchFrom, setSearchFrom] = useState("1"),
+    [searchTo, setSearchTo] = useState(String(pdf.numPages)),
+    [emptyPages, setEmptyPages] = useState(0)
   const [activeHit, setActiveHit] = useState(-1),
     [outlineQuery, setOutlineQuery] = useState("")
   const [outline, setOutline] = useState<Outline[]>([]),
     [pageGroup, setPageGroup] = useState(0)
   const [language, setLanguage] = useState("eng"),
     [rangeEnd, setRangeEnd] = useState("")
+  const [rangeStart, setRangeStart] = useState("")
   const [ocrBusy, setOcrBusy] = useState(false),
     [ocrStatus, setOcrStatus] = useState("")
+  const [noteDraft, setNoteDraft] = useState<TextNote | null>(null),
+    [ocrCount, setOcrCount] = useState(0)
   const workspace = viewport.workspace
   const history = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot)
   const layer = useRef<PdfStudyLayer | null>(null),
@@ -213,8 +229,25 @@ export function PdfStudyTools({
     alive.current = true
     const index = new PdfTextIndex(pdf)
     textIndex.current = index
-    const controller = new PdfStudyLayer(viewport.element, add, remove, update, workspace)
+    const controller = new PdfStudyLayer(
+      viewport.element,
+      add,
+      remove,
+      update,
+      workspace,
+      viewport.ocrCache,
+    )
     layer.current = controller
+    const noteLayer = new PdfTextNoteLayer(viewport.element, viewport.textNotes, (note) => {
+      setNoteDraft(note)
+      setPanel("text")
+    })
+    void viewport.ocrCache
+      .count()
+      .then((n) => {
+        if (alive.current) setOcrCount(n)
+      })
+      .catch(report)
     void loadStudy(id)
       .then((value) => {
         if (alive.current) install(value)
@@ -264,6 +297,7 @@ export function PdfStudyTools({
       // oxlint-disable-next-line react-hooks/exhaustive-deps -- task counters, not DOM refs.
       ++searchRun.current
       ocr.current?.cancel()
+      noteLayer.destroy()
       controller.destroy()
       index.destroy()
       textIndex.current = null
@@ -298,6 +332,15 @@ export function PdfStudyTools({
     setSearching(false)
     if (dataRef.current) layer.current?.set(dataRef.current, "")
   }
+  const changeSearchOptions = (options: PdfSearchOptions, preset = "custom") => {
+    ++searchRun.current
+    setSearching(false)
+    setHits([])
+    setActiveHit(-1)
+    setSearchOptions(options)
+    setSearchPreset(preset)
+    if (dataRef.current) layer.current?.set(dataRef.current, "", options)
+  }
   const search = async () => {
     const token = ++searchRun.current,
       needle = query.trim()
@@ -305,22 +348,28 @@ export function PdfStudyTools({
     setSearching(true)
     setHits([])
     setActiveHit(-1)
-    layer.current?.set(dataRef.current, needle)
+    layer.current?.set(dataRef.current, needle, searchOptions)
     const found: Hit[] = []
-    const matchText = compilePdfSearch(needle),
-      textCache = textIndex.current
-    let chars = 0
+    const textCache = textIndex.current
+    let chars = 0,
+      empty = 0
     try {
+      const matchText = createPdfSourceMatcher(needle, searchOptions)
+      const { first, last } = readPageRange(searchFrom, searchTo, pdf.numPages)
+      setEmptyPages(0)
       // Paint the busy state even when every page is served from RAM.
       await new Promise<void>((resolve) => setTimeout(resolve, 0))
       let slice = performance.now()
-      for (let number = 1; number <= pdf.numPages; number++) {
+      for (let number = first; number <= last; number++) {
         if (token !== searchRun.current || !alive.current || !textCache) return
-        const cached = dataRef.current.ocr.find((p) => p.page === number)
-        const { source, folded } = await textCache.get(number, cached)
+        const cached =
+          dataRef.current.ocr.find((p) => p.page === number) ??
+          (await viewport.ocrCache.get(number))
+        const { source } = await textCache.get(number, cached)
         if (token !== searchRun.current || !alive.current) return
         chars += source.length
-        const matches = matchText(folded)
+        if (!source.trim()) empty++
+        const matches = matchText(source)
         for (const [index, match] of matches.entries()) {
           if (found.length >= 1000) break
           found.push({
@@ -342,29 +391,41 @@ export function PdfStudyTools({
           slice = performance.now()
         }
       }
-      if (token === searchRun.current && alive.current) setHits(found)
-    } catch {
+      if (token === searchRun.current && alive.current) {
+        setHits(found)
+        setEmptyPages(empty)
+      }
+    } catch (error) {
       if (alive.current && token === searchRun.current)
-        setMessage("Chưa tìm được hết tài liệu. Thử lại với từ khóa khác.")
+        setMessage(
+          error instanceof Error
+            ? error.message
+            : "Chưa tìm được hết tài liệu. Thử lại với từ khóa khác.",
+        )
     } finally {
       if (token === searchRun.current && alive.current) setSearching(false)
     }
   }
   const recognize = async () => {
     if (!dataRef.current || ocrBusy) return
-    const start = page,
-      end = rangeEnd ? Number(rangeEnd) : start
-    if (!Number.isInteger(end) || end < start || end > pdf.numPages || end - start >= 20) {
-      setMessage("Chọn tối đa 20 trang, bắt đầu từ trang đang xem.")
+    let start: number, end: number
+    try {
+      const range = readPageRange(rangeStart, rangeEnd, pdf.numPages, 100, page)
+      start = range.first
+      end = range.last
+    } catch (error) {
+      report(error)
       return
     }
     const token = ++run.current
-    ocrPage.current = start
+    ocrPage.current = page
     setOcrBusy(true)
     const worker = new LocalPdfOcr()
     ocr.current = worker
     try {
       for (let n = start; n <= end; n++) {
+        const context = await viewport.ocrCache.context(n)
+        if (token !== run.current || !alive.current) return
         const value = await worker.read(pdf, n, language, (text) => {
           if (token === run.current && alive.current) setOcrStatus(`Trang ${n}/${end} · ${text}`)
         })
@@ -373,15 +434,23 @@ export function PdfStudyTools({
           setOcrStatus(`Trang ${n}: chưa nhận được chữ rõ ràng.`)
           continue
         }
-        const success = await write(
-          (p) => ({
-            ...p,
-            ocr: [...p.ocr.filter((v) => v.page !== n), value],
-          }),
-          false,
-          () => token === run.current && alive.current,
-        )
-        if (!success || token !== run.current) return
+        const guard = () => token === run.current && alive.current
+        // Keep published legacy OCR records readable; new pages use bounded page rows.
+        if (dataRef.current.ocr.some((v) => v.page === n)) {
+          if (
+            !(await write(
+              (p) => ({ ...p, ocr: [...p.ocr.filter((v) => v.page !== n), value] }),
+              false,
+              guard,
+            ))
+          )
+            return
+        } else await viewport.ocrCache.save(value, context, guard)
+        if (!guard()) return
+        layer.current?.refreshOCR()
+        textIndex.current?.destroy()
+        textIndex.current = new PdfTextIndex(pdf)
+        setOcrCount(await viewport.ocrCache.count())
         setOcrStatus(
           `Đã đọc trang ${n}: ${value.words.length} cụm chữ. Có thể bôi đen, tìm kiếm hoặc mở Song ngữ theo đoạn.`,
         )
@@ -407,35 +476,56 @@ export function PdfStudyTools({
     layer.current?.focusMatch(hit.page, hit.index)
     viewport.navigate(hit.page)
   }
+  useEffect(() => {
+    const keys = (e: KeyboardEvent) => {
+      if (e.key !== "F3" || !hits.length) return
+      e.preventDefault()
+      pickHit((activeHit + (e.shiftKey ? -1 : 1) + hits.length) % hits.length)
+    }
+    window.addEventListener("keydown", keys)
+    return () => window.removeEventListener("keydown", keys)
+  })
   return (
     <section className="rf-study-tools" aria-label="Công cụ đọc PDF">
       <div className="rf-study-toolbar">
         <button
           type="button"
+          className="rf-compact-nav"
+          aria-label="Tìm kiếm"
           aria-expanded={panel === "search"}
           onClick={() => toggle("search")}
           title="Tìm kiếm (Ctrl+F)"
         >
-          <Search size={17} /> Tìm kiếm <kbd>Ctrl F</kbd>
+          <Search size={16} aria-hidden="true" />
+          <span className="rf-sr-only">Tìm kiếm</span>
         </button>
         <button
           type="button"
+          className="rf-compact-nav"
+          aria-label="Mục lục / Trang"
+          title="Mục lục / Trang"
           aria-expanded={panel === "outline" || panel === "pages"}
           onClick={() => toggle(outline.length ? "outline" : "pages")}
         >
-          <PanelLeft size={17} /> Mục lục / Trang
+          <PanelLeft size={16} aria-hidden="true" />
+          <span className="rf-sr-only">Mục lục / Trang</span>
         </button>
         <button
           type="button"
+          className="rf-compact-nav"
+          aria-label="Bookmark"
+          title="Bookmark của PDF"
           aria-expanded={panel === "bookmarks"}
           onClick={() => toggle("bookmarks")}
         >
-          <BookmarkPlus size={17} /> Bookmark
+          <BookmarkPlus size={16} aria-hidden="true" />
+          <span className="rf-sr-only">Bookmark</span>
         </button>
         <div className="rf-tool-segment" role="group" aria-label="Công cụ PDF">
           {(
             [
               { value: "select", label: "Chọn chữ", Icon: MousePointer2 },
+              { value: "hand", label: "Kéo trang PDF", Icon: Hand },
               { value: "edit", label: "Chọn / sửa hình", Icon: Move },
               { value: "ink", label: "Vẽ", Icon: Pencil },
               { value: "circle", label: "Hình tròn", Icon: Circle },
@@ -444,6 +534,7 @@ export function PdfStudyTools({
               { value: "rectangle", label: "Hình chữ nhật", Icon: RectangleHorizontal },
               { value: "erase", label: "Tẩy chú thích", Icon: Eraser },
               { value: "note", label: "Ghi chú", Icon: StickyNote },
+              { value: "textbox", label: "Ô chữ", Icon: TextCursorInput },
             ] as const
           ).map(({ value, label, Icon }) => (
             <button
@@ -455,7 +546,10 @@ export function PdfStudyTools({
                 value === "circle" ? "Tròn / elip: kéo ngang dọc; giữ Shift để vẽ tròn" : label
               }
               aria-pressed={tool === value}
-              onClick={() => setTool(value)}
+              onClick={() => {
+                setTool(value)
+                if (value === "textbox") setPanel("text")
+              }}
             >
               <Icon size={17} />
             </button>
@@ -483,6 +577,16 @@ export function PdfStudyTools({
           onClick={() => add(layer.current?.highlight() ?? [])}
         >
           <Highlighter size={17} /> Tô sáng đoạn chọn
+        </button>
+        <button
+          type="button"
+          disabled={!data || saving}
+          title="Gạch chân phần đang bôi đen"
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() => add(layer.current?.underline() ?? [])}
+        >
+          <Underline size={17} />
+          <span className="rf-sr-only">Gạch chân đoạn chọn</span>
         </button>
         <button
           type="button"
@@ -516,7 +620,7 @@ export function PdfStudyTools({
             type="button"
             className="rf-translate-selection"
             disabled={!hasSelection || tool !== "select"}
-            title="Bôi đen chữ trong PDF rồi bấm để dịch"
+            title="Bôi đen chữ rồi dịch (Alt+Enter)"
             onPointerDown={(e) => e.preventDefault()}
             onClick={onTranslateSelection}
           >
@@ -536,6 +640,7 @@ export function PdfStudyTools({
                   pdf,
                   dataRef.current.annotations,
                   workspace.getSnapshot().data.styles,
+                  viewport.textNotes.getSnapshot().data.notes,
                 )
                 if (!alive.current) return
                 const url = URL.createObjectURL(blob),
@@ -599,10 +704,14 @@ export function PdfStudyTools({
               annotations: "Chú thích",
               ocr: "Nhận dạng chữ PDF scan",
               bookmarks: "Bookmark của PDF",
+              text: "Ô chữ trên PDF",
             }[panel]
           }
           onClose={() => setPanel("")}
         >
+          {panel === "text" && (
+            <PdfTextNotePanel viewport={viewport} draft={noteDraft} onDraft={setNoteDraft} />
+          )}
           {panel === "bookmarks" && <PdfBookmarks viewport={viewport} />}
           {panel === "search" && (
             <>
@@ -626,6 +735,139 @@ export function PdfStudyTools({
                   {searching ? "Đang tìm…" : "Tìm"}
                 </button>
               </form>
+              <details className="rf-search-advanced" open>
+                <summary>Tùy chọn tìm kiếm</summary>
+                <label>
+                  Loại tài liệu
+                  <select
+                    aria-label="Loại tài liệu tìm kiếm"
+                    value={searchPreset}
+                    onChange={(e) => {
+                      const preset = e.target.value
+                      changeSearchOptions(
+                        preset === "rtl"
+                          ? {
+                              ...DEFAULT_PDF_SEARCH,
+                              caseSensitive: true,
+                              wholeWord: true,
+                              wildcards: false,
+                            }
+                          : preset === "datasheet"
+                            ? { ...DEFAULT_PDF_SEARCH, wildcards: false, ignoreSpaces: true }
+                            : DEFAULT_PDF_SEARCH,
+                        preset,
+                      )
+                    }}
+                  >
+                    <option value="guide">User guide / Thông thường</option>
+                    <option value="datasheet">Datasheet / Bảng thông số</option>
+                    <option value="rtl">RTL / DV / Tên tín hiệu</option>
+                    <option value="custom">Tùy chỉnh</option>
+                  </select>
+                </label>
+                <div className="rf-search-checks">
+                  {(
+                    [
+                      ["caseSensitive", "Phân biệt hoa/thường"],
+                      ["wholeWord", "Nguyên tên / từ"],
+                      ["ignoreAccents", "Bỏ qua dấu tiếng Việt"],
+                      ["ignoreSpaces", "Bỏ qua khoảng trắng"],
+                      ["wildcards", "Dùng * làm wildcard"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label key={key}>
+                      <input
+                        type="checkbox"
+                        aria-label={label}
+                        checked={searchOptions[key]}
+                        onChange={(e) =>
+                          changeSearchOptions({ ...searchOptions, [key]: e.target.checked })
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+                <label>
+                  Cách khớp
+                  <select
+                    aria-label="Cách khớp tìm kiếm"
+                    value={searchOptions.mode}
+                    onChange={(e) =>
+                      changeSearchOptions({
+                        ...searchOptions,
+                        mode: e.target.value as PdfSearchOptions["mode"],
+                      })
+                    }
+                  >
+                    <option value="phrase">Chuỗi / Cụm từ</option>
+                    <option value="all">Tất cả từ (AND)</option>
+                    <option value="any">Bất kỳ từ (OR)</option>
+                  </select>
+                </label>
+                {searchOptions.mode === "all" && (
+                  <label>
+                    Khoảng cách
+                    <select
+                      aria-label="Khoảng cách từ tìm kiếm"
+                      value={searchOptions.near}
+                      onChange={(e) =>
+                        changeSearchOptions({ ...searchOptions, near: Number(e.target.value) })
+                      }
+                    >
+                      <option value={0}>Trong cùng trang</option>
+                      <option value={200}>Gần nhau trong 200 ký tự</option>
+                      <option value={1000}>Gần nhau trong 1.000 ký tự</option>
+                    </select>
+                  </label>
+                )}
+                <PdfPageRange
+                  prefix="Tìm kiếm"
+                  from={searchFrom}
+                  to={searchTo}
+                  onFrom={(v) => {
+                    setSearchFrom(v)
+                    changeSearchOptions(searchOptions, searchPreset)
+                  }}
+                  onTo={(v) => {
+                    setSearchTo(v)
+                    changeSearchOptions(searchOptions, searchPreset)
+                  }}
+                  total={pdf.numPages}
+                />
+                <div className="rf-panel-actions">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchFrom(String(page))
+                      setSearchTo(String(page))
+                      changeSearchOptions(searchOptions, searchPreset)
+                    }}
+                  >
+                    Trang đang xem
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchFrom("1")
+                      setSearchTo(String(pdf.numPages))
+                      changeSearchOptions(searchOptions, searchPreset)
+                    }}
+                  >
+                    Toàn tài liệu
+                  </button>
+                </div>
+                <small>
+                  Ký hiệu _, $, ., /, [31:0], 8'hFF được tìm nguyên văn. Wildcard chỉ bật khi bạn
+                  chọn; không dùng regex.
+                </small>
+              </details>
+              {emptyPages > 0 && (
+                <p className="rf-bilingual-note">
+                  {emptyPages} trang chưa có lớp chữ. Dùng OCR theo dải trang trước khi tìm trên
+                  trang scan.
+                </p>
+              )}
               {searching && (
                 <button
                   type="button"
@@ -890,19 +1132,19 @@ export function PdfStudyTools({
                   <option value="jpn">日本語</option>
                 </select>
               </label>
-              <p>Từ trang {page}. Để trống ô dưới để chỉ đọc trang này.</p>
-              <label>
-                Đến trang{" "}
-                <input
-                  aria-label="OCR đến trang"
-                  type="number"
-                  min={page}
-                  max={Math.min(pdf.numPages, page + 19)}
-                  value={rangeEnd}
-                  disabled={ocrBusy}
-                  onChange={(e) => setRangeEnd(e.target.value)}
-                />
-              </label>
+              <PdfPageRange
+                prefix="OCR"
+                from={rangeStart}
+                to={rangeEnd}
+                onFrom={setRangeStart}
+                onTo={setRangeEnd}
+                total={pdf.numPages}
+                disabled={ocrBusy}
+              />
+              <p>
+                Để trống để chỉ OCR trang đang xem. Tối đa 100 trang/lượt, lưu tối đa 500 trang OCR
+                mới/file.
+              </p>
               <button
                 type="button"
                 id="pdf-local-ocr"
@@ -927,17 +1169,29 @@ export function PdfStudyTools({
               )}
               <p role="status">{ocrStatus}</p>
               <p>
-                Đã lưu {data?.ocr.length ?? 0}/20 trang OCR. Chuyển trang hoặc đóng file sẽ dừng tác
-                vụ đang chạy. Mở lại chỉ đọc cache trên máy.
+                Đã lưu {(data?.ocr.length ?? 0) + ocrCount} trang OCR. Chuyển trang hoặc đóng file
+                sẽ dừng tác vụ đang chạy. Mở lại chỉ đọc cache trên máy.
               </p>
               <button
                 type="button"
-                disabled={ocrBusy || saving || !data?.ocr.length}
+                disabled={ocrBusy || saving || (!data?.ocr.length && !ocrCount)}
                 onClick={() => {
                   if (
                     window.confirm("Xóa toàn bộ chữ OCR lưu cho file này? Chú thích vẫn được giữ.")
                   )
-                    void write((p) => ({ ...p, ocr: [] }))
+                    void (async () => {
+                      ++run.current
+                      ocr.current?.cancel()
+                      if (await write((p) => ({ ...p, ocr: [] }))) {
+                        await viewport.ocrCache.clear()
+                        if (alive.current) {
+                          setOcrCount(0)
+                          layer.current?.refreshOCR()
+                          textIndex.current?.destroy()
+                          textIndex.current = new PdfTextIndex(pdf)
+                        }
+                      }
+                    })().catch(report)
                 }}
               >
                 Xóa chữ OCR đã lưu

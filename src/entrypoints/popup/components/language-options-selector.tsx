@@ -1,12 +1,12 @@
 import type { LanguageTag } from "@read-frog/definitions"
 import type { LanguageItem } from "@/components/language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
-import { Icon } from "@iconify/react"
 import { languageTagSchema } from "@read-frog/definitions"
 import { IconChevronDown } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useMemo } from "react"
 import { filterLanguage } from "@/components/language-combobox-options"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Combobox,

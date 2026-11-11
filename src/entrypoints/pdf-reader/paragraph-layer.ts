@@ -65,14 +65,14 @@ export class PdfParagraphLayer {
           (record) =>
             (record.target instanceof Element &&
               record.target.closest(
-                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection",
+                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes",
               )) ||
             (record.type === "childList" &&
               [...record.addedNodes, ...record.removedNodes].every(
                 (node) =>
                   node instanceof Element &&
                   node.matches(
-                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection",
+                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes",
                   ),
               )),
         )
@@ -117,7 +117,7 @@ export class PdfParagraphLayer {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["data-rendered"],
+        attributeFilter: ["data-rendered", "data-ocr-loading"],
       })
       this.host.addEventListener("click", this.clicked)
       this.host.addEventListener("wheel", this.intent, { passive: true })
@@ -288,6 +288,11 @@ export class PdfParagraphLayer {
         this.pages.delete(number)
       }
     for (const element of elements) {
+      if (element.dataset.ocrLoading === "true") {
+        this.pages.get(Number(element.dataset.page))?.overlays.remove()
+        this.pages.delete(Number(element.dataset.page))
+        continue
+      }
       const page = Number(element.dataset.page),
         layer =
           element.querySelector<HTMLElement>(".rf-ocr-text") ??

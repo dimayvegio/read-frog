@@ -1,5 +1,6 @@
 import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Annotation, Point } from "./study-data"
+import type { TextNote } from "./text-notes"
 import type { InkStyle } from "./workspace"
 
 export async function exportAnnotatedPdf(
@@ -7,6 +8,7 @@ export async function exportAnnotatedPdf(
   pdf: PDFDocumentProxy,
   annotations: Annotation[],
   styles: Record<string, InkStyle> = {},
+  textNotes: TextNote[] = [],
 ) {
   const { PDFDocument, rgb, PDFName, PDFString, PDFHexString, LineCapStyle } =
     await import("pdf-lib")
@@ -85,6 +87,48 @@ export async function exportAnnotatedPdf(
         annotation.delete(PDFName.of("A"))
       }
     }
+  }
+  for (const note of textNotes) {
+    const source = await pdf.getPage(note.page),
+      v = source.getViewport({ scale: 1 }),
+      page = output.getPage(note.page - 1)
+    const width = Math.max(1, Math.ceil(note.width * v.width * 2)),
+      height = Math.max(1, Math.ceil(note.height * v.height * 2))
+    if (width * height > 16_000_000) throw new Error("Ô chữ quá lớn để xuất.")
+    const canvas = document.createElement("canvas")
+    canvas.width = width
+    canvas.height = height
+    const ctx = canvas.getContext("2d")!
+    const font = note.font * v.width * 2
+    ctx.font = `${font}px "Segoe UI",sans-serif`
+    ctx.fillStyle = note.color
+    ctx.textBaseline = "top"
+    let y = 0
+    for (const row of note.text.split("\n")) {
+      let line = ""
+      for (const segment of row.split(/(?<=\s)/u)) {
+        if (line && ctx.measureText(line + segment).width > width) {
+          ctx.fillText(line, 0, y)
+          y += font * 1.25
+          line = ""
+        }
+        line += segment
+      }
+      ctx.fillText(line, 0, y)
+      y += font * 1.25
+    }
+    const png = await output.embedPng(canvas.toDataURL("image/png"))
+    const [x, yPdf] = v.convertToPdfPoint(note.x * v.width, (note.y + note.height) * v.height)
+    const rotation = source.rotate
+    const { degrees } = await import("pdf-lib")
+    page.drawImage(png, {
+      x: x!,
+      y: yPdf!,
+      width: note.width * v.width,
+      height: note.height * v.height,
+      rotate: degrees(rotation),
+    })
+    canvas.width = canvas.height = 0
   }
   return new Blob([new Uint8Array(await output.save())], { type: "application/pdf" })
 }

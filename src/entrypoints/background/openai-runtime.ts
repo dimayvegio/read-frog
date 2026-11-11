@@ -8,7 +8,7 @@ import { ensureInitializedConfig } from "./config"
 import { readOpenAIExecutionCredential } from "./openai-credentials"
 import { instrumentModel } from "./usage"
 
-/** This guard belongs to LLM text only. Microsoft TTS has a separate client. */
+/** Fixed Responses boundary. Audio features use their own fixed OpenAI endpoints. */
 export const openAIOnlyFetch: typeof fetch = async (input, init) => {
   const request = new Request(input, init)
   const url = new URL(request.url)

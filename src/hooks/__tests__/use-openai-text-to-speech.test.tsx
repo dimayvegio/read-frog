@@ -107,18 +107,17 @@ describe("OpenAI read-aloud routing and ownership", () => {
     expect(send.mock.calls.filter(([name]) => name === "ttsPlaybackStart")).toHaveLength(1)
   })
 
-  it("retains Microsoft TTS as an independent provider", async () => {
+  it("never contacts Microsoft for legacy speech settings, and requires OpenAI credentials", async () => {
     configured = false
     const { result } = renderHook(() => useTextToSpeech(), { wrapper })
     await act(async () => {
-      await result.current.play("Microsoft speech", structuredClone(DEFAULT_TTS_CONFIG))
+      await expect(
+        result.current.play("Legacy speech", structuredClone(DEFAULT_TTS_CONFIG)),
+      ).rejects.toThrow("Configure an OpenAI API key")
     })
     expect(stream).not.toHaveBeenCalled()
-    expect(send.mock.calls.some(([name]) => name === "getOpenAIKeyStatus")).toBe(false)
-    expect(send).toHaveBeenCalledWith(
-      "edgeTtsSynthesize",
-      expect.objectContaining({ text: "Microsoft speech" }),
-    )
+    expect(send.mock.calls.some(([name]) => name === "edgeTtsSynthesize")).toBe(false)
+    expect(send.mock.calls.some(([name]) => name === "getOpenAIKeyStatus")).toBe(true)
   })
 
   it("aborts synthesis on Stop and never starts the late audio", async () => {

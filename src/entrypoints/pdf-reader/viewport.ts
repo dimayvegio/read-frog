@@ -2,8 +2,12 @@ import type { PDFDocumentProxy, PDFPageProxy, RenderTask } from "pdfjs-dist"
 import type { PdfReadingPosition } from "@/utils/selection-result/reading-position"
 import { TextLayer } from "pdfjs-dist"
 import { encodeCrop } from "../image-translate/image"
+import { PdfHandPan } from "./hand-pan"
+import { PdfOcrCache } from "./ocr-cache"
 import { PdfParagraphLayer } from "./paragraph-layer"
+import { PdfTextNotes } from "./text-notes"
 import { PdfWorkspace } from "./workspace"
+import { boundPdfZoom } from "./zoom"
 export type ViewPosition = Pick<PdfReadingPosition, "page" | "offset" | "zoom">
 interface Lease {
   cancel: () => void
@@ -26,6 +30,11 @@ export class PdfViewport {
   }
   readonly paragraphs: PdfParagraphLayer
   readonly workspace: PdfWorkspace
+  readonly ocrCache: PdfOcrCache
+  readonly textNotes: PdfTextNotes
+  get navigationToken() {
+    return this.navigation
+  }
   private sizes: { width: number; height: number }[] = []
   private elements: HTMLDivElement[] = []
   private tops: number[] = []
@@ -41,6 +50,9 @@ export class PdfViewport {
   private layoutVersion = 0
   private resize: ResizeObserver
   private width = 0
+  private hand: PdfHandPan
+  private wheelFrame = 0
+  private wheelTarget?: { zoom: number; anchor: { x: number; y: number } }
   constructor(
     private host: HTMLDivElement,
     private pdf: PDFDocumentProxy,
@@ -48,7 +60,10 @@ export class PdfViewport {
     private error: (text: string) => void,
     documentId: string,
   ) {
+    this.hand = new PdfHandPan(host, () => this.update(true))
     this.workspace = new PdfWorkspace(documentId)
+    this.ocrCache = new PdfOcrCache(documentId)
+    this.textNotes = new PdfTextNotes(documentId, this.workspace)
     this.paragraphs = new PdfParagraphLayer(
       host,
       () => this.snapshot(),
@@ -61,6 +76,7 @@ export class PdfViewport {
       this.workspace,
     )
     host.addEventListener("scroll", this.scrolled)
+    host.addEventListener("wheel", this.wheel, { passive: false })
     this.resize = new ResizeObserver(() => {
       if (!this.elements.length || this.destroyed) return
       if (this.width === host.clientWidth) {
@@ -150,6 +166,7 @@ export class PdfViewport {
   }
   private layout(position: ViewPosition) {
     if (this.destroyed) return
+    this.host.dispatchEvent(new Event("rf-pdf-view-change"))
     this.suppressScroll()
     this.width = this.host.clientWidth
     this.zoom = position.zoom
@@ -175,6 +192,7 @@ export class PdfViewport {
     const index = Math.max(0, Math.min(this.sizes.length - 1, page - 1)),
       token = ++this.navigation
     const jump = () => {
+      this.host.dispatchEvent(new Event("rf-pdf-view-change"))
       if (this.zoom !== zoom) this.layout({ page: index + 1, offset, zoom })
       this.host.scrollTop =
         (this.tops[index] ?? 0) +
@@ -195,10 +213,64 @@ export class PdfViewport {
             this.error(`Không đọc được trang ${index + 1}.`)
         })
   }
-  setZoom(zoom: ViewPosition["zoom"]) {
+  zoomValue() {
+    return this.pageScale(this.snapshot().page - 1)
+  }
+  fitPage() {
+    const position = this.snapshot(),
+      size = this.sizes[position.page - 1]
+    if (!size) return
+    this.setZoom(
+      boundPdfZoom(
+        Math.min(
+          (this.host.clientWidth - 32) / size.width,
+          (this.host.clientHeight - 32) / size.height,
+        ),
+      ),
+    )
+    this.navigate(position.page)
+  }
+  setZoom(zoom: ViewPosition["zoom"], anchor?: { x: number; y: number }) {
+    if (typeof zoom === "number" && !Number.isFinite(zoom)) return
+    if (typeof zoom === "number") zoom = boundPdfZoom(zoom)
+    this.hand.cancel()
+    cancelAnimationFrame(this.wheelFrame)
+    this.wheelFrame = 0
+    this.wheelTarget = undefined
+    const hostBox = anchor ? this.host.getBoundingClientRect() : undefined
+    const element =
+      anchor && hostBox
+        ? this.elements[pageAtOffset(this.tops, this.host.scrollTop + anchor.y - hostBox.top)]
+        : undefined
+    const old = element?.getBoundingClientRect()
+    const point =
+      anchor && old
+        ? { x: (anchor.x - old.left) / old.width, y: (anchor.y - old.top) / old.height }
+        : undefined
     ++this.navigation
     this.layout({ ...this.snapshot(), zoom })
+    if (element && point && anchor) {
+      const next = element.getBoundingClientRect()
+      this.host.scrollLeft += next.left + point.x * next.width - anchor.x
+      this.host.scrollTop += next.top + point.y * next.height - anchor.y
+      this.update(false)
+    }
     this.changed(this.snapshot(), true)
+  }
+  private wheel = (event: WheelEvent) => {
+    if (!event.ctrlKey || event.defaultPrevented || this.destroyed) return
+    event.preventDefault()
+    const scale =
+      (this.wheelTarget?.zoom ?? this.zoomValue()) *
+      Math.exp(-Math.max(-200, Math.min(200, event.deltaY)) * 0.002)
+    this.wheelTarget = { zoom: boundPdfZoom(scale), anchor: { x: event.clientX, y: event.clientY } }
+    if (!this.wheelFrame)
+      this.wheelFrame = requestAnimationFrame(() => {
+        this.wheelFrame = 0
+        const target = this.wheelTarget
+        this.wheelTarget = undefined
+        if (target && !this.destroyed) this.setZoom(target.zoom, target.anchor)
+      })
   }
   reset() {
     ++this.navigation
@@ -336,7 +408,13 @@ export class PdfViewport {
     return encodeCrop(output, output.width, output.height, { x: 0, y: 0, width: 1, height: 1 })
   }
   destroy() {
+    this.hand.destroy()
+    cancelAnimationFrame(this.wheelFrame)
+    this.wheelTarget = undefined
+    this.host.removeEventListener("wheel", this.wheel)
     this.workspace.destroy()
+    this.ocrCache.destroy()
+    this.textNotes.destroy()
     this.paragraphs.destroy()
     this.destroyed = true
     cancelAnimationFrame(this.frame)

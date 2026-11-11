@@ -1,6 +1,8 @@
 # Bản local khác upstream ở đâu?
 
-**Bản sửa hiện tại 1.59.1-a.6 / manifest1.59.1.6:** chỉnh gộp/tách/bỏ đoạn PDF,
+**Bản sửa hiện tại 1.59.1-a.7 / manifest1.59.1.7:** dải OCR/dịch, trích PDF bằng worker, tìm kỹ thuật, in/ô chữ/gạch chân, zoom/menu/phím tắt và giữ cấu trúc dòng/ô. Workspace DB2 additive giữ nguyên documents DB1. Theo yêu cầu mới, bỏ Microsoft TTS và rules server khỏi runtime, dùng OpenAI cho dịch vụ xử lý nội dung; PDF local không upload. Native CC/nguồn URL và Edge storage.sync vẫn có mạng riêng theo thao tác/opt-in. Xem [PDF_READER_1_59_1A7.md](PDF_READER_1_59_1A7.md).
+
+**Bản sửa trước 1.59.1-a.6 / manifest1.59.1.6:** chỉnh gộp/tách/bỏ đoạn PDF,
 nhớ theo file, chọn nhiều hình/copy/kiểu nét và bookmark tên/màu/ghi chú đúng
 vị trí. Thêm sidecar PDF workspace DB1; không sửa các DB/migration/schema đã
 phát hành. Undo chung, CAS/cancel và không tự gọi provider từ các công cụ.

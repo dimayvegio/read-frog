@@ -307,7 +307,10 @@ for (let run = 0; run < Number(args.runs ?? 3); run++) {
     await reader.click("#pdf-local-ocr")
     record.timing.ocr8Ms = await waitTiming("ocr")
     const text = await reader.$eval(".rf-study-panel", (element) => element.textContent)
-    assert.ok(text.includes("Đã lưu 8/20"), "All eight OCR pages completed")
+    assert.ok(
+      /Đã lưu 8(?:\/20)? trang OCR/u.test(text) || text.includes("Đã lưu 8/20"),
+      "All eight OCR pages completed",
+    )
     record.ocrTextHash = await reader.$eval(".rf-ocr-text", (element) => element.textContent)
     await pause(1200)
     await stage("ocrReleased")

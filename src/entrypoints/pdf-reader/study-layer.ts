@@ -1,18 +1,22 @@
+import type { PdfOcrCache } from "./ocr-cache"
 import type { Annotation, Box, OcrPage, Point, StudyDocument } from "./study-data"
 import type { InkStyle, PdfWorkspace } from "./workspace"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { PdfAnnotationEditor } from "./annotation-editor"
+import { createPdfSourceMatcher, DEFAULT_PDF_SEARCH, type PdfSearchOptions } from "./search"
 import { shapePoints, type ShapeTool } from "./shapes"
 import { inkBounds } from "./shapes"
-import {
-  validBox,
-  searchText,
-  normalizePdfSearch,
-  pdfRunSeparator,
-  joinPdfRuns,
-} from "./study-data"
+import { validBox, pdfRunSeparator, joinPdfRuns } from "./study-data"
 
-export type StudyTool = "select" | "edit" | "ink" | "erase" | "note" | ShapeTool
+export type StudyTool =
+  | "select"
+  | "hand"
+  | "textbox"
+  | "edit"
+  | "ink"
+  | "erase"
+  | "note"
+  | ShapeTool
 const ns = "http://www.w3.org/2000/svg"
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 function svg(name: string, attributes: Record<string, string>) {
@@ -25,6 +29,7 @@ export class PdfStudyLayer {
   color = "#ffca28"
   private data?: StudyDocument
   private query = ""
+  private searchOptions: PdfSearchOptions = DEFAULT_PDF_SEARCH
   private ocrIdentity = new WeakMap<Element, OcrPage>()
   private focused?: { page: number; index: number }
   private focusPending = false
@@ -48,6 +53,8 @@ export class PdfStudyLayer {
     constrain: boolean
   }
   private editor: PdfAnnotationEditor
+  private extendedOCR = new Map<number, OcrPage | undefined>()
+  private closed = false
   constructor(
     private host: HTMLElement,
     private add: (items: Annotation[]) => void,
@@ -59,6 +66,7 @@ export class PdfStudyLayer {
       styles?: Record<string, InkStyle>,
     ) => Promise<boolean>,
     private workspace: PdfWorkspace,
+    private ocrCache: PdfOcrCache,
   ) {
     this.editor = new PdfAnnotationEditor(
       host,
@@ -76,6 +84,7 @@ export class PdfStudyLayer {
       }
     })
     host.addEventListener("rf-pdf-render", this.refresh)
+    host.addEventListener("rf-pdf-view-change", this.cancel)
     host.addEventListener("pointerdown", this.down)
     host.addEventListener("pointermove", this.move)
     host.addEventListener("pointerup", this.up)
@@ -85,26 +94,53 @@ export class PdfStudyLayer {
     window.addEventListener("resize", this.cancel)
     window.addEventListener("blur", this.cancel)
   }
-  set(data: StudyDocument, query = this.query) {
+  set(data: StudyDocument, query = this.query, options = this.searchOptions) {
     this.data = data
     this.query = query
+    this.searchOptions = options
     this.refresh()
   }
   private unsubscribe?: () => void
+  refreshOCR() {
+    this.extendedOCR.clear()
+    this.ocrCache.invalidate()
+    this.refresh()
+  }
   setTool(tool: StudyTool) {
     this.cancel()
     this.tool = tool
     this.host.dataset.studyTool = tool
-    this.editor.enable(tool !== "erase" && tool !== "note")
+    this.editor.enable(tool !== "erase" && tool !== "note" && tool !== "hand" && tool !== "textbox")
     this.refresh()
   }
   private refresh = () => {
     if (!this.data || this.drawing || this.editor.dragging) return
-    for (const page of this.host.querySelectorAll<HTMLElement>(
-      ".rf-pdf-page[data-rendered=true]",
-    )) {
+    const rendered = [
+      ...this.host.querySelectorAll<HTMLElement>(".rf-pdf-page[data-rendered=true]"),
+    ]
+    const visible = new Set(rendered.map((p) => Number(p.dataset.page)))
+    for (const number of this.extendedOCR.keys())
+      if (!visible.has(number)) this.extendedOCR.delete(number)
+    for (const page of rendered) {
       const number = Number(page.dataset.page),
-        cached = this.data.ocr.find((p) => p.page === number)
+        cached = this.data.ocr.find((p) => p.page === number) ?? this.extendedOCR.get(number)
+      if (!cached && !this.extendedOCR.has(number)) {
+        this.extendedOCR.set(number, undefined)
+        page.dataset.ocrLoading = "true"
+        void this.ocrCache
+          .get(number)
+          .then((value) => {
+            if (!this.closed) {
+              this.extendedOCR.set(number, value)
+              delete page.dataset.ocrLoading
+              this.refresh()
+            }
+          })
+          .catch((error) => {
+            delete page.dataset.ocrLoading
+            this.workspace.fail(error)
+          })
+      }
       const old = page.querySelector<HTMLElement>(".rf-ocr-text")
       // Do not replace an unchanged OCR layer: selections and paragraph IDs stay stable.
       if (cached && (!old || this.ocrIdentity.get(old) !== cached)) {
@@ -222,27 +258,20 @@ export class PdfStudyLayer {
     const spans = [...layer.querySelectorAll<HTMLElement>("span")].filter(
       (s) => !s.childElementCount && s.textContent?.trim(),
     )
-    const runs = spans.map((span) => {
-      const raw = span.textContent,
-        left = raw.length - raw.trimStart().length
-      const starts: number[] = [],
-        ends: number[] = []
-      let text = ""
-      for (const { segment, index } of new Intl.Segmenter(undefined, {
-        granularity: "grapheme",
-      }).segment(raw.trim())) {
-        for (const char of normalizePdfSearch(segment)) {
-          if (char === " " && text.endsWith(" ")) continue
-          text += char
-          for (let i = 0; i < char.length; i++) {
-            starts.push(left + index)
-            ends.push(left + index + segment.length)
-          }
-        }
-      }
-      return { span, text, starts, ends }
-    })
-    const positions = searchText(joinPdfRuns(runs.map((r) => r.text)), this.query)
+    const runs = spans.map((span) => ({
+      span,
+      text: span.textContent.trim(),
+      left: span.textContent.length - span.textContent.trimStart().length,
+    }))
+    let positions: { start: number; end: number }[]
+    try {
+      positions = createPdfSourceMatcher(
+        this.query,
+        this.searchOptions,
+      )(joinPdfRuns(runs.map((r) => r.text)))
+    } catch {
+      return
+    }
     const overlay = document.createElement("div")
     overlay.className = "rf-search-overlay"
     const base = page.getBoundingClientRect()
@@ -251,14 +280,14 @@ export class PdfStudyLayer {
       const end = offset + run.text.length
       for (const [index, match] of positions.entries()) {
         if (match.start >= end || match.end <= offset) continue
-        const start = run.starts[Math.max(0, match.start - offset)],
-          finish = run.ends[Math.min(run.text.length, match.end - offset) - 1]
+        const start = run.left + Math.max(0, match.start - offset),
+          finish = run.left + Math.min(run.text.length, match.end - offset)
         const node = run.span.firstChild
         if (
-          start === undefined ||
-          finish === undefined ||
           !node ||
-          node.nodeType !== Node.TEXT_NODE
+          node.nodeType !== Node.TEXT_NODE ||
+          start >= finish ||
+          finish > node.textContent!.length
         )
           continue
         const range = document.createRange()
@@ -347,6 +376,22 @@ export class PdfStudyLayer {
     }
     return items
   }
+  underline(): Annotation[] {
+    return this.highlight().flatMap((a) =>
+      a.boxes.map((b) => ({
+        id: getRandomUUID(),
+        page: a.page,
+        kind: "ink" as const,
+        color: a.color,
+        boxes: [],
+        points: [
+          { x: b.x, y: clamp(b.y + b.height - 0.001) },
+          { x: clamp(b.x + b.width), y: clamp(b.y + b.height - 0.001) },
+        ],
+        text: "Gạch chân",
+      })),
+    )
+  }
   private point(event: PointerEvent, page: HTMLElement): Point {
     const box = page.getBoundingClientRect()
     return {
@@ -359,6 +404,8 @@ export class PdfStudyLayer {
       !event.isPrimary ||
       event.button !== 0 ||
       this.tool === "select" ||
+      this.tool === "hand" ||
+      this.tool === "textbox" ||
       this.tool === "edit" ||
       this.drawing
     )
@@ -485,11 +532,14 @@ export class PdfStudyLayer {
       this.host.releasePointerCapture(drawing.pointer)
   }
   destroy() {
+    this.closed = true
+    this.extendedOCR.clear()
     this.unsubscribe?.()
     this.editor.destroy()
     this.cancel()
     cancelAnimationFrame(this.focusFrame)
     this.host.removeEventListener("rf-pdf-render", this.refresh)
+    this.host.removeEventListener("rf-pdf-view-change", this.cancel)
     this.host.removeEventListener("pointerdown", this.down)
     this.host.removeEventListener("pointermove", this.move)
     this.host.removeEventListener("pointerup", this.up)

@@ -138,3 +138,12 @@ Tham khảo bố trí nhóm công cụ và điều hướng (không sao chép gi
 [Acrobat workspace](https://helpx.adobe.com/acrobat/desktop/get-started/learn-the-basics/workspace.html),
 [Firefox PDF Viewer](https://support.mozilla.org/en-US/kb/view-pdf-files-firefox-or-choose-another-viewer).
 API OCR: [Tesseract.js7](https://github.com/naptha/tesseract.js/blob/v7.0.0/docs/api.md).
+
+## Bản a.7
+
+Xem [PDF_READER_1_59_1A7.md](PDF_READER_1_59_1A7.md) cho menu, tìm kỹ thuật,
+zoom/kéo trang, in/ô chữ/gạch chân, Alt+Enter, trích trang, dải OCR/dịch và
+các giới hạn mới. Đây là bản bổ sung additive workspace DB2, không sửa Study
+DB1. Bảo toàn OCR legacy20 trang; cache mới lưu theo trang,500 trang/file,
+LRU geometry6, một worker/100 trang mỗi lượt explicit. Chỉ chữ/crop được chọn
+gửi trực tiếp OpenAI; không upload binary PDF hoặc tự chạy provider/OCR khi mở.

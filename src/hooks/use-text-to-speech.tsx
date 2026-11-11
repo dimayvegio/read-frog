@@ -1,16 +1,12 @@
 import type { TTSConfig } from "@/types/config/tts"
 import type { OpenAITTSAudioResult } from "@/types/openai-tts"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
-import { useAtomValue } from "jotai"
 import { useEffect, useRef, useState } from "react"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { OPENAI_TTS_PORT, OPENAI_TTS_VOICES } from "@/types/openai-tts"
-import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
-import { detectLanguage } from "@/utils/content/language"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { i18n } from "@/utils/i18n"
-import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { splitTextByUtf8Bytes } from "@/utils/server/edge-tts/chunk"
 import { getOpenAIAudio } from "@/utils/tts-playback/openai-audio-cache"
@@ -36,10 +32,6 @@ interface SynthesizedAudioChunk {
 
 const TTS_ERROR_TOAST_ID = "tts-synthesize-error"
 
-function toSignedValue(value: number, unit: "%" | "Hz"): string {
-  return `${value >= 0 ? "+" : ""}${value}${unit}`
-}
-
 export function selectTTSVoice(
   ttsConfig: TTSConfig,
   detectedLanguage?: string | null,
@@ -64,36 +56,6 @@ export function selectTTSVoice(
   return ttsConfig.defaultVoice
 }
 
-async function resolveVoiceForText(
-  text: string,
-  ttsConfig: TTSConfig,
-  enableLLM: boolean,
-  forcedVoice?: string,
-): Promise<string> {
-  if (forcedVoice) {
-    logger.info("[TextToSpeech] Using forced voice for text", {
-      text,
-      forcedVoice,
-    })
-    return forcedVoice
-  }
-
-  const detectedLanguage = await detectLanguage(text, {
-    minLength: 0,
-    enableLLM,
-    // Voice detection can fall back without blocking speech. Tell the user
-    // what happened and how to choose a working detection mode.
-    llmFallbackToastContext: "speak",
-  })
-  logger.info("[TextToSpeech] Resolving voice for text", {
-    text,
-    detectedLanguage,
-    enableLLM,
-  })
-
-  return selectTTSVoice(ttsConfig, detectedLanguage)
-}
-
 function getTTSFriendlyErrorDescription(error: Error): string | undefined {
   if (error.message.includes("Edge TTS returned empty audio data")) {
     return "The current voice may not support this language. Try switching to a matching voice."
@@ -114,36 +76,8 @@ function getTTSFriendlyErrorDescription(error: Error): string | undefined {
   return error.message || undefined
 }
 
-async function synthesizeEdgeTTSAudioChunk(
-  chunk: string,
-  voice: string,
-  ttsConfig: TTSConfig,
-): Promise<SynthesizedAudioChunk> {
-  const response = await sendMessage("edgeTtsSynthesize", {
-    text: chunk,
-    voice,
-    rate: toSignedValue(ttsConfig.rate, "%"),
-    pitch: toSignedValue(ttsConfig.pitch, "Hz"),
-    volume: toSignedValue(ttsConfig.volume, "%"),
-  })
-
-  if (!response.ok) {
-    throw new Error(`[${response.error.code}] ${response.error.message}`)
-  }
-
-  if (!response.audioBase64) {
-    throw new Error("Edge TTS returned empty audio data")
-  }
-
-  return {
-    audioBase64: response.audioBase64,
-    contentType: response.contentType,
-  }
-}
-
 export function useTextToSpeech() {
   const queryClient = useQueryClient()
-  const languageDetection = useAtomValue(configFieldsAtomMap.languageDetection)
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentChunk, setCurrentChunk] = useState(0)
   const [totalChunks, setTotalChunks] = useState(0)
@@ -250,66 +184,29 @@ export function useTextToSpeech() {
     isSuperseded: () => boolean,
     { text, ttsConfig, forcedVoice, signal }: PlayAudioParams & { signal: AbortSignal },
   ) {
-    const openai = ttsConfig.provider === "openai"
-    const selectedVoice = openai
-      ? selectTTSVoice(ttsConfig, undefined, forcedVoice)
-      : await resolveVoiceForText(text, ttsConfig, languageDetection.mode === "llm", forcedVoice)
-    if (isSuperseded()) {
-      return
-    }
-    const keyStatus = openai ? await sendMessage("getOpenAIKeyStatus", undefined) : null
+    // Legacy Microsoft settings remain importable, but runtime speech is OpenAI-only.
+    const selectedVoice = selectTTSVoice(
+      { ...ttsConfig, provider: "openai" },
+      undefined,
+      forcedVoice,
+    )
+    const keyStatus = await sendMessage("getOpenAIKeyStatus", undefined)
     if (isSuperseded()) return
-    if (openai && !keyStatus?.configured)
-      throw new Error("Configure an OpenAI API key in settings.")
-    const chunks = openai ? splitTextByUtf8Bytes(text, 1800) : splitTextByUtf8Bytes(text)
+    if (!keyStatus.configured) throw new Error("Configure an OpenAI API key in settings.")
+    const chunks = splitTextByUtf8Bytes(text, 1800)
     setTotalChunks(chunks.length)
-    if (isSuperseded()) {
-      return
-    }
-
     const fetchChunkAudio = async (chunk: string) => {
-      if (openai) {
+      signal.throwIfAborted()
+      const config = { ...ttsConfig.openai, voice: selectedVoice as typeof ttsConfig.openai.voice }
+      return getOpenAIAudio(queryClient, chunk, config, keyStatus.revision, signal, async () => {
+        const audio = await createPortStreamPromise<OpenAITTSAudioResult>(
+          OPENAI_TTS_PORT,
+          { requestId, text: chunk, config },
+          { signal },
+        )
         signal.throwIfAborted()
-        const config = {
-          ...ttsConfig.openai,
-          voice: selectedVoice as typeof ttsConfig.openai.voice,
-        }
-        return getOpenAIAudio(queryClient, chunk, config, keyStatus!.revision, signal, async () => {
-          const audio = await createPortStreamPromise<OpenAITTSAudioResult>(
-            OPENAI_TTS_PORT,
-            { requestId, text: chunk, config },
-            { signal },
-          )
-          signal.throwIfAborted()
-          if ("cancelled" in audio)
-            throw new DOMException("Speech request superseded", "AbortError")
-          return audio
-        })
-      }
-      logger.info("[TextToSpeech] Fetching chunk audio", {
-        text: chunk,
-        voice: selectedVoice,
-        rate: ttsConfig.rate,
-        pitch: ttsConfig.pitch,
-        volume: ttsConfig.volume,
-      })
-      return queryClient.fetchQuery({
-        queryKey: [
-          "tts-audio",
-          {
-            text: chunk,
-            voice: selectedVoice,
-            rate: ttsConfig.rate,
-            pitch: ttsConfig.pitch,
-            volume: ttsConfig.volume,
-          },
-        ],
-        queryFn: () => synthesizeEdgeTTSAudioChunk(chunk, selectedVoice, ttsConfig),
-        staleTime: Number.POSITIVE_INFINITY,
-        gcTime: 1000 * 60 * 10,
-        meta: {
-          suppressToast: true,
-        },
+        if ("cancelled" in audio) throw new DOMException("Speech request superseded", "AbortError")
+        return audio
       })
     }
 

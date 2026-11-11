@@ -86,3 +86,7 @@ describe("Translation Hub source speech", () => {
     expect(store.get(translateRequestAtom)).toMatchObject({ inputText: "Hello world" })
   })
 })
+
+vi.mock("@/components/ui/selection-popover/download-tts-button", () => ({
+  DownloadTTSButton: () => null,
+}))

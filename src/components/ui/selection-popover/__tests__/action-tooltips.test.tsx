@@ -268,3 +268,8 @@ describe("selection action tooltips", () => {
     await expectTooltipClosesOnHoverLeave(trigger!)
   })
 })
+
+// MP3 export has separate routing/ownership tests; these cases isolate speech controls.
+vi.mock("@/components/ui/selection-popover/download-tts-button", () => ({
+  DownloadTTSButton: () => null,
+}))

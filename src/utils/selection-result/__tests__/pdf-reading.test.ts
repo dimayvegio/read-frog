@@ -40,7 +40,17 @@ const record = (documentId = documentA.id, index = 1): PdfHistoryRecord => ({
 beforeEach(async () => {
   vi.clearAllMocks()
   for (const table of pdfHistoryDB.tables) await table.clear()
-  stream.mockResolvedValue({ output: "Bản dịch", thinking: { status: "complete", text: "" } })
+  stream.mockImplementation(async (payload) => ({
+    output: payload.prompt.includes('{"lines":[')
+      ? JSON.stringify({
+          lines: [
+            { id: 0, text: "Bản dịch" },
+            { id: 1, text: "Đoạn." },
+          ],
+        })
+      : "Bản dịch",
+    thinking: { status: "complete", text: "" },
+  }))
   send.mockImplementation(async (name) =>
     name === "getOpenAIKeyStatus"
       ? { configured: true, revision: 1 }
@@ -144,11 +154,11 @@ describe("PDF translation cache contracts", () => {
     await run()
     const onChunk = vi.fn<(...args: any[]) => void>(),
       onCacheState = vi.fn<(...args: any[]) => void>()
-    expect((await run({ onChunk, onCacheState })).output).toBe("Bản dịch")
+    expect((await run({ onChunk, onCacheState })).output).toBe("Bản dịch\nĐoạn.")
     expect(stream).toHaveBeenCalledTimes(1)
     expect(onCacheState).toHaveBeenCalledWith("cached")
     expect(onChunk).toHaveBeenCalledOnce()
-    expect(stream.mock.calls[0]![0].prompt).toContain("Wrapped paragraph.")
+    expect(stream.mock.calls[0]![0].prompt).toContain('"text":"Wrapped"')
   })
   it("invalidates after model, target language, instructions, credentials, cleanup or document changes", async () => {
     await run()
@@ -213,7 +223,7 @@ describe("PDF translation cache contracts", () => {
   it("keeps a successful translation visible if history storage is full", async () => {
     await pdfHistoryDB.meta.put({ key: "budget", count: 1000, bytes: 0 })
     const onCacheState = vi.fn<(...args: any[]) => void>()
-    expect((await run({ onCacheState })).output).toBe("Bản dịch")
+    expect((await run({ onCacheState })).output).toBe("Bản dịch\nĐoạn.")
     expect(onCacheState).toHaveBeenCalledWith("not-saved", expect.stringContaining("đã đầy"))
   })
   it("never saves a late completion after cancellation", async () => {

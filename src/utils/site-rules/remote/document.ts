@@ -20,7 +20,8 @@ export const REMOTE_SITE_RULES_URL = `https://rules.readfrog.app/v${REMOTE_SITE_
  * Off in development, where the rules.json being edited must be what runs (a
  * published document would otherwise replace it), and in tests.
  */
-export const REMOTE_SITE_RULES_ENABLED = !import.meta.env.DEV
+// Local fork privacy policy: rules ship only in the extension ZIP.
+export const REMOTE_SITE_RULES_ENABLED = false
 
 /** Far above the published file (about 150 KB for 500 rules). */
 export const MAX_REMOTE_SITE_RULES_LENGTH = 2 * 1024 * 1024

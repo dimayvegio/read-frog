@@ -1,4 +1,6 @@
+import type { StoredPdfOcr, PdfOcrEpoch } from "./ocr-cache"
 import type { PdfParagraph } from "./paragraphs"
+import type { TextNoteDocument } from "./text-notes"
 import type { ViewPosition } from "./viewport"
 import { Dexie, type Table } from "dexie"
 import { validBox, STUDY_COLORS } from "./study-data"
@@ -111,12 +113,18 @@ export function validateWorkspace(data: WorkspaceData) {
 }
 class WorkspaceDatabase extends Dexie {
   documents!: Table<WorkspaceData, string>
+  textNotes!: Table<TextNoteDocument, string>
+  ocrPages!: Table<StoredPdfOcr, [string, number]>
+  ocrEpochs!: Table<PdfOcrEpoch, string>
   constructor() {
     super("read-frog-pdf-workspace")
     this.version(1).stores({ documents: "id" })
+    // Additive step: v1 document records and their frozen fields are unchanged.
+    this.version(2).stores({ textNotes: "id", ocrPages: "[docId+page], docId", ocrEpochs: "docId" })
   }
 }
-const db = new WorkspaceDatabase()
+export const pdfWorkspaceDB = new WorkspaceDatabase()
+const db = pdfWorkspaceDB
 export async function loadWorkspace(id: string) {
   return validateWorkspace((await db.documents.get(id)) ?? emptyWorkspace(id))
 }

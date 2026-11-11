@@ -1,15 +1,15 @@
 import { PageLayout } from "../../components/page-layout"
 export function HelpAndCommunityPage() {
   return (
-    <PageLayout title="Help" description="OpenAI text translation and OpenAI / Microsoft speech">
+    <PageLayout title="Help" description="OpenAI text translation and OpenAI speech">
       <div className="max-w-2xl space-y-4 text-sm">
         <p>
           Save your OpenAI API key and choose a model in OpenAI settings. Page translation,
           selection translation, input translation and custom actions use that same configuration.
         </p>
         <p>
-          Choose Microsoft or OpenAI under Text-to-Speech. OpenAI speech uses the same saved API key
-          with a separate speech model and voices. Microsoft speech works independently of the key.
+          Choose a model and voice under Text-to-Speech. OpenAI speech uses the same saved API key
+          with a separate speech model and voices. This build does not use Microsoft speech.
         </p>
         <p>
           Use Preferences to export settings and glossary data. Exports never contain the saved API

@@ -74,7 +74,7 @@ export function ApiProvidersPage() {
       queryClient.setQueryData(["openai-key-status"], next)
       setFeedback(
         remove
-          ? "API key deleted. Your settings and Microsoft TTS are retained."
+          ? "API key deleted. Your settings are retained; OpenAI speech requires a saved key."
           : "API key saved on this device.",
       )
     } catch {

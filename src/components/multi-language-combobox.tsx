@@ -1,9 +1,9 @@
 import type { LanguageTag } from "@read-frog/definitions"
 import type { LanguageItem } from "./language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
-import { Icon } from "@iconify/react"
 import { languageTagSchema } from "@read-frog/definitions"
 import { useMemo } from "react"
+import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Combobox,

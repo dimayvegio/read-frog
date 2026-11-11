@@ -57,7 +57,7 @@ afterEach(() => {
 })
 
 describe("explicit OpenAI MP3 button", () => {
-  it("shows only for OpenAI and never calls the API or downloads on mount", () => {
+  it("offers OpenAI export even for legacy settings, without calling or downloading on mount", () => {
     const { wrapper, store } = setup()
     const view = render(<DownloadTTSButton text="hello" showLabel />, { wrapper })
     expect(screen.getByRole("button").getAttribute("data-tts-download")).not.toBeNull()
@@ -66,7 +66,7 @@ describe("explicit OpenAI MP3 button", () => {
     act(() =>
       store.set(configAtom, { ...DEFAULT_CONFIG, tts: { ...openai, provider: "microsoft" } }),
     )
-    expect(view.container.querySelector("button")).toBeNull()
+    expect(view.container.querySelector("button")).not.toBeNull()
   })
   it("exports a full long passage including uncached chunks, then reuses all audio without claiming playback", async () => {
     const { wrapper, client } = setup(),

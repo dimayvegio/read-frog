@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react"
 import { createStore, Provider } from "jotai"
 import { afterEach, describe, expect, it, vi } from "vitest"
+import { DEFAULT_TTS_CONFIG } from "@/utils/constants/tts"
 
 const sendMessageMock = vi.fn<(type: string, data?: any) => Promise<any>>()
 const detectLanguageMock =
@@ -26,6 +27,7 @@ vi.mock("@/components/ui/base-ui/toast", () => ({
 const { useTextToSpeech } = await import("../use-text-to-speech")
 
 const ttsConfig = {
+  ...DEFAULT_TTS_CONFIG,
   defaultVoice: "en-US-DavisNeural",
   languageVoices: {},
   rate: 0,
@@ -62,7 +64,7 @@ describe("useTextToSpeech superseded runs", () => {
     detectLanguageMock.mockResolvedValue("eng")
     const started: string[] = []
     sendMessageMock.mockImplementation(async (type, data) => {
-      if (type === "edgeTtsSynthesize") {
+      if (type === "openai-test-synthesis") {
         return data.text === "A"
           ? slowFetch.promise
           : { ok: true, audioBase64: data.text, contentType: "audio/mpeg" }
@@ -71,7 +73,7 @@ describe("useTextToSpeech superseded runs", () => {
         started.push(data.audioBase64)
         return { ok: true }
       }
-      return undefined
+      return type === "getOpenAIKeyStatus" ? { configured: true, revision: 1 } : undefined
     })
 
     const { result } = renderHook(() => useTextToSpeech(), { wrapper })
@@ -83,14 +85,11 @@ describe("useTextToSpeech superseded runs", () => {
     await waitFor(() =>
       expect(
         sendMessageMock.mock.calls.some(
-          ([type, data]) => type === "edgeTtsSynthesize" && data.text === "A",
+          ([type, data]) => type === "openai-test-synthesis" && data.text === "A",
         ),
       ).toBe(true),
     )
-    expect(detectLanguageMock).toHaveBeenCalledWith(
-      "A",
-      expect.objectContaining({ llmFallbackToastContext: "speak" }),
-    )
+    expect(detectLanguageMock).not.toHaveBeenCalled()
     await act(async () => {
       await result.current.play("B", ttsConfig)
     })
@@ -109,13 +108,13 @@ describe("useTextToSpeech superseded runs", () => {
     const slowFetch = deferred<{ ok: false; error: { code: string; message: string } }>()
     detectLanguageMock.mockResolvedValue("eng")
     sendMessageMock.mockImplementation(async (type, data) => {
-      if (type === "edgeTtsSynthesize") {
+      if (type === "openai-test-synthesis") {
         return data.text === "A"
           ? slowFetch.promise
           : { ok: true, audioBase64: data.text, contentType: "audio/mpeg" }
       }
       if (type === "ttsPlaybackStart") return { ok: true }
-      return undefined
+      return type === "getOpenAIKeyStatus" ? { configured: true, revision: 1 } : undefined
     })
     const { toastManager } = await import("@/components/ui/base-ui/toast")
 
@@ -127,7 +126,7 @@ describe("useTextToSpeech superseded runs", () => {
     await waitFor(() =>
       expect(
         sendMessageMock.mock.calls.some(
-          ([type, data]) => type === "edgeTtsSynthesize" && data.text === "A",
+          ([type, data]) => type === "openai-test-synthesis" && data.text === "A",
         ),
       ).toBe(true),
     )
@@ -146,9 +145,11 @@ describe("useTextToSpeech failures", () => {
   it("reports a failed run with a toast, unless it is a quiet one nobody pressed for", async () => {
     detectLanguageMock.mockResolvedValue("eng")
     sendMessageMock.mockImplementation(async (type) =>
-      type === "edgeTtsSynthesize"
+      type === "openai-test-synthesis"
         ? { ok: false, error: { code: "NETWORK_ERROR", message: "offline" } }
-        : undefined,
+        : type === "getOpenAIKeyStatus"
+          ? { configured: true, revision: 1 }
+          : undefined,
     )
     const { toastManager } = await import("@/components/ui/base-ui/toast")
     const { result } = renderHook(() => useTextToSpeech(), { wrapper })
@@ -164,3 +165,11 @@ describe("useTextToSpeech failures", () => {
     expect(toastManager.add).toHaveBeenCalledOnce()
   })
 })
+
+vi.mock("@/utils/content-script/port-streaming", () => ({
+  createPortStreamPromise: async (_name: string, data: unknown) => {
+    const audio = await sendMessageMock("openai-test-synthesis", data)
+    if (!audio.ok) throw new Error(audio.error.message)
+    return audio
+  },
+}))

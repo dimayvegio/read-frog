@@ -49,7 +49,7 @@ export const preparePdfWorker = async () => {
       body.text?.format?.schema?.properties?.translation
     const original =
       globalThis.__imageOutput ?? "Read Frog image fixture.\nRemember the words you learn."
-    const output = pair
+    let output = pair
         ? (globalThis.__quickOutput ??
           JSON.stringify({
             original,
@@ -61,6 +61,34 @@ export const preparePdfWorker = async () => {
             ? globalThis.__pdfTextOutput(body)
             : `Bản dịch PDF số ${__pdfCalls.length}. Đây là văn bản tiếng Việt có dấu.`,
       delay = __pdfDelay
+    if (!imageInput && JSON.stringify(body).includes("pdf-layout-cells-v1")) {
+      // Extract source text from SDK Responses input, then parse the indexed JSON object.
+      const visit = (value) =>
+        typeof value === "string"
+          ? [value]
+          : Array.isArray(value)
+            ? value.flatMap(visit)
+            : value && typeof value === "object"
+              ? Object.values(value).flatMap(visit)
+              : []
+      for (const text of visit(body.input)) {
+        const start = text.indexOf('{"lines":[')
+        if (start < 0) continue
+        let parsed
+        for (let end = text.length; end > start; end--) {
+          try {
+            parsed = JSON.parse(text.slice(start, end))
+            break
+          } catch {}
+        }
+        if (parsed?.lines) {
+          output = JSON.stringify({
+            lines: parsed.lines.map((line) => ({ id: line.id, text: output })),
+          })
+          break
+        }
+      }
+    }
     const response = {
       id: "resp_pdf",
       object: "response",

@@ -188,11 +188,12 @@ try {
     (await calls()) === 1 && (await records()).length === 1,
   )
   check(
-    "PDF line cleanup joins prose while preserving paragraph breaks",
+    "PDF adapter sends indexed rows without merging source structure",
     await worker.evaluate(
       () =>
-        JSON.stringify(__pdfCalls[0].body).includes("reverse the structural demand.") &&
-        JSON.stringify(__pdfCalls[0].body).includes("\\n\\nAnother paragraph."),
+        JSON.stringify(__pdfCalls[0].body).includes("pdf-layout-cells-v1") &&
+        JSON.stringify(__pdfCalls[0].body).includes("Another paragraph.") &&
+        !JSON.stringify(__pdfCalls[0].body).includes("reverse the structural demand."),
     ),
   )
   check(
@@ -241,8 +242,10 @@ try {
     "Disabling cleanup preserves raw newlines and creates a distinct cache variant",
     (await calls()) === 2 &&
       (await records()).length === 2 &&
-      (await worker.evaluate(() =>
-        JSON.stringify(__pdfCalls[1].body).includes("reverse\\nthe structural demand."),
+      (await worker.evaluate(
+        () =>
+          JSON.stringify(__pdfCalls[1].body).includes("pdf-layout-cells-v1") &&
+          !JSON.stringify(__pdfCalls[1].body).includes("reverse the structural demand."),
       )),
   )
   await panel.click('[data-testid="pdf-reading-controls"] input[type="checkbox"]')

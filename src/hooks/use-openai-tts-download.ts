@@ -46,7 +46,7 @@ export function useOpenAITTSDownload(text: string | undefined) {
     setState(null)
   }
   const download = async () => {
-    if (run.current || tts.provider !== "openai" || !text?.trim()) return
+    if (run.current || !text?.trim()) return
     if (text.length > OPENAI_TTS_EXPORT_MAX_TEXT_LENGTH) {
       toastManager.add({
         type: "error",
@@ -109,5 +109,5 @@ export function useOpenAITTSDownload(text: string | undefined) {
       }
     }
   }
-  return { download, cancel, progress, available: tts.provider === "openai" }
+  return { download, cancel, progress, available: true }
 }

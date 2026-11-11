@@ -3,16 +3,7 @@ import type { Config } from "@/types/config/config"
 import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { PdfReaderSource } from "@/utils/selection-result/reading-position"
 import { sha256 } from "js-sha256"
-import {
-  BookOpen,
-  FolderOpen,
-  Languages,
-  ScanLine,
-  ChevronLeft,
-  ChevronRight,
-  RotateCcw,
-  FileText,
-} from "lucide-react"
+import { BookOpen, FolderOpen, Languages, ScanLine, RotateCcw, FileText } from "lucide-react"
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist"
 // oxlint-disable-next-line import/default -- Vite's ?url asset import has a generated default export.
 import workerURL from "pdfjs-dist/build/pdf.worker.min.mjs?url"
@@ -25,6 +16,8 @@ import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
 import { PdfAutosave } from "./autosave"
 import { PdfBilingualPane, type PdfBilingualHandle } from "./bilingual-pane"
+import { PdfDocumentActions } from "./document-actions"
+import { PdfReaderNavigation } from "./reader-navigation"
 import { PdfStudyTools } from "./study-tools"
 import { PdfViewport, type ViewPosition } from "./viewport"
 
@@ -239,6 +232,49 @@ export function PdfReader({ config }: { config: Config }) {
     }
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- startup source is immutable; file picker starts subsequent loads explicitly.
   }, [])
+  const translateSelection = () => {
+    if (!documentInfo || !selection || host.current?.dataset.studyTool !== "select") return
+    setBilingual(false)
+    setRequest({
+      id: getRandomUUID(),
+      text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,
+      tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
+      createdAt: Date.now(),
+      document: { id: documentInfo.historyId, title: documentInfo.title },
+      source: {
+        kind: "pdf",
+        documentId: documentInfo.id,
+        page: selectionPage,
+      },
+    })
+    setSelection("")
+  }
+  useEffect(() => {
+    const key = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        !event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.key !== "Enter" ||
+        (event.target as Element)?.closest("input,textarea,select,[contenteditable=true]")
+      )
+        return
+      const selected = window.getSelection()
+      if (
+        !selected?.anchorNode ||
+        !selected.focusNode ||
+        !host.current?.contains(selected.anchorNode) ||
+        !host.current.contains(selected.focusNode) ||
+        !selected.toString().trim()
+      )
+        return
+      event.preventDefault()
+      translateSelection()
+    }
+    window.addEventListener("keydown", key)
+    return () => window.removeEventListener("keydown", key)
+  })
   return (
     <main className="rf-reader">
       <header className="rf-reader-toolbar">
@@ -296,62 +332,20 @@ export function PdfReader({ config }: { config: Config }) {
               <ScanLine size={17} /> {shotBusy ? "Đang chụp…" : "Chụp vùng & dịch ảnh"}
             </button>
 
-            <div className="rf-reader-navigation">
-              <button
-                type="button"
-                aria-label="Trang trước"
-                disabled={view.page <= 1}
-                onClick={() => current.current?.viewport?.navigate(view.page - 1)}
-              >
-                <ChevronLeft size={17} />
-              </button>
-              <label>
-                Trang{" "}
-                <input
-                  key={view.page}
-                  aria-label="Số trang"
-                  type="number"
-                  min="1"
-                  max={documentInfo.count}
-                  defaultValue={view.page}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      const value = Number(event.currentTarget.value)
-                      if (Number.isInteger(value)) current.current?.viewport?.navigate(value)
-                    }
-                  }}
-                  onBlur={(event) => {
-                    const value = Number(event.currentTarget.value)
-                    if (Number.isInteger(value)) current.current?.viewport?.navigate(value)
-                  }}
-                />{" "}
-                / {documentInfo.count}
-              </label>
-              <button
-                type="button"
-                aria-label="Trang sau"
-                disabled={view.page >= documentInfo.count}
-                onClick={() => current.current?.viewport?.navigate(view.page + 1)}
-              >
-                <ChevronRight size={17} />
-              </button>
-              <select
-                aria-label="Thu phóng"
-                value={view.zoom}
-                onChange={(event) =>
-                  current.current?.viewport?.setZoom(
-                    event.target.value === "fit-width" ? "fit-width" : Number(event.target.value),
-                  )
-                }
-              >
-                <option value="fit-width">Vừa chiều rộng</option>
-                {[0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map((n) => (
-                  <option key={n} value={n}>
-                    {n * 100}%
-                  </option>
-                ))}
-              </select>
-            </div>
+            <PdfReaderNavigation
+              key={documentInfo.id}
+              viewport={documentInfo.viewport}
+              view={view}
+              count={documentInfo.count}
+            />
+            <PdfDocumentActions
+              key={`actions-${documentInfo.id}`}
+              file={documentInfo.file}
+              pdf={documentInfo.pdf}
+              viewport={documentInfo.viewport}
+              title={documentInfo.title}
+            />
+
             <button
               type="button"
               onClick={async () => {
@@ -406,23 +400,7 @@ export function PdfReader({ config }: { config: Config }) {
           onOpenAiOcr={captureImage}
           imageBusy={shotBusy}
           hasSelection={!!selection}
-          onTranslateSelection={() => {
-            if (!selection || host.current?.dataset.studyTool !== "select") return
-            setBilingual(false)
-            setRequest({
-              id: getRandomUUID(),
-              text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,
-              tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
-              createdAt: Date.now(),
-              document: { id: documentInfo.historyId, title: documentInfo.title },
-              source: {
-                kind: "pdf",
-                documentId: documentInfo.id,
-                page: selectionPage,
-              },
-            })
-            setSelection("")
-          }}
+          onTranslateSelection={translateSelection}
         />
       )}
       <div className="rf-reader-body">
@@ -485,6 +463,7 @@ export function PdfReader({ config }: { config: Config }) {
             key={documentInfo.id}
             ref={bilingualPane}
             viewport={documentInfo.viewport}
+            pdf={documentInfo.pdf}
             document={{ id: documentInfo.historyId, title: documentInfo.title }}
             pageCount={documentInfo.count}
             onBusy={setBilingualBusy}

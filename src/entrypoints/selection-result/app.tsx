@@ -27,6 +27,7 @@ import { getLocalConfig } from "@/utils/config/storage"
 import { StreamPortError } from "@/utils/content-script/port-streaming"
 import { i18n } from "@/utils/i18n"
 import { sendMessage } from "@/utils/message"
+import { prepareStructuredPdfText } from "@/utils/selection-result/pdf-structure"
 import {
   preparePdfText,
   DEFAULT_PDF_TEXT_OPTIONS,
@@ -233,13 +234,15 @@ export function SelectionTranslation({
                     onTextOptions({ ...textOptions, clean: event.target.checked })
                   }}
                 />
-                Nối dòng giữa câu; giữ đoạn, danh sách và bảng
+                {request.document
+                  ? "Chuẩn hóa Unicode; giữ nguyên dòng, danh sách và ô bảng"
+                  : "Nối dòng giữa câu; giữ đoạn, danh sách và bảng"}
               </label>
               <label className="flex items-start gap-2">
                 <input
                   type="checkbox"
                   checked={textOptions.joinHyphenatedWords}
-                  disabled={!textOptions.clean}
+                  disabled={!textOptions.clean || !!request.document}
                   onChange={(event) => {
                     setHistorical(null)
                     setBypassCache(false)
@@ -262,7 +265,9 @@ export function SelectionTranslation({
               <details>
                 <summary className="cursor-pointer text-xs">Văn bản dùng để dịch</summary>
                 <pre className="mt-1 max-h-28 overflow-y-auto text-xs break-words whitespace-pre-wrap">
-                  {preparePdfText(sourceText, textOptions)}
+                  {request.document
+                    ? prepareStructuredPdfText(sourceText, textOptions)
+                    : preparePdfText(sourceText, textOptions)}
                 </pre>
               </details>
             </div>

@@ -256,13 +256,7 @@ export function PronunciationPractice() {
           "Read the English practice text in clear, natural General American English. Use American word stress and rhythm, with a rhotic r. Do not translate or add commentary.",
       },
     }
-    void play(
-      text,
-      us,
-      ttsConfig.provider === "microsoft"
-        ? { forcedVoice: "en-US-AndrewMultilingualNeural" }
-        : undefined,
-    ).catch(() => setMessage("Chưa nghe được mẫu. Kiểm tra cấu hình TTS."))
+    void play(text, us).catch(() => setMessage("Chưa nghe được mẫu. Kiểm tra cấu hình TTS."))
   }
   const feedback = result?.attempt.feedback
   return (

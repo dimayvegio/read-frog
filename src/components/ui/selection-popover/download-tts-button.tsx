@@ -1,8 +1,6 @@
 import { IconDownload, IconPlayerStopFilled } from "@tabler/icons-react"
-import { useAtomValue } from "jotai"
 import { Button } from "@/components/ui/base-ui/button"
 import { useOpenAITTSDownload } from "@/hooks/use-openai-tts-download"
-import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { i18n } from "@/utils/i18n"
 
 export function DownloadTTSButton({
@@ -12,8 +10,6 @@ export function DownloadTTSButton({
   text: string | undefined
   showLabel?: boolean
 }) {
-  const tts = useAtomValue(configFieldsAtomMap.tts)
-  if (tts.provider !== "openai") return null
   return <OpenAIDownloadButton text={text} showLabel={showLabel} />
 }
 

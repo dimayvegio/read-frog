@@ -43,7 +43,6 @@ import { handleReadingLabPort, setupReadingLabHandlers } from "./reading-lab"
 import { handleSentenceStudyPort } from "./sentence-study"
 import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
-import { setUpSiteRulesUpdate } from "./site-rules-update"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { setupTabAudioHandlers } from "./tab-audio"
 import { translationMessage } from "./translation-signal"
@@ -56,7 +55,8 @@ import { handleVocabularyPort, setupVocabularyHandlers, VOCABULARY_PORT } from "
 export default defineBackground({
   type: "module",
   main: () => {
-    setUpSiteRulesUpdate()
+    // Retire alarms created by older builds; no rules server requests.
+    void browser.alarms.clear("site-rules-update")
     void ensureRemoteSiteRulesLoaded()
     setBackgroundConfigReadyResolver(ensureInitializedConfig)
     // MV3 listeners register in this turn; handlers await the shared bootstrap.

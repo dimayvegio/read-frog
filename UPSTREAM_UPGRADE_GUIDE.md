@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.6` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.6` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.59.1-a.7` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.7` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.59.1A`                                  |
 | Schema cấu hình của fork                 | `125`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
@@ -660,3 +660,13 @@ Các kết quả Edge ở trên là production build với fixture, không phả
 SHA-256: `7EA6F21E05B94CACA6DFC195C1E7797CB06EF70AEBB588C1FA43169314FEE0F9`.
 Đã kiểm tra các file entrypoint của manifest tồn tại và không đóng gói fixture,
 profile, `.env`, `.pem`, CRX hoặc các sentinel key dùng trong test.
+
+## Local a.7: dải trang và chính sách mạng
+
+Đọc [PDF_READER_1_59_1A7.md](PDF_READER_1_59_1A7.md) trước khi merge. Không
+khôi phục Microsoft TTS, remote site-rules updater, Iconify online, hosted
+PDF/OCR/translation relay. Chỉ OpenAI xử lý nội dung; native caption/PDF URL
+GET và opt-in Edge storage.sync giữ chức năng nguồn/vận chuyển, không upload
+PDF. Không sửa migration/config125 hay workspace `.version(1)` đã phát hành;
+DB2 chỉ thêm ba store. Giữ structured PDF adapter/cache identity, bounded
+range cancellation, metadata source guards và production privacy assertions.
