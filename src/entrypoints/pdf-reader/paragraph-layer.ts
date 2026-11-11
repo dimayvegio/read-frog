@@ -48,11 +48,17 @@ export class PdfParagraphLayer {
       if (
         records.every(
           (record) =>
-            (record.target instanceof Element && record.target.closest(".rf-paragraph-overlays")) ||
+            (record.target instanceof Element &&
+              record.target.closest(
+                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection",
+              )) ||
             (record.type === "childList" &&
               [...record.addedNodes, ...record.removedNodes].every(
                 (node) =>
-                  node instanceof Element && node.classList.contains("rf-paragraph-overlays"),
+                  node instanceof Element &&
+                  node.matches(
+                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection",
+                  ),
               )),
         )
       )
@@ -96,7 +102,13 @@ export class PdfParagraphLayer {
       this.publish({ ...this.snapshot, status: "off", paragraphs: [], activeId: null })
     }
   }
-  private intent = () => {
+  private intent = (event: Event) => {
+    if (
+      event.type === "pointerdown" &&
+      this.host.dataset.studyTool &&
+      this.host.dataset.studyTool !== "select"
+    )
+      return
     this.paneUntil = 0
   }
   private publish(next: BilingualSnapshot) {
@@ -198,6 +210,7 @@ export class PdfParagraphLayer {
   }
   private clicked = (event: MouseEvent) => {
     if (
+      (this.host.dataset.studyTool && this.host.dataset.studyTool !== "select") ||
       !(event.target instanceof Element) ||
       event.target.closest("button") ||
       window.getSelection()?.isCollapsed === false

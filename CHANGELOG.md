@@ -1,5 +1,10 @@
 # @read-frog/extension
 
+## 1.59.1A — build a.2
+
+- fix(pdf): unify reader colors, add responsive free ellipses and move/resize controls, make search/outline/page panels movable and resizable, separate annotation interactions from bilingual reading, and repair solid-dot list and hanging-indent paragraph grouping.
+- perf(pdf): batch pointer previews per frame and avoid annotation-only paragraph scans; document controlled main-thread timings and remaining live-profile limits in `PDF_READER_UX_1_59_1A2.md`.
+
 ## 1.59.1A — local OpenAI fork
 
 - feat(pdf): add colored circle, square and rectangle tools using compatible closed ink paths, persistent undo/erase and annotated PDF export.

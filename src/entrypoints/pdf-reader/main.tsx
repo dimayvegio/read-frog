@@ -2,7 +2,10 @@ import { mountExtensionPage, showSelectionRecovery } from "../selection-result/b
 import { PdfReader } from "./app"
 import "pdfjs-dist/web/pdf_viewer.css"
 import "./reader.css"
-void mountExtensionPage((config) => <PdfReader config={config} />)
+// The reader chrome uses a light document palette. Keep all shared controls,
+// native selects and portalled menus on that same theme without changing the
+// user's stored theme for other extension pages.
+void mountExtensionPage((config) => <PdfReader config={config} />, { forcedTheme: "light" })
   .then(() => {
     document.title = "Đọc PDF | Read Frog"
     const controller = new AbortController()

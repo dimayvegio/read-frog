@@ -126,7 +126,7 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
         Lưu vào sổ
         <select
           aria-label="Lưu vào sổ"
-          className="min-h-8 min-w-0 flex-1 rounded border bg-background px-2 text-xs"
+          className="min-h-8 min-w-0 flex-1 rounded border bg-background px-2 text-xs text-foreground"
           value={notebookId}
           disabled={pending || !notebooks.length}
           onChange={(event) => {
@@ -155,7 +155,7 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
               value={existingId}
               onChange={(event) => setExistingId(event.target.value)}
               disabled={pending}
-              className="min-h-8 max-w-64 rounded border bg-background text-xs"
+              className="min-h-8 max-w-64 rounded border bg-background text-xs text-foreground"
             >
               {matches.map((word) => (
                 <option key={word.id} value={word.id}>

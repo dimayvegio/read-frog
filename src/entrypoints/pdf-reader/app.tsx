@@ -420,6 +420,10 @@ export function PdfReader({ config }: { config: Config }) {
             aria-label="Nội dung PDF"
             tabIndex={0}
             onMouseUp={() => {
+              if (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select") {
+                setSelection("")
+                return
+              }
               const selected = window.getSelection()
               setSelectionPage(
                 Number(
@@ -437,6 +441,8 @@ export function PdfReader({ config }: { config: Config }) {
               )
             }}
             onKeyUp={() => {
+              if (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select")
+                return
               const selected = window.getSelection()
               setSelectionPage(
                 Number(

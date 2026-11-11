@@ -1,6 +1,6 @@
 import "@/utils/zod-config"
 import type { Config } from "@/types/config/config"
-import type { ThemeMode } from "@/types/config/theme"
+import type { Theme, ThemeMode } from "@/types/config/theme"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Provider as JotaiProvider } from "jotai"
 import { useHydrateAtoms } from "jotai/utils"
@@ -37,7 +37,10 @@ function Hydrate({
 
 export const mountSelectionResult = (panel = false) =>
   mountExtensionPage(() => <App panel={panel} />)
-export async function mountExtensionPage(view: (config: Config) => React.ReactNode) {
+export async function mountExtensionPage(
+  view: (config: Config) => React.ReactNode,
+  { forcedTheme }: { forcedTheme?: Theme } = {},
+) {
   const [config, theme] = await Promise.all([getLocalConfig(), getLocalThemeMode()])
   await initI18n(config.uiLanguage)
   document.title = `${i18n.t("selectionResult.title")} | Read Frog`
@@ -46,7 +49,7 @@ export async function mountExtensionPage(view: (config: Config) => React.ReactNo
     <QueryClientProvider client={queryClient}>
       <JotaiProvider>
         <Hydrate config={config} theme={theme}>
-          <ThemeProvider>
+          <ThemeProvider forcedTheme={forcedTheme}>
             <TooltipProvider>
               <ToastProvider>
                 <AnchoredToastProvider>{view(config)}</AnchoredToastProvider>

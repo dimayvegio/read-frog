@@ -2,6 +2,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve F24 a.2 interaction fixes in [PDF_READER_UX_1_59_1A2.md](PDF_READER_UX_1_59_1A2.md): PDF-only consistent light theme without changing stored theme elsewhere; free ellipses with Shift-constrained circles; move/eight-handle resize/keyboard on existing ink paths with one revision/undo per completed gesture, cancellation and bounded coordinates. Keep pointer previews independent of database writes, floating search/outline/page panels with viewport bounds, drawing/editing separate from native selection and bilingual paragraph picking, decorator-only mutation filtering, solid-dot bullet and hanging-indent grouping. Do not change published schemas or start provider calls from these controls.
+
 - Current upstream baseline is v1.59.1 (`56d05e33`), fork config125 with frozen v124-to-v125 migration and additive AppDB7 glossary tags. Preserve migrations1–124 and all published feature DB/ZIP/report formats. Edge sync writes transport2/config125 and reads frozen transport1/config124 too: verify raw checksum before migration, retain vector clocks and legacy recovery/undo. Never downgrade/project unknown newer fields. See [UPSTREAM_1_59_1_REPORT.md](UPSTREAM_1_59_1_REPORT.md).
 - Preserve F24 closed-ink circle/square/rectangle tools, physical page aspect ratios, four colors, cancel-before-commit and existing undo/erase/export compatibility. Keep lazy measured page geometry with exact resume/navigation, three canvases, one bounded OCR worker per explicit range and document-owned bounded text LRU. Benchmark before/after sequentially on identical fixtures; report cold-search cost and JS/cache versus OS memory honestly. See [PDF_PERFORMANCE_1_59_1.md](PDF_PERFORMANCE_1_59_1.md).
 

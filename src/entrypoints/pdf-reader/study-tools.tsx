@@ -6,6 +6,7 @@ import {
   Search,
   PanelLeft,
   MousePointer2,
+  Move,
   Pencil,
   Circle,
   Square,
@@ -18,12 +19,15 @@ import {
   MessageSquareText,
   ScanText,
   Download,
-  X,
+  FileText,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { LocalPdfOcr } from "./local-ocr"
 import { loadStudy, saveStudy, compilePdfSearch, STUDY_COLORS } from "./study-data"
 import { PdfStudyLayer } from "./study-layer"
+import { StudyPanel } from "./study-panel"
 import { PdfTextIndex } from "./text-index"
 
 type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr"
@@ -59,6 +63,8 @@ export function PdfStudyTools({
   const [query, setQuery] = useState(""),
     [hits, setHits] = useState<Hit[]>([]),
     [searching, setSearching] = useState(false)
+  const [activeHit, setActiveHit] = useState(-1),
+    [outlineQuery, setOutlineQuery] = useState("")
   const [outline, setOutline] = useState<Outline[]>([]),
     [pageGroup, setPageGroup] = useState(0)
   const [language, setLanguage] = useState("eng"),
@@ -129,6 +135,20 @@ export function PdfStudyTools({
       (p) => ({ ...p, annotations: p.annotations.filter((a) => a.id !== annotationId) }),
       true,
     )
+  const update = async (before: Annotation, after: Annotation, current: () => boolean) => {
+    if (dataRef.current?.annotations.find((item) => item.id === before.id) !== before) {
+      setMessage("Chú thích đã thay đổi. Hãy chọn lại hình trước khi sửa.")
+      return false
+    }
+    return write(
+      (p) => ({
+        ...p,
+        annotations: p.annotations.map((item) => (item.id === before.id ? after : item)),
+      }),
+      true,
+      current,
+    )
+  }
   const reverse = async (direction: "undo" | "redo") => {
     const from = direction === "undo" ? undo.current : redo.current
     const to = direction === "undo" ? redo.current : undo.current
@@ -146,7 +166,7 @@ export function PdfStudyTools({
     alive.current = true
     const index = new PdfTextIndex(pdf)
     textIndex.current = index
-    const controller = new PdfStudyLayer(viewport.element, add, remove)
+    const controller = new PdfStudyLayer(viewport.element, add, remove, update)
     layer.current = controller
     void loadStudy(id)
       .then((value) => {
@@ -179,6 +199,7 @@ export function PdfStudyTools({
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "f") {
         event.preventDefault()
         setPanel("search")
+        setTool("select")
         searchInput.current?.focus()
       } else if (!edit && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
         event.preventDefault()
@@ -225,6 +246,7 @@ export function PdfStudyTools({
     ++searchRun.current
     setQuery(value)
     setHits([])
+    setActiveHit(-1)
     setSearching(false)
     if (dataRef.current) layer.current?.set(dataRef.current, "")
   }
@@ -234,6 +256,7 @@ export function PdfStudyTools({
     if (!needle || !dataRef.current) return
     setSearching(true)
     setHits([])
+    setActiveHit(-1)
     layer.current?.set(dataRef.current, needle)
     const found: Hit[] = []
     const matchText = compilePdfSearch(needle),
@@ -325,7 +348,17 @@ export function PdfStudyTools({
       }
     }
   }
-  const toggle = (next: Panel) => setPanel((p) => (p === next ? "" : next))
+  const toggle = (next: Panel) => {
+    setPanel((p) => (p === next ? "" : next))
+    setTool("select")
+  }
+  const pickHit = (index: number) => {
+    const hit = hits[index]
+    if (!hit) return
+    setActiveHit(index)
+    layer.current?.focusMatch(hit.page, hit.index)
+    viewport.navigate(hit.page)
+  }
   return (
     <section className="rf-study-tools" aria-label="Công cụ đọc PDF">
       <div className="rf-study-toolbar">
@@ -340,7 +373,7 @@ export function PdfStudyTools({
         <button
           type="button"
           aria-expanded={panel === "outline" || panel === "pages"}
-          onClick={() => toggle("outline")}
+          onClick={() => toggle(outline.length ? "outline" : "pages")}
         >
           <PanelLeft size={17} /> Mục lục / Trang
         </button>
@@ -348,6 +381,7 @@ export function PdfStudyTools({
           {(
             [
               { value: "select", label: "Chọn chữ", Icon: MousePointer2 },
+              { value: "edit", label: "Chọn / sửa hình", Icon: Move },
               { value: "ink", label: "Vẽ", Icon: Pencil },
               { value: "circle", label: "Hình tròn", Icon: Circle },
               { value: "square", label: "Hình vuông", Icon: Square },
@@ -361,7 +395,9 @@ export function PdfStudyTools({
               type="button"
               className="rf-icon-button"
               aria-label={label}
-              title={label}
+              title={
+                value === "circle" ? "Tròn / elip: kéo ngang dọc; giữ Shift để vẽ tròn" : label
+              }
               aria-pressed={tool === value}
               onClick={() => setTool(value)}
             >
@@ -449,29 +485,36 @@ export function PdfStudyTools({
           <Download size={17} /> {exporting ? "Đang xuất…" : "Tải PDF có chú thích"}
         </button>
       </div>
+      {tool === "edit" && (
+        <p className="rf-tool-hint">
+          Bấm vào hình để chọn. Kéo trong hình để di chuyển; kéo các chốt cạnh/góc để đổi kích
+          thước.
+        </p>
+      )}
+      {tool === "circle" && (
+        <p className="rf-tool-hint">
+          Kéo để vẽ elip ngang/dọc. Giữ Shift để vẽ hình tròn. Chọn “Chọn / sửa hình” để di chuyển
+          hoặc đổi kích thước sau khi vẽ.
+        </p>
+      )}
       {message && (
         <p role="status" className="rf-study-message">
           {message}
         </p>
       )}
       {panel && (
-        <aside className="rf-study-panel" aria-label="Menu PDF">
-          <header>
-            <strong>
-              {
-                {
-                  search: "Tìm trong tài liệu",
-                  outline: "Mục lục",
-                  pages: "Danh sách trang",
-                  annotations: "Chú thích",
-                  ocr: "Nhận dạng chữ PDF scan",
-                }[panel]
-              }
-            </strong>
-            <button type="button" aria-label="Đóng menu PDF" onClick={() => setPanel("")}>
-              <X size={17} />
-            </button>
-          </header>
+        <StudyPanel
+          title={
+            {
+              search: "Tìm trong tài liệu",
+              outline: "Mục lục",
+              pages: "Danh sách trang",
+              annotations: "Chú thích",
+              ocr: "Nhận dạng chữ PDF scan",
+            }[panel]
+          }
+          onClose={() => setPanel("")}
+        >
           {panel === "search" && (
             <>
               <form
@@ -483,6 +526,9 @@ export function PdfStudyTools({
                 <input
                   ref={searchInput}
                   aria-label="Từ khóa PDF"
+                  type="search"
+                  placeholder="Nhập từ hoặc mẫu abx*xyz"
+                  autoComplete="off"
                   value={query}
                   maxLength={200}
                   onChange={(e) => changeQuery(e.target.value)}
@@ -502,23 +548,60 @@ export function PdfStudyTools({
                   Dừng tìm
                 </button>
               )}
-              <p>
-                {hits.length} kết quả trên {new Set(hits.map((h) => h.page)).size} trang. Dùng * để
-                tìm phần chữ ở giữa, ví dụ abx*xyz. Trang scan cần OCR trước.
+              <p className="rf-search-summary" role="status">
+                {hits.length} kết quả · {new Set(hits.map((h) => h.page)).size} trang
               </p>
-              {hits.map((h) => (
+              {!!hits.length && (
+                <div className="rf-search-navigation">
+                  <span>
+                    {activeHit < 0 ? "Chọn kết quả để xem" : `${activeHit + 1} / ${hits.length}`}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Kết quả trước"
+                    disabled={searching}
+                    onClick={() =>
+                      pickHit(
+                        activeHit < 0
+                          ? hits.length - 1
+                          : (activeHit - 1 + hits.length) % hits.length,
+                      )
+                    }
+                  >
+                    <ChevronUp size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Kết quả sau"
+                    disabled={searching}
+                    onClick={() => pickHit((activeHit + 1) % hits.length)}
+                  >
+                    <ChevronDown size={16} />
+                  </button>
+                </div>
+              )}
+              {!hits.length && (
+                <div className="rf-search-empty">
+                  <Search size={28} />
+                  <strong>{query ? "Chưa có kết quả" : "Tìm nội dung trong PDF"}</strong>
+                  <span>
+                    Nhập từ khóa, nhấn Enter. Dùng * để tìm phần chữ ở giữa; trang scan cần OCR
+                    trước.
+                  </span>
+                </div>
+              )}
+              {hits.map((h, index) => (
                 <button
                   className="rf-study-result"
                   type="button"
                   key={`${h.page}:${h.index}`}
-                  onClick={() => {
-                    layer.current?.focusMatch(h.page, h.index)
-                    viewport.navigate(h.page)
-                  }}
+                  aria-current={activeHit === index ? "true" : undefined}
+                  onClick={() => pickHit(index)}
                 >
-                  Trang {h.page} · Kết quả {h.index + 1}
-                  <br />
-                  {h.text}
+                  <span className="rf-result-location">
+                    Trang {h.page} · Kết quả {h.index + 1}
+                  </span>
+                  <span className="rf-result-excerpt">{h.text}</span>
                 </button>
               ))}
             </>
@@ -526,49 +609,77 @@ export function PdfStudyTools({
           {(panel === "outline" || panel === "pages") && (
             <>
               <nav>
-                <button type="button" onClick={() => setPanel("outline")}>
+                <button
+                  type="button"
+                  aria-pressed={panel === "outline"}
+                  onClick={() => setPanel("outline")}
+                >
                   Mục lục
                 </button>
-                <button type="button" onClick={() => setPanel("pages")}>
+                <button
+                  type="button"
+                  aria-pressed={panel === "pages"}
+                  onClick={() => setPanel("pages")}
+                >
                   Trang
                 </button>
               </nav>
               {panel === "outline" && (
                 <>
+                  {!!outline.length && (
+                    <input
+                      className="rf-outline-filter"
+                      aria-label="Lọc mục lục PDF"
+                      type="search"
+                      placeholder="Lọc mục lục…"
+                      value={outlineQuery}
+                      onChange={(event) => setOutlineQuery(event.target.value)}
+                    />
+                  )}
                   {!outline.length && (
                     <p>File này không có mục lục nhúng. Dùng danh sách Trang để di chuyển.</p>
                   )}
-                  {outline.map((item) => (
-                    <button
-                      type="button"
-                      key={`${item.depth}:${item.title}:${JSON.stringify(item.dest)}`}
-                      className="rf-study-result"
-                      style={{ paddingLeft: 8 + item.depth * 12 }}
-                      onClick={async () => {
-                        try {
-                          const dest =
-                            typeof item.dest === "string"
-                              ? await pdf.getDestination(item.dest)
-                              : item.dest
-                          if (!dest?.length) return
-                          const ref = dest[0],
-                            index =
-                              typeof ref === "number"
-                                ? ref
-                                : await pdf.getPageIndex(ref as { num: number; gen: number })
-                          if (alive.current && Number.isInteger(index)) viewport.navigate(index + 1)
-                        } catch {
-                          report(new Error("Không mở được mục này."))
-                        }
-                      }}
-                    >
-                      {item.title}
-                    </button>
-                  ))}
+                  {outline
+                    .filter((item) =>
+                      item.title
+                        .toLocaleLowerCase()
+                        .includes(outlineQuery.trim().toLocaleLowerCase()),
+                    )
+                    .map((item) => (
+                      <button
+                        type="button"
+                        key={`${item.depth}:${item.title}:${JSON.stringify(item.dest)}`}
+                        className="rf-study-result"
+                        style={{ paddingLeft: 8 + item.depth * 12 }}
+                        onClick={async () => {
+                          try {
+                            const dest =
+                              typeof item.dest === "string"
+                                ? await pdf.getDestination(item.dest)
+                                : item.dest
+                            if (!dest?.length) return
+                            const ref = dest[0],
+                              index =
+                                typeof ref === "number"
+                                  ? ref
+                                  : await pdf.getPageIndex(ref as { num: number; gen: number })
+                            if (alive.current && Number.isInteger(index))
+                              viewport.navigate(index + 1)
+                          } catch {
+                            report(new Error("Không mở được mục này."))
+                          }
+                        }}
+                      >
+                        {item.title}
+                      </button>
+                    ))}
                 </>
               )}
               {panel === "pages" && (
                 <>
+                  <p>
+                    {pdf.numPages} trang · Đang xem trang {page}
+                  </p>
                   <label>
                     Nhóm trang{" "}
                     <select
@@ -593,7 +704,8 @@ export function PdfStudyTools({
                         aria-current={page === n ? "page" : undefined}
                         onClick={() => viewport.navigate(n)}
                       >
-                        {n}
+                        <FileText size={27} strokeWidth={1.2} />
+                        <span>Trang {n}</span>
                       </button>
                     ))}
                   </div>
@@ -745,7 +857,7 @@ export function PdfStudyTools({
               </button>
             </>
           )}
-        </aside>
+        </StudyPanel>
       )}
     </section>
   )

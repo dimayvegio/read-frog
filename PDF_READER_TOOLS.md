@@ -1,5 +1,14 @@
 # PDF Reader — công cụ đọc và OCR (F24)
 
+**Bản hiện tại1.59.1-a.2 / manifest1.59.1.2:** theme PDF đồng nhất sáng; ô chọn
+sổ có màu chữ rõ. Công cụ tròn vẽ elip theo hai chiều, giữ Shift để vẽ tròn.
+Chọn **Chọn / sửa hình** → bấm hình → kéo thân để di chuyển hoặc chốt cạnh/góc
+để resize; có mũi tên/undo/redo. Khung Tìm kiếm/Mục lục/Trang kéo/resize/reset được,
+ô tìm rộng, nút kết quả trước/sau và lọc outline. File không có outline mở danh
+sách trang. Đã sửa bullet `●` và hanging-indent trong file ALCHIP.
+Xem [PDF_READER_UX_1_59_1A2.md](PDF_READER_UX_1_59_1A2.md).
+Các giới hạn chưa sửa kích thước hình trong snapshot a.1 bên dưới đã được thay thế.
+
 **Cập nhật 1.59.1A:** thêm icon **Hình tròn / Hình vuông / Hình chữ nhật**.
 Chọn một công cụ và màu Vàng/Xanh lá/Xanh dương/Đỏ rồi kéo trên trang; hình
 tròn/vuông giữ đúng tỷ lệ. Cùng cơ chế tẩy, tự lưu, undo/redo và xuất PDF đang có.

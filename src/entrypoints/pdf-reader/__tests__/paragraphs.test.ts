@@ -8,6 +8,36 @@ const box = (text: string, x: number, y: number, width = 180, height = 12): PdfT
   height,
 })
 describe("PDF paragraph layout", () => {
+  it("separates numbered headings, labels and solid-dot bullets while joining hanging-indent continuations", () => {
+    const result = extractPdfParagraphs(
+      [
+        box("2.", 98, 100, 10, 13.2),
+        box("Senior Design Engineer", 115, 100, 190, 13.2),
+        box("Responsibilities include:", 115, 121, 210, 11.3),
+        box("●", 115, 136, 7, 11.3),
+        box("Implement the full-chip process for", 132, 136, 350, 11.3),
+        box("SoCs.", 132, 151, 28, 11.3),
+        box("●", 115, 166, 7, 11.3),
+        box("Coordinate with the design team", 136, 166, 350, 11.3),
+        box("and check implementation quality.", 136, 181, 220, 11.3),
+        box("Job requirements:", 115, 215, 130, 11.3),
+        box("●", 115, 230, 7, 11.3),
+        box("Bachelor degree in electronics,", 136, 230, 350, 11.3),
+        box("computer science or related fields.", 136, 245, 250, 11.3),
+      ],
+      612,
+      792,
+      1,
+    )
+    expect(result.paragraphs.map((p) => p.text)).toEqual([
+      "2. Senior Design Engineer",
+      "Responsibilities include:",
+      "● Implement the full-chip process for\nSoCs.",
+      "● Coordinate with the design team\nand check implementation quality.",
+      "Job requirements:",
+      "● Bachelor degree in electronics,\ncomputer science or related fields.",
+    ])
+  })
   it("joins wrapped prose, keeps headings/lists separate and leaves source boxes untouched", () => {
     const boxes = [
       box("Reading practice", 50, 50, 300, 20),

@@ -1,6 +1,10 @@
 # Bản local khác upstream ở đâu?
 
-**Bản hiện tại: 1.59.1A** (`1.59.1-a.1` / manifest `1.59.1.1`), nhánh
+**Bản sửa hiện tại1.59.1-a.2 / manifest1.59.1.2:** sửa theme PDF, khung tìm/mục
+lục nổi có resize, ink move/resize và chia bullet/hanging-indent. Không đổi schema
+so với a.1. Xem [PDF_READER_UX_1_59_1A2.md](PDF_READER_UX_1_59_1A2.md).
+
+**Bản gộp upstream ban đầu: 1.59.1A** (`1.59.1-a.1` / manifest `1.59.1.1`), nhánh
 `codex/upstream-1.59.1-openai`, từ local `c2e595fc` và upstream tag
 `v1.59.1` / `56d05e33`. Nhận/adapt bug fixes và site rules upstream, giữ F01–F24.
 Thêm hình tròn/vuông/chữ nhật có màu; ba tối ưu PDF đã đo trước/sau.

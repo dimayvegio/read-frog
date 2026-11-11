@@ -1,6 +1,8 @@
 import type { Annotation, Box, OcrPage, Point, StudyDocument } from "./study-data"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { PdfAnnotationEditor } from "./annotation-editor"
 import { shapePoints, type ShapeTool } from "./shapes"
+import { inkBounds } from "./shapes"
 import {
   validBox,
   searchText,
@@ -9,7 +11,7 @@ import {
   joinPdfRuns,
 } from "./study-data"
 
-export type StudyTool = "select" | "ink" | "erase" | "note" | ShapeTool
+export type StudyTool = "select" | "edit" | "ink" | "erase" | "note" | ShapeTool
 const ns = "http://www.w3.org/2000/svg"
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 function svg(name: string, attributes: Record<string, string>) {
@@ -40,18 +42,32 @@ export class PdfStudyLayer {
     color: string
     path: Element
     frame: number
+    rect: DOMRect
+    end: Point
+    constrain: boolean
   }
+  private editor: PdfAnnotationEditor
   constructor(
     private host: HTMLElement,
     private add: (items: Annotation[]) => void,
     private erase: (id: string) => void,
+    update: (before: Annotation, after: Annotation, current: () => boolean) => Promise<boolean>,
   ) {
+    this.editor = new PdfAnnotationEditor(
+      host,
+      () => this.data,
+      update,
+      () => this.refresh(),
+    )
     host.addEventListener("rf-pdf-render", this.refresh)
     host.addEventListener("pointerdown", this.down)
     host.addEventListener("pointermove", this.move)
     host.addEventListener("pointerup", this.up)
     host.addEventListener("pointercancel", this.cancel)
     host.addEventListener("lostpointercapture", this.cancel)
+    host.addEventListener("scroll", this.cancel)
+    window.addEventListener("resize", this.cancel)
+    window.addEventListener("blur", this.cancel)
   }
   set(data: StudyDocument, query = this.query) {
     this.data = data
@@ -62,9 +78,11 @@ export class PdfStudyLayer {
     this.cancel()
     this.tool = tool
     this.host.dataset.studyTool = tool
+    this.editor.enable(tool === "edit")
+    this.refresh()
   }
   private refresh = () => {
-    if (!this.data) return
+    if (!this.data || this.drawing || this.editor.dragging) return
     for (const page of this.host.querySelectorAll<HTMLElement>(
       ".rf-pdf-page[data-rendered=true]",
     )) {
@@ -110,6 +128,19 @@ export class PdfStudyLayer {
               "stroke-linejoin": "round",
             }),
           )
+        if (item.kind === "ink" && this.tool === "edit") {
+          const box = inkBounds(item.points)
+          group.append(
+            svg("rect", {
+              x: String(box.x * 1000),
+              y: String(box.y * 1000),
+              width: String(box.width * 1000),
+              height: String(box.height * 1000),
+              fill: "transparent",
+              stroke: "none",
+            }),
+          )
+        }
         if (item.kind === "note") {
           const p = item.points[0]!
           group.append(
@@ -128,6 +159,7 @@ export class PdfStudyLayer {
       page.querySelector(".rf-search-overlay")?.remove()
       if (this.query) this.search(page)
     }
+    this.editor.sync()
   }
   private ocr(page: HTMLElement, cached: OcrPage) {
     const layer = document.createElement("div")
@@ -289,7 +321,14 @@ export class PdfStudyLayer {
     }
   }
   private down = (event: PointerEvent) => {
-    if (!event.isPrimary || event.button !== 0 || this.tool === "select" || this.drawing) return
+    if (
+      !event.isPrimary ||
+      event.button !== 0 ||
+      this.tool === "select" ||
+      this.tool === "edit" ||
+      this.drawing
+    )
+      return
     const target = event.target as Element
     const page = target.closest<HTMLElement>(".rf-pdf-page[data-rendered=true]")
     if (!page || target.closest("button")) return
@@ -333,6 +372,9 @@ export class PdfStudyLayer {
       color: this.color,
       path,
       frame: 0,
+      rect: page.getBoundingClientRect(),
+      end: point,
+      constrain: event.shiftKey,
     }
     this.host.setPointerCapture(event.pointerId)
   }
@@ -340,17 +382,30 @@ export class PdfStudyLayer {
     const drawing = this.drawing
     if (!drawing || drawing.pointer !== event.pointerId) return
     event.preventDefault()
-    const p = this.point(event, drawing.page),
+    const p = {
+        x: clamp((event.clientX - drawing.rect.left) / drawing.rect.width),
+        y: clamp((event.clientY - drawing.rect.top) / drawing.rect.height),
+      },
       last = drawing.points.at(-1)!
+    drawing.end = p
+    drawing.constrain = event.shiftKey
     if (drawing.shape) {
-      const box = drawing.page.getBoundingClientRect()
-      drawing.points = shapePoints(drawing.shape, drawing.origin, p, box.width, box.height)
+      // Compute geometry once per animation frame, not once per pointer event.
     } else {
       if (Math.hypot(p.x - last.x, p.y - last.y) < 0.001 || drawing.points.length >= 4096) return
       drawing.points.push(p)
     }
     if (!drawing.frame)
       drawing.frame = requestAnimationFrame(() => {
+        if (drawing.shape)
+          drawing.points = shapePoints(
+            drawing.shape,
+            drawing.origin,
+            drawing.end,
+            drawing.rect.width,
+            drawing.rect.height,
+            drawing.constrain,
+          )
         drawing.path.setAttribute(
           "points",
           drawing.points.map((position) => `${position.x * 1000},${position.y * 1000}`).join(" "),
@@ -362,6 +417,15 @@ export class PdfStudyLayer {
     const drawing = this.drawing
     if (!drawing || drawing.pointer !== event.pointerId) return
     this.move(event)
+    if (drawing.shape)
+      drawing.points = shapePoints(
+        drawing.shape,
+        drawing.origin,
+        drawing.end,
+        drawing.rect.width,
+        drawing.rect.height,
+        drawing.constrain,
+      )
     this.cancel()
     if (drawing.points.length >= 2)
       this.add([
@@ -386,6 +450,7 @@ export class PdfStudyLayer {
       this.host.releasePointerCapture(drawing.pointer)
   }
   destroy() {
+    this.editor.destroy()
     this.cancel()
     cancelAnimationFrame(this.focusFrame)
     this.host.removeEventListener("rf-pdf-render", this.refresh)
@@ -394,6 +459,9 @@ export class PdfStudyLayer {
     this.host.removeEventListener("pointerup", this.up)
     this.host.removeEventListener("pointercancel", this.cancel)
     this.host.removeEventListener("lostpointercapture", this.cancel)
+    this.host.removeEventListener("scroll", this.cancel)
+    window.removeEventListener("resize", this.cancel)
+    window.removeEventListener("blur", this.cancel)
     delete this.host.dataset.studyTool
     for (const node of this.host.querySelectorAll(
       ".rf-study-overlay,.rf-ocr-text,.rf-search-overlay",

@@ -27,7 +27,11 @@ export const MAX_PDF_PAGE_CHARS = 100000
 export const MAX_PDF_TEXT_BOXES = 6000
 interface Line extends PdfTextBox {
   column: number
+  list: boolean
+  contentX: number
 }
+const listPrefix = /^(?:[-*]\s+|[•●▪◦‣⁃■□◉○\uf0b7]\s*|(?:\d{1,3}[.)]|[A-Za-z][.)])\s+)/u
+const standaloneMarker = /^(?:[-*•●▪◦‣⁃■□◉○\uf0b7]|\d{1,3}[.)]|[A-Za-z][.)])$/u
 function joinBoxes(boxes: PdfTextBox[]) {
   const rtl = boxes.filter((box) => box.dir === "rtl").length > boxes.length / 2
   boxes.sort((a, b) => (rtl ? b.x - a.x : a.x - b.x))
@@ -128,7 +132,20 @@ export function extractPdfParagraphs(
         y = Math.min(...group.map((box) => box.y)),
         right = Math.max(...group.map((box) => box.x + box.width)),
         bottom = Math.max(...group.map((box) => box.y + box.height))
-      lines.push({ x, y, width: right - x, height: bottom - y, text: joinBoxes(group), column: 0 })
+      const text = joinBoxes(group),
+        first = group[0]!
+      const contentX =
+        standaloneMarker.test(first.text.trim()) && group.length > 1 ? group[1]!.x : x
+      lines.push({
+        x,
+        y,
+        width: right - x,
+        height: bottom - y,
+        text,
+        column: 0,
+        list: listPrefix.test(text),
+        contentX,
+      })
     }
   }
   const left = lines.filter((line) => line.x + line.width < width * 0.52),
@@ -153,15 +170,22 @@ export function extractPdfParagraphs(
   for (const line of lines) {
     const group = paragraphs.at(-1),
       previous = group?.at(-1)
-    const startsList = /^(?:[-•▪◦*]|\d+[.)]|[A-Za-z][.)])\s/u.test(line.text)
+    // A heading or colon label ends before body/list text. A list continuation
+    // aligns to its text after the marker, not to the marker's left edge.
+    const headingBefore =
+      previous && previous.height > line.height * 1.1 && previous.text.length < 160
     const canJoin =
       previous &&
       previous.column === line.column &&
       line.y > previous.y + previous.height * 0.3 &&
       line.y - previous.y < Math.max(previous.height, line.height) * 1.85 &&
       Math.abs(previous.height - line.height) < Math.max(previous.height, line.height) * 0.3 &&
-      Math.abs(line.x - group![0]!.x) < Math.max(line.height * 1.6, width * 0.025) &&
-      !startsList &&
+      (Math.abs(line.x - group![0]!.x) < Math.max(line.height * 1.6, width * 0.025) ||
+        (group![0]!.list &&
+          Math.abs(line.x - group![0]!.contentX) < Math.max(line.height * 0.65, width * 0.008))) &&
+      !line.list &&
+      !headingBefore &&
+      !/[:：]\s*$/u.test(previous.text) &&
       group!.reduce((sum, item) => sum + item.text.length + 1, 0) + line.text.length <= 20000
     if (canJoin) group!.push(line)
     else paragraphs.push([line])

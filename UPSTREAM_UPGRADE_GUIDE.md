@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.1` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.1` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.59.1-a.2` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.2` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.59.1A`                                  |
 | Schema cấu hình của fork                 | `125`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
@@ -40,6 +40,9 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 Báo cáo đợt hiện tại: [1.59.1A](UPSTREAM_1_59_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Bản sửa a.2: giữ thêm [PDF_READER_UX_1_59_1A2.md](PDF_READER_UX_1_59_1A2.md), gồm
+theme PDF, annotation editor và khung tìm/mục lục resize; không đổi schema.
 
 Mốc hiện hành: upstream1.59.1/config125/AppDB7/sync writer2 reader1–2.
 Không tái dùng số migration upstream trùng fork. Giữ migrations1–124, các DB

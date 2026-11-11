@@ -275,12 +275,14 @@ try {
       shapeBox.y + shapeBox.h * 0.25,
     )
     await reader.mouse.down()
+    if (index === 0) await reader.keyboard.down("Shift")
     await reader.mouse.move(
       shapeBox.x + shapeBox.w * (0.28 + index * 0.25),
       shapeBox.y + shapeBox.h * 0.33,
       { steps: 5 },
     )
     await reader.mouse.up()
+    if (index === 0) await reader.keyboard.up("Shift")
     console.log("DRAWN", label)
     await waitCount(4 + index)
     const shape = await reader.$eval(".rf-study-overlay g:last-child polyline", (e) => {
