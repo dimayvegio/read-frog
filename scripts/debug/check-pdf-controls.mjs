@@ -291,11 +291,17 @@ try {
     "Underline preserves source text",
     await reader.$eval(".textLayer", (n) => n.textContent.includes("data[31:0]")),
   )
+  await reader.keyboard.down("Shift")
   await reader.keyboard.down("Alt")
-  await reader.keyboard.press("Enter")
+  await reader.keyboard.press("KeyQ")
+  await reader.keyboard.up("Alt")
+  await reader.keyboard.up("Shift")
+  check("Modified Alt+Shift+Q does not translate", !(await reader.$(".rf-reader-translation")))
+  await reader.keyboard.down("Alt")
+  await reader.keyboard.press("KeyQ")
   await reader.keyboard.up("Alt")
   await reader.waitForSelector(".rf-reader-translation")
-  check("Alt+Enter opens the existing selection translator", true)
+  check("Alt+Q opens the existing selection translator", true)
   await reader.screenshot({ path: path.join(scratch, "large-upgrade.png") })
   check(
     "Reading canvas leases remain bounded",

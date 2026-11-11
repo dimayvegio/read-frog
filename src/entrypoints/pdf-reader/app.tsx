@@ -256,7 +256,10 @@ export function PdfReader({ config }: { config: Config }) {
         !event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
-        event.key !== "Enter" ||
+        event.shiftKey ||
+        event.repeat ||
+        event.isComposing ||
+        !(event.code === "KeyQ" || event.key.toLowerCase() === "q" || event.key === "Enter") ||
         (event.target as Element)?.closest("input,textarea,select,[contenteditable=true]")
       )
         return

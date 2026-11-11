@@ -147,3 +147,11 @@ các giới hạn mới. Đây là bản bổ sung additive workspace DB2, khôn
 DB1. Bảo toàn OCR legacy20 trang; cache mới lưu theo trang,500 trang/file,
 LRU geometry6, một worker/100 trang mỗi lượt explicit. Chỉ chữ/crop được chọn
 gửi trực tiếp OpenAI; không upload binary PDF hoặc tự chạy provider/OCR khi mở.
+
+## Phím dịch PDF a.8
+
+Từ package1.59.1-a.8/manifest1.59.1.8, bôi đen trong trình đọc Read Frog rồi
+bấm **Alt+Q** bằng một tay. Alt+Enter cũ vẫn là alias tương thích. Phím chỉ
+chạy khi selection nằm trong PDF, ngoài ô nhập và chế độ vẽ; bỏ qua Shift,
+Ctrl/Meta/AltGraph, IME composition và key repeat. Dùng pipeline/cache cũ,
+không thêm permission, cấu hình, migration hoặc upload PDF.

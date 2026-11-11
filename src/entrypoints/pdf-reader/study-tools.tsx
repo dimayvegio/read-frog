@@ -620,7 +620,8 @@ export function PdfStudyTools({
             type="button"
             className="rf-translate-selection"
             disabled={!hasSelection || tool !== "select"}
-            title="Bôi đen chữ rồi dịch (Alt+Enter)"
+            title="Bôi đen chữ rồi dịch (Alt+Q)"
+            aria-keyshortcuts="Alt+Q"
             onPointerDown={(e) => e.preventDefault()}
             onClick={onTranslateSelection}
           >
