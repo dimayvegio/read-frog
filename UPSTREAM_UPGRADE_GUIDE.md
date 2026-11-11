@@ -492,6 +492,27 @@ commit/đóng gói. Không dùng chúng làm bước CI duy nhất mà bỏ các
 
 ## ZIP và cách cập nhật cho người dùng
 
+**Quy tắc cố định theo yêu cầu người dùng:** sau mỗi lần tạo ZIP mới, agent tự
+giải nén vào một thư mục staging riêng rồi copy đè các file vào đúng thư mục:
+
+```text
+C:\Users\TIEN\Downloads\ReadFrog-Edge-1.58.0A
+```
+
+Giữ nguyên đường dẫn này dù version mới là1.59.x hay cao hơn; tên thư mục không
+cần chạy theo version. Staging chỉ để kiểm tra/copy, không dùng để Load unpacked.
+Không gỡ/cài lại extension, không đổi manifest key, không xóa/đổi tên/di chuyển
+thư mục đích hoặc mirror-clean. Không đụng vào profile Edge, API key, settings,
+IndexedDB, sổ từ hay tiến trình học. Các kho dữ liệu đó không phải file mã extension;
+copy đè cùng đường dẫn giữ identity, nhưng không thay cho backup hay kiểm thử migration.
+
+Trước khi copy: kiểm CRC, manifest ở root, đường dẫn tương đối an toàn và absolute
+paths staging/đích. Copy assets và entrypoints trước, `manifest.json` sau cùng.
+Sau copy: đối chiếu version và hash file đích với ZIP. Reload **thẻ Read Frog đang
+có** trong `edge://extensions` nếu điều khiển được trình duyệt; nếu chưa Reload
+được thì báo rõ để người dùng bấm Reload. Báo cáo riêng trạng thái ZIP, copy vào
+thư mục cố định và Reload; không coi chỉ tạo ZIP là đã cập nhật thư mục đang cài.
+
 Chỉ giao **một file ZIP**. Không giao CRX, `.pem`, source ZIP, `.env`, key
 thật hoặc profile/test fixture. ZIP phải có `manifest.json` ngay tại root,
 version hiển thị có hậu tố A và đủ file được manifest tham chiếu.
