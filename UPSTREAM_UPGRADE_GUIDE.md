@@ -508,10 +508,12 @@ copy đè cùng đường dẫn giữ identity, nhưng không thay cho backup ha
 
 Trước khi copy: kiểm CRC, manifest ở root, đường dẫn tương đối an toàn và absolute
 paths staging/đích. Copy assets và entrypoints trước, `manifest.json` sau cùng.
-Sau copy: đối chiếu version và hash file đích với ZIP. Reload **thẻ Read Frog đang
-có** trong `edge://extensions` nếu điều khiển được trình duyệt; nếu chưa Reload
-được thì báo rõ để người dùng bấm Reload. Báo cáo riêng trạng thái ZIP, copy vào
-thư mục cố định và Reload; không coi chỉ tạo ZIP là đã cập nhật thư mục đang cài.
+Sau copy: đối chiếu version và hash file đích với ZIP bằng filesystem. Theo yêu
+cầu mới của người dùng, không mở/điều khiển Edge hoặc kiểm tra giao diện khi chỉ
+cập nhật cài đặt local. Người dùng tự Reload **thẻ Read Frog đang có** và kiểm tra
+version; agent báo copy đã xong, numeric/display version dự kiến và Reload đang
+chờ người dùng. Không coi chỉ tạo ZIP là đã cập nhật thư mục đang cài. Quy tắc này
+không thay thế regression trên profile test tách biệt khi phát triển tính năng.
 
 Chỉ giao **một file ZIP**. Không giao CRX, `.pem`, source ZIP, `.env`, key
 thật hoặc profile/test fixture. ZIP phải có `manifest.json` ngay tại root,
