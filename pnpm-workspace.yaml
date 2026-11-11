@@ -11,6 +11,8 @@ trustPolicyExclude:
   - why-is-node-running@3.2.2
 
 allowBuilds:
+  # Optional OpenCollective donation banner; no build output is required.
+  tesseract.js: false
   core-js: true
   esbuild: true
   msw: true

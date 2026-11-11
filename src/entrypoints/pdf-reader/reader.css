@@ -328,3 +328,420 @@
     border-top: 1px solid #cbd7df;
   }
 }
+
+/* Reader chrome: quiet document surface, grouped actions, one green accent. */
+.rf-reader {
+  --rf-background: #fff;
+  --rf-foreground: #27332f;
+  --rf-border: #dce3df;
+  background: #e8edea;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+.rf-reader-toolbar {
+  padding: 10px 16px;
+  gap: 8px;
+  background: #fff;
+}
+.rf-reader-toolbar button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 34px;
+  font-size: 12px;
+  border-color: transparent;
+  white-space: nowrap;
+}
+.rf-reader-toolbar button:hover {
+  background: #f0f5f2;
+  border-color: #dce3df;
+}
+.rf-reader-toolbar button[aria-pressed="true"],
+#pdf-translate-page {
+  background: #e4f3e9;
+  color: #176b43;
+  border-color: #b5d9c4;
+}
+.rf-reader-brand {
+  display: flex;
+  gap: 9px;
+  align-items: center;
+  margin-right: 5px;
+  color: #1d6845;
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1.2;
+}
+.rf-reader-brand small {
+  display: block;
+  font-size: 10px;
+  color: #77867d;
+  font-weight: 400;
+}
+.rf-reader-name {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  max-width: 200px;
+  color: #69796f;
+}
+.rf-reader-name svg {
+  flex-shrink: 0;
+}
+.rf-reader-navigation {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  margin-left: auto;
+  padding-left: 10px;
+  border-left: 1px solid #e4e9e6;
+  white-space: nowrap;
+  font-size: 12px;
+}
+.rf-reader-navigation label {
+  color: #68766e;
+}
+.rf-reader-navigation input[type="number"] {
+  width: 54px;
+  text-align: center;
+  padding: 5px 2px;
+}
+.rf-reader-navigation select {
+  max-width: 138px;
+  font-size: 12px;
+  border: 1px solid #e2e8e4;
+  background: #f6f8f7;
+}
+.rf-reader-status {
+  font-size: 11px;
+  color: #718278;
+  background: #f6f8f7;
+  min-height: 22px;
+}
+.rf-pdf-scroll {
+  background: #e7ece9;
+}
+.rf-pdf-page {
+  box-shadow: 0 3px 12px #1d382718;
+}
+.rf-study-tools {
+  position: relative;
+  z-index: 8;
+  border-bottom: 1px solid #d5dfd8;
+  background: #f6f8f7;
+}
+.rf-study-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+}
+.rf-study-tools button,
+.rf-study-tools select,
+.rf-study-tools input {
+  border: 1px solid #dce3df;
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #374b40;
+  background: #fff;
+  font-size: 12px;
+}
+.rf-study-toolbar > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  white-space: nowrap;
+}
+.rf-study-tools button:hover {
+  background: #ebf3ee;
+}
+.rf-study-tools button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.rf-study-tools button[aria-expanded="true"],
+.rf-study-tools button[aria-pressed="true"],
+.rf-page-grid button[aria-current="page"] {
+  background: #e0f1e6;
+  color: #176b43;
+  border-color: #a8ceb8;
+}
+.rf-study-tools button:focus-visible,
+.rf-study-tools select:focus-visible,
+.rf-study-tools input:focus-visible {
+  outline: 2px solid #218352;
+  outline-offset: 2px;
+}
+.rf-study-tools kbd {
+  color: #7f8e84;
+  font:
+    10px "Segoe UI",
+    sans-serif;
+  border-left: 1px solid #dce3df;
+  padding-left: 6px;
+}
+.rf-study-tools .rf-export-pdf {
+  margin-left: auto;
+  background: #206a47;
+  color: #fff;
+  border-color: #206a47;
+}
+.rf-study-tools .rf-export-pdf:hover {
+  background: #18583a;
+}
+.rf-tool-segment {
+  display: flex;
+  border: 1px solid #dce3df;
+  border-radius: 7px;
+  padding: 2px;
+  background: #fff;
+}
+.rf-tool-segment .rf-icon-button {
+  border-color: transparent;
+}
+.rf-study-tools .rf-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  padding: 5px;
+}
+.rf-tool-colors {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 0 6px;
+  border-right: 1px solid #dce3df;
+}
+.rf-study-tools .rf-color-dot {
+  width: 19px;
+  height: 19px;
+  padding: 0;
+  border-radius: 50%;
+  border: 3px solid #f6f8f7;
+  background: var(--annotation-color);
+  box-shadow: 0 0 0 1px transparent;
+}
+.rf-study-tools .rf-color-dot[aria-pressed="true"] {
+  background: var(--annotation-color);
+  box-shadow: 0 0 0 1px #5b7062;
+  border-color: #fff;
+}
+.rf-tool-count {
+  border-radius: 4px;
+  padding: 0 4px;
+  background: #edf2ef;
+  color: #557460;
+  font-size: 10px;
+}
+.rf-study-message {
+  font-size: 11px;
+  color: #607e6c;
+  padding: 2px 16px;
+  max-height: 40px;
+  overflow: auto;
+}
+.rf-study-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 320px;
+  max-width: 100vw;
+  height: min(72dvh, 900px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+  border: 1px solid #d4ded7;
+  border-top: 0;
+  border-radius: 0 0 9px 0;
+  background: #fbfcfb;
+  box-shadow: 5px 6px 15px #264f3610;
+  font-size: 13px;
+  color: #364a3e;
+}
+.rf-study-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+.rf-study-panel header button {
+  border: 0;
+  background: transparent;
+  padding: 5px;
+}
+.rf-study-panel p {
+  margin: 11px 0;
+  line-height: 1.6;
+  color: #6b7e71;
+  font-size: 12px;
+}
+.rf-study-panel form {
+  display: flex;
+  gap: 5px;
+}
+.rf-study-panel input {
+  min-width: 0;
+  max-width: 200px;
+  background: #fff;
+}
+.rf-study-panel nav {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0;
+}
+.rf-study-panel .rf-study-result {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 8px 0;
+  padding: 11px 12px;
+  border-color: #e0e8e2;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.rf-study-panel .rf-study-result:hover {
+  border-color: #9ec6ad;
+  background: #eef7f1;
+}
+.rf-page-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+  margin-top: 14px;
+}
+.rf-study-annotation {
+  display: flex;
+  gap: 5px;
+  margin: 7px 0;
+}
+.rf-study-annotation > button:first-child {
+  flex: 1;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.rf-study-overlay,
+.rf-search-overlay,
+.rf-ocr-text {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.rf-study-overlay {
+  z-index: 4;
+  user-select: none;
+}
+.rf-search-overlay {
+  z-index: 2;
+}
+.rf-search-overlay > div {
+  position: absolute;
+  background: #ffcd4880;
+  border-bottom: 2px solid #d5a41f;
+}
+.rf-search-overlay > div.active {
+  background: #ff8d4a90;
+  border-color: #dc5a0e;
+}
+.rf-ocr-text {
+  z-index: 2;
+  overflow: hidden;
+}
+.rf-ocr-text span {
+  position: absolute;
+  display: inline-block;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+  white-space: pre;
+  color: transparent;
+  transform-origin: 0 0;
+  pointer-events: auto;
+  cursor: text;
+}
+.rf-ocr-text ::selection {
+  background: #287eff65;
+}
+.rf-has-ocr > .textLayer {
+  pointer-events: none;
+  user-select: none;
+}
+.rf-pdf-scroll[data-study-tool="ink"],
+.rf-pdf-scroll[data-study-tool="note"] {
+  cursor: crosshair;
+  touch-action: none;
+}
+.rf-pdf-scroll[data-study-tool="erase"] .rf-study-overlay [data-annotation] {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+.rf-pdf-scroll[data-study-tool="ink"] .textLayer,
+.rf-pdf-scroll[data-study-tool="ink"] .rf-ocr-text,
+.rf-pdf-scroll[data-study-tool="note"] .textLayer,
+.rf-pdf-scroll[data-study-tool="note"] .rf-ocr-text {
+  pointer-events: none;
+  user-select: none;
+}
+.rf-pdf-scroll[data-study-tool="ink"] .rf-ocr-text span,
+.rf-pdf-scroll[data-study-tool="note"] .rf-ocr-text span {
+  pointer-events: none;
+}
+@media (min-width: 1050px) {
+  .rf-reader:has(.rf-study-panel) .rf-reader-body {
+    padding-left: 320px;
+  }
+}
+@media (max-width: 750px) {
+  .rf-reader-toolbar {
+    padding: 7px 8px;
+    gap: 4px;
+  }
+  .rf-reader-brand {
+    font-size: 13px;
+  }
+  .rf-reader-name {
+    max-width: 110px;
+  }
+  .rf-reader-navigation {
+    margin-left: 0;
+    padding-left: 0;
+    border: 0;
+  }
+  .rf-label-optional {
+    position: absolute;
+    clip-path: inset(50%);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .rf-study-toolbar {
+    padding: 5px 8px;
+    gap: 4px;
+    max-height: 112px;
+    overflow: auto;
+  }
+  .rf-study-toolbar > button {
+    font-size: 11px;
+  }
+  .rf-study-tools .rf-export-pdf {
+    margin-left: 0;
+  }
+  .rf-study-message {
+    padding: 2px 8px;
+  }
+  .rf-study-panel {
+    max-height: 62dvh;
+  }
+}
+
+.rf-study-panel button:has(> svg) {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}

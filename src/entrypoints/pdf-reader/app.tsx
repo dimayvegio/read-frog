@@ -1,8 +1,18 @@
-import type { PDFDocumentLoadingTask } from "pdfjs-dist"
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from "pdfjs-dist"
 import type { Config } from "@/types/config/config"
 import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { PdfReaderSource } from "@/utils/selection-result/reading-position"
 import { sha256 } from "js-sha256"
+import {
+  BookOpen,
+  FolderOpen,
+  Languages,
+  ScanLine,
+  ChevronLeft,
+  ChevronRight,
+  RotateCcw,
+  FileText,
+} from "lucide-react"
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist"
 // oxlint-disable-next-line import/default -- Vite's ?url asset import has a generated default export.
 import workerURL from "pdfjs-dist/build/pdf.worker.min.mjs?url"
@@ -14,6 +24,7 @@ import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
 import { PdfAutosave } from "./autosave"
 import { PdfBilingualPane, type PdfBilingualHandle } from "./bilingual-pane"
+import { PdfStudyTools } from "./study-tools"
 import { PdfViewport, type ViewPosition } from "./viewport"
 
 GlobalWorkerOptions.workerSrc = workerURL
@@ -34,6 +45,8 @@ export function PdfReader({ config }: { config: Config }) {
     historyId: string
     title: string
     count: number
+    pdf: PDFDocumentProxy
+    file: Blob
   } | null>(null)
   const [view, setView] = useState<ViewPosition>({ page: 1, offset: 0, zoom: "fit-width" })
   const [loading, setLoading] = useState(false),
@@ -160,7 +173,7 @@ export function PdfReader({ config }: { config: Config }) {
       current.current = { task, viewport, saver }
       await viewport.init(saved.position ?? undefined)
       if (token !== version.current) return
-      setDocumentInfo({ id, historyId, title, count: pdf.numPages, viewport })
+      setDocumentInfo({ id, historyId, title, count: pdf.numPages, viewport, pdf, file })
       setStatus(
         saved.position
           ? `Đã khôi phục vị trí đọc — trang ${saved.position.page}. Tự lưu khi bạn đọc tiếp.`
@@ -173,6 +186,21 @@ export function PdfReader({ config }: { config: Config }) {
       }
     } finally {
       if (token === version.current) setLoading(false)
+    }
+  }
+  const captureImage = async () => {
+    const active = current.current,
+      token = version.current
+    if (!active?.viewport) return
+    setShotBusy(true)
+    try {
+      const image = await active.viewport.captureVisible()
+      if (token === version.current) await sendMessage("openImageTranslation", { image })
+    } catch (cause) {
+      if (token === version.current)
+        setError(cause instanceof Error ? cause.message : "Chưa chụp được vùng PDF.")
+    } finally {
+      setShotBusy(false)
     }
   }
   useEffect(() => {
@@ -212,9 +240,20 @@ export function PdfReader({ config }: { config: Config }) {
   return (
     <main className="rf-reader">
       <header className="rf-reader-toolbar">
-        <strong>Read Frog · PDF</strong>
+        <strong className="rf-reader-brand">
+          <BookOpen size={22} />
+          <span>
+            Read Frog <small>PDF Reader</small>
+          </span>
+        </strong>
+        {documentInfo && (
+          <span className="rf-reader-name" title={documentInfo.title}>
+            <FileText size={16} />
+            {documentInfo.title}
+          </span>
+        )}
         <button type="button" onClick={() => input.current?.click()}>
-          Mở PDF trên máy
+          <FolderOpen size={17} /> Mở PDF trên máy
         </button>
         <input
           ref={input}
@@ -239,7 +278,7 @@ export function PdfReader({ config }: { config: Config }) {
                 setBilingual((value) => !value)
               }}
             >
-              Song ngữ theo đoạn
+              <Languages size={17} /> Song ngữ theo đoạn
             </button>
             {bilingual && (
               <button
@@ -248,88 +287,69 @@ export function PdfReader({ config }: { config: Config }) {
                 disabled={bilingualBusy}
                 onClick={() => bilingualPane.current?.translatePage()}
               >
-                Dịch trang đang xem
+                <Languages size={17} /> Dịch trang đang xem
               </button>
             )}
-            <button
-              type="button"
-              disabled={shotBusy}
-              onClick={async () => {
-                const active = current.current,
-                  token = version.current
-                if (!active?.viewport) return
-                setShotBusy(true)
-                try {
-                  const image = await active.viewport.captureVisible()
-                  if (token === version.current)
-                    await sendMessage("openImageTranslation", { image })
-                } catch (cause) {
-                  if (token === version.current)
-                    setError(cause instanceof Error ? cause.message : "Chưa chụp được vùng PDF.")
-                } finally {
-                  setShotBusy(false)
-                }
-              }}
-            >
-              {shotBusy ? "Đang chụp…" : "Chụp vùng & dịch ảnh"}
+            <button type="button" disabled={shotBusy} onClick={() => void captureImage()}>
+              <ScanLine size={17} /> {shotBusy ? "Đang chụp…" : "Chụp vùng & dịch ảnh"}
             </button>
-            <span className="rf-reader-name" title={documentInfo.title}>
-              {documentInfo.title}
-            </span>
-            <button
-              type="button"
-              aria-label="Trang trước"
-              disabled={view.page <= 1}
-              onClick={() => current.current?.viewport?.navigate(view.page - 1)}
-            >
-              ←
-            </button>
-            <label>
-              Trang{" "}
-              <input
-                key={view.page}
-                aria-label="Số trang"
-                type="number"
-                min="1"
-                max={documentInfo.count}
-                defaultValue={view.page}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
+
+            <div className="rf-reader-navigation">
+              <button
+                type="button"
+                aria-label="Trang trước"
+                disabled={view.page <= 1}
+                onClick={() => current.current?.viewport?.navigate(view.page - 1)}
+              >
+                <ChevronLeft size={17} />
+              </button>
+              <label>
+                Trang{" "}
+                <input
+                  key={view.page}
+                  aria-label="Số trang"
+                  type="number"
+                  min="1"
+                  max={documentInfo.count}
+                  defaultValue={view.page}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      const value = Number(event.currentTarget.value)
+                      if (Number.isInteger(value)) current.current?.viewport?.navigate(value)
+                    }
+                  }}
+                  onBlur={(event) => {
                     const value = Number(event.currentTarget.value)
                     if (Number.isInteger(value)) current.current?.viewport?.navigate(value)
-                  }
-                }}
-                onBlur={(event) => {
-                  const value = Number(event.currentTarget.value)
-                  if (Number.isInteger(value)) current.current?.viewport?.navigate(value)
-                }}
-              />{" "}
-              / {documentInfo.count}
-            </label>
-            <button
-              type="button"
-              aria-label="Trang sau"
-              disabled={view.page >= documentInfo.count}
-              onClick={() => current.current?.viewport?.navigate(view.page + 1)}
-            >
-              →
-            </button>
-            <select
-              aria-label="Thu phóng"
-              value={view.zoom}
-              onChange={(event) =>
-                current.current?.viewport?.setZoom(
-                  event.target.value === "fit-width" ? "fit-width" : Number(event.target.value),
-                )
-              }
-            >
-              <option value="fit-width">Vừa chiều rộng</option>
-              {[0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map((n) => (
-                <option key={n} value={n}>
-                  {n * 100}%
-                </option>
-              ))}
-            </select>
+                  }}
+                />{" "}
+                / {documentInfo.count}
+              </label>
+              <button
+                type="button"
+                aria-label="Trang sau"
+                disabled={view.page >= documentInfo.count}
+                onClick={() => current.current?.viewport?.navigate(view.page + 1)}
+              >
+                <ChevronRight size={17} />
+              </button>
+              <select
+                aria-label="Thu phóng"
+                value={view.zoom}
+                onChange={(event) =>
+                  current.current?.viewport?.setZoom(
+                    event.target.value === "fit-width" ? "fit-width" : Number(event.target.value),
+                  )
+                }
+              >
+                <option value="fit-width">Vừa chiều rộng</option>
+                {[0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4].map((n) => (
+                  <option key={n} value={n}>
+                    {n * 100}%
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="button"
               onClick={async () => {
@@ -350,7 +370,8 @@ export function PdfReader({ config }: { config: Config }) {
                 }
               }}
             >
-              Quên vị trí
+              <RotateCcw size={16} />
+              <span className="rf-label-optional">Quên vị trí</span>
             </button>
           </>
         )}
@@ -370,6 +391,19 @@ export function PdfReader({ config }: { config: Config }) {
           chọn lại file nếu mở một phiên mới. Chức năng tự lưu hoạt động trong trình đọc Read Frog
           này.
         </p>
+      )}
+      {documentInfo && (
+        <PdfStudyTools
+          key={documentInfo.id}
+          id={documentInfo.id}
+          pdf={documentInfo.pdf}
+          file={documentInfo.file}
+          title={documentInfo.title}
+          viewport={documentInfo.viewport}
+          page={view.page}
+          onOpenAiOcr={captureImage}
+          imageBusy={shotBusy}
+        />
       )}
       <div className="rf-reader-body">
         <div className="rf-reader-original-column">

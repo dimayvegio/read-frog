@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.58.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.1-a.6` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.1.6` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.58.1-a.7` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.58.1.7` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.58.1A`                                  |
 | Schema cấu hình của fork                 | `124`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.58.1-openai`             |
@@ -40,6 +40,14 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 Báo cáo đợt hiện tại: [1.58.1A](UPSTREAM_1_58_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Giữ **F24 — PDF Reader/OCR** theo [PDF_READER_TOOLS.md](PDF_READER_TOOLS.md):
+search wildcard có từng kết quả, navigation, annotations/undo/export, DB1
+study riêng revision-guarded và OCR worker/model local explicit. OpenAI crop
+OCR dùng private path cũ; không thêm paid fallback tự động. Không thay source
+PDF canvas/text DOM hoặc import OCR model vào web content runtime. Giữ F20
+cache-only, linked-scroll, keyed host, ba reading canvases và cancel/late
+guards; chạy `scripts/debug/check-pdf-study.mjs` cùng regressions PDF hiện có.
 
 Giữ **F23 — Audio → Văn bản** theo [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md):
 file đa ngôn ngữ, thu tab khi chuyển tab, record-first và WebRTC live riêng;

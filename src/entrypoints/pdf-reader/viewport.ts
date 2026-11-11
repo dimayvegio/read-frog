@@ -20,6 +20,9 @@ export function pageAtOffset(tops: number[], offset: number) {
   return lo
 }
 export class PdfViewport {
+  get element() {
+    return this.host
+  }
   readonly paragraphs: PdfParagraphLayer
   private sizes: { width: number; height: number }[] = []
   private elements: HTMLDivElement[] = []
@@ -220,7 +223,10 @@ export class PdfViewport {
       const results = await Promise.allSettled([render.promise, text.render()])
       if (results.some((result) => result.status === "rejected"))
         throw new Error("PDF render cancelled or failed")
-      if (!stopped) element.dataset.rendered = "true"
+      if (!stopped) {
+        element.dataset.rendered = "true"
+        this.host.dispatchEvent(new Event("rf-pdf-render"))
+      }
     })()
       .catch(() => {
         if (!stopped && !this.destroyed)

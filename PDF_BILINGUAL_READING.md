@@ -1,5 +1,10 @@
 # PDF song ngữ theo đoạn — hợp đồng F20
 
+Từ build `1.58.1.7`, [F24 PDF Reader/OCR](PDF_READER_TOOLS.md) bổ sung OCR local
+cho scan, tìm kiếm, chú thích và xuất PDF. F20 dùng lớp chữ OCR có tọa độ qua
+cùng pipeline khi có; mở reader/pane không tự OCR hoặc gọi OpenAI. Các giới
+hạn OCR trong snapshot triển khai đầu tiên bên dưới đã được bổ sung bởi F24.
+
 Bổ sung trên baseline local `3c53f11d`, package `1.58.0-a.22`, manifest
 `1.58.0.23` / `1.58.0A`. Đây là chức năng riêng của fork, cần giữ khi nhận
 upstream mới cùng F01–F19. Không nâng config124 hoặc các DB/ZIP đã phát hành.

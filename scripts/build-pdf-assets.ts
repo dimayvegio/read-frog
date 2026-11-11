@@ -1,8 +1,10 @@
 import { cp, mkdir, realpath, rm } from "node:fs/promises"
 import path from "node:path"
+import { buildOcrAssets } from "./build-ocr-assets"
 // Only the reader loads these local resources. No viewer, maps, Node binaries,
 // scripting sandbox or remote CDN is included.
 export async function buildPdfAssets() {
+  await buildOcrAssets()
   const root = await realpath(process.cwd())
   const source = path.join(root, "node_modules/pdfjs-dist")
   const target = path.join(root, "public/pdf-assets")

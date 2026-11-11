@@ -42,7 +42,11 @@ function joinBoxes(boxes: PdfTextBox[]) {
           /^\s/u.test(item.text) ||
           gap > Math.min(item.height, previous.height) * 0.08) &&
         !/^[,.;:!?、。，；：！？)\]}]/u.test(item.text.trim()) &&
-        !/[([{]$/u.test(output)
+        !/[([{]$/u.test(output) &&
+        !(
+          /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]$/u.test(previous.text.trim()) &&
+          /^[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(item.text.trim())
+        )
       )
         output += " "
     }

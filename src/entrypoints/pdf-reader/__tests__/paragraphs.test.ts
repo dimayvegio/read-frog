@@ -32,6 +32,15 @@ describe("PDF paragraph layout", () => {
     ).toBe(true)
     expect(boxes).toEqual(before)
   })
+  it("keeps CJK OCR fragments together despite small glyph gaps", () => {
+    const result = extractPdfParagraphs(
+      [box("学", 20, 20, 12, 15), box("习", 34, 20, 12, 15), box("中文", 48, 20, 24, 15)],
+      600,
+      800,
+      1,
+    )
+    expect(result.paragraphs[0]!.text).toBe("学习中文")
+  })
   it("preserves styled word fragments and orders two columns without interleaving their lines", () => {
     const inline = extractPdfParagraphs(
       [box("trans", 20, 20, 25), box("lation", 45, 20, 30), box("works.", 80, 20, 40)],

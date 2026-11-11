@@ -239,7 +239,9 @@ export class PdfParagraphLayer {
       }
     for (const element of elements) {
       const page = Number(element.dataset.page),
-        layer = element.querySelector<HTMLElement>(".textLayer")
+        layer =
+          element.querySelector<HTMLElement>(".rf-ocr-text") ??
+          element.querySelector<HTMLElement>(".textLayer")
       if (!layer || this.pages.get(page)?.layer === layer) continue
       const spans = [...layer.querySelectorAll<HTMLElement>("span")].filter(
           (span) => !span.childElementCount && span.textContent?.trim(),

@@ -5,6 +5,14 @@ Tài liệu đối chiếu để nâng cấp tiếp mà giữ các chức năng 
 
 ## Mốc tích hợp hiện tại: 1.58.1A
 
+**F24 — PDF Reader/OCR** từ build `1.58.1-a.7` / manifest `1.58.1.7`,
+baseline `5641db73`: giao diện icon, tìm kiếm wildcard `abx*xyz` và danh sách
+từng kết quả, mục lục/trang, highlight/pen/eraser/Unicode notes/undo/redo,
+DB1 riêng theo hash và xuất PDF có chú thích. OCR local đóng gói4 ngôn ngữ
+tạo lớp chọn chữ cho F20; OpenAI crop OCR hiện có vẫn opt-in cho vùng khó.
+Không đổi PDF DB2, config124, sync/vocab/report/ZIP; không OCR/dịch/upload khi
+mở/cuộn, giữ3 canvas và runtime riêng cũ. Xem [PDF_READER_TOOLS.md](PDF_READER_TOOLS.md).
+
 - Upstream release mới nhất đã xác minh 09/11/2026: `v1.58.1`,
   `8f015c4a830951dd98fd836989e7348849e60cea`.
 - Local trước merge: `6bb2038a` (đã gồm F23), nhánh nhận
