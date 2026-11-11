@@ -27,7 +27,8 @@ Không merge thêm upstream; giữ config125/AppDB7 và mọi DB/ZIP/report đã
 - Trên file ALCHIP thật, marker là **`●`** và dòng nối thụt theo phần chữ sau bullet.
   Bộ nhận diện nhận marker phổ biến, dùng contentX cho hanging indent; tách nhãn
   hai chấm và heading lớn hơn body. “SoCs.” vào cùng bullet, heading Senior tách
-  khỏi Responsibilities. Không sửa text/canvas DOM hoặc gọi AI để chia đoạn.
+  khỏi Responsibilities. Dấu hai chấm trong bullet (following majors:) không cắt
+  phần nối tiếp khỏi bullet. Không sửa text/canvas DOM hoặc gọi AI để chia đoạn.
 
 ## Tham khảo nguồn mở
 
@@ -53,8 +54,8 @@ trong timing.
 
 | Trạng thái   | Main-thread TaskDuration trước |     Sau |  Thay đổi |
 | ------------ | -----------------------------: | ------: | --------: |
-| Tắt song ngữ |                        655,3ms | 489,4ms | giảm25,3% |
-| Bật song ngữ |                        728,9ms | 577,7ms | giảm20,7% |
+| Tắt song ngữ |                        655,3ms | 471,4ms | giảm28,1% |
+| Bật song ngữ |                        728,9ms | 574,7ms | giảm21,1% |
 
 TaskDuration là thời gian tác vụ renderer, không phải pointer-to-photon hay thời
 gian từ bấm đến lưu. LayoutCount gần như không đổi (276→277), không claim giảm
@@ -63,8 +64,8 @@ giật nặng trên profile Edge của người dùng. Không khẳng định m�
 extension khác mượt hơn cùng tỷ lệ. Số mở/search/OCR a.1 vẫn là benchmark riêng
 trong PDF_PERFORMANCE_1_59_1.md, không claim mới ở đây.
 
-Evidence `.codex/pdf-draw-{before,final}-{1,2,3}.log` và
-`.codex/pdf-draw-bilingual-{before,final}-{1,2,3}.log` trỏ tới JSON/raw metrics.
+Evidence `.codex/pdf-draw-{before,final2}-{1,2,3}.log` và
+`.codex/pdf-draw-bilingual-{before,final2}-{1,2,3}.log` trỏ tới JSON/raw metrics.
 Latency tới DOM mutation chỉ là diagnostic, không là độ trễ màn hình. Không đưa
 PDF gốc vào repo/ZIP hoặc provider.
 
@@ -81,7 +82,7 @@ Chưa gọi OpenAI live hoặc test cùng profile Edge/extensions của người
 Đây là heuristic layout: bảng, font/encoding lạ và đa cột phức tạp vẫn có thể cần
 bôi đen/crop OCR explicit. Không auto-upload, OCR hoặc dịch khi mở/menu.
 
-Ba lượt final dùng bản build bất biến `.codex/pdf-ux-final-1591a2`, đúng compiled
+Ba lượt final dùng bản build bất biến `.codex/pdf-ux-final2-1591a2`, đúng compiled
 code đóng ZIP a.2. Các lượt after thử ban đầu vẫn giữ làm lịch sử, không lấy số
-tốt nhất từ các lượt đó để lập bảng final. Production UX có22 checks; tools/OCR29,
+tốt nhất từ các lượt đó để lập bảng final. Production UX có23 checks; tools/OCR29,
 song ngữ33 và PDF/image/native-selection80 checks đều qua. API bị mock trong tests.

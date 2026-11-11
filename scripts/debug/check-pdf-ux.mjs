@@ -377,6 +377,16 @@ try {
         ),
     )
     evidence.paragraphCount = paragraphs.length
+    if (process.env.PDF_UX_FILE)
+      check(
+        "A colon inside a bullet keeps its hanging continuation",
+        paragraphs.some(
+          (p) =>
+            p.includes("following majors:") &&
+            p.includes("Electronics & Telecommunications") &&
+            p.includes("related fields."),
+        ),
+      )
     await reader.screenshot({ path: path.join(scratch, "paragraphs.png") })
     const other = await browser.newPage()
     await other.goto(root + "selection-result.html")

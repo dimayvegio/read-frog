@@ -185,7 +185,7 @@ export function extractPdfParagraphs(
           Math.abs(line.x - group![0]!.contentX) < Math.max(line.height * 0.65, width * 0.008))) &&
       !line.list &&
       !headingBefore &&
-      !/[:：]\s*$/u.test(previous.text) &&
+      (!/[:：]\s*$/u.test(previous.text) || group![0]!.list) &&
       group!.reduce((sum, item) => sum + item.text.length + 1, 0) + line.text.length <= 20000
     if (canJoin) group!.push(line)
     else paragraphs.push([line])

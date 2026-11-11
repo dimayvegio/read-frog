@@ -22,7 +22,7 @@ describe("PDF paragraph layout", () => {
         box("and check implementation quality.", 136, 181, 220, 11.3),
         box("Job requirements:", 115, 215, 130, 11.3),
         box("●", 115, 230, 7, 11.3),
-        box("Bachelor degree in electronics,", 136, 230, 350, 11.3),
+        box("Bachelor degree in the following majors:", 136, 230, 350, 11.3),
         box("computer science or related fields.", 136, 245, 250, 11.3),
       ],
       612,
@@ -35,7 +35,7 @@ describe("PDF paragraph layout", () => {
       "● Implement the full-chip process for\nSoCs.",
       "● Coordinate with the design team\nand check implementation quality.",
       "Job requirements:",
-      "● Bachelor degree in electronics,\ncomputer science or related fields.",
+      "● Bachelor degree in the following majors:\ncomputer science or related fields.",
     ])
   })
   it("joins wrapped prose, keeps headings/lists separate and leaves source boxes untouched", () => {
