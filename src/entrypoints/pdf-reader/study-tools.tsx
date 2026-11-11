@@ -2,6 +2,7 @@ import type { PDFDocumentProxy } from "pdfjs-dist"
 import type { Annotation, StudyDocument } from "./study-data"
 import type { StudyTool } from "./study-layer"
 import type { PdfViewport } from "./viewport"
+import type { InkStyle } from "./workspace"
 import {
   Search,
   PanelLeft,
@@ -24,15 +25,17 @@ import {
   FileText,
   ChevronUp,
   ChevronDown,
+  BookmarkPlus,
 } from "lucide-react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { PdfBookmarks } from "./bookmarks"
 import { LocalPdfOcr } from "./local-ocr"
 import { loadStudy, saveStudy, compilePdfSearch, STUDY_COLORS } from "./study-data"
 import { PdfStudyLayer } from "./study-layer"
 import { StudyPanel } from "./study-panel"
 import { PdfTextIndex } from "./text-index"
 
-type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr"
+type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr" | "bookmarks"
 type Outline = { title: string; dest: string | unknown[] | null; depth: number }
 type Hit = { page: number; text: string; index: number }
 export function PdfStudyTools({
@@ -77,19 +80,17 @@ export function PdfStudyTools({
     [rangeEnd, setRangeEnd] = useState("")
   const [ocrBusy, setOcrBusy] = useState(false),
     [ocrStatus, setOcrStatus] = useState("")
-  const [history, setHistory] = useState({ undo: 0, redo: 0 })
+  const workspace = viewport.workspace
+  const history = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot)
   const layer = useRef<PdfStudyLayer | null>(null),
     searchInput = useRef<HTMLInputElement>(null)
   const alive = useRef(false),
     ocr = useRef<LocalPdfOcr | null>(null),
     run = useRef(0),
     searchRun = useRef(0)
-  const writeBusy = useRef(false),
-    undo = useRef<Annotation[][]>([]),
-    redo = useRef<Annotation[][]>([])
+  const writeBusy = useRef(false)
   const ocrPage = useRef(0)
   const textIndex = useRef<PdfTextIndex | null>(null)
-  const refreshHistory = () => setHistory({ undo: undo.current.length, redo: redo.current.length })
   const report = (error: unknown) => {
     if (alive.current)
       setMessage(error instanceof Error ? error.message : "Không lưu được dữ liệu đọc.")
@@ -99,9 +100,8 @@ export function PdfStudyTools({
     setData(value)
     layer.current?.set(value)
   }
-  const write = async (
+  const rawWrite = async (
     change: (previous: StudyDocument) => StudyDocument,
-    record = false,
     canCommit: () => boolean = () => true,
   ): Promise<boolean> => {
     if (!dataRef.current || !alive.current) return false
@@ -113,15 +113,9 @@ export function PdfStudyTools({
     setSaving(true)
     const previous = dataRef.current
     try {
-      const value = await saveStudy(previous, change(previous), canCommit)
+      const value = await saveStudy(previous, change(previous), () => alive.current && canCommit())
       if (!alive.current) return false
-      if (record) {
-        undo.current.push(previous.annotations)
-        if (undo.current.length > 50) undo.current.shift()
-        redo.current = []
-      }
       install(value)
-      refreshHistory()
       setMessage("Đã lưu trên máy.")
       return true
     } catch (error) {
@@ -132,6 +126,33 @@ export function PdfStudyTools({
       if (alive.current) setSaving(false)
     }
   }
+  const write = async (
+    change: (previous: StudyDocument) => StudyDocument,
+    record = false,
+    canCommit: () => boolean = () => true,
+    prepare?: (guard: () => boolean) => Promise<void>,
+  ): Promise<boolean> => {
+    let saved = false
+    await workspace.perform(async () => {
+      const before = dataRef.current?.annotations
+      if (!before) throw new Error("Chưa nạp xong chú thích.")
+      await prepare?.(canCommit)
+      saved = await rawWrite(change, canCommit)
+      if (!saved) return null
+      const after = dataRef.current!.annotations
+      return record
+        ? {
+            undo: () => rawWrite((p) => ({ ...p, annotations: before })),
+            redo: async () => {
+              await prepare?.(() => alive.current)
+              return rawWrite((p) => ({ ...p, annotations: after }))
+            },
+            bytes: JSON.stringify(before).length + JSON.stringify(after).length,
+          }
+        : null
+    })
+    return saved
+  }
   const add = (items: Annotation[]) => {
     if (items.length) void write((p) => ({ ...p, annotations: [...p.annotations, ...items] }), true)
     else setMessage("Bôi đen chữ trong PDF trước khi tô sáng.")
@@ -141,40 +162,58 @@ export function PdfStudyTools({
       (p) => ({ ...p, annotations: p.annotations.filter((a) => a.id !== annotationId) }),
       true,
     )
-  const update = async (before: Annotation, after: Annotation | null, current: () => boolean) => {
-    if (dataRef.current?.annotations.find((item) => item.id === before.id) !== before) {
+  const update = async (
+    before: Annotation[],
+    after: Annotation[],
+    current: () => boolean,
+    styles?: Record<string, InkStyle>,
+  ) => {
+    const ids = new Set(before.map((a) => a.id))
+    if (
+      before.some((a) => dataRef.current?.annotations.find((item) => item.id === a.id) !== a) ||
+      after.some(
+        (a) => !ids.has(a.id) && dataRef.current?.annotations.some((item) => item.id === a.id),
+      )
+    ) {
       setMessage("Chú thích đã thay đổi. Hãy chọn lại hình trước khi sửa.")
       return false
     }
     return write(
-      (p) => ({
-        ...p,
-        annotations: after
-          ? p.annotations.map((item) => (item.id === before.id ? after : item))
-          : p.annotations.filter((item) => item.id !== before.id),
-      }),
+      (p) => {
+        const replacements = new Map(after.map((a) => [a.id, a]))
+        return {
+          ...p,
+          annotations: [
+            ...p.annotations.flatMap((a) =>
+              ids.has(a.id) ? (replacements.has(a.id) ? [replacements.get(a.id)!] : []) : [a],
+            ),
+            ...after.filter((a) => !ids.has(a.id)),
+          ],
+        }
+      },
       true,
       current,
+      styles
+        ? async (guard) => {
+            await workspace.replaceRaw(
+              {
+                ...workspace.getSnapshot().data,
+                styles: { ...workspace.getSnapshot().data.styles, ...styles },
+              },
+              guard,
+            )
+          }
+        : undefined,
     )
   }
-  const reverse = async (direction: "undo" | "redo") => {
-    const from = direction === "undo" ? undo.current : redo.current
-    const to = direction === "undo" ? redo.current : undo.current
-    const annotations = from.at(-1),
-      previous = dataRef.current?.annotations
-    if (!annotations || !previous || writeBusy.current) return
-    if (await write((p) => ({ ...p, annotations }))) {
-      from.pop()
-      to.push(previous)
-      refreshHistory()
-    }
-  }
+  const reverse = (direction: "undo" | "redo") => workspace.reverse(direction)
   // One controller per document. No PDF host remounts when tools/panels change.
+  /* oxlint-disable react-hooks/exhaustive-deps -- document-owned controller callbacks use refs; viewport is the keyed lifetime. */
   useEffect(() => {
     alive.current = true
     const index = new PdfTextIndex(pdf)
     textIndex.current = index
-    const controller = new PdfStudyLayer(viewport.element, add, remove, update)
+    const controller = new PdfStudyLayer(viewport.element, add, remove, update, workspace)
     layer.current = controller
     void loadStudy(id)
       .then((value) => {
@@ -233,6 +272,7 @@ export function PdfStudyTools({
     }
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- keyed document lifetime; controller callbacks use refs, not render snapshots.
   }, [id, pdf, viewport])
+  /* oxlint-enable react-hooks/exhaustive-deps */
   useEffect(() => {
     layer.current?.setTool(tool)
     if (layer.current) layer.current.color = color
@@ -385,6 +425,13 @@ export function PdfStudyTools({
         >
           <PanelLeft size={17} /> Mục lục / Trang
         </button>
+        <button
+          type="button"
+          aria-expanded={panel === "bookmarks"}
+          onClick={() => toggle("bookmarks")}
+        >
+          <BookmarkPlus size={17} /> Bookmark
+        </button>
         <div className="rf-tool-segment" role="group" aria-label="Công cụ PDF">
           {(
             [
@@ -439,7 +486,7 @@ export function PdfStudyTools({
         </button>
         <button
           type="button"
-          disabled={saving || !history.undo}
+          disabled={saving || history.busy || !history.undo}
           aria-label="Hoàn tác"
           title="Hoàn tác (Ctrl+Z)"
           className="rf-icon-button"
@@ -449,7 +496,7 @@ export function PdfStudyTools({
         </button>
         <button
           type="button"
-          disabled={saving || !history.redo}
+          disabled={saving || history.busy || !history.redo}
           aria-label="Làm lại"
           title="Làm lại (Ctrl+Shift+Z)"
           className="rf-icon-button"
@@ -477,14 +524,19 @@ export function PdfStudyTools({
           </button>
           <button
             type="button"
-            disabled={!data || exporting || saving}
+            disabled={!data || exporting || saving || history.busy}
             className="rf-export-pdf"
             onClick={async () => {
               if (!dataRef.current) return
               setExporting(true)
               try {
                 const { exportAnnotatedPdf } = await import("./study-export")
-                const blob = await exportAnnotatedPdf(file, pdf, dataRef.current.annotations)
+                const blob = await exportAnnotatedPdf(
+                  file,
+                  pdf,
+                  dataRef.current.annotations,
+                  workspace.getSnapshot().data.styles,
+                )
                 if (!alive.current) return
                 const url = URL.createObjectURL(blob),
                   link = document.createElement("a")
@@ -524,6 +576,14 @@ export function PdfStudyTools({
           chuyển, kéo hai đầu hoặc xóa.
         </p>
       )}
+      {history.error && (
+        <p role="alert" className="rf-study-message">
+          {history.error}{" "}
+          <button type="button" disabled={history.busy} onClick={() => void workspace.reload()}>
+            Nạp lại dữ liệu PDF
+          </button>
+        </p>
+      )}
       {message && (
         <p role="status" className="rf-study-message">
           {message}
@@ -538,10 +598,12 @@ export function PdfStudyTools({
               pages: "Danh sách trang",
               annotations: "Chú thích",
               ocr: "Nhận dạng chữ PDF scan",
+              bookmarks: "Bookmark của PDF",
             }[panel]
           }
           onClose={() => setPanel("")}
         >
+          {panel === "bookmarks" && <PdfBookmarks viewport={viewport} />}
           {panel === "search" && (
             <>
               <form
@@ -754,9 +816,7 @@ export function PdfStudyTools({
                     .then((value) => {
                       if (alive.current) {
                         install(value)
-                        undo.current = []
-                        redo.current = []
-                        refreshHistory()
+                        void workspace.reload()
                       }
                     })
                     .catch(report)

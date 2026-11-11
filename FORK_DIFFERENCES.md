@@ -1,6 +1,12 @@
 # Bản local khác upstream ở đâu?
 
-**Bản sửa hiện tại 1.59.1-a.5 / manifest1.59.1.5:** bỏ riêng công cụ vuông,
+**Bản sửa hiện tại 1.59.1-a.6 / manifest1.59.1.6:** chỉnh gộp/tách/bỏ đoạn PDF,
+nhớ theo file, chọn nhiều hình/copy/kiểu nét và bookmark tên/màu/ghi chú đúng
+vị trí. Thêm sidecar PDF workspace DB1; không sửa các DB/migration/schema đã
+phát hành. Undo chung, CAS/cancel và không tự gọi provider từ các công cụ.
+Xem [PDF_WORKSPACE_1_59_1A6.md](PDF_WORKSPACE_1_59_1A6.md).
+
+**Bản sửa trước 1.59.1-a.5 / manifest1.59.1.5:** bỏ riêng công cụ vuông,
 thêm đường thẳng/mũi tên có sửa hai đầu và Shift ngang/dọc/45°. Hình vuông đã
 lưu vẫn sửa/xuất được; không đổi Study DB1. Nút dịch đoạn chọn ở thanh công cụ,
 ngay trước tải PDF; chỉ thao tác dịch explicit mới dùng pipeline hiện có.

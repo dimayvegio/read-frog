@@ -1,4 +1,6 @@
 import type { ViewPosition } from "./viewport"
+import type { PdfWorkspace } from "./workspace"
+import { paragraphSource } from "./paragraph-edits"
 import {
   extractPdfParagraphs,
   MAX_PDF_TEXT_BOXES,
@@ -30,6 +32,7 @@ export class PdfParagraphLayer {
   private destroyed = false
   private paneUntil = 0
   private preferredX: number | null = null
+  private unsubscribe?: () => void
   private snapshot: BilingualSnapshot = {
     page: 1,
     paragraphs: [],
@@ -43,7 +46,19 @@ export class PdfParagraphLayer {
     private host: HTMLElement,
     private position: () => ViewPosition,
     private seek: (page: number, offset: number) => void,
+    private workspace?: PdfWorkspace,
   ) {
+    let previous = workspace?.getSnapshot().data.layouts
+    this.unsubscribe = workspace?.subscribe(() => {
+      const state = workspace.getSnapshot()
+      if (!state.ready || state.data.layouts === previous) return
+      previous = state.data.layouts
+      ++this.generation
+      for (const page of this.pages.values()) page.overlays.remove()
+      this.pages.clear()
+      this.update("layout")
+      this.schedule()
+    })
     this.observer = new MutationObserver((records) => {
       if (
         records.every(
@@ -73,6 +88,26 @@ export class PdfParagraphLayer {
     }
   }
   getSnapshot = () => this.snapshot
+  changeLayout(paragraphs: PdfParagraph[] | null) {
+    const { page, source } = this.snapshot,
+      generation = this.generation
+    if (!this.workspace || !source || !this.enabled || this.snapshot.status !== "ready")
+      return Promise.resolve(false)
+    return this.workspace.edit(
+      (data) => ({
+        ...data,
+        layouts: [
+          ...data.layouts.filter((p) => p.page !== page),
+          ...(paragraphs ? [{ page, source, paragraphs }] : []),
+        ],
+      }),
+      () =>
+        this.enabled &&
+        !this.destroyed &&
+        this.generation === generation &&
+        this.position().page === page,
+    )
+  }
   enable(enabled: boolean) {
     if (this.destroyed || this.enabled === enabled) return
     this.enabled = enabled
@@ -242,6 +277,7 @@ export class PdfParagraphLayer {
     })
   }
   private async scan() {
+    if (this.workspace && !this.workspace.getSnapshot().ready) return
     const generation = this.generation,
       token = ++this.scanVersion,
       elements = [...this.host.querySelectorAll<HTMLElement>(".rf-pdf-page[data-rendered=true]")]
@@ -288,7 +324,7 @@ export class PdfParagraphLayer {
           )
             return
         }
-      const value =
+      let value: PdfParagraphPage =
         spans.length > MAX_PDF_TEXT_BOXES
           ? {
               page,
@@ -296,11 +332,27 @@ export class PdfParagraphLayer {
               message: "Trang quá nhiều chữ; hãy bôi đen hoặc chụp vùng cần dịch.",
             }
           : extractPdfParagraphs(items, box.width, box.height, page)
+      const source = paragraphSource(value.paragraphs),
+        saved = this.workspace?.getSnapshot().data.layouts.find((p) => p.page === page)
+      value = { ...value, source }
+      if (saved?.source === source)
+        value = {
+          ...value,
+          paragraphs: saved.paragraphs,
+          message:
+            "Đã dùng cách chia đoạn bạn lưu. Vùng tách thủ công được ước lượng; chữ PDF gốc không đổi.",
+        }
+      else if (saved)
+        value = {
+          ...value,
+          message: "Lớp chữ đã đổi; đang dùng chia đoạn tự động. Bố cục đã lưu cũ vẫn được giữ.",
+        }
       const overlays = document.createElement("div")
       overlays.className = "rf-paragraph-overlays"
       for (const paragraph of value.paragraphs) {
         const highlight = document.createElement("div")
         highlight.className = "rf-paragraph-box"
+        highlight.classList.toggle("excluded", !!paragraph.excluded)
         highlight.dataset.paragraphId = paragraph.id
         highlight.setAttribute("aria-hidden", "true")
         Object.assign(highlight.style, {
@@ -336,6 +388,7 @@ export class PdfParagraphLayer {
     this.update("layout")
   }
   destroy() {
+    this.unsubscribe?.()
     this.enable(false)
     this.destroyed = true
     this.listeners.clear()

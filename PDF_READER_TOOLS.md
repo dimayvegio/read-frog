@@ -1,6 +1,12 @@
 # PDF Reader — công cụ đọc và OCR (F24)
 
-**Hiện tại1.59.1-a.5 / manifest1.59.1.5:** vẽ tròn/elip, chữ nhật, đường
+**Hiện tại1.59.1-a.6 / manifest1.59.1.6:** thêm Chỉnh đoạn trong song ngữ,
+Shift+bấm chọn nhiều hình/di chuyển/resize/copy/kiểu nét và Bookmark tên/màu/
+ghi chú, nhớ chính xác vị trí. Dữ liệu mới nằm trong sidecar DB1, giữ mọi DB
+cũ. Cách dùng, giới hạn và hợp đồng nâng tiếp:
+[PDF_WORKSPACE_1_59_1A6.md](PDF_WORKSPACE_1_59_1A6.md).
+
+**Snapshot1.59.1-a.5 / manifest1.59.1.5:** vẽ tròn/elip, chữ nhật, đường
 thẳng, mũi tên và nét tự do. Bỏ nút vuông theo yêu cầu; hình vuông cũ vẫn còn.
 Giữ Shift với line/arrow để khóa ngang/dọc/45°. Bấm nét vẽ để chọn, kéo thân
 để di chuyển, kéo hai đầu để sửa line/arrow; các hình khác giữ tám chốt resize.

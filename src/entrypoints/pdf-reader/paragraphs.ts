@@ -8,6 +8,7 @@ export interface PdfTextBox {
   dir?: string
 }
 export interface PdfParagraph {
+  excluded?: boolean
   id: string
   page: number
   index: number
@@ -18,6 +19,7 @@ export interface PdfParagraph {
   height: number
 }
 export interface PdfParagraphPage {
+  source?: string
   page: number
   paragraphs: PdfParagraph[]
   message: string

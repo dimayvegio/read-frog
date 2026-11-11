@@ -62,7 +62,7 @@ export class PdfBilingualSession {
     this.publish({ rows })
   }
   setPage(page: number, paragraphs: PdfParagraph[]) {
-    if (page !== this.page) {
+    if (page !== this.page || paragraphs !== this.paragraphs) {
       this.cancel()
       this.restore?.abort()
       this.page = page
@@ -71,7 +71,11 @@ export class PdfBilingualSession {
     this.paragraphs = paragraphs
     this.pages = [...this.pages.filter((item) => item !== page), page].slice(-5)
     const rows = Object.fromEntries(
-      Object.entries(this.state.rows).filter(([, row]) => this.pages.includes(row.page)),
+      Object.entries(this.state.rows).filter(
+        ([id, row]) =>
+          this.pages.includes(row.page) &&
+          (row.page !== page || paragraphs.some((p) => p.id === id)),
+      ),
     )
     this.publish({ rows })
   }
@@ -83,6 +87,7 @@ export class PdfBilingualSession {
     this.restore = controller
     try {
       for (const paragraph of this.paragraphs) {
+        if (paragraph.excluded) continue
         signal.throwIfAborted()
         if (this.state.rows[paragraph.id]?.output) continue
         const result = await this.translate({
@@ -149,11 +154,15 @@ export class PdfBilingualSession {
     this.restore?.abort()
     const paragraphs = this.paragraphs.filter(
       (item) =>
-        (!id || item.id === id) && (regenerate || this.state.rows[item.id]?.status !== "done"),
+        !item.excluded &&
+        (!id || item.id === id) &&
+        (regenerate || this.state.rows[item.id]?.status !== "done"),
     )
     if (!paragraphs.length) {
       this.publish({
-        message: "Các đoạn trên trang đã có bản dịch. Có thể chọn Dịch lại ở từng đoạn.",
+        message: this.paragraphs.every((p) => p.excluded)
+          ? "Tất cả đoạn trên trang đang được bỏ qua. Bật Chỉnh đoạn để cho dịch lại."
+          : "Các đoạn trên trang đã có bản dịch. Có thể chọn Dịch lại ở từng đoạn.",
       })
       return
     }

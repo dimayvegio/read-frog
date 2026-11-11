@@ -137,3 +137,44 @@ it("exports new line/arrow ink and previously saved square ink without changing 
   expect(ops).toContain("180 240 l")
   expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes)
 })
+
+it("exports custom stroke, translucent fill and opacity without changing frozen ink", async () => {
+  const pdf = await PDFDocument.create()
+  pdf.addPage([600, 800])
+  const original = await pdf.save(),
+    file = new Blob([new Uint8Array(original)])
+  const proxy = {
+    getPage: async () => ({
+      getViewport: () => ({
+        width: 600,
+        height: 800,
+        convertToPdfPoint: (x: number, y: number) => [x, 800 - y],
+      }),
+    }),
+  } as unknown as PDFDocumentProxy
+  const output = await exportAnnotatedPdf(
+    file,
+    proxy,
+    [
+      {
+        id: "styled",
+        page: 1,
+        kind: "ink",
+        color: "#42a5f5",
+        boxes: [],
+        text: "",
+        points: shapePoints("rectangle", { x: 0.1, y: 0.2 }, { x: 0.4, y: 0.5 }, 600, 800, false),
+      },
+    ],
+    { styled: { width: 6, opacity: 0.5, fill: "#66bb6a" } },
+  )
+  const copy = await PDFDocument.load(await output.arrayBuffer()),
+    contents = copy.getPage(0).node.Contents() as PDFArray
+  const ops = Array.from({ length: contents.size() }, (_, i) =>
+    new TextDecoder().decode(decodePDFRawStream(contents.lookup(i, PDFRawStream)).decode()),
+  ).join("\n")
+  expect(ops).toContain("3.6 w")
+  expect(ops).toContain("f")
+  expect(ops).toContain("gs")
+  expect(new Uint8Array(await file.arrayBuffer())).toEqual(original)
+})

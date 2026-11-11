@@ -1,4 +1,5 @@
 import type { Annotation, Box, OcrPage, Point, StudyDocument } from "./study-data"
+import type { InkStyle, PdfWorkspace } from "./workspace"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { PdfAnnotationEditor } from "./annotation-editor"
 import { shapePoints, type ShapeTool } from "./shapes"
@@ -52,17 +53,28 @@ export class PdfStudyLayer {
     private add: (items: Annotation[]) => void,
     private erase: (id: string) => void,
     update: (
-      before: Annotation,
-      after: Annotation | null,
+      before: Annotation[],
+      after: Annotation[],
       current: () => boolean,
+      styles?: Record<string, InkStyle>,
     ) => Promise<boolean>,
+    private workspace: PdfWorkspace,
   ) {
     this.editor = new PdfAnnotationEditor(
       host,
       () => this.data,
       update,
       () => this.refresh(),
+      workspace,
     )
+    let styles = workspace.getSnapshot().data.styles
+    this.unsubscribe = workspace.subscribe(() => {
+      const next = workspace.getSnapshot().data.styles
+      if (next !== styles) {
+        styles = next
+        this.refresh()
+      }
+    })
     host.addEventListener("rf-pdf-render", this.refresh)
     host.addEventListener("pointerdown", this.down)
     host.addEventListener("pointermove", this.move)
@@ -78,6 +90,7 @@ export class PdfStudyLayer {
     this.query = query
     this.refresh()
   }
+  private unsubscribe?: () => void
   setTool(tool: StudyTool) {
     this.cancel()
     this.tool = tool
@@ -123,11 +136,18 @@ export class PdfStudyLayer {
             }),
           )
         if (item.kind === "ink") {
+          const styles = this.workspace.getSnapshot().data.styles,
+            style = Object.hasOwn(styles, item.id) ? styles[item.id] : undefined
           group.append(
             svg("polyline", {
               points: item.points.map((p) => `${p.x * 1000},${p.y * 1000}`).join(" "),
-              fill: "none",
-              "stroke-width": "2.5",
+              fill:
+                JSON.stringify(item.points[0]) === JSON.stringify(item.points.at(-1))
+                  ? (style?.fill ?? "none")
+                  : "none",
+              "fill-opacity": String(0.2 * (style?.opacity ?? 1)),
+              "stroke-opacity": String(style?.opacity ?? 1),
+              "stroke-width": String(style?.width ?? 2.5),
               "stroke-linecap": "round",
               "stroke-linejoin": "round",
             }),
@@ -465,6 +485,7 @@ export class PdfStudyLayer {
       this.host.releasePointerCapture(drawing.pointer)
   }
   destroy() {
+    this.unsubscribe?.()
     this.editor.destroy()
     this.cancel()
     cancelAnimationFrame(this.focusFrame)

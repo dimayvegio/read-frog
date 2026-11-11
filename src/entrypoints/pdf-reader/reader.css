@@ -1112,3 +1112,106 @@
   border-radius: 50%;
   cursor: crosshair;
 }
+
+.rf-bookmarks form {
+  display: grid;
+  gap: 8px;
+}
+.rf-bookmarks input,
+.rf-bookmarks textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+.rf-bookmarks textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+.rf-bookmark {
+  border-left: 4px solid;
+  margin: 12px 0;
+  padding: 8px;
+  background: #f6f9f7;
+  border-radius: 6px;
+}
+.rf-bookmark small {
+  display: block;
+  color: #61756a;
+  margin-top: 4px;
+}
+.rf-bookmark p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rf-shape-properties > strong,
+.rf-shape-properties > small {
+  flex-basis: 100%;
+}
+.rf-shape-properties label {
+  display: grid;
+  gap: 3px;
+  font-size: 11px;
+}
+.rf-shape-properties select {
+  max-width: 130px;
+  padding: 4px;
+  border: 1px solid #bed3c5;
+  border-radius: 5px;
+  background: white;
+  color: #244b36;
+}
+.rf-paragraph-editor {
+  padding: 8px;
+  background: #f0f6f2;
+  border-radius: 6px;
+  margin: 8px 0;
+}
+.rf-paragraph-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100px;
+  resize: vertical;
+  color: #213e30;
+  background: white;
+  border: 1px solid #c1d8ca;
+  border-radius: 6px;
+  padding: 8px;
+  font: inherit;
+}
+.rf-paragraph-editor small {
+  display: block;
+  color: #486753;
+  line-height: 1.5;
+  margin: 5px 0;
+}
+.rf-paragraph-editor > div {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.rf-bilingual-card.excluded {
+  background: #f3f5f4;
+  border-style: dashed;
+}
+.rf-paragraph-box.excluded {
+  opacity: 0.25;
+  border-style: dashed;
+}
+
+.rf-paragraph-editor button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid #bfd5c7;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: white;
+  color: #234d36;
+  font-size: 12px;
+}
+.rf-paragraph-editor button:hover {
+  background: #e2f0e8;
+}
+.rf-paragraph-editor button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}

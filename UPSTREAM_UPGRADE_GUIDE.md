@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.5` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.5` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.59.1-a.6` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.6` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.59.1A`                                  |
 | Schema cấu hình của fork                 | `125`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
@@ -40,6 +40,12 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 Báo cáo đợt hiện tại: [1.59.1A](UPSTREAM_1_59_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Bản sửa a.6: giữ [PDF_WORKSPACE_1_59_1A6.md](PDF_WORKSPACE_1_59_1A6.md), bao gồm
+sidecar PDF workspace DB1 đóng băng, gộp/tách/excluded có fingerprint nguồn,
+bookmark offset/zoom theo content hash, multi-ink/kiểu nét/export và lịch sử
+undo chung CAS/cancel. Không đưa metadata này vào config sync/vocabulary.
+Đổi membership cùng trang phải hủy job/late output; các công cụ không gọi AI.
 
 Bản sửa a.5: giữ [PDF_DRAWING_1_59_1A5.md](PDF_DRAWING_1_59_1A5.md): không
 đưa công cụ vuông trở lại toolbar; vẫn đọc/sửa/xuất ink vuông cũ. Line/arrow

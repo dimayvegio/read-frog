@@ -3,6 +3,7 @@ import type { PdfReadingPosition } from "@/utils/selection-result/reading-positi
 import { TextLayer } from "pdfjs-dist"
 import { encodeCrop } from "../image-translate/image"
 import { PdfParagraphLayer } from "./paragraph-layer"
+import { PdfWorkspace } from "./workspace"
 export type ViewPosition = Pick<PdfReadingPosition, "page" | "offset" | "zoom">
 interface Lease {
   cancel: () => void
@@ -24,6 +25,7 @@ export class PdfViewport {
     return this.host
   }
   readonly paragraphs: PdfParagraphLayer
+  readonly workspace: PdfWorkspace
   private sizes: { width: number; height: number }[] = []
   private elements: HTMLDivElement[] = []
   private tops: number[] = []
@@ -44,7 +46,9 @@ export class PdfViewport {
     private pdf: PDFDocumentProxy,
     private changed: (position: ViewPosition, activity: boolean) => void,
     private error: (text: string) => void,
+    documentId: string,
   ) {
+    this.workspace = new PdfWorkspace(documentId)
     this.paragraphs = new PdfParagraphLayer(
       host,
       () => this.snapshot(),
@@ -54,6 +58,7 @@ export class PdfViewport {
           this.tops[index]! + offset * this.sizes[index]!.height * this.pageScale(index)
         this.update(true)
       },
+      this.workspace,
     )
     host.addEventListener("scroll", this.scrolled)
     this.resize = new ResizeObserver(() => {
@@ -166,11 +171,14 @@ export class PdfViewport {
       this.tops[index]! + position.offset * this.sizes[index]!.height * this.pageScale(index)
     this.update(false)
   }
-  navigate(page: number) {
+  navigate(page: number, offset = 0, zoom = this.zoom) {
     const index = Math.max(0, Math.min(this.sizes.length - 1, page - 1)),
       token = ++this.navigation
     const jump = () => {
-      this.host.scrollTop = this.tops[index] ?? 0
+      if (this.zoom !== zoom) this.layout({ page: index + 1, offset, zoom })
+      this.host.scrollTop =
+        (this.tops[index] ?? 0) +
+        Math.max(0, Math.min(1, offset)) * this.sizes[index]!.height * this.pageScale(index)
       this.update(true)
     }
     if (this.measured.has(index)) jump()
@@ -328,6 +336,7 @@ export class PdfViewport {
     return encodeCrop(output, output.width, output.height, { x: 0, y: 0, width: 1, height: 1 })
   }
   destroy() {
+    this.workspace.destroy()
     this.paragraphs.destroy()
     this.destroyed = true
     cancelAnimationFrame(this.frame)

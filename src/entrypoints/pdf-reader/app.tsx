@@ -170,6 +170,7 @@ export function PdfReader({ config }: { config: Config }) {
         (text) => {
           if (token === version.current) setError(text)
         },
+        id,
       )
       current.current = { task, viewport, saver }
       await viewport.init(saved.position ?? undefined)

@@ -1,4 +1,6 @@
 import type { Annotation, Box, Point, StudyDocument } from "./study-data"
+import type { PdfWorkspace, InkStyle } from "./workspace"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { editBounds, editLinearPoints, inkBounds, linearKind } from "./shapes"
 import { STUDY_COLORS } from "./study-data"
 
@@ -15,10 +17,13 @@ type Gesture = {
   handle: string
   frame: number
   points?: Point[]
+  members: { item: Annotation; group: SVGGElement }[]
 }
 export class PdfAnnotationEditor {
   private enabled = false
   private selected?: string
+  private extra = new Set<string>()
+  private clipboard: { item: Annotation; style?: InkStyle }[] = []
   private overlay?: HTMLDivElement
   private gesture?: Gesture
   private epoch = 0
@@ -31,11 +36,13 @@ export class PdfAnnotationEditor {
     private host: HTMLElement,
     private data: () => StudyDocument | undefined,
     private save: (
-      before: Annotation,
-      after: Annotation | null,
+      before: Annotation[],
+      after: Annotation[],
       current: () => boolean,
+      styles?: Record<string, InkStyle>,
     ) => Promise<boolean>,
     private refresh: () => void,
+    private workspace: PdfWorkspace,
   ) {
     host.addEventListener("pointerdown", this.down)
     host.addEventListener("pointermove", this.move)
@@ -47,10 +54,15 @@ export class PdfAnnotationEditor {
     window.addEventListener("resize", this.interrupted)
     window.addEventListener("blur", this.interrupted)
   }
+  private chosen() {
+    const ids = new Set([this.selected, ...this.extra])
+    return this.data()?.annotations.filter((a) => a.kind === "ink" && ids.has(a.id)) ?? []
+  }
   enable(value: boolean) {
     this.cancel()
     this.enabled = value
     this.selected = undefined
+    this.extra.clear()
     this.sync()
   }
   sync() {
@@ -62,7 +74,8 @@ export class PdfAnnotationEditor {
     this.overlay = undefined
     delete this.host.dataset.annotationEditing
     if (this.destroyed || !this.enabled || !this.selected) return
-    const item = this.data()?.annotations.find((a) => a.id === this.selected && a.kind === "ink")
+    const chosen = this.chosen(),
+      item = chosen.find((a) => a.id === this.selected) ?? chosen[0]
     const page =
       item &&
       this.host.querySelector<HTMLElement>(
@@ -82,7 +95,7 @@ export class PdfAnnotationEditor {
     move.dataset.shapeHandle = "move"
     move.dataset.shapeControl = "move"
     overlay.append(move)
-    const linear = linearKind(item)
+    const linear = chosen.length === 1 && linearKind(item)
     for (const direction of linear
       ? ["start", "end"]
       : ["nw", "n", "ne", "e", "se", "s", "sw", "w"]) {
@@ -106,6 +119,9 @@ export class PdfAnnotationEditor {
     properties.className = "rf-shape-properties"
     properties.setAttribute("role", "toolbar")
     properties.setAttribute("aria-label", "Sửa hình đã chọn")
+    const count = document.createElement("strong")
+    count.textContent = `${chosen.length} hình · Shift+bấm để chọn nhiều`
+    properties.append(count)
     const names = ["Vàng", "Xanh lá", "Xanh dương", "Đỏ"]
     for (const [index, color] of STUDY_COLORS.entries()) {
       const button = document.createElement("button")
@@ -122,6 +138,27 @@ export class PdfAnnotationEditor {
       }
       properties.append(button)
     }
+    for (const [text, label, action] of [
+      ["Copy", "Sao chép hình", () => this.copy()],
+      ["Dán", "Dán hình", () => this.paste()],
+      [
+        "Nhân bản",
+        "Nhân bản hình",
+        () => {
+          this.copy()
+          this.paste()
+        },
+      ],
+    ] as const) {
+      const b = document.createElement("button")
+      b.type = "button"
+      b.textContent = text
+      b.setAttribute("aria-label", label)
+      b.disabled = this.pending || (label === "Dán hình" && !this.clipboard.length)
+      b.onclick = action
+      properties.append(b)
+    }
+    this.styleControls(properties, chosen)
     const remove = document.createElement("button")
     remove.type = "button"
     remove.textContent = "Xóa"
@@ -138,6 +175,7 @@ export class PdfAnnotationEditor {
     done.setAttribute("aria-label", "Bỏ chọn hình")
     done.onclick = () => {
       this.selected = undefined
+      this.extra.clear()
       this.sync()
     }
     properties.append(done)
@@ -148,7 +186,7 @@ export class PdfAnnotationEditor {
     properties.append(hint)
     overlay.append(properties)
     if (linear) this.positionLinear(item.points, page.getBoundingClientRect())
-    else this.position(inkBounds(item.points))
+    else this.position(inkBounds(chosen.flatMap((a) => a.points)))
     this.positionProperties()
     if (focused)
       overlay
@@ -160,12 +198,14 @@ export class PdfAnnotationEditor {
     if (!properties || !this.overlay) return
     const box = this.overlay.getBoundingClientRect()
     const viewport = this.host.getBoundingClientRect()
-    const width = Math.min(300, innerWidth - 16)
+    const width = Math.min(340, innerWidth - 16)
+    properties.style.width = `${width}px`
+    const height = properties.getBoundingClientRect().height
     properties.hidden = box.bottom < viewport.top || box.top > viewport.bottom
     Object.assign(properties.style, {
       width: `${width}px`,
       left: `${Math.max(8, Math.min(innerWidth - width - 8, box.left))}px`,
-      top: `${Math.max(viewport.top + 4, Math.min(innerHeight - 90, box.top - 84 < viewport.top ? box.bottom + 10 : box.top - 84))}px`,
+      top: `${Math.max(viewport.top + 4, Math.min(innerHeight - height - 8, box.top - height - 8 < viewport.top ? box.bottom + 10 : box.top - height - 8))}px`,
     })
   }
   private change(before: Annotation, after: Annotation | null) {
@@ -173,10 +213,174 @@ export class PdfAnnotationEditor {
     const epoch = this.epoch
     this.pending = true
     this.sync()
-    void this.save(before, after, () => !this.destroyed && epoch === this.epoch).finally(() => {
+    const chosen = this.chosen()
+    if (!chosen.includes(before)) {
+      this.pending = false
+      return
+    }
+    void this.save(
+      chosen,
+      after ? chosen.map((a) => ({ ...a, color: after.color })) : [],
+      () => !this.destroyed && epoch === this.epoch,
+    ).finally(() => {
       this.pending = false
       if (!this.destroyed) this.refresh()
     })
+  }
+  private copy() {
+    const chosen = this.chosen(),
+      styles = this.workspace.getSnapshot().data.styles
+    if (chosen.length > 100 || chosen.reduce((n, a) => n + a.points.length, 0) > 20000) {
+      this.workspace.fail(new Error("Mỗi lần sao chép tối đa 100 hình / 20.000 điểm."))
+      return
+    }
+    this.clipboard = chosen.map((item) => ({
+      item,
+      style: Object.hasOwn(styles, item.id) ? styles[item.id] : undefined,
+    }))
+    this.sync()
+  }
+  private paste() {
+    if (this.pending || this.gesture || this.destroyed || !this.clipboard.length) return
+    const host = this.host.getBoundingClientRect()
+    const pages = [...this.host.querySelectorAll<HTMLElement>(".rf-pdf-page[data-rendered=true]")]
+    const page = pages.toSorted((a, b) => {
+      const visible = (e: HTMLElement) => {
+        const r = e.getBoundingClientRect()
+        return Math.max(0, Math.min(r.bottom, host.bottom) - Math.max(r.top, host.top))
+      }
+      return visible(b) - visible(a)
+    })[0]
+    if (!page) return
+    const points = this.clipboard.flatMap((c) => c.item.points),
+      from = inkBounds(points)
+    const to = editBounds(
+      from,
+      "move",
+      from.x + from.width + 0.02 > 1 ? -0.02 : 0.02,
+      from.y + from.height + 0.02 > 1 ? -0.02 : 0.02,
+      0,
+      0,
+    )
+    const styles: Record<string, InkStyle> = {}
+    const items = this.clipboard.map((c) => {
+      const id = getRandomUUID()
+      if (c.style) styles[id] = c.style
+      return {
+        ...c.item,
+        id,
+        page: Number(page.dataset.page),
+        points: this.transformedPoints({ item: c.item, from }, to),
+      }
+    })
+    const epoch = this.epoch
+    this.pending = true
+    void this.save(
+      [],
+      items,
+      () => !this.destroyed && epoch === this.epoch,
+      Object.keys(styles).length ? styles : undefined,
+    )
+      .then((saved) => {
+        if (saved && !this.destroyed) {
+          this.selected = items[0]!.id
+          this.extra = new Set(items.slice(1).map((a) => a.id))
+        }
+      })
+      .finally(() => {
+        this.pending = false
+        if (!this.destroyed) this.refresh()
+      })
+  }
+  private styleControls(properties: HTMLElement, chosen: Annotation[]) {
+    const styles = this.workspace.getSnapshot().data.styles,
+      first = (Object.hasOwn(styles, chosen[0]!.id) ? styles[chosen[0]!.id] : undefined) ?? {
+        width: 2.5,
+        opacity: 1,
+        fill: "none",
+      }
+    const change = (patch: Partial<InkStyle>) => {
+      if (this.pending || this.gesture || this.destroyed) return
+      const epoch = this.epoch
+      this.pending = true
+      void this.workspace
+        .edit(
+          (data) => ({
+            ...data,
+            styles: {
+              ...data.styles,
+              ...Object.fromEntries(
+                chosen.map((a) => [
+                  a.id,
+                  { width: 2.5, opacity: 1, fill: "none", ...data.styles[a.id], ...patch },
+                ]),
+              ),
+            },
+          }),
+          () =>
+            !this.destroyed &&
+            epoch === this.epoch &&
+            chosen.every((a) => this.data()?.annotations.find((n) => n.id === a.id) === a),
+        )
+        .finally(() => {
+          this.pending = false
+          if (!this.destroyed) this.refresh()
+        })
+    }
+    for (const [label, key, options] of [
+      [
+        "Độ dày nét",
+        "width",
+        [
+          ["1", "Mảnh"],
+          ["1.5", "1,5"],
+          ["2.5", "Vừa"],
+          ["4", "Đậm"],
+          ["6", "Rất đậm"],
+          ["8", "8"],
+        ],
+      ],
+      [
+        "Độ đậm",
+        "opacity",
+        [
+          ["1", "100%"],
+          ["0.75", "75%"],
+          ["0.5", "50%"],
+          ["0.25", "25%"],
+          ["0.1", "10%"],
+        ],
+      ],
+      [
+        "Màu nền hình",
+        "fill",
+        [
+          ["none", "Không tô"],
+          ...STUDY_COLORS.map((c, i) => [c, ["Vàng", "Xanh lá", "Xanh dương", "Đỏ"][i]!]),
+        ],
+      ],
+    ] as const) {
+      const wrapper = document.createElement("label"),
+        select = document.createElement("select")
+      wrapper.textContent = label
+      select.setAttribute("aria-label", label)
+      select.dataset.shapeControl = key
+      for (const [value, text] of options) {
+        const option = document.createElement("option")
+        option.value = value
+        option.textContent = text
+        select.append(option)
+      }
+      select.value = String(first[key])
+      select.disabled =
+        this.pending ||
+        (key === "fill" &&
+          chosen.some((a) => JSON.stringify(a.points[0]) !== JSON.stringify(a.points.at(-1))))
+      select.onchange = () =>
+        change(key === "fill" ? { fill: select.value } : { [key]: Number(select.value) })
+      wrapper.append(select)
+      properties.append(wrapper)
+    }
   }
   private position(box: Box) {
     if (this.overlay)
@@ -222,12 +426,20 @@ export class PdfAnnotationEditor {
       event.stopImmediatePropagation()
       return
     }
-    const id = handle
-      ? this.selected
-      : target.closest<SVGElement>("[data-annotation]")?.dataset.annotation
+    const underneath =
+      event.shiftKey && handle?.dataset.shapeHandle === "move"
+        ? document
+            .elementsFromPoint(event.clientX, event.clientY)
+            .map((n) => n.closest<SVGElement>("[data-annotation]")?.dataset.annotation)
+            .find(Boolean)
+        : undefined
+    const id =
+      underneath ??
+      (handle ? this.selected : target.closest<SVGElement>("[data-annotation]")?.dataset.annotation)
     const item = this.data()?.annotations.find((a) => a.id === id && a.kind === "ink")
     if (!item) {
       this.selected = undefined
+      this.extra.clear()
       this.sync()
       return
     }
@@ -238,13 +450,38 @@ export class PdfAnnotationEditor {
     if (!group) return
     event.preventDefault()
     event.stopImmediatePropagation()
-    this.selected = item.id
+    if (event.shiftKey && (!handle || underneath)) {
+      const primary = this.chosen()[0]
+      if (!primary || primary.page !== item.page) {
+        this.selected = item.id
+        this.extra.clear()
+      } else if (item.id === this.selected) {
+        this.selected = [...this.extra][0]
+        this.extra.delete(this.selected ?? "")
+      } else if (this.extra.has(item.id)) this.extra.delete(item.id)
+      else if (this.extra.size < 99) this.extra.add(item.id)
+      this.sync()
+      return
+    }
+    if (!this.chosen().some((a) => a.id === item.id)) {
+      this.selected = item.id
+      this.extra.clear()
+    }
     this.sync()
-    const from = inkBounds(item.points)
+    const members = this.chosen()
+      .map((a) => ({
+        item: a,
+        group: [...page.querySelectorAll<SVGGElement>("g[data-annotation]")].find(
+          (n) => n.dataset.annotation === a.id,
+        )!,
+      }))
+      .filter((m) => !!m.group)
+    const from = inkBounds(members.flatMap((m) => m.item.points))
     this.gesture = {
       pointer: event.pointerId,
-      item,
-      group,
+      item: members[0]!.item,
+      group: members[0]!.group,
+      members,
       page,
       rect: page.getBoundingClientRect(),
       startX: event.clientX,
@@ -273,11 +510,13 @@ export class PdfAnnotationEditor {
     }
     const sx = g.to.width / g.from.width,
       sy = g.to.height / g.from.height
-    g.group.setAttribute(
-      "transform",
-      `matrix(${sx} 0 0 ${sy} ${(g.to.x - g.from.x * sx) * 1000} ${(g.to.y - g.from.y * sy) * 1000})`,
-    )
-    if (linearKind(g.item)) this.positionLinear(this.transformedPoints(g, g.to), g.rect)
+    for (const member of g.members)
+      member.group.setAttribute(
+        "transform",
+        `matrix(${sx} 0 0 ${sy} ${(g.to.x - g.from.x * sx) * 1000} ${(g.to.y - g.from.y * sy) * 1000})`,
+      )
+    if (g.members.length === 1 && linearKind(g.item))
+      this.positionLinear(this.transformedPoints(g, g.to), g.rect)
     else this.position(g.to)
   }
   private move = (event: PointerEvent) => {
@@ -319,7 +558,7 @@ export class PdfAnnotationEditor {
     this.gesture = undefined
     if (!g) return
     cancelAnimationFrame(g.frame)
-    g.group.removeAttribute("transform")
+    for (const member of g.members) member.group.removeAttribute("transform")
     if (g.points) this.paintPoints(g.group, g.item.points)
     if (this.host.hasPointerCapture(g.pointer)) this.host.releasePointerCapture(g.pointer)
   }
@@ -356,8 +595,8 @@ export class PdfAnnotationEditor {
     this.paintPoints(group, points)
     this.pending = true
     void this.save(
-      item,
-      { ...item, points },
+      [item],
+      [{ ...item, points }],
       () => !this.destroyed && epoch === this.epoch,
     ).finally(() => {
       this.pending = false
@@ -365,36 +604,59 @@ export class PdfAnnotationEditor {
       if (!this.destroyed) this.refresh()
     })
   }
-  private commit(g: Pick<Gesture, "item" | "group" | "from">, to: Box) {
+  private commit(g: Pick<Gesture, "item" | "group" | "from" | "members">, to: Box) {
     if (JSON.stringify(g.from) === JSON.stringify(to)) {
       this.sync()
       return
     }
     const epoch = this.epoch
-    const after = {
-      ...g.item,
-      points: this.transformedPoints(g, to),
-    }
+    const after = g.members.map((m) => ({
+      ...m.item,
+      points: this.transformedPoints({ ...g, item: m.item }, to),
+    }))
     // Keep the final preview until the single revision-guarded write settles.
     const sx = to.width / g.from.width,
       sy = to.height / g.from.height
-    g.group.setAttribute(
-      "transform",
-      `matrix(${sx} 0 0 ${sy} ${(to.x - g.from.x * sx) * 1000} ${(to.y - g.from.y * sy) * 1000})`,
-    )
+    for (const member of g.members)
+      member.group.setAttribute(
+        "transform",
+        `matrix(${sx} 0 0 ${sy} ${(to.x - g.from.x * sx) * 1000} ${(to.y - g.from.y * sy) * 1000})`,
+      )
     this.pending = true
-    void this.save(g.item, after, () => !this.destroyed && epoch === this.epoch).finally(() => {
+    void this.save(
+      g.members.map((m) => m.item),
+      after,
+      () => !this.destroyed && epoch === this.epoch,
+    ).finally(() => {
       this.pending = false
-      g.group.removeAttribute("transform")
+      for (const member of g.members) member.group.removeAttribute("transform")
       if (!this.destroyed) this.refresh()
     })
   }
   private key = (event: KeyboardEvent) => {
-    if (!this.enabled || !this.selected) return
+    if (!this.enabled || (event.target as Element).closest("input,textarea,select")) return
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
+      if (this.gesture) this.cancel()
+      return
+    }
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      ["c", "v", "d"].includes(event.key.toLowerCase()) &&
+      (this.selected || this.clipboard.length) &&
+      window.getSelection()?.isCollapsed !== false
+    ) {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.key.toLowerCase() !== "v") this.copy()
+      if (event.key.toLowerCase() !== "c") this.paste()
+      return
+    }
+    if (!this.selected) return
     if (event.key === "Escape") {
       event.preventDefault()
       event.stopPropagation()
       this.selected = undefined
+      this.extra.clear()
       this.cancel()
       return
     }
@@ -421,7 +683,7 @@ export class PdfAnnotationEditor {
     if (!item || !page || !group) return
     const box = page.getBoundingClientRect(),
       step = event.shiftKey ? 10 : 1,
-      from = inkBounds(item.points)
+      from = inkBounds(this.chosen().flatMap((a) => a.points))
     if (handle === "start" || handle === "end") {
       const origin = item.points[handle === "start" ? 0 : 1]!
       this.commitPoints(
@@ -453,7 +715,15 @@ export class PdfAnnotationEditor {
       4 / box.width,
       4 / box.height,
     )
-    this.commit({ item, group, from }, to)
+    const members = this.chosen()
+      .map((a) => ({
+        item: a,
+        group: [...page.querySelectorAll<SVGGElement>("g[data-annotation]")].find(
+          (n) => n.dataset.annotation === a.id,
+        )!,
+      }))
+      .filter((m) => !!m.group)
+    this.commit({ item, group, from, members }, to)
   }
   cancel = () => {
     if (this.gesture) ++this.epoch
@@ -473,6 +743,7 @@ export class PdfAnnotationEditor {
   }
   destroy() {
     this.destroyed = true
+    this.clipboard = []
     this.cancel()
     this.overlay?.remove()
     delete this.host.dataset.annotationEditing

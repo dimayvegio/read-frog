@@ -1,4 +1,5 @@
 import type { Ref } from "react"
+import type { PdfParagraph } from "./paragraphs"
 import type { PdfViewport } from "./viewport"
 import type { Config } from "@/types/config/config"
 import type { PdfDocument } from "@/utils/selection-result/pdf-history"
@@ -23,6 +24,7 @@ import { getLocalConfig } from "@/utils/config/storage"
 import { sendMessage } from "@/utils/message"
 import { getPdfHistoryEpoch } from "@/utils/selection-result/pdf-history"
 import { PdfBilingualSession, translationConfigIdentity } from "./bilingual-session"
+import { mergeParagraphs, splitParagraph } from "./paragraph-edits"
 
 export interface PdfBilingualHandle {
   translatePage: () => void
@@ -211,10 +213,15 @@ function BilingualWorkspace({
   textOptions: PdfTextOptions
 }) {
   const [sync, setSync] = useState(true),
+    [editing, setEditing] = useState(false),
     pane = useRef<HTMLDivElement>(null),
     mutedUntil = useRef(0),
     userUntil = useRef(0),
     turnUntil = useRef(0)
+  const workspace = useSyncExternalStore(
+    viewport.workspace.subscribe,
+    viewport.workspace.getSnapshot,
+  )
   const snapshot = useSyncExternalStore(
     viewport.paragraphs.subscribe,
     viewport.paragraphs.getSnapshot,
@@ -253,10 +260,10 @@ function BilingualWorkspace({
     ref,
     () => ({
       translatePage: () => {
-        if (context.configured) void session.translatePage()
+        if (context.configured && workspace.ready && !workspace.busy) void session.translatePage()
       },
     }),
-    [session, context.configured],
+    [session, context.configured, workspace.ready, workspace.busy],
   )
   useLayoutEffect(() => {
     if (
@@ -322,6 +329,18 @@ function BilingualWorkspace({
           />
           Cuộn cùng nhau
         </label>
+        <button type="button" aria-pressed={editing} onClick={() => setEditing((v) => !v)}>
+          Chỉnh đoạn
+        </button>
+        {editing && (
+          <button
+            type="button"
+            disabled={workspace.busy}
+            onClick={() => void viewport.paragraphs.changeLayout(null)}
+          >
+            Khôi phục chia tự động
+          </button>
+        )}
         {translations.busy && (
           <button type="button" onClick={() => session.cancel()}>
             Dừng dịch
@@ -378,7 +397,7 @@ function BilingualWorkspace({
             <article
               key={paragraph.id}
               data-translation-id={paragraph.id}
-              className={`rf-bilingual-card ${snapshot.activeId === paragraph.id ? "active" : ""}`}
+              className={`rf-bilingual-card ${snapshot.activeId === paragraph.id ? "active" : ""} ${paragraph.excluded ? "excluded" : ""}`}
             >
               <header>
                 <button
@@ -391,12 +410,30 @@ function BilingualWorkspace({
                 </button>
                 <button
                   type="button"
-                  disabled={translations.busy || !context.configured}
+                  disabled={
+                    translations.busy ||
+                    !context.configured ||
+                    !!paragraph.excluded ||
+                    workspace.busy
+                  }
                   onClick={() => void session.translatePage(paragraph.id, !!row?.complete)}
                 >
                   {row?.complete ? "Dịch lại" : "Dịch đoạn"}
                 </button>
               </header>
+              {editing && (
+                <ParagraphEditor
+                  paragraph={paragraph}
+                  paragraphs={snapshot.paragraphs}
+                  viewport={viewport}
+                  busy={workspace.busy}
+                />
+              )}
+              {paragraph.excluded && (
+                <p className="rf-bilingual-note">
+                  Đã bỏ qua khi dịch. Bật Chỉnh đoạn để khôi phục.
+                </p>
+              )}
               <details>
                 <summary>Đoạn gốc</summary>
                 <p className="rf-bilingual-original">{paragraph.text}</p>
@@ -405,25 +442,26 @@ function BilingualWorkspace({
                   <SpeakButton text={paragraph.text} />
                 </div>
               </details>
-              {row?.output ? (
-                <p className="rf-bilingual-output" aria-live="polite">
-                  {row.output}
-                  {row.status === "loading" ? " ●" : ""}
-                </p>
-              ) : (
-                <p className="rf-bilingual-placeholder">
-                  {row?.status === "loading"
-                    ? "Đang dịch…"
-                    : "Bấm Dịch đoạn hoặc Dịch trang đang xem."}
-                </p>
-              )}
+              {!paragraph.excluded &&
+                (row?.output ? (
+                  <p className="rf-bilingual-output" aria-live="polite">
+                    {row.output}
+                    {row.status === "loading" ? " ●" : ""}
+                  </p>
+                ) : (
+                  <p className="rf-bilingual-placeholder">
+                    {row?.status === "loading"
+                      ? "Đang dịch…"
+                      : "Bấm Dịch đoạn hoặc Dịch trang đang xem."}
+                  </p>
+                ))}
               {row?.error && (
                 <p role="alert" className="rf-bilingual-error">
                   {row.error}
                 </p>
               )}
               {row?.cacheNote && <p className="rf-bilingual-note">{row.cacheNote}</p>}
-              {complete && (
+              {complete && !paragraph.excluded && (
                 <div className="rf-bilingual-actions">
                   <CopyButton text={row.complete} />
                   <SpeakButton text={row.complete} />
@@ -444,5 +482,74 @@ function BilingualWorkspace({
           : "Chỉ các đoạn được yêu cầu mới gửi tới OpenAI; không upload PDF."}
       </p>
     </>
+  )
+}
+
+function ParagraphEditor({
+  paragraph,
+  paragraphs,
+  viewport,
+  busy,
+}: {
+  paragraph: PdfParagraph
+  paragraphs: PdfParagraph[]
+  viewport: PdfViewport
+  busy: boolean
+}) {
+  const input = useRef<HTMLTextAreaElement>(null)
+  const change = (make: () => PdfParagraph[]) => {
+    try {
+      void viewport.paragraphs.changeLayout(make())
+    } catch (error) {
+      viewport.workspace.fail(error)
+    }
+  }
+  return (
+    <div className="rf-paragraph-editor">
+      <textarea
+        ref={input}
+        readOnly
+        aria-label={`Chỗ tách đoạn ${paragraph.index + 1}`}
+        value={paragraph.text}
+      />
+      <small>Đặt con trỏ trong chữ phía trên rồi bấm Tách. Chữ PDF gốc được giữ nguyên.</small>
+      <div>
+        <button
+          type="button"
+          disabled={busy || !!paragraph.excluded}
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={() =>
+            change(() =>
+              splitParagraph(paragraphs, paragraph.id, input.current?.selectionStart ?? 0),
+            )
+          }
+        >
+          Tách tại con trỏ
+        </button>
+        <button
+          type="button"
+          disabled={
+            busy ||
+            !!paragraph.excluded ||
+            paragraph.index >= paragraphs.length - 1 ||
+            !!paragraphs[paragraph.index + 1]?.excluded
+          }
+          onClick={() => change(() => mergeParagraphs(paragraphs, paragraph.id))}
+        >
+          Gộp với đoạn sau
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            change(() =>
+              paragraphs.map((p) => (p.id === paragraph.id ? { ...p, excluded: !p.excluded } : p)),
+            )
+          }
+        >
+          {paragraph.excluded ? "Cho dịch lại đoạn này" : "Bỏ qua đoạn này"}
+        </button>
+      </div>
+    </div>
   )
 }

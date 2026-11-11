@@ -122,3 +122,39 @@ it("ignores a stale context probe from a cache restore cancelled by navigation",
   expect(session.getSnapshot().rows).toEqual({})
   session.destroy()
 })
+
+it("excludes locally ignored paragraphs from cache reads and explicit translation", async () => {
+  const session = create(),
+    items = paragraphs()
+  session.setPage(1, [{ ...items[0]!, excluded: true }, items[1]!])
+  await session.restoreCache()
+  expect(translator.mock.calls.map(([input]) => input.text)).toEqual(["Second paragraph."])
+  translator.mockClear()
+  await session.translatePage()
+  expect(translator.mock.calls.map(([input]) => input.text)).toEqual(["Second paragraph."])
+  session.destroy()
+})
+it("editing paragraph membership on the same page cancels pending output without paid repair", async () => {
+  const session = create(),
+    items = paragraphs()
+  let release: () => void = () => {}
+  translator.mockImplementationOnce(async (input) => {
+    await new Promise<void>((resolve) => {
+      release = resolve
+    })
+    input.onChunk?.({ output: "Late old paragraph", thinking: null })
+    return { output: "Late old paragraph", thinking: null }
+  })
+  session.setPage(1, items)
+  const task = session.translatePage()
+  await vi.waitFor(() => expect(translator).toHaveBeenCalledTimes(1))
+  session.setPage(1, [{ ...items[1]!, excluded: true }])
+  release()
+  await task
+  expect(session.getSnapshot().busy).toBe(false)
+  expect(Object.values(session.getSnapshot().rows).some((row) => row.output.includes("Late"))).toBe(
+    false,
+  )
+  expect(translator).toHaveBeenCalledTimes(1)
+  session.destroy()
+})
