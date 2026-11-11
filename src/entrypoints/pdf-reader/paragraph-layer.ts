@@ -211,6 +211,7 @@ export class PdfParagraphLayer {
   private clicked = (event: MouseEvent) => {
     if (
       (this.host.dataset.studyTool && this.host.dataset.studyTool !== "select") ||
+      this.host.dataset.annotationEditing === "true" ||
       !(event.target instanceof Element) ||
       event.target.closest("button") ||
       window.getSelection()?.isCollapsed === false

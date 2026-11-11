@@ -1,6 +1,11 @@
 # Bản local khác upstream ở đâu?
 
-**Bản sửa hiện tại1.59.1-a.2 / manifest1.59.1.2:** sửa theme PDF, khung tìm/mục
+**Bản sửa hiện tại 1.59.1-a.3 / manifest1.59.1.3:** tối ưu chờ chốt/dịch audio
+live, đổi màu/xóa hình PDF qua chọn trực tiếp và sửa vuông kéo ngang/dọc;
+thêm ngữ cảnh anime ani.pm tùy chọn, chỉ RAM của nguồn đang xem. Không đổi schema
+so với a.2, không merge thêm upstream. Xem [LIVE_PDF_ANIME_1_59_1A3.md](LIVE_PDF_ANIME_1_59_1A3.md).
+
+**Bản sửa trước1.59.1-a.2 / manifest1.59.1.2:** sửa theme PDF, khung tìm/mục
 lục nổi có resize, ink move/resize và chia bullet/hanging-indent. Không đổi schema
 so với a.1. Xem [PDF_READER_UX_1_59_1A2.md](PDF_READER_UX_1_59_1A2.md).
 

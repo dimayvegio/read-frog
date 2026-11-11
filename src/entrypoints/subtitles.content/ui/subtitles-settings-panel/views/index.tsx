@@ -1,10 +1,11 @@
 import type { ComponentType } from "react"
 import { i18n } from "@/utils/i18n"
+import { AnimeContextView } from "./anime-context"
 import { DownloadView } from "./download"
 import { SettingsView } from "./settings"
 import { StyleView } from "./style"
 
-export type ViewId = "main" | "download" | "settings" | "style"
+export type ViewId = "main" | "download" | "settings" | "style" | "anime-context"
 export type SubpageId = Exclude<ViewId, "main">
 export const ROOT_VIEW = "main" satisfies ViewId
 
@@ -20,6 +21,11 @@ export interface SubpageConfig {
 }
 
 export const SUBPAGES: Record<SubpageId, SubpageConfig> = {
+  "anime-context": {
+    parent: ROOT_VIEW,
+    title: () => "Ngữ cảnh anime",
+    component: AnimeContextView,
+  },
   download: {
     parent: ROOT_VIEW,
     title: () => i18n.t("subtitles.actions.download"),

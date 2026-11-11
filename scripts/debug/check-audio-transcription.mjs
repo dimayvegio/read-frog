@@ -62,7 +62,7 @@ let source,
   offscreen,
   blockedRuntimeRequests = 0
 try {
-  let extensionPath = path.resolve(".output/edge-mv3")
+  let extensionPath = path.resolve(process.env.AUDIO_EXTENSION ?? ".output/edge-mv3")
   if (process.env.AUDIO_UPGRADE_FROM) {
     extensionPath = path.join(scratch, "installed")
     const zip = await JSZip.loadAsync(await fs.readFile(process.env.AUDIO_UPGRADE_FROM), {
@@ -535,6 +535,14 @@ try {
       })
     })
     await click(live, "Anh + Nhật + Việt")
+    if (process.env.AUDIO_LATENCY_FALLBACK)
+      await worker.evaluate(() => {
+        const original = chrome.scripting.executeScript.bind(chrome.scripting)
+        chrome.scripting.executeScript = (...args) =>
+          args[0].files?.includes("/live-transcript-view.js")
+            ? Promise.reject(new Error("Simulated unavailable source pane for latency comparison"))
+            : original(...args)
+      })
     check(
       "meeting preset selects exactly English, Japanese and Vietnamese",
       await live.$$eval(".languages input:checked", (nodes) => nodes.length === 3),
@@ -576,6 +584,27 @@ try {
       "live deltas are visible before stopping or finalizing a turn",
       (await live.$(".pending")) !== null,
     )
+    if (process.env.AUDIO_LATENCY_BENCH) {
+      const deadline = Date.now() + 22000
+      while (!(await offEval("__commitTimes.length")) && Date.now() < deadline) await pause(100)
+      const measurement = await offEval(
+        "({firstCommitMs:__commitTimes[0]-__openedAt, commits:__commitTimes.length})",
+      )
+      evidence.latency = {
+        ...measurement,
+        sourcePane: sourceViewTest,
+        modelLatency: "mocked; not measured",
+        transcription: await worker.evaluate(
+          () =>
+            __audioCalls.find((c) => c.kind === "secret").body.session.audio.input.transcription,
+        ),
+      }
+      check(
+        "continuous audio is committed within a bounded local turn",
+        measurement.firstCommitMs > 0 && measurement.firstCommitMs < 17000,
+      )
+      console.log("LATENCY", JSON.stringify(evidence.latency))
+    }
     if (process.env.AUDIO_VIEW_RECOVERY) {
       check(
         "a failed view load preserves active ASR and shows a retryable view-only diagnostic",

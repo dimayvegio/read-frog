@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.2` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.2` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.59.1-a.3` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.3` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.59.1A`                                  |
 | Schema cấu hình của fork                 | `125`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
@@ -40,6 +40,11 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 Báo cáo đợt hiện tại: [1.59.1A](UPSTREAM_1_59_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Bản sửa a.3: giữ [LIVE_PDF_ANIME_1_59_1A3.md](LIVE_PDF_ANIME_1_59_1A3.md),
+gồm local latency gate/default riêng của live, hủy job dịch hết phạm vi, sửa hình
+PDF bằng click/màu/xóa và context ani.pm explicit, RAM-only/source-scoped.
+Không đổi schema. Các số benchmark local/mock không phải độ trễ OpenAI thật.
 
 Bản sửa a.2: giữ thêm [PDF_READER_UX_1_59_1A2.md](PDF_READER_UX_1_59_1A2.md), gồm
 theme PDF, annotation editor và khung tìm/mục lục resize; không đổi schema.

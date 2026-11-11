@@ -44,6 +44,7 @@ export class TranslatedSubtitlesDownloader {
   constructor(
     private getFetcher: () => SubtitlesFetcher,
     private config: PlatformConfig,
+    private getViewerContext: () => string | undefined = () => undefined,
   ) {}
 
   private get fetcher(): SubtitlesFetcher {
@@ -465,6 +466,7 @@ export class TranslatedSubtitlesDownloader {
     providerRef: PromptableProviderRef | null,
   ): Promise<SubtitlesVideoContext> {
     const videoContext: SubtitlesVideoContext = {
+      viewerContext: this.getViewerContext(),
       videoTitle: pageTitle,
       subtitlesTextContent: sourceSubtitles.map((fragment) => fragment.text).join(""),
     }

@@ -17,6 +17,7 @@ import {
   subtitlesSettingsPanelOpenAtom,
   subtitlesSettingsPanelViewAtom,
   subtitlesSidebarOpenAtom,
+  subtitlesVisibleAtom,
   subtitlesSourceAtom,
   subtitlesStore,
   translatedTrackAtom,
@@ -139,13 +140,37 @@ describe("universalVideoAdapter", () => {
       },
     })
   })
-
   afterEach(() => {
     subtitlesStore.set(adPlayingAtom, false)
     subtitlesStore.set(subtitlesSettingsPanelOpenAtom, false)
     subtitlesStore.set(subtitlesSettingsPanelViewAtom, "main")
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it("keeps manual anime context scoped to the current source and applies only on the user's action", () => {
+    const { adapter } = createAdapter([])
+    expect(adapter.getViewerContext()).toBeUndefined()
+    ;(adapter as any).config.platform = "anipm"
+    let video = "anime-a"
+    ;(adapter as any).config.getVideoId = () => video
+    subtitlesStore.set(subtitlesVisibleAtom, false)
+    const start = vi.spyOn(adapter as any, "startTranslation").mockResolvedValue(true)
+    adapter.setViewerContext("  One Piece; Luffy  ")
+    expect(adapter.getViewerContext()).toBe("One Piece; Luffy")
+    expect(start).not.toHaveBeenCalled()
+    expect(() => adapter.setViewerContext("x".repeat(1001))).toThrow(/1.000/)
+    subtitlesStore.set(subtitlesVisibleAtom, true)
+    const stopped = vi.fn<() => void>()
+    ;(adapter as any).translationCoordinator = { stop: stopped }
+    adapter.setViewerContext("New context")
+    expect(stopped).toHaveBeenCalledOnce()
+    expect(start).toHaveBeenCalledOnce()
+    adapter.setViewerContext("New context")
+    expect(start).toHaveBeenCalledOnce()
+    video = "anime-b"
+    expect(adapter.getViewerContext()).toBe("")
+    subtitlesStore.set(subtitlesVisibleAtom, false)
   })
 
   it.each([

@@ -1,5 +1,6 @@
 import type { Annotation, Box, StudyDocument } from "./study-data"
 import { editBounds, inkBounds } from "./shapes"
+import { STUDY_COLORS } from "./study-data"
 
 type Gesture = {
   pointer: number
@@ -30,7 +31,7 @@ export class PdfAnnotationEditor {
     private data: () => StudyDocument | undefined,
     private save: (
       before: Annotation,
-      after: Annotation,
+      after: Annotation | null,
       current: () => boolean,
     ) => Promise<boolean>,
     private refresh: () => void,
@@ -48,16 +49,17 @@ export class PdfAnnotationEditor {
   enable(value: boolean) {
     this.cancel()
     this.enabled = value
-    if (!value) this.selected = undefined
+    this.selected = undefined
     this.sync()
   }
   sync() {
     if (this.gesture) return
     const focused = this.overlay?.contains(document.activeElement)
-      ? (document.activeElement as HTMLElement).dataset.shapeHandle
+      ? (document.activeElement as HTMLElement).dataset.shapeControl
       : undefined
     this.overlay?.remove()
     this.overlay = undefined
+    delete this.host.dataset.annotationEditing
     if (this.destroyed || !this.enabled || !this.selected) return
     const item = this.data()?.annotations.find((a) => a.id === this.selected && a.kind === "ink")
     const page =
@@ -70,12 +72,14 @@ export class PdfAnnotationEditor {
     overlay.className = "rf-shape-selection"
     overlay.dataset.shapeId = item.id
     this.overlay = overlay
+    this.host.dataset.annotationEditing = "true"
     page.append(overlay)
     const move = document.createElement("button")
     move.type = "button"
     move.setAttribute("aria-label", "Di chuyển hình")
     move.title = "Kéo để di chuyển; phím mũi tên để chỉnh, Shift để bước lớn"
     move.dataset.shapeHandle = "move"
+    move.dataset.shapeControl = "move"
     overlay.append(move)
     for (const direction of ["nw", "n", "ne", "e", "se", "s", "sw", "w"]) {
       const handle = document.createElement("button")
@@ -83,14 +87,82 @@ export class PdfAnnotationEditor {
       handle.setAttribute("aria-label", `Đổi kích thước hình ${direction}`)
       handle.title = "Kéo để đổi kích thước; phím mũi tên để chỉnh, Shift để bước lớn"
       handle.dataset.shapeHandle = direction
+      handle.dataset.shapeControl = direction
       handle.className = `rf-shape-handle rf-shape-${direction}`
       overlay.append(handle)
     }
+    const properties = document.createElement("div")
+    properties.className = "rf-shape-properties"
+    properties.setAttribute("role", "toolbar")
+    properties.setAttribute("aria-label", "Sửa hình đã chọn")
+    const names = ["Vàng", "Xanh lá", "Xanh dương", "Đỏ"]
+    for (const [index, color] of STUDY_COLORS.entries()) {
+      const button = document.createElement("button")
+      button.type = "button"
+      button.className = "rf-shape-color"
+      button.style.setProperty("--annotation-color", color)
+      button.dataset.shapeControl = color
+      button.setAttribute("aria-label", `Đổi màu hình: ${names[index]}`)
+      button.title = names[index]!
+      button.setAttribute("aria-pressed", String(item.color === color))
+      button.disabled = this.pending
+      button.onclick = () => {
+        if (item.color !== color) this.change(item, { ...item, color })
+      }
+      properties.append(button)
+    }
+    const remove = document.createElement("button")
+    remove.type = "button"
+    remove.textContent = "Xóa"
+    remove.title = "Xóa hình (Delete); Ctrl+Z để hoàn tác"
+    remove.dataset.shapeControl = "delete"
+    remove.setAttribute("aria-label", "Xóa hình đã chọn")
+    remove.disabled = this.pending
+    remove.onclick = () => this.change(item, null)
+    properties.append(remove)
+    const done = document.createElement("button")
+    done.type = "button"
+    done.textContent = "×"
+    done.dataset.shapeControl = "close"
+    done.setAttribute("aria-label", "Bỏ chọn hình")
+    done.onclick = () => {
+      this.selected = undefined
+      this.sync()
+    }
+    properties.append(done)
+    const hint = document.createElement("small")
+    hint.textContent = "Kéo hình để di chuyển · Kéo cạnh/góc để đổi kích thước"
+    properties.append(hint)
+    overlay.append(properties)
     this.position(inkBounds(item.points))
+    this.positionProperties()
     if (focused)
       overlay
-        .querySelector<HTMLButtonElement>(`[data-shape-handle="${focused}"]`)
+        .querySelector<HTMLButtonElement>(`[data-shape-control="${focused}"]`)
         ?.focus({ preventScroll: true })
+  }
+  private positionProperties() {
+    const properties = this.overlay?.querySelector<HTMLElement>(".rf-shape-properties")
+    if (!properties || !this.overlay) return
+    const box = this.overlay.getBoundingClientRect()
+    const viewport = this.host.getBoundingClientRect()
+    const width = Math.min(300, innerWidth - 16)
+    properties.hidden = box.bottom < viewport.top || box.top > viewport.bottom
+    Object.assign(properties.style, {
+      width: `${width}px`,
+      left: `${Math.max(8, Math.min(innerWidth - width - 8, box.left))}px`,
+      top: `${Math.max(viewport.top + 4, Math.min(innerHeight - 90, box.top - 84 < viewport.top ? box.bottom + 10 : box.top - 84))}px`,
+    })
+  }
+  private change(before: Annotation, after: Annotation | null) {
+    if (this.pending || this.gesture || this.destroyed) return
+    const epoch = this.epoch
+    this.pending = true
+    this.sync()
+    void this.save(before, after, () => !this.destroyed && epoch === this.epoch).finally(() => {
+      this.pending = false
+      if (!this.destroyed) this.refresh()
+    })
   }
   private position(box: Box) {
     if (this.overlay)
@@ -106,6 +178,10 @@ export class PdfAnnotationEditor {
       return
     const target = event.target as Element,
       handle = target.closest<HTMLElement>("[data-shape-handle]")
+    if (target.closest(".rf-shape-properties")) {
+      event.stopImmediatePropagation()
+      return
+    }
     const id = handle
       ? this.selected
       : target.closest<SVGElement>("[data-annotation]")?.dataset.annotation
@@ -121,6 +197,7 @@ export class PdfAnnotationEditor {
     )
     if (!group) return
     event.preventDefault()
+    event.stopImmediatePropagation()
     this.selected = item.id
     this.sync()
     const from = inkBounds(item.points)
@@ -137,6 +214,12 @@ export class PdfAnnotationEditor {
       handle: handle?.dataset.shapeHandle ?? "move",
       frame: 0,
     }
+    this.overlay?.querySelector<HTMLElement>(".rf-shape-properties")?.setAttribute("hidden", "")
+    this.overlay
+      ?.querySelector<HTMLButtonElement>(
+        `[data-shape-handle="${handle?.dataset.shapeHandle ?? "move"}"]`,
+      )
+      ?.focus({ preventScroll: true })
     this.host.setPointerCapture(event.pointerId)
   }
   private paint = () => {
@@ -191,6 +274,10 @@ export class PdfAnnotationEditor {
     this.commit(g, to)
   }
   private commit(g: Pick<Gesture, "item" | "group" | "from">, to: Box) {
+    if (JSON.stringify(g.from) === JSON.stringify(to)) {
+      this.sync()
+      return
+    }
     const epoch = this.epoch
     const clip = (n: number) => Math.max(0, Math.min(1, n))
     const after = {
@@ -221,6 +308,14 @@ export class PdfAnnotationEditor {
       event.stopPropagation()
       this.selected = undefined
       this.cancel()
+      return
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      if (!(event.target as Element).closest(".rf-shape-selection")) return
+      event.preventDefault()
+      event.stopPropagation()
+      const item = this.data()?.annotations.find((a) => a.id === this.selected && a.kind === "ink")
+      if (item) this.change(item, null)
       return
     }
     const handle = (event.target as HTMLElement).dataset.shapeHandle
@@ -259,14 +354,17 @@ export class PdfAnnotationEditor {
   }
   private scrolled = () => {
     if (this.gesture) this.cancel()
+    else this.positionProperties()
   }
   private interrupted = () => {
     if (this.gesture) this.cancel()
+    else this.positionProperties()
   }
   destroy() {
     this.destroyed = true
     this.cancel()
     this.overlay?.remove()
+    delete this.host.dataset.annotationEditing
     this.host.removeEventListener("pointerdown", this.down)
     this.host.removeEventListener("pointermove", this.move)
     this.host.removeEventListener("pointerup", this.up)

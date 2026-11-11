@@ -5,8 +5,8 @@ import {
   type TabNotice,
   type TabOptions,
 } from "@/utils/audio-transcription/tab-schema"
+import { LiveTurnGate } from "@/utils/audio-transcription/turn-gate"
 import { onMessage, sendMessage } from "@/utils/message"
-import { SpeechEndDetector } from "@/utils/reading-library/silence"
 import { isTrustedOptionsSender } from "../background/settings-sender"
 
 let active: TabCapture | null = null
@@ -233,9 +233,7 @@ class TabCapture {
     analyser.fftSize = 2048
     this.source.connect(analyser)
     const samples = new Float32Array(analyser.fftSize)
-    let detector = new SpeechEndDetector(900),
-      started = this.context.currentTime,
-      voiced = 0
+    const gate = new LiveTurnGate(this.context.currentTime * 1000)
     this.timers.push(
       setInterval(() => {
         if (
@@ -249,15 +247,12 @@ class TabCapture {
         const rms = Math.sqrt(
           samples.reduce((sum, value) => sum + value * value, 0) / samples.length,
         )
-        if (rms >= 0.008) voiced += 50
-        const now = this.context.currentTime
-        if (detector.push(rms, now * 1000) || now - started >= (this.options.shortTurns ? 6 : 15)) {
-          if (voiced >= 100) this.commit()
-          else this.channel.send(JSON.stringify({ type: "input_audio_buffer.clear" }))
-          detector = new SpeechEndDetector(900)
-          started = now
-          voiced = 0
-        }
+        // UI availability must not multiply final-only translation latency.
+        // The Audio fallback and a recovered source pane share the same cap.
+        const action = gate.push(rms, this.context.currentTime * 1000)
+        if (action === "commit") this.commit()
+        else if (action === "clear")
+          this.channel.send(JSON.stringify({ type: "input_audio_buffer.clear" }))
       }, 50),
     )
   }

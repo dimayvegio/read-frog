@@ -47,6 +47,13 @@ export async function checkYouTubeLiveView({
     "opening the view makes no text-generation request",
     await worker.evaluate(() => __pdfCalls.length === 0),
   )
+  if (process.env.AUDIO_FAST_PROFILE)
+    await worker.evaluate(async () => {
+      const { config } = await chrome.storage.local.get("config")
+      config.providersConfig[0].model.model = "gpt-6-luna"
+      delete config.providersConfig[0].reasoning
+      await chrome.storage.local.set({ config })
+    })
   await source.evaluate(() => {
     window.__liveHost = document.querySelector("#read-frog-live-transcript")
   })
@@ -168,6 +175,18 @@ export async function checkYouTubeLiveView({
       )
     }),
   )
+  if (process.env.AUDIO_FAST_PROFILE)
+    check(
+      "live-only low reasoning reaches the fixed Responses endpoint without changing saved defaults",
+      await worker.evaluate(
+        async () =>
+          __pdfCalls.every(
+            (call) => call.body.model === "gpt-6-luna" && call.body.reasoning?.effort === "low",
+          ) &&
+          (await chrome.storage.local.get("config")).config.providersConfig[0].reasoning ===
+            undefined,
+      ),
+    )
   if (process.env.AUDIO_FACEBOOK) {
     await source.click(shadow(".live-translation-controls input"))
     await source.waitForFunction(

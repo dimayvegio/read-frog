@@ -39,7 +39,7 @@ export function recentLiveRows(text: string): TranslationInput[] {
 export class LiveTranslationController {
   private inputs: TranslationInput[] = []
   private full = ""
-  private jobs = new Set<AbortController>()
+  private jobs = new Map<AbortController, LiveRow[]>()
   private epoch = 0
   private disposed = false
   private value: LiveTranslation = {
@@ -61,7 +61,7 @@ export class LiveTranslationController {
   }
   private cancel() {
     this.epoch++
-    for (const job of this.jobs) job.abort()
+    for (const job of this.jobs.keys()) job.abort()
     this.jobs.clear()
     this.value.rows = this.value.rows.map((row) => ({
       ...row,
@@ -84,6 +84,10 @@ export class LiveTranslationController {
         ? saved
         : { id: row.id, source: row.source, translation: "", state: "waiting" }
     })
+    // A slow job for rows that have left the bounded view must not occupy
+    // both slots while current speech waits behind it. Do not retry it.
+    for (const [job, rows] of this.jobs)
+      if (rows.every((row) => !this.value.rows.includes(row))) job.abort()
     this.publish()
     this.pump()
   }
@@ -136,7 +140,7 @@ export class LiveTranslationController {
       const epoch = this.epoch,
         target = this.value.target,
         job = new AbortController()
-      this.jobs.add(job)
+      this.jobs.set(job, rows)
       for (const row of rows) row.state = "working"
       this.publish()
       void this.run(rows, inputs, target, job, epoch)
@@ -152,7 +156,7 @@ export class LiveTranslationController {
     try {
       const results = await this.translate(inputs, target, job.signal)
       job.signal.throwIfAborted()
-      if (epoch !== this.epoch || this.disposed) return
+      if (epoch !== this.epoch || this.disposed || job.signal.aborted) return
       if (
         results.length !== rows.length ||
         results.some((text) => typeof text !== "string" || !text.trim() || text.length > 6000)
@@ -165,7 +169,7 @@ export class LiveTranslationController {
         }
       })
     } catch {
-      if (epoch !== this.epoch || this.disposed) return
+      if (epoch !== this.epoch || this.disposed || job.signal.aborted) return
       this.cancel()
       this.value.failed = true
       this.value.message =

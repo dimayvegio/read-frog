@@ -135,7 +135,7 @@ export function PdfStudyTools({
       (p) => ({ ...p, annotations: p.annotations.filter((a) => a.id !== annotationId) }),
       true,
     )
-  const update = async (before: Annotation, after: Annotation, current: () => boolean) => {
+  const update = async (before: Annotation, after: Annotation | null, current: () => boolean) => {
     if (dataRef.current?.annotations.find((item) => item.id === before.id) !== before) {
       setMessage("Chú thích đã thay đổi. Hãy chọn lại hình trước khi sửa.")
       return false
@@ -143,7 +143,9 @@ export function PdfStudyTools({
     return write(
       (p) => ({
         ...p,
-        annotations: p.annotations.map((item) => (item.id === before.id ? after : item)),
+        annotations: after
+          ? p.annotations.map((item) => (item.id === before.id ? after : item))
+          : p.annotations.filter((item) => item.id !== before.id),
       }),
       true,
       current,
@@ -493,8 +495,13 @@ export function PdfStudyTools({
       )}
       {tool === "circle" && (
         <p className="rf-tool-hint">
-          Kéo để vẽ elip ngang/dọc. Giữ Shift để vẽ hình tròn. Chọn “Chọn / sửa hình” để di chuyển
-          hoặc đổi kích thước sau khi vẽ.
+          Kéo để vẽ elip ngang/dọc. Giữ Shift để vẽ hình tròn. Bấm vào nét hình để đổi màu, di
+          chuyển, đổi kích thước hoặc xóa.
+        </p>
+      )}
+      {tool === "square" && (
+        <p className="rf-tool-hint">
+          Kéo ngang hoặc dọc để vẽ hình vuông. Bấm vào nét hình đã vẽ để sửa.
         </p>
       )}
       {message && (

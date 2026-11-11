@@ -2,6 +2,7 @@ import type { NavigateToSubpage } from "."
 import { IconFileDownload, IconLoader2, IconSettings } from "@tabler/icons-react"
 import { useAtomValue } from "jotai"
 import { translatedSubtitlesDownloadStatusAtom } from "../../../atoms"
+import { useSubtitlesUI } from "../../subtitles-ui-context"
 import { SubtitlesSidebarItem } from "../components/subtitles-sidebar-item"
 import { SubtitlesToggle } from "../components/subtitles-toggle"
 import { isTranslatedDownloadRunning } from "../components/use-download-translated-subtitles"
@@ -27,10 +28,18 @@ function DownloadLink({ onNavigate }: { onNavigate: NavigateToSubpage }) {
 }
 
 export function MainMenu({ onNavigate }: { onNavigate: NavigateToSubpage }) {
+  const { getViewerContext } = useSubtitlesUI()
   return (
     <div className="p-1">
       <div className="space-y-0.5">
         <SubtitlesToggle />
+        {getViewerContext?.() !== undefined && (
+          <SubpageLink
+            id="anime-context"
+            icon={<IconSettings className="size-3.5" />}
+            onNavigate={onNavigate}
+          />
+        )}
         <DownloadLink onNavigate={onNavigate} />
         <SubtitlesSidebarItem />
         <SubpageLink

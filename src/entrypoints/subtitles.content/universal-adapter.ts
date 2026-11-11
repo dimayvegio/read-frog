@@ -99,6 +99,8 @@ export interface SubtitlesProvidersAdapter {
   requestAiSubtitles: () => Promise<void>
   downloadSourceSubtitles: () => Promise<void>
   downloadTranslatedSubtitles: () => Promise<void>
+  getViewerContext?: () => string | undefined
+  setViewerContext?: (text: string) => void
 }
 
 export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
@@ -142,6 +144,29 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
   private destroyed = false
   // Bumped by a leave and a navigation reset, so an init still waiting on the old player stops.
   private playerGeneration = 0
+  private viewerContext = { videoId: null as string | null, text: "" }
+
+  getViewerContext = (): string | undefined => {
+    if (this.config.platform !== "anipm") return undefined
+    return this.viewerContext.videoId === (this.config.getVideoId?.() ?? null)
+      ? this.viewerContext.text
+      : ""
+  }
+  setViewerContext = (text: string) => {
+    if (this.destroyed || this.config.platform !== "anipm") return
+    const next = text.trim().normalize("NFC")
+    if (next.length > 1000) throw new Error("Ngữ cảnh tối đa 1.000 ký tự.")
+    if (next === this.getViewerContext()) return
+    this.viewerContext = { videoId: this.config.getVideoId?.() ?? null, text: next }
+    // Explicit Apply replaces the active translation session, never native CC.
+    this.switchOperationId++
+    this.pendingStart = null
+    this.translatedSubtitlesDownloader?.dispose()
+    this.clearRuntimeSession()
+    this.subtitlesScheduler?.reset()
+    subtitlesStore.set(translatedTrackAtom, [])
+    if (subtitlesStore.get(subtitlesVisibleAtom)) void this.startTranslation()
+  }
 
   get embedded() {
     return this.config.embedded
@@ -197,6 +222,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
   destroy() {
     if (this.destroyed) return
     this.destroyed = true
+    this.viewerContext.text = ""
     this.switchOperationId++
     this.hasPendingNavigationReset = false
 
@@ -355,6 +381,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     this.translatedSubtitlesDownloader ??= new TranslatedSubtitlesDownloader(
       () => this.fetcher,
       this.config,
+      this.getViewerContext,
     )
   }
 
@@ -1142,6 +1169,7 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
       providerRef && canProviderRefGenerateText(providerRef) ? providerRef : null
 
     const videoContext: SubtitlesVideoContext = {
+      viewerContext: this.getViewerContext(),
       videoTitle: getSourceDocumentTitle(),
       videoDescription: getDocumentDescription(document),
       subtitlesTextContent: this.sessionSubtitles.map((f) => f.text).join(""),

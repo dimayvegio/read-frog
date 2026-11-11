@@ -51,7 +51,11 @@ export class PdfStudyLayer {
     private host: HTMLElement,
     private add: (items: Annotation[]) => void,
     private erase: (id: string) => void,
-    update: (before: Annotation, after: Annotation, current: () => boolean) => Promise<boolean>,
+    update: (
+      before: Annotation,
+      after: Annotation | null,
+      current: () => boolean,
+    ) => Promise<boolean>,
   ) {
     this.editor = new PdfAnnotationEditor(
       host,
@@ -78,7 +82,7 @@ export class PdfStudyLayer {
     this.cancel()
     this.tool = tool
     this.host.dataset.studyTool = tool
-    this.editor.enable(tool === "edit")
+    this.editor.enable(tool !== "erase" && tool !== "note")
     this.refresh()
   }
   private refresh = () => {
@@ -118,7 +122,7 @@ export class PdfStudyLayer {
               stroke: "none",
             }),
           )
-        if (item.kind === "ink")
+        if (item.kind === "ink") {
           group.append(
             svg("polyline", {
               points: item.points.map((p) => `${p.x * 1000},${p.y * 1000}`).join(" "),
@@ -128,6 +132,16 @@ export class PdfStudyLayer {
               "stroke-linejoin": "round",
             }),
           )
+          const hit = svg("polyline", {
+            points: item.points.map((p) => `${p.x * 1000},${p.y * 1000}`).join(" "),
+            fill: "none",
+            stroke: "transparent",
+            "stroke-width": "10",
+            "vector-effect": "non-scaling-stroke",
+            "data-shape-hit": "true",
+          })
+          group.append(hit)
+        }
         if (item.kind === "ink" && this.tool === "edit") {
           const box = inkBounds(item.points)
           group.append(

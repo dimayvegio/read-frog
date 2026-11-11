@@ -1,5 +1,11 @@
 # F23 — Audio thành văn bản và chép lời tab trực tiếp
 
+**Bản a.3 / manifest1.59.1.3:** local cap6s cho cả fallback, voiced silence500ms,
+ASR delay low, implicit live reasoning low (giữ explicit choice), hủy các job
+đã ra khỏi cửa sổ bounded. Không đổi model hay schema; vẫn final-only và tối đa
+hai job. [Báo cáo và phép đo](LIVE_PDF_ANIME_1_59_1A3.md) thay các default15s/900ms
+trong mô tả build lịch sử bên dưới. Không diễn giải local cap thành end-to-end latency.
+
 **Kiểm tra khi nâng upstream1.59.1 (11/11/2026):** đã đối chiếu lại
 [OpenAI deprecations](https://developers.openai.com/api/docs/deprecations) và
 [file transcription](https://developers.openai.com/api/docs/guides/speech-to-text).

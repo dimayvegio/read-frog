@@ -82,6 +82,34 @@ describe("subtitles translator", () => {
     expect(afterSummary.summary).toBe("Ready summary")
     expect(afterSummary.hash).toBe(beforeSummary.hash)
   })
+  it("keeps explicit anime context in both the request and cache identity, including without automatic summaries", async () => {
+    const { translateSubtitles } = await import("../translator")
+    const fragments = [{ text: "Captain!", start: 0, end: 1000 }]
+    const context = { videoTitle: "Player", subtitlesTextContent: "Captain!" }
+    const config = structuredClone(DEFAULT_CONFIG)
+    config.pageTranslation.enableAIContentAware = false
+    await translateSubtitles(fragments, context, config)
+    await translateSubtitles(
+      fragments,
+      { ...context, viewerContext: "One Piece; Luffy is the captain." },
+      config,
+    )
+    await translateSubtitles(
+      fragments,
+      { ...context, viewerContext: "Another anime; different forms of address." },
+      config,
+    )
+    await translateSubtitles(
+      fragments,
+      { ...context, viewerContext: "One Piece; Luffy is the captain." },
+      config,
+    )
+    const [plain, one, two, again] = enqueueRequests()
+    expect(one.viewerContext).toBe("One Piece; Luffy is the captain.")
+    expect(one.summary).toBeUndefined()
+    expect(new Set([plain.hash, one.hash, two.hash]).size).toBe(3)
+    expect(again.hash).toBe(one.hash)
+  })
 
   it("keys the cache on the transcript, not on the page title, description or summary", async () => {
     const { translateSubtitles } = await import("../translator")

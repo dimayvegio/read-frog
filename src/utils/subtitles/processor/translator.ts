@@ -59,6 +59,8 @@ function toFriendlyErrorMessage(error: unknown): string {
 }
 
 export interface SubtitlesVideoContext {
+  /** Explicit viewer-supplied reference data; independently keyed, unlike DOM metadata. */
+  viewerContext?: string
   videoTitle: string
   videoDescription?: string | null
   subtitlesTextContent: string
@@ -95,6 +97,7 @@ function normalizeSubtitlePromptContext(
     webTitle: normalizePromptContextValue(videoContext.videoTitle),
     webDescription: normalizePromptContextValue(videoContext.videoDescription),
     videoSummary: normalizePromptContextValue(videoContext.summary),
+    viewerContext: videoContext.viewerContext?.trim().slice(0, 1000) || undefined,
   }
 }
 
@@ -108,6 +111,7 @@ async function buildSubtitleHashComponents(
   enableAIContentAware: boolean,
   subtitlesTextContent: string,
   glossaryTerms: readonly MatchedTerm[],
+  viewerContext?: string,
 ): Promise<string[]> {
   const preparedText = prepareTranslationText(text)
   const hashComponents = [
@@ -141,6 +145,8 @@ async function buildSubtitleHashComponents(
     glossaryTerms,
   })
   hashComponents.push(systemPrompt, prompt)
+  if (viewerContext?.trim())
+    hashComponents.push("viewer-context-v1", viewerContext.trim().slice(0, 1000))
   hashComponents.push(
     enableAIContentAware ? "enableAIContentAware=true" : "enableAIContentAware=false",
   )
@@ -182,6 +188,7 @@ async function translateSingleSubtitle(
     enableAIContentAware,
     videoContext.subtitlesTextContent,
     glossaryTerms,
+    videoContext.viewerContext,
   )
 
   return await sendMessage("enqueueSubtitlesTranslateRequest", {
@@ -193,6 +200,7 @@ async function translateSingleSubtitle(
     webTitle: subtitlePromptContext.webTitle,
     webDescription: subtitlePromptContext.webDescription,
     summary: enableAIContentAware ? subtitlePromptContext.videoSummary : undefined,
+    viewerContext: subtitlePromptContext.viewerContext,
     glossaryTerms,
     glossaryRevision,
   })

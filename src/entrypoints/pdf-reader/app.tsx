@@ -420,7 +420,10 @@ export function PdfReader({ config }: { config: Config }) {
             aria-label="Nội dung PDF"
             tabIndex={0}
             onMouseUp={() => {
-              if (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select") {
+              if (
+                host.current?.dataset.annotationEditing === "true" ||
+                (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select")
+              ) {
                 setSelection("")
                 return
               }
@@ -441,7 +444,10 @@ export function PdfReader({ config }: { config: Config }) {
               )
             }}
             onKeyUp={() => {
-              if (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select")
+              if (
+                host.current?.dataset.annotationEditing === "true" ||
+                (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select")
+              )
                 return
               const selected = window.getSelection()
               setSelectionPage(

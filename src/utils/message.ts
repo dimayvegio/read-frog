@@ -238,6 +238,7 @@ interface ProtocolMap {
     webTitle?: string | null
     webDescription?: string | null
     summary?: string | null
+    viewerContext?: string | null
     // See `enqueueTranslateRequest`.
     glossaryTerms?: MatchedTerm[]
     glossaryRevision?: number

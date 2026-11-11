@@ -134,6 +134,7 @@ it("keeps permanent and ephemeral credentials in the private runtime for a multi
       input: {
         transcription: {
           model: "gpt-live-transcribe",
+          delay: "low",
           languages: ["en", "ja", "vi"],
           prompt: "Technical meeting",
         },

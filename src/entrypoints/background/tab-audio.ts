@@ -226,6 +226,7 @@ export function setupTabAudioHandlers() {
             input: {
               transcription: {
                 model: LIVE_TRANSCRIPTION_MODEL,
+                delay: "low",
                 ...(options.languages.length ? { languages: options.languages } : {}),
                 ...(options.prompt ? { prompt: options.prompt } : {}),
               },

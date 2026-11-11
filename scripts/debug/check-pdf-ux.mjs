@@ -275,6 +275,103 @@ try {
         (await reader.evaluate(() => document.activeElement.dataset.shapeHandle === "move")),
     )
     await reader.screenshot({ path: path.join(scratch, "shape-edit.png") })
+    await select("Chọn chữ")
+    const pickedBefore = await db()
+    const existingId = pickedBefore.annotations.at(-1).id
+    const point = await reader.$eval(".rf-study-overlay g:last-child polyline", (node) => {
+      const p = node.points.getItem(0),
+        matrix = node.getScreenCTM()
+      const screen = new DOMPoint(p.x, p.y).matrixTransform(matrix)
+      return { x: screen.x, y: screen.y }
+    })
+    await reader.mouse.click(point.x, point.y)
+    await reader.waitForSelector(".rf-shape-properties:not([hidden])")
+    check(
+      "Clicking an existing stroke in reading mode selects it without a database write",
+      (await db()).revision === pickedBefore.revision &&
+        (await reader.$eval(".rf-shape-selection", (n) => n.dataset.shapeId)) === existingId,
+    )
+    await reader.click('[aria-label="Đổi màu hình: Đỏ"]')
+    const recolored = await revision(pickedBefore.revision)
+    check(
+      "Color editing keeps points and ID, and writes exactly one revision",
+      recolored.revision === pickedBefore.revision + 1 &&
+        recolored.annotations.at(-1).id === existingId &&
+        recolored.annotations.at(-1).color === "#ef5350" &&
+        JSON.stringify(recolored.annotations.at(-1).points) ===
+          JSON.stringify(pickedBefore.annotations.at(-1).points),
+    )
+    await reader.waitForSelector('[aria-label="Xóa hình đã chọn"]:not(:disabled)')
+    await reader.click('[aria-label="Xóa hình đã chọn"]')
+    const deleted = await revision(recolored.revision)
+    check(
+      "Delete removes only the selected shape",
+      deleted.annotations.length === recolored.annotations.length - 1 &&
+        !deleted.annotations.some((a) => a.id === existingId),
+    )
+    await reader.click('[aria-label="Hoàn tác"]')
+    const restored = await revision(deleted.revision)
+    check(
+      "Undo restores the same shape and edited color",
+      restored.annotations.at(-1).id === existingId &&
+        restored.annotations.at(-1).color === "#ef5350",
+    )
+    await select("Hình vuông")
+    const squarePage = await rect('.rf-pdf-page[data-page="1"]')
+    for (const [dx, dy] of [
+      [120, 0],
+      [0, 120],
+      [-100, 1],
+      [1, -100],
+    ]) {
+      const beforeSquare = await db()
+      await drag(
+        squarePage.x + squarePage.width * 0.5,
+        squarePage.y + squarePage.height * 0.36,
+        dx,
+        dy,
+      )
+      const square = await revision(beforeSquare.revision)
+      const p = square.annotations.at(-1).points
+      const width =
+        (Math.max(...p.map((v) => v.x)) - Math.min(...p.map((v) => v.x))) * squarePage.width
+      const height =
+        (Math.max(...p.map((v) => v.y)) - Math.min(...p.map((v) => v.y))) * squarePage.height
+      check(
+        `Square follows dominant drag ${dx},${dy} with one bounded commit`,
+        square.revision === beforeSquare.revision + 1 && Math.abs(width - height) < 1 && width > 90,
+      )
+      if (dx === 120) {
+        await reader.mouse.click(
+          squarePage.x + p[0].x * squarePage.width,
+          squarePage.y + p[0].y * squarePage.height,
+        )
+        await reader.waitForSelector(".rf-shape-selection")
+        check(
+          "An active drawing tool can click an existing shape to edit without drawing a duplicate",
+          (await db()).revision === square.revision &&
+            (await reader.$eval(".rf-shape-selection", (node) => node.dataset.shapeId)) ===
+              square.annotations.at(-1).id,
+        )
+        await reader.$eval('[data-shape-handle="move"]', (node) => node.focus())
+        await reader.keyboard.press("Delete")
+        const removedByKey = await revision(square.revision)
+        check(
+          "Delete key removes the focused shape with one undoable revision",
+          removedByKey.revision === square.revision + 1 &&
+            removedByKey.annotations.length === square.annotations.length - 1,
+        )
+        await reader.click('[aria-label="Hoàn tác"]')
+        await revision(removedByKey.revision)
+      }
+      const beforeUndoSquare = await db()
+      await reader.click('[aria-label="Hoàn tác"]')
+      await revision(beforeUndoSquare.revision)
+    }
+    check(
+      "Shape property controls never call a provider",
+      await worker.evaluate(() => __pdfCalls.length === 0),
+    )
     await click("Tìm kiếm")
     await reader.waitForSelector(".rf-study-panel")
     const panel = await rect(".rf-study-panel"),

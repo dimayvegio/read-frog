@@ -70,6 +70,32 @@ it("cancels language changes, ignores stale completion, and cancels only transla
   expect(translate).toHaveBeenCalledTimes(2)
   controller.dispose()
 })
+it("frees obsolete jobs for current speech without retrying discarded turns or pausing translation", async () => {
+  const translate = vi
+    .fn<(...args: any[]) => any>()
+    .mockImplementation(
+      (rows, _target, signal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true }),
+        ),
+    )
+  const controller = new LiveTranslationController(translate, () => {})
+  controller.configure(true, "vi")
+  for (let i = 1; i <= 30; i++)
+    controller.update(Array.from({ length: i }, (_, n) => `Turn ${n}.`).join("\n\n"))
+  expect(translate.mock.calls.slice(0, 2).every((call) => call[2].aborted)).toBe(true)
+  await tick()
+  expect(controller.snapshot.failed).toBe(false)
+  expect(translate).toHaveBeenCalledTimes(4)
+  expect(translate.mock.calls[2]![0].at(-1).source).toBe("Turn 29.")
+  expect(
+    translate.mock.calls
+      .slice(2)
+      .flatMap((call) => call[0])
+      .every((row) => row.id > 10),
+  ).toBe(true)
+  controller.dispose()
+})
 it("pauses after invalid/error output with no paid automatic retry and keeps later original speech", async () => {
   const translate = vi.fn<(...args: any[]) => any>().mockResolvedValue([])
   const controller = new LiveTranslationController(translate, () => {})

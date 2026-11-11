@@ -3,6 +3,8 @@ import { LANGUAGE_ENGLISH_NAMES } from "@read-frog/definitions"
 import { generateText, Output } from "ai"
 import { z } from "zod"
 import { Sha256Hex } from "@/utils/hash"
+import { resolveModelId } from "@/utils/providers/model-id"
+import { getRecommendedProviderOptions } from "@/utils/providers/options"
 import { ensureInitializedConfig } from "./config"
 import { readOpenAIKeyStatus } from "./openai-credentials"
 import { resolveOpenAIExecution } from "./openai-runtime"
@@ -18,7 +20,7 @@ const resultSchema = z.object({
     .min(1)
     .max(4),
 })
-export const LIVE_TRANSLATION_PROMPT = "live-context-v1"
+export const LIVE_TRANSLATION_PROMPT = "live-context-v2-low-latency"
 
 /** Private, per-session RAM cache; no transcripts or new fields in persistent databases. */
 export function createLiveTranslator(): TranslateLive {
@@ -30,6 +32,7 @@ export function createLiveTranslator(): TranslateLive {
       status = await readOpenAIKeyStatus()
     if (!status.configured) throw new Error("OpenAI key required")
     const provider = config.providersConfig[0]
+    if (!provider) throw new Error("OpenAI provider required")
     const identity = JSON.stringify(provider)
     const key = Sha256Hex(
       LIVE_TRANSLATION_PROMPT,
@@ -43,7 +46,17 @@ export function createLiveTranslator(): TranslateLive {
       signal.throwIfAborted()
       return [...cached]
     }
-    const execution = await resolveOpenAIExecution(provider, { signal, usageTask: "subtitles" })
+    // Live captions should not inherit the medium-effort catalog recommendation
+    // used by long-form translation. Preserve every explicit user choice and
+    // the selected model; only lower an implicit medium/high recommendation.
+    const recommendation = getRecommendedProviderOptions(resolveModelId(provider.model)!)
+    const liveProvider =
+      provider.reasoning === undefined &&
+      typeof recommendation?.reasoningEffort === "string" &&
+      ["medium", "high", "xhigh"].includes(recommendation.reasoningEffort)
+        ? { ...provider, reasoning: "low" as const }
+        : provider
+    const execution = await resolveOpenAIExecution(liveProvider, { signal, usageTask: "subtitles" })
     if (execution.credentialRevision !== status.revision) throw new Error("Credential changed")
     const result = await generateText({
       model: execution.model,

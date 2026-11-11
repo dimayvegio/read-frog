@@ -29,7 +29,7 @@ it("uses configured private runtime, contextual quoted-data prompt, explicit tar
   const result = await run(rows, "vi", new AbortController().signal)
   expect(result).toEqual(["Nó có các chi nhánh."])
   expect(resolve).toHaveBeenCalledWith(
-    DEFAULT_CONFIG.providersConfig[0],
+    { ...DEFAULT_CONFIG.providersConfig[0], reasoning: "low" },
     expect.objectContaining({ usageTask: "subtitles" }),
   )
   const request = generate.mock.calls[0]![0]
@@ -44,6 +44,16 @@ it("uses configured private runtime, contextual quoted-data prompt, explicit tar
   expect(generate).toHaveBeenCalledTimes(1)
   await run(rows, "en", new AbortController().signal)
   expect(generate).toHaveBeenCalledTimes(2)
+})
+it("preserves explicit reasoning choices and never changes the selected model or saved configuration", async () => {
+  for (const reasoning of ["high", "provider-default", "none"] as const) {
+    const value = structuredClone(DEFAULT_CONFIG)
+    value.providersConfig[0]!.reasoning = reasoning
+    config.mockResolvedValue(value)
+    await createLiveTranslator()(rows, "vi", new AbortController().signal)
+    expect(resolve.mock.calls.at(-1)![0]).toEqual(value.providersConfig[0])
+    expect(value.providersConfig[0]!.reasoning).toBe(reasoning)
+  }
 })
 it("cache identities include source context, config, credential revision and target; session caches are independent", async () => {
   const run = createLiveTranslator(),

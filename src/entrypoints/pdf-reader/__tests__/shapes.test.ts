@@ -42,6 +42,24 @@ it("keeps rectangle dimensions, rejects clicks, and fits the frozen ink format",
     }),
   ).not.toThrow()
 })
+it("squares follow horizontal and vertical drags, stay bounded and never collapse to the shorter axis", () => {
+  for (const end of [
+    { x: 0.8, y: 0.2 },
+    { x: 0.2, y: 0.8 },
+    { x: 0, y: 0.2 },
+    { x: 0.2, y: 0 },
+    { x: 0.99, y: 0.21 },
+  ]) {
+    const points = shapePoints("square", { x: 0.2, y: 0.2 }, end, 600, 800, false)
+    const box = inkBounds(points)
+    expect(points).toHaveLength(5)
+    expect(box.width * 600).toBeCloseTo(box.height * 800, 7)
+    expect(Math.max(box.width * 600, box.height * 800)).toBeGreaterThan(100)
+    expect(
+      points.every((point) => point.x >= 0 && point.x <= 1 && point.y >= 0 && point.y <= 1),
+    ).toBe(true)
+  }
+})
 it("supports free ellipses and bounded independent edge/corner resizing and movement", () => {
   const points = shapePoints("circle", { x: 0.1, y: 0.2 }, { x: 0.7, y: 0.4 }, 600, 800, false)
   const bounds = inkBounds(points)

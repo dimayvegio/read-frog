@@ -31,6 +31,7 @@ export function setupSubtitlesTranslationHandlers(): void {
         webTitle,
         webDescription,
         summary,
+        viewerContext,
         glossaryTerms,
         glossaryRevision,
       },
@@ -52,6 +53,8 @@ export function setupSubtitlesTranslationHandlers(): void {
       webTitle: normalizePromptContextValue(webTitle),
       webDescription: normalizePromptContextValue(webDescription),
       videoSummary: normalizePromptContextValue(summary),
+      viewerContext:
+        typeof viewerContext === "string" ? viewerContext.trim().slice(0, 1000) : undefined,
     }
 
     if (shouldUseBatchQueue(providerRef)) {
@@ -79,6 +82,7 @@ export function setupSubtitlesTranslationHandlers(): void {
       const thunk = (signal?: AbortSignal) =>
         executeTranslate(text, langConfig, localConfig, getSubtitlesTranslatePrompt, {
           signal,
+          context,
           glossaryTerms,
         })
       result = await requestQueue.enqueue(thunk, scheduleAt, hash)

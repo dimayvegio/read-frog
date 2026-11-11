@@ -1,5 +1,14 @@
 # Phụ đề ani.pm trong bản local 1.58.0A
 
+**Bổ sung a.3 / manifest1.59.1.3:** logo Read Frog → **Ngữ cảnh anime** → nhập
+tên phim/nhân vật, xưng hô, thuật ngữ và chủ đề → **Áp dụng ngữ cảnh**.
+Tối đa1.000ký tự; giữ trong RAM/tab và chỉ nguồn video hiện tại, không lưu/sync.
+Khi dịch đang ON, **Áp dụng và dịch lại** làm mới bộ đệm với context mới và có phí;
+OFF chỉ lưu RAM. Mở menu/gõ/áp dụng cùng nội dung không gọi AI. Cache live/export
+phân biệt context. Prompt dùng context như dữ liệu tham chiếu, không thêm thoại.
+Track mode, iframe guard và buffer hai phút giữ như trước. Chi tiết/kiểm chứng:
+[LIVE_PDF_ANIME_1_59_1A3.md](LIVE_PDF_ANIME_1_59_1A3.md).
+
 ## Phạm vi và cách dùng
 
 1. Cập nhật extension trong cùng thư mục đang dùng, rồi bấm **Reload** tại

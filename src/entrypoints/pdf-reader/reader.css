@@ -691,6 +691,67 @@
   z-index: 4;
   user-select: none;
 }
+.rf-pdf-scroll:not([data-study-tool="erase"]):not([data-study-tool="note"]) [data-shape-hit] {
+  pointer-events: stroke;
+  cursor: move;
+}
+.rf-shape-properties {
+  position: fixed;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  z-index: 25;
+  padding: 10px;
+  border: 1px solid #bed3c5;
+  border-radius: 10px;
+  background: #fff;
+  color: #244b36;
+  box-shadow: 0 5px 22px #234c3626;
+  pointer-events: auto;
+  cursor: default;
+}
+.rf-shape-properties[hidden] {
+  display: none;
+}
+.rf-shape-properties button {
+  min-height: 28px;
+  padding: 3px 9px;
+  border: 1px solid #cfddd4;
+  border-radius: 6px;
+  background: #f5f9f6;
+  color: #244b36;
+  font:
+    12px "Segoe UI",
+    sans-serif;
+}
+.rf-shape-properties button:disabled {
+  opacity: 0.45;
+}
+.rf-shape-properties .rf-shape-color {
+  width: 26px;
+  min-height: 26px;
+  padding: 0;
+  border: 4px solid #fff;
+  border-radius: 50%;
+  background: var(--annotation-color);
+  box-shadow: 0 0 0 1px #cfddd4;
+}
+.rf-shape-color[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px #206a47;
+}
+.rf-shape-properties small {
+  display: block;
+  width: 100%;
+  font:
+    11px/1.4 "Segoe UI",
+    sans-serif;
+  color: #56725f;
+}
+.rf-shape-properties button:focus-visible {
+  outline: 2px solid #168557;
+  outline-offset: 2px;
+}
 .rf-search-overlay {
   z-index: 2;
 }

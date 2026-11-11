@@ -14,7 +14,19 @@ export function shapePoints(
 ): Point[] {
   let dx = (end.x - start.x) * width,
     dy = (end.y - start.y) * height
-  if (tool === "square" || (tool === "circle" && constrain)) {
+  if (tool === "square") {
+    // Follow the dominant drag axis, including horizontal/vertical drags.
+    // Bound the other corner before construction, so edge drags stay square.
+    const sx = dx < 0 ? -1 : 1,
+      sy = dy < 0 ? -1 : 1
+    const side = Math.min(
+      Math.max(Math.abs(dx), Math.abs(dy)),
+      (sx < 0 ? start.x : 1 - start.x) * width,
+      (sy < 0 ? start.y : 1 - start.y) * height,
+    )
+    dx = sx * side
+    dy = sy * side
+  } else if (tool === "circle" && constrain) {
     const side = Math.min(Math.abs(dx), Math.abs(dy))
     dx = Math.sign(dx) * side
     dy = Math.sign(dy) * side

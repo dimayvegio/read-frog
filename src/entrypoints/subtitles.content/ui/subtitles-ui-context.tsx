@@ -23,6 +23,8 @@ interface SubtitlesUIContextValue {
   getVideoPageUrl: () => string | null
   downloadSourceSubtitles: () => Promise<void>
   downloadTranslatedSubtitles: () => Promise<void>
+  getViewerContext?: () => string | undefined
+  setViewerContext?: (text: string) => void
   controlsConfig?: ControlsConfig
   embedded?: boolean
   openBelow?: boolean
@@ -63,6 +65,8 @@ export function SubtitlesProviders({
       getVideoPageUrl: adapter.getVideoPageUrl,
       downloadSourceSubtitles: adapter.downloadSourceSubtitles,
       downloadTranslatedSubtitles: adapter.downloadTranslatedSubtitles,
+      getViewerContext: adapter.getViewerContext,
+      setViewerContext: adapter.setViewerContext,
       controlsConfig: adapter.getControlsConfig(),
       embedded: adapter.embedded,
       openBelow,
