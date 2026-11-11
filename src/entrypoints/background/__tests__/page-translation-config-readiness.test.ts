@@ -39,7 +39,7 @@ describe("page translation configuration in the background", () => {
     const translate = (isBatch: boolean) =>
       executeTranslate(
         "The quick brown fox jumps over the lazy dog.",
-        { ...DEFAULT_CONFIG.language, targetCode: "vie" },
+        { ...DEFAULT_CONFIG.language, targetCode: "vi" },
         DEFAULT_CONFIG.providersConfig[0]!,
         getTranslatePrompt,
         { isBatch, glossaryTerms: [] },

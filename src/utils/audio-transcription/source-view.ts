@@ -1,4 +1,4 @@
-import { langCodeISO6393Schema } from "@read-frog/definitions"
+import { languageTagSchema } from "@read-frog/definitions"
 import { z } from "zod"
 
 export type SourceViewFailure = "UI-LOAD-TIMEOUT" | "UI-LOAD-FAILED" | "UI-SOURCE-CHANGED"
@@ -13,7 +13,7 @@ export const liveRowSchema = z.strictObject({
 export type LiveRow = z.infer<typeof liveRowSchema>
 export const liveTranslationSchema = z.strictObject({
   enabled: z.boolean(),
-  target: langCodeISO6393Schema,
+  target: languageTagSchema,
   rows: z.array(liveRowSchema).max(24),
   message: z.string().max(300),
   failed: z.boolean(),
@@ -22,7 +22,7 @@ export type LiveTranslation = z.infer<typeof liveTranslationSchema>
 export const liveTranslationCommand = z.strictObject({
   session: z.string().uuid(),
   enabled: z.boolean(),
-  target: langCodeISO6393Schema,
+  target: languageTagSchema,
   retry: z.boolean().optional(),
 })
 export type LiveTranslationCommand = z.infer<typeof liveTranslationCommand>

@@ -86,6 +86,7 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
   const translateRequest = useAtomValue(selectionToolbarTranslateRequestAtom)
   const providersConfig = useAtomValue(configFieldsAtomMap.providersConfig)
   const selectionToolbar = useAtomValue(configFieldsAtomMap.selectionToolbar)
+  const { targetCode: targetLanguage } = useAtomValue(configFieldsAtomMap.language)
   const setIsSelectionToolbarOpen = useSetAtom(isSelectionToolbarOpenAtom)
   const setConfig = useSetAtom(writeConfigAtom)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -436,6 +437,7 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
             <TranslationContent
               selectionContent={selectionText}
               translatedText={translatedText}
+              targetLanguage={targetLanguage}
               isTranslating={isTranslating}
               thinking={thinking}
               vocabularySource={{

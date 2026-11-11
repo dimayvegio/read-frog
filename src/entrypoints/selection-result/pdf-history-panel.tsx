@@ -1,4 +1,4 @@
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
+import { LANGUAGE_ENGLISH_NAMES } from "@read-frog/definitions"
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/base-ui/button"
 import {
@@ -9,7 +9,7 @@ import {
 } from "@/utils/selection-result/pdf-history"
 
 export const pdfLanguageName = (code: string) =>
-  LANG_CODE_TO_EN_NAME[code as keyof typeof LANG_CODE_TO_EN_NAME] ?? code
+  LANGUAGE_ENGLISH_NAMES[code as keyof typeof LANGUAGE_ENGLISH_NAMES] ?? code
 
 export function PdfHistoryPanel({
   document,

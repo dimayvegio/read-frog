@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
+import { migrate as upgradeLanguages } from "@/utils/config/migration-scripts/v124-to-v125"
 import { migrate } from "../../migration-scripts/v120-to-v121"
 import { toPortableConfig } from "../../portable"
 import { testSeries } from "../example/v120"
@@ -26,7 +27,7 @@ describe("v121 public projection", () => {
       expect(result.providersConfig).toHaveLength(1)
       expect(result.providersConfig[0]?.provider).toBe("openai")
       expect(migrate(old).tts).toEqual(old.tts)
-      expect(result.tts).toMatchObject(old.tts)
+      expect(result.tts).toMatchObject(upgradeLanguages({ tts: old.tts }).tts)
       expect(result.selectionToolbar.features.speak).toEqual({ enabled: false, shortcut: "" })
       expect(result.selectionToolbar.unpinned).toContain("speak")
       expect(result.selectionToolbar).not.toHaveProperty("noteSuggestion")

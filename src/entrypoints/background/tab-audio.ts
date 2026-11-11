@@ -7,6 +7,7 @@ import {
   tabCommand,
   type TabOptions,
 } from "@/utils/audio-transcription/tab-schema"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { onMessage, sendMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
 import { readOpenAIExecutionCredential, readOpenAIKeyStatus } from "./openai-credentials"
@@ -49,9 +50,7 @@ export async function openTranscriptionPage(sender: Browser.runtime.MessageSende
   const [source] = await browser.tabs.query({ active: true, currentWindow: true })
   for (const [key, value] of channels) if (Date.now() - value.at > 300000) channels.delete(key)
   const channel =
-    source?.id !== undefined && /^(https?|file):/.test(source.url ?? "")
-      ? crypto.randomUUID()
-      : null
+    source?.id !== undefined && /^(https?|file):/.test(source.url ?? "") ? getRandomUUID() : null
   const tab = await browser.tabs.create({
     url: pageURL() + (channel ? `?source=${channel}` : ""),
     active: true,
@@ -118,7 +117,7 @@ export function setupTabAudioHandlers() {
         )
       channels.delete(data.channel)
       const session: Session = {
-        id: crypto.randomUUID(),
+        id: getRandomUUID(),
         owner: channel.owner,
         source: channel.source,
         revision: -1,

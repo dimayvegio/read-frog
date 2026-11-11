@@ -3,7 +3,9 @@ import fs from "node:fs/promises"
 import http from "node:http"
 import path from "node:path"
 import { pathToFileURL } from "node:url"
+import { isDeepStrictEqual } from "node:util"
 import JSZip from "jszip"
+import { migrate as upgradeLanguages } from "../../src/utils/config/migration-scripts/v124-to-v125.ts"
 import { checkPinAndSrt } from "./check-pin-srt.mjs"
 import { checkYouTubeLiveView } from "./check-youtube-live-view.mjs"
 import { preparePdfWorker } from "./pdf-worker-fixture.mjs"
@@ -106,15 +108,16 @@ try {
       )
     ).worker()
     check(
-      "in-place upgrade keeps the extension ID and numeric version advances to 1.58.1.6",
-      await worker.evaluate(() => chrome.runtime.getManifest().version === "1.58.1.6"),
+      "in-place upgrade keeps the extension ID and advances to the candidate version",
+      (await worker.evaluate(() => chrome.runtime.getManifest().version)) ===
+        JSON.parse(await fs.readFile(".output/edge-mv3/manifest.json", "utf8")).version,
     )
     check(
-      "in-place upgrade preserves public configuration byte-for-byte",
-      before ===
-        (await worker.evaluate(async () =>
-          JSON.stringify((await chrome.storage.local.get("config")).config),
-        )),
+      "in-place upgrade preserves public settings with only the explicit BCP47 migration",
+      isDeepStrictEqual(
+        upgradeLanguages(JSON.parse(before)),
+        await worker.evaluate(async () => (await chrome.storage.local.get("config")).config),
+      ),
     )
     check(
       "in-place upgrade preserves the private credential and its revision",
@@ -650,6 +653,7 @@ try {
         scratch,
         embedURL: embeddedSourceURL,
       }).catch(async (error) => {
+        console.error(error)
         console.log(
           JSON.stringify({
             calls: await worker.evaluate(() => __pdfCalls.map((c) => c.body)),
@@ -657,7 +661,9 @@ try {
               "#read-frog-live-transcript",
               (h) => h.shadowRoot.querySelector(".live-pane")?.innerText,
             ),
-            monitor: await live.$eval(".transcript", (n) => n.textContent),
+            monitor: await live
+              .$eval(".transcript", (n) => n.textContent)
+              .catch(() => "monitor not mounted"),
             controls: await worker.evaluate(() => __viewDiagnostics),
           }),
         )

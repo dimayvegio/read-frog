@@ -8,11 +8,11 @@ describe("Translation Hub preferences", () => {
   it("uses the singleton OpenAI profile and restores saved languages", () => {
     const store = createStore()
     const config = structuredClone(DEFAULT_CONFIG)
-    config.translationHub.sourceCode = "jpn"
-    config.translationHub.targetCode = "eng"
+    config.translationHub.sourceCode = "ja"
+    config.translationHub.targetCode = "en"
     store.set(configAtom, config)
     expect(store.get(selectedProviderIdsAtom)).toEqual(["openai-default"])
-    expect(store.get(sourceLangCodeAtom)).toBe("jpn")
-    expect(store.get(targetLangCodeAtom)).toBe("eng")
+    expect(store.get(sourceLangCodeAtom)).toBe("ja")
+    expect(store.get(targetLangCodeAtom)).toBe("en")
   })
 })

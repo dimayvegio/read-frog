@@ -4,7 +4,7 @@ import type { OpenAIPublicConfig } from "@/types/config/openai"
 import type { SelectionPromptContext } from "@/utils/prompts/selection-context"
 import type { PromptableProviderRef } from "@/utils/providers/provider-ref"
 import type { SelectionTranslationProviderRef } from "@/utils/providers/provider-registry"
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
+import { LANGUAGE_ENGLISH_NAMES } from "@read-frog/definitions"
 import { openAIPublicConfigSchema } from "@/types/config/openai"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
 import { resolveGlossaryTermsFromCache } from "@/utils/glossary/active-matcher"
@@ -67,7 +67,7 @@ export async function translateWithTextStream({
   onChunk: (data: BackgroundTextStreamSnapshot) => void
   registerAbortController: (abortController: AbortController) => void
 }) {
-  const targetLangName = LANG_CODE_TO_EN_NAME[translateRequest.language.targetCode]
+  const targetLangName = LANGUAGE_ENGLISH_NAMES[translateRequest.language.targetCode]
   const snapshot = openAIPublicConfigSchema.parse(providerConfig)
   if (providerId !== snapshot.id) throw new Error("Provider snapshot mismatch")
   const abortController = new AbortController()

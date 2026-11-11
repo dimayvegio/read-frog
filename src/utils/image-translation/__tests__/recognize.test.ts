@@ -94,14 +94,14 @@ it("caches OCR and normal text translation separately, including corrected sourc
   expect(text).toHaveBeenCalledTimes(1)
   await translate("Corrected text")
   expect(text).toHaveBeenCalledTimes(2)
-  config.language.targetCode = "eng"
+  config.language.targetCode = "en"
   await recognize("two-step")
   await translate(first.original)
   expect(ocr).toHaveBeenCalledTimes(1)
   expect(text).toHaveBeenCalledTimes(3)
 })
 it("cannot reuse an old wrong-language image cache from a custom template with no target token", async () => {
-  config.language.targetCode = "vie"
+  config.language.targetCode = "vi"
   config.pageTranslation.customPromptsConfig = {
     promptId: "fixed-chinese",
     patterns: [
@@ -136,18 +136,18 @@ it("cannot reuse an old wrong-language image cache from a custom template with n
   })
   expect((await translate(original)).output).toBe("Có cần khởi tạo semaphore không?")
   expect(text).toHaveBeenCalledTimes(1)
-  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vie)")
+  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vi)")
   await translate(original)
   expect(text).toHaveBeenCalledTimes(1)
-  config.language.targetCode = "eng"
+  config.language.targetCode = "en"
   await translate(original)
   expect(text).toHaveBeenCalledTimes(2)
-  expect(text.mock.calls[1]![0].instructions).toContain("English (eng)")
+  expect(text.mock.calls[1]![0].instructions).toContain("English (en)")
 })
 it("uses the same explicit target contract for fast image output and custom-prompt fallback", async () => {
-  config.language.targetCode = "vie"
+  config.language.targetCode = "vi"
   await recognize()
-  expect(fast.mock.calls[0]![0].instructions).toContain("Vietnamese (vie)")
+  expect(fast.mock.calls[0]![0].instructions).toContain("Vietnamese (vi)")
   config.pageTranslation.customPromptsConfig = {
     promptId: "no-token",
     patterns: [
@@ -163,7 +163,7 @@ it("uses the same explicit target contract for fast image output and custom-prom
   expect(result.pretranslated).toBeUndefined()
   await translate(result.original)
   expect(ocr).toHaveBeenCalledTimes(1)
-  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vie)")
+  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vi)")
 })
 it("force read and regenerate bypass caches without discarding the normal pipeline", async () => {
   const first = await recognize()
@@ -185,7 +185,7 @@ it.each(["target", "model", "reasoning", "temperature", "key", "prompt", "glossa
   async (field) => {
     const first = await recognize()
     let options = DEFAULT_PDF_TEXT_OPTIONS
-    if (field === "target") config.language.targetCode = "eng"
+    if (field === "target") config.language.targetCode = "en"
     if (field === "model")
       config.providersConfig[0]!.model = {
         ...config.providersConfig[0]!.model,

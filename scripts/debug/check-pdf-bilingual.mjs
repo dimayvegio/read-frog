@@ -459,14 +459,14 @@ try {
     "Renamed identical content restores paragraph translations after reload",
     (await calls()) === beforeCache,
   )
-  await reader.select('[aria-label="Ngôn ngữ PDF song ngữ"]', "eng")
+  await reader.select('[aria-label="Ngôn ngữ PDF song ngữ"]', "en")
   await reader.waitForFunction(() => document.querySelectorAll(".rf-bilingual-output").length === 0)
   await pause()
   check(
     "Changing target clears stale text without translating automatically",
     (await calls()) === beforeCache,
   )
-  await reader.select('[aria-label="Ngôn ngữ PDF song ngữ"]', "vie")
+  await reader.select('[aria-label="Ngôn ngữ PDF song ngữ"]', "vi")
   await reader.waitForFunction(
     (expectedCount) => document.querySelectorAll(".rf-bilingual-output").length === expectedCount,
     {},

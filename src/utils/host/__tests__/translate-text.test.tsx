@@ -96,10 +96,10 @@ describe("OpenAI page and input requests", () => {
   })
   it("uses the resolved input direction with the same public snapshot", async () => {
     const resolved = vi.fn<(...args: any[]) => any>()
-    expect(await translateTextForInput("Hello", "eng", "jpn", resolved)).toBe("translated")
-    expect(resolved).toHaveBeenCalledWith("jpn")
+    expect(await translateTextForInput("Hello", "en", "ja", resolved)).toBe("translated")
+    expect(resolved).toHaveBeenCalledWith("ja")
     expect(requests()[0]![1]).toMatchObject({
-      langConfig: { sourceCode: "eng", targetCode: "jpn" },
+      langConfig: { sourceCode: "en", targetCode: "ja" },
       providerRef: { kind: "local", config: config.providersConfig[0] },
     })
   })

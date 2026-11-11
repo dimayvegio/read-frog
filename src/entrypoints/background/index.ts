@@ -12,6 +12,7 @@ import { onMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
 import { PRONUNCIATION_PORT } from "@/utils/pronunciation/schema"
 import { READING_LAB_PORT } from "@/utils/reading-library/schema"
+import { ensureRemoteSiteRulesLoaded } from "@/utils/site-rules/active"
 import { SENTENCE_STUDY_PORT } from "@/utils/subtitles/study-segmentation"
 import { runAiSegmentSubtitles } from "./ai-segmentation"
 import { handleTranscriptionPort, setupTranscriptionHandlers } from "./audio-transcription"
@@ -42,6 +43,7 @@ import { handleReadingLabPort, setupReadingLabHandlers } from "./reading-lab"
 import { handleSentenceStudyPort } from "./sentence-study"
 import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
+import { setUpSiteRulesUpdate } from "./site-rules-update"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { setupTabAudioHandlers } from "./tab-audio"
 import { translationMessage } from "./translation-signal"
@@ -54,6 +56,8 @@ import { handleVocabularyPort, setupVocabularyHandlers, VOCABULARY_PORT } from "
 export default defineBackground({
   type: "module",
   main: () => {
+    setUpSiteRulesUpdate()
+    void ensureRemoteSiteRulesLoaded()
     setBackgroundConfigReadyResolver(ensureInitializedConfig)
     // MV3 listeners register in this turn; handlers await the shared bootstrap.
     setupOpenAISettingsHandlers()

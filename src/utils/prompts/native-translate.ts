@@ -1,7 +1,7 @@
 import type { TranslatePromptOptions } from "./translate"
 import type { Config } from "@/types/config/config"
 import type { WebPagePromptContext } from "@/types/content"
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
+import { LANGUAGE_ENGLISH_NAMES } from "@read-frog/definitions"
 import { getTranslatePromptFromConfig } from "./translate"
 
 /** The explicit language picker wins even when a custom template hard-codes another language. */
@@ -10,7 +10,7 @@ export function getNativeTranslatePrompt(
   input: string,
   options?: TranslatePromptOptions<WebPagePromptContext>,
 ) {
-  const language = LANG_CODE_TO_EN_NAME[config.language.targetCode]
+  const language = LANGUAGE_ENGLISH_NAMES[config.language.targetCode]
   const result = getTranslatePromptFromConfig(config.pageTranslation, language, input, options)
   return {
     ...result,

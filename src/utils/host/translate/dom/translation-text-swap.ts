@@ -369,7 +369,7 @@ export function ensureTranslationOnlyAnchorState(
   ]
   anchor.setAttribute(TRANSLATION_ONLY_ATTRIBUTE, "")
   setTranslationDirAndLang(anchor, config)
-  if (config.language.targetCode === "vie") {
+  if (config.language.targetCode === "vi") {
     // In-place translations have no decorated wrapper to load the language
     // typography. The marker scopes it and restore removes that marker.
     ensurePresetStyles(getContainingShadowRoot(anchor) ?? getOwnerDocument(anchor))

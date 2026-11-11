@@ -1,6 +1,7 @@
 import type { Browser } from "wxt/browser"
 import { z } from "zod"
 import { browser } from "#imports"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { Sha256Hex } from "@/utils/hash"
 import { onMessage } from "@/utils/message"
 import { validatePracticeWav } from "@/utils/pronunciation/audio"
@@ -55,7 +56,7 @@ export function setupPronunciationHandlers() {
     let channel = ""
     if (message.data !== undefined) {
       const value = captureSchema.parse(message.data)
-      channel = crypto.randomUUID()
+      channel = getRandomUUID()
       if (captures.size >= 10) captures.delete(captures.keys().next().value!)
       captures.set(channel, { value, at: Date.now() })
     }
@@ -228,7 +229,7 @@ async function execute(
     }
     await stillCurrent(revision, epoch, signal)
     const attempt: PronunciationAttempt = {
-      id: crypto.randomUUID(),
+      id: getRandomUUID(),
       evaluationKey: key,
       referenceKey: referenceKey(input.text, input.context),
       text: input.text,

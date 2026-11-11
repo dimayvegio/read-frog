@@ -1,4 +1,4 @@
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
+import { LANGUAGE_ENGLISH_NAMES } from "@read-frog/definitions"
 import { useMutation } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
 import { useEffect, useEffectEvent, useRef } from "react"
@@ -7,7 +7,7 @@ import ProviderIcon from "@/components/provider-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import { anchoredToastManager } from "@/components/ui/base-ui/toast"
 import { DownloadTTSButton } from "@/components/ui/selection-popover/download-tts-button"
-import { useTextToSpeech } from "@/hooks/use-text-to-speech"
+import { selectTTSVoice, useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { PROVIDER_ITEMS } from "@/utils/constants/providers"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
@@ -69,7 +69,7 @@ export function TranslationCard({
         })
 
       const { systemPrompt, prompt } = await promptResolver(
-        LANG_CODE_TO_EN_NAME[req.targetLanguage],
+        LANGUAGE_ENGLISH_NAMES[req.targetLanguage],
         preparedText,
       )
       const response = await streamBackgroundText(
@@ -138,7 +138,13 @@ export function TranslationCard({
     if (isFetching || isPlaying) {
       stop()
     } else if (mutation.data) {
-      void play(mutation.data, ttsConfig)
+      void play(
+        mutation.data,
+        ttsConfig,
+        mutation.variables?.targetLanguage
+          ? { forcedVoice: selectTTSVoice(ttsConfig, mutation.variables.targetLanguage) }
+          : undefined,
+      )
     }
   }
 

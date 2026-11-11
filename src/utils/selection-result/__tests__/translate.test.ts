@@ -38,7 +38,7 @@ describe("native PDF selected-text translation", () => {
 
   it("sends only the selection through the existing OpenAI stream, with a public model snapshot", async () => {
     const config = structuredClone(DEFAULT_CONFIG)
-    config.language.targetCode = "vie"
+    config.language.targetCode = "vi"
     config.glossary.enabled = false
     const result = await run("Only the highlighted paragraph.", config)
     const [payload] = stream.mock.calls[0]!
@@ -67,7 +67,7 @@ describe("native PDF selected-text translation", () => {
   })
   it("gives the explicit Vietnamese picker priority over a custom Chinese-only template without a language token", async () => {
     const config = structuredClone(DEFAULT_CONFIG)
-    config.language.targetCode = "vie"
+    config.language.targetCode = "vi"
     config.glossary.enabled = false
     config.pageTranslation.customPromptsConfig = {
       promptId: "fixed-chinese",
@@ -83,7 +83,7 @@ describe("native PDF selected-text translation", () => {
     await run("使用 semaphore 时需要初始化吗?", config)
     const payload = stream.mock.calls[0]![0]
     expect(payload.instructions).toContain("Preserve code and headings.")
-    expect(payload.instructions).toContain("Vietnamese (vie)")
+    expect(payload.instructions).toContain("Vietnamese (vi)")
     expect(payload.instructions).toContain("overrides any different target language")
     expect(payload.prompt).toBe("使用 semaphore 时需要初始化吗?")
     expect(config.pageTranslation.customPromptsConfig.patterns[0]!.systemPrompt).toBe(

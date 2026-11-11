@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { getLocalConfig } from "@/utils/config/storage"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { clearImageCache } from "@/utils/image-translation/cache"
 import { recognizeImage } from "@/utils/image-translation/recognize"
 import { imageShortcutLabel, openImageShortcuts } from "@/utils/image-translation/shortcut"
@@ -146,7 +147,7 @@ export function ImageTranslation({ config }: { config: Config }) {
   }
   const translateText = (value: string) =>
     setRequest({
-      id: crypto.randomUUID(),
+      id: getRandomUUID(),
       text: value,
       createdAt: Date.now(),
       tooLong: value.length > MAX_NATIVE_SELECTION_LENGTH,

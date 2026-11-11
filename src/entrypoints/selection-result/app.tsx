@@ -4,6 +4,7 @@ import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
 import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { PdfHistoryRecord } from "@/utils/selection-result/pdf-history"
+import { resolveLanguage } from "@read-frog/definitions"
 import { IconLoader2, IconPlayerStop, IconSettings } from "@tabler/icons-react"
 import { useAtomValue } from "jotai"
 import { useEffect, useRef, useState } from "react"
@@ -336,6 +337,9 @@ export function SelectionTranslation({
                 key={`${request.id}:${historical?.id ?? `current-${retry}`}`}
                 selectionContent={sourceText}
                 translatedText={output}
+                targetLanguage={
+                  resolveLanguage(historical?.targetLanguage ?? targetLanguage) ?? targetLanguage
+                }
                 isTranslating={loading}
                 thinking={thinking}
                 vocabularySource={{

@@ -187,7 +187,7 @@ try {
     (sum, [key, value]) => sum + Buffer.byteLength(key + JSON.stringify(value)),
     0,
   )
-  await change(b, { target: "eng", highlight: false })
+  await change(b, { target: "en", highlight: false })
   await relay(a, b)
   await b.page.$eval('input[type="checkbox"]', (node) => node.click())
   await b.page.waitForSelector('[data-testid="sync-conflict"]')
@@ -196,7 +196,7 @@ try {
     (await status(b)).status === "conflict" &&
       (await b.worker.evaluate(
         async () => (await chrome.storage.local.get("config")).config.language.targetCode,
-      )) === "eng",
+      )) === "en",
   )
   await click(b, "Dùng bản này")
   await synced(b)
@@ -204,7 +204,7 @@ try {
     "Choosing the remote configuration applies language and the highlight preference",
     await b.worker.evaluate(async () => {
       const data = await chrome.storage.local.get(["config", "studyHighlightsEnabled"])
-      return data.config.language.targetCode === "vie" && data.studyHighlightsEnabled !== false
+      return data.config.language.targetCode === "vi" && data.studyHighlightsEnabled !== false
     }),
   )
   check(
@@ -221,7 +221,7 @@ try {
   )
   // Respect the production write coalescing interval; no test-only clock hook.
   await new Promise((resolve) => setTimeout(resolve, 16000))
-  await change(b, { target: "eng" })
+  await change(b, { target: "en" })
   await click(b, "Đồng bộ ngay")
   await synced(b)
   const afterB = await cloud(b),
@@ -244,7 +244,7 @@ try {
   check(
     "A causal incoming change updates the other profile through the production receiver",
     await a.worker.evaluate(
-      async () => (await chrome.storage.local.get("config")).config.language.targetCode === "eng",
+      async () => (await chrome.storage.local.get("config")).config.language.targetCode === "en",
     ),
   )
   await change(a, { model: "gpt-6-luna" })

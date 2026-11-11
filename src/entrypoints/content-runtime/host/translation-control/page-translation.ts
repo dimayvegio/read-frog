@@ -1,4 +1,4 @@
-import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { LanguageTag } from "@read-frog/definitions"
 import type { Config } from "@/types/config/config"
 import debounce from "debounce"
 import { toastManager } from "@/components/ui/base-ui/toast"
@@ -69,7 +69,7 @@ import {
 import { removeReactShadowHost } from "@/utils/react-shadow-host/create-shadow-host"
 import { isTranslationCancelledError } from "@/utils/request/cancellation"
 import { createWorkPacer } from "@/utils/scheduler"
-import { getEffectiveSiteRule } from "@/utils/site-rules/effective"
+import { getDocumentSiteRule } from "@/utils/site-rules/effective"
 
 type SimpleIntersectionOptions = Omit<IntersectionObserverInit, "threshold"> & {
   threshold?: number
@@ -310,7 +310,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     intersectionOptions: SimpleIntersectionOptions = {},
     private readonly getDetectedPageLanguage: (
       url: string,
-    ) => LangCodeISO6393 | "und" | undefined = () => undefined,
+    ) => LanguageTag | "und" | undefined = () => undefined,
   ) {
     if (intersectionOptions.threshold !== undefined) {
       if (intersectionOptions.threshold < 0 || intersectionOptions.threshold > 1) {
@@ -421,7 +421,7 @@ export class PageTranslationManager implements IPageTranslationManager {
       return
     }
 
-    const siteRule = getEffectiveSiteRule(config, window.location.href)
+    const siteRule = getDocumentSiteRule(config)
     if (siteRule.injectedCss) {
       void ensureSiteRuleCSS(document, siteRule.injectedCss)
     }
@@ -519,7 +519,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     const config = await getLocalConfig()
     if (!config || !this.isPageTranslating) return
 
-    const siteRule = getEffectiveSiteRule(config, window.location.href)
+    const siteRule = getDocumentSiteRule(config)
     if (siteRule.injectedCss) {
       // ensureSiteRuleCSS replaces the existing sheet's contents in place —
       // no remove-first, which would leave a gap with no site CSS applied

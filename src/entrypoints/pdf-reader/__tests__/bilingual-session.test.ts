@@ -99,7 +99,7 @@ it("bounds retained pages and separates translation identity from speech voice s
     before = translationConfigIdentity(config)
   config.tts.openai.voice = "coral"
   expect(translationConfigIdentity(config)).toBe(before)
-  config.language.targetCode = "eng"
+  config.language.targetCode = "en"
   expect(translationConfigIdentity(config)).not.toBe(before)
   session.destroy()
 })

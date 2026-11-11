@@ -1,10 +1,10 @@
-import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { LanguageTag } from "@read-frog/definitions"
 import type { SourceView, SourceSnapshot } from "@/utils/audio-transcription/source-view"
 import type { SidebarResizeEdge } from "@/utils/subtitles/sidebar-window"
 import {
-  LANG_CODE_TO_EN_NAME,
-  LANG_CODE_TO_LOCALE_NAME,
-  langCodeISO6393Schema,
+  LANGUAGE_ENGLISH_NAMES,
+  getLanguageEndonym,
+  languageTagSchema,
 } from "@read-frog/definitions"
 import { useLayoutEffect, useRef, useState, useSyncExternalStore } from "react"
 import { browser } from "#imports"
@@ -21,10 +21,10 @@ import style from "./style.css?inline"
 const HOST_ID = "read-frog-live-transcript"
 const STORAGE_KEY = "liveTranscriptWindowV1"
 const targets = [
-  "eng",
-  "vie",
-  ...langCodeISO6393Schema.options.filter((code) => code !== "eng" && code !== "vie"),
-] as LangCodeISO6393[]
+  "en",
+  "vi",
+  ...languageTagSchema.options.filter((code) => code !== "en" && code !== "vi"),
+] as LanguageTag[]
 function isNativeFullscreen() {
   return Boolean(
     document.fullscreenElement &&
@@ -230,12 +230,12 @@ function Pane({
               value={view.translation.target}
               disabled={view.detached}
               onChange={(event) =>
-                translation(view.translation.enabled, event.target.value as LangCodeISO6393)
+                translation(view.translation.enabled, event.target.value as LanguageTag)
               }
             >
               {targets.map((code) => (
                 <option key={code} value={code}>
-                  {LANG_CODE_TO_LOCALE_NAME[code]} · {LANG_CODE_TO_EN_NAME[code]}
+                  {getLanguageEndonym(code)} · {LANGUAGE_ENGLISH_NAMES[code]}
                 </option>
               ))}
             </select>

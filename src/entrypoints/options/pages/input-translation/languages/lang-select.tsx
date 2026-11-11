@@ -1,6 +1,5 @@
-import type { LanguageItem } from "@/components/language-combobox-options"
 import type { InputTranslationLang } from "@/types/config/config"
-import { getTargetLanguageItems } from "@/components/language-combobox-options"
+import { languageTagSchema } from "@read-frog/definitions"
 import {
   Select,
   SelectContent,
@@ -9,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/base-ui/select"
+import { getLanguageLabel } from "@/utils/language-labels"
 import { cn } from "@/utils/styles/utils"
 import { SELECT_CONTENT_PROPS } from "../../../components/select-content-props"
 
@@ -28,14 +28,6 @@ export function LangSelect({
   getDisplayLabel: (value: InputTranslationLang) => string
   className?: string
 }) {
-  const languages = getTargetLanguageItems()
-  const items: LanguageItem<InputTranslationLang>[] = [
-    ...languages.slice(0, 2),
-    { value: "targetCode", label: getDisplayLabel("targetCode") },
-    { value: "sourceCode", label: getDisplayLabel("sourceCode") },
-    ...languages.slice(2),
-  ]
-
   return (
     <Select value={value} onValueChange={(v) => onValueChange(v as InputTranslationLang)}>
       <SelectTrigger size="sm" className={cn("w-full min-w-0", className)}>
@@ -45,9 +37,11 @@ export function LangSelect({
       </SelectTrigger>
       <SelectContent className="max-h-64" {...SELECT_CONTENT_PROPS}>
         <SelectGroup>
-          {items.map((item) => (
-            <SelectItem key={item.value} value={item.value}>
-              {item.label}
+          <SelectItem value="targetCode">{getDisplayLabel("targetCode")}</SelectItem>
+          <SelectItem value="sourceCode">{getDisplayLabel("sourceCode")}</SelectItem>
+          {languageTagSchema.options.map((code) => (
+            <SelectItem key={code} value={code}>
+              {getLanguageLabel(code)}
             </SelectItem>
           ))}
         </SelectGroup>

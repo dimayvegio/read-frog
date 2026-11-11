@@ -10,6 +10,7 @@ import {
   type TranscriptionResult,
 } from "@/utils/audio-transcription/schema"
 import { subtitleTimestamp, toSrt } from "@/utils/audio-transcription/subtitles"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { sendMessage } from "@/utils/message"
 import { PinnedTranscript } from "./pinned-transcript"
 import "./style.css"
@@ -134,7 +135,7 @@ function App() {
         break
       }
       const item: Item = {
-        id: crypto.randomUUID(),
+        id: getRandomUUID(),
         file,
         status: "ready",
         text: "",

@@ -11,9 +11,14 @@ export class LocalPdfOcr {
   private worker?: Worker
   private render?: RenderTask
   private stopped = false
+  private busy = false
+  private language?: string
+  private document?: PDFDocumentProxy
+  private progress?: (text: string) => void
   private reject?: (error: Error) => void
   cancel() {
     this.stopped = true
+    this.progress = undefined
     this.render?.cancel()
     void this.worker?.terminate()
     this.worker = undefined
@@ -32,35 +37,49 @@ export class LocalPdfOcr {
       !["eng", "vie", "chi_sim", "jpn"].includes(language)
     )
       throw new Error("Trang hoặc ngôn ngữ OCR không hợp lệ.")
+    if (
+      this.stopped ||
+      this.busy ||
+      (this.document && (this.document !== pdf || this.language !== language))
+    )
+      throw new Error("Phiên OCR đã dừng hoặc đang xử lý trang khác.")
+    this.busy = true
+    this.document = pdf
+    this.language = language
+    this.progress = progress
     let timer: ReturnType<typeof setTimeout> | undefined
     const work = async (): Promise<OcrPage> => {
-      const { createWorker, OEM } = await import("tesseract.js")
-      if (this.stopped) throw new Error("Đã dừng OCR.")
-      const assets = new URL("ocr-assets/", browser.runtime.getURL("/")).href
-      if (creatingWorker) throw new Error("OCR trước đang dừng. Chờ một chút rồi thử lại.")
-      creatingWorker = true
-      let worker: Worker
-      try {
-        worker = await createWorker(language, OEM.LSTM_ONLY, {
-          workerPath: assets + "worker.min.js",
-          corePath: assets,
-          langPath: assets.slice(0, -1),
-          workerBlobURL: false,
-          cacheMethod: "none",
-          gzip: true,
-          logger: (event) => {
-            if (!this.stopped) progress(`${event.status} · ${Math.round(event.progress * 100)}%`)
-          },
-          errorHandler: () => this.cancel(),
-        })
-      } finally {
-        creatingWorker = false
+      if (!this.worker) {
+        const { createWorker, OEM } = await import("tesseract.js")
+        if (this.stopped) throw new Error("Đã dừng OCR.")
+        const assets = new URL("ocr-assets/", browser.runtime.getURL("/")).href
+        if (creatingWorker) throw new Error("OCR trước đang dừng. Chờ một chút rồi thử lại.")
+        creatingWorker = true
+        let worker: Worker
+        try {
+          worker = await createWorker(language, OEM.LSTM_ONLY, {
+            workerPath: assets + "worker.min.js",
+            corePath: assets,
+            langPath: assets.slice(0, -1),
+            workerBlobURL: false,
+            cacheMethod: "none",
+            gzip: true,
+            logger: (event) => {
+              if (!this.stopped)
+                this.progress?.(`${event.status} · ${Math.round(event.progress * 100)}%`)
+            },
+            errorHandler: () => this.cancel(),
+          })
+        } finally {
+          creatingWorker = false
+        }
+        if (this.stopped) {
+          await worker.terminate()
+          throw new Error("Đã dừng OCR.")
+        }
+        this.worker = worker
       }
-      if (this.stopped) {
-        await worker.terminate()
-        throw new Error("Đã dừng OCR.")
-      }
-      this.worker = worker
+      const worker = this.worker
       const page = await pdf.getPage(pageNumber)
       if (this.stopped) throw new Error("Đã dừng OCR.")
       const base = page.getViewport({ scale: 1 })
@@ -106,10 +125,14 @@ export class LocalPdfOcr {
           timer = setTimeout(() => this.cancel(), 120000)
         }),
       ])
+    } catch (error) {
+      this.cancel()
+      throw error
     } finally {
       clearTimeout(timer)
-      this.cancel()
       this.reject = undefined
+      this.progress = undefined
+      this.busy = false
     }
   }
 }

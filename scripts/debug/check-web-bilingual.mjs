@@ -64,8 +64,8 @@ try {
   await worker.evaluate(preparePdfWorker)
   await worker.evaluate(async () => {
     const { config } = await chrome.storage.local.get("config")
-    config.language.sourceCode = "eng"
-    config.language.targetCode = "vie"
+    config.language.sourceCode = "en"
+    config.language.targetCode = "vi"
     // Establish the speech provider before mounting content UI. A raw fixture
     // storage write later can race automatic page-language configuration writes.
     config.tts.provider = "openai"

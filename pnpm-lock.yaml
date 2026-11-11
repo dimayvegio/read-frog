@@ -224,8 +224,8 @@ importers:
         specifier: ^1.5.0
         version: 1.5.0(@types/react@19.3.0)(react@19.3.1)
       '@read-frog/definitions':
-        specifier: 0.15.0
-        version: 0.15.0
+        specifier: 0.16.0
+        version: 0.16.0
       '@read-frog/layout-engine':
         specifier: 0.8.0
         version: 0.8.0(@codemirror/lang-liquid@6.3.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.6)(@codemirror/view@6.43.15)(dompurify@3.4.17)(liquidjs@10.30.1)(morphdom@2.7.8)(react@19.3.1)(temml@0.14.0)
@@ -1997,8 +1997,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@read-frog/definitions@0.15.0':
-    resolution: {integrity: sha512-1VKPn/y5gJt5eCGBgRh1UPYaJB8S3wXV1c+HA7/VX09vbLC8H3anYjv4CrXLmg86uEc35GhRAggpeeuMrnnzeA==}
+  '@read-frog/definitions@0.16.0':
+    resolution: {integrity: sha512-zW3XARHH1TSEhdcis5mrUAjvYZNpueZd6HTjLLQzB/cOVSJU3TOxCOHs9tY00LqWt8p0wQpDM/4PNiyJOQ6koQ==}
 
   '@read-frog/layout-engine@0.8.0':
     resolution: {integrity: sha512-WHwMTMZyCZvmKqaSSMvcICJyTh29Wi9HvcK1jYOZHG35QBDCETbkjb0zGSgUnVolJoaPpEp87gvkwHcODMrssg==}
@@ -7807,7 +7807,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@read-frog/definitions@0.15.0':
+  '@read-frog/definitions@0.16.0':
     dependencies:
       temporal-polyfill: 1.0.7
       zod: 4.6.7

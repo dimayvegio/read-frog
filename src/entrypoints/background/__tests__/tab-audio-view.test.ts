@@ -73,7 +73,7 @@ it("only the selected source top frame receives snapshots or controls, never ano
       call("tabAudioViewAction", { session: id, action: "stop" }, sender),
     ).rejects.toThrow(/Invalid|abort/i)
     await expect(
-      call("setTabAudioTranslation", { session: id, target: "vie", enabled: true }, sender),
+      call("setTabAudioTranslation", { session: id, target: "vi", enabled: true }, sender),
     ).rejects.toThrow(/Invalid/)
   }
   expect(stop).not.toHaveBeenCalled()
@@ -109,7 +109,7 @@ it("translates finalized original text only after explicit source opt-in and ret
     offscreen(),
   )
   expect(translate).not.toHaveBeenCalled()
-  await call("setTabAudioTranslation", { session: id, target: "vie", enabled: true })
+  await call("setTabAudioTranslation", { session: id, target: "vi", enabled: true })
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(translate.mock.calls[0]![0]).toEqual([{ id: 0, source: "Hello.", context: "" }])
   finishTabAudioView(id)
@@ -174,7 +174,7 @@ it("accepts a browser-verified current SPA document even when MessageSender reta
     notice("text", { text: "Hello.", pending: "Still speaking" }),
     offscreen(),
   )
-  await call("setTabAudioTranslation", { session: id, enabled: true, target: "vie" }, sender)
+  await call("setTabAudioTranslation", { session: id, enabled: true, target: "vi" }, sender)
   await new Promise((resolve) => setTimeout(resolve, 0))
   expect(translate).toHaveBeenCalledTimes(1)
   expect(translate.mock.calls[0]![0]).toEqual([{ id: 0, source: "Hello.", context: "" }])
@@ -203,7 +203,7 @@ it("rejects a changed current URL or a stale document ID without translating or 
     }))
     expect((await call("getTabAudioView", undefined, sender)).view).toBeNull()
     await expect(
-      call("setTabAudioTranslation", { session: id, target: "vie", enabled: true }, sender),
+      call("setTabAudioTranslation", { session: id, target: "vi", enabled: true }, sender),
     ).rejects.toThrow(/Invalid/)
     await expect(
       call("tabAudioViewAction", { session: id, action: "stop" }, sender),
@@ -223,7 +223,7 @@ it("fails closed when frame lookup fails or the owned session changes while look
         resolve = done
       }),
   )
-  const pending = call("setTabAudioTranslation", { session: id, target: "vie", enabled: true })
+  const pending = call("setTabAudioTranslation", { session: id, target: "vi", enabled: true })
   beginTabAudioView(crypto.randomUUID(), 9, 7, source().url)
   resolve({ url: source().url, parentFrameId: -1, errorOccurred: false })
   await expect(pending).rejects.toThrow(/Invalid/)

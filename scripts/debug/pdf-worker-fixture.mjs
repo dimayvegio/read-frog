@@ -1,6 +1,6 @@
 export const preparePdfWorker = async () => {
   const { config } = await chrome.storage.local.get("config")
-  config.language.targetCode = "vie"
+  config.language.targetCode = config.tts.languageVoices.en ? "vi" : "vie"
   config.uiLanguage = "en"
   config.glossary.enabled = false
   config.providersConfig[0].model.model = "gpt-4o-mini"

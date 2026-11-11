@@ -1,6 +1,7 @@
 import type { Config } from "@/types/config/config"
 import { sha256 } from "js-sha256"
 import { z } from "zod"
+import { migrate as upgradeLanguages } from "@/utils/config/migration-scripts/v124-to-v125"
 import { toPortableConfig } from "@/utils/config/portable"
 
 export const SYNC_PREFIX = "rf-config:"
@@ -30,7 +31,11 @@ export const headerSchema = z.strictObject({
   encodedBytes: z.number().int().min(1).max(MAX_ENCODED_BYTES),
   id: hashSchema,
 })
-export type SyncHeader = z.infer<typeof headerSchema>
+export const currentHeaderSchema = headerSchema.extend({
+  version: z.literal(2),
+  schemaVersion: z.literal(125),
+})
+export type SyncHeader = z.infer<typeof headerSchema> | z.infer<typeof currentHeaderSchema>
 export interface SettingsContent {
   config: Config
   studyHighlightsEnabled: boolean
@@ -50,12 +55,13 @@ export function canonical(value: unknown): string {
   return JSON.stringify(value) ?? "null"
 }
 export const contentHash = (content: SettingsContent) => sha256(canonical(content))
-export function readSettingsContent(raw: unknown): SettingsContent {
+export function readSettingsContent(raw: unknown, schemaVersion: 124 | 125 = 125): SettingsContent {
   const value = z
     .strictObject({ config: z.unknown(), studyHighlightsEnabled: z.boolean() })
     .parse(raw)
   const config = toPortableConfig(value.config)
-  if (canonical(config) !== canonical(value.config))
+  const expected = schemaVersion === 124 ? upgradeLanguages(value.config) : value.config
+  if (canonical(config) !== canonical(expected))
     throw new Error(
       "Cấu hình chứa trường không được hỗ trợ hoặc credential. Hãy cập nhật extension trước.",
     )
@@ -137,8 +143,8 @@ export async function packSettings(
     throw new Error("Cấu hình sau nén quá lớn cho đồng bộ Edge; hãy dùng xuất file.")
   const metadata = {
     format: "read-frog-edge-settings" as const,
-    version: 1 as const,
-    schemaVersion: 124 as const,
+    version: 2 as const,
+    schemaVersion: 125 as const,
     codec: "gzip" as const,
     device,
     clock,
@@ -148,14 +154,14 @@ export async function packSettings(
     chunks: Math.ceil(encoded.length / CHUNK_LENGTH),
     encodedBytes: encoded.length,
   }
-  const header = headerSchema.parse({ ...metadata, id: sha256(canonical(metadata)) })
+  const header = currentHeaderSchema.parse({ ...metadata, id: sha256(canonical(metadata)) })
   const values: Record<string, string> = {}
   for (let n = 0; n < header.chunks; n++)
     values[dataKey(header, n)] = encoded.slice(n * CHUNK_LENGTH, (n + 1) * CHUNK_LENGTH)
   return { header, values }
 }
 export function readHeader(raw: unknown, key: string) {
-  const header = headerSchema.parse(raw),
+  const header = z.union([headerSchema, currentHeaderSchema]).parse(raw),
     { id, ...metadata } = header
   if (
     key !== headKey(header.device) ||
@@ -181,10 +187,11 @@ export async function unpackSettings(
   const compressed = Uint8Array.from(atob(encoded), (char) => char.charCodeAt(0))
   if (sha256(compressed) !== header.compressedHash) throw new Error("Bản đồng bộ sai checksum.")
   const decoded = await transformBytes(compressed, new DecompressionStream("gzip"), MAX_RAW_BYTES)
-  const content = readSettingsContent(
-    JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded)),
-  )
-  if (contentHash(content) !== header.contentHash) throw new Error("Nội dung đồng bộ sai checksum.")
+  const raw: unknown = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(decoded))
+  // Check exact published bytes/content before upgrading a legacy v1 payload.
+  if (sha256(canonical(raw)) !== header.contentHash)
+    throw new Error("Nội dung đồng bộ sai checksum.")
+  const content = readSettingsContent(raw, header.schemaVersion)
   return { header, content }
 }
 export function planSettingsSync(
@@ -197,19 +204,32 @@ export function planSettingsSync(
     (row) =>
       !snapshots.some((other) => other !== row && dominates(other.header.clock, row.header.clock)),
   )
+  const legacyBase = snapshots.find(
+    (row) => row.header.version === 1 && row.header.contentHash === baseHash,
+  )
+  const comparisonBase = legacyBase ? contentHash(legacyBase.content) : baseHash
   const localHash = contentHash(local),
-    hashes = new Set(heads.map((row) => row.header.contentHash))
+    hashes = new Set(heads.map((row) => contentHash(row.content)))
   if (!heads.length) return { action: "push" as const, heads }
   if (hashes.size > 1) return { action: "conflict" as const, heads }
   const incoming = heads[0]!
-  if (incoming.header.contentHash === localHash)
+  if (contentHash(incoming.content) === localHash)
     return { action: "agreed" as const, heads, incoming }
-  if (incoming.header.contentHash === baseHash) return { action: "push" as const, heads }
+  if (contentHash(incoming.content) === comparisonBase) return { action: "push" as const, heads }
   const remoteClock = mergeClocks(...heads.map((row) => row.header.clock))
   if (
-    localHash === baseHash &&
+    localHash === comparisonBase &&
     (dominates(remoteClock, baseClock) || canonical(remoteClock) === canonical(baseClock))
   )
     return { action: "pull" as const, heads, incoming }
   return { action: "conflict" as const, heads }
+}
+
+/** Local DB1 recovery rows may predate config125; never rewrite their bytes. */
+export function readRestorableSettingsContent(raw: unknown): SettingsContent {
+  try {
+    return readSettingsContent(raw)
+  } catch {
+    return readSettingsContent(raw, 124)
+  }
 }

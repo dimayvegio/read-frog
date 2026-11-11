@@ -1,11 +1,12 @@
-import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { LanguageTag } from "@read-frog/definitions"
 import type { LanguageItem } from "@/components/language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
+import { Icon } from "@iconify/react"
+import { languageTagSchema } from "@read-frog/definitions"
 import { IconChevronDown } from "@tabler/icons-react"
 import { useAtom, useAtomValue } from "jotai"
 import { useMemo } from "react"
-import { filterLanguage, getTargetLanguageItems } from "@/components/language-combobox-options"
-import { Icon } from "@/components/local-icon"
+import { filterLanguage } from "@/components/language-combobox-options"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Combobox,
@@ -19,6 +20,14 @@ import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { detectedCodeAtom } from "@/utils/atoms/detected-code"
 import { i18n } from "@/utils/i18n"
 import { getLanguageLabel, getLanguageName } from "@/utils/language-labels"
+
+function createLanguageItem(code: LanguageTag): LanguageItem<LanguageTag> {
+  return {
+    value: code,
+    label: getLanguageLabel(code),
+    name: getLanguageName(code),
+  }
+}
 
 const langSelectorTriggerClasses = "!h-14 w-30 rounded-lg pr-2 gap-1 justify-between bg-transparent"
 
@@ -57,7 +66,7 @@ function LanguageComboboxTrigger({
 export default function LanguageOptionsSelector() {
   const [language, setLanguage] = useAtom(configFieldsAtomMap.language)
   const detectedCode = useAtomValue(detectedCodeAtom)
-  const targetLanguageItems = useMemo(() => getTargetLanguageItems(), [])
+  const targetLanguageItems = useMemo(() => languageTagSchema.options.map(createLanguageItem), [])
   const sourceLanguageItems = useMemo<LanguageItem[]>(
     () => [
       {
@@ -149,7 +158,7 @@ export default function LanguageOptionsSelector() {
             placeholder={i18n.t("translationHub.searchLanguages")}
           />
           <ComboboxList>
-            {(item: LanguageItem<LangCodeISO6393>) => (
+            {(item: LanguageItem<LanguageTag>) => (
               <ComboboxItem key={item.value} value={item}>
                 {item.label}
               </ComboboxItem>

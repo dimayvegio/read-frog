@@ -146,7 +146,7 @@ try {
       number,
     )
   const load = async (file) => {
-    const picker = await reader.$('input[type="file"]')
+    const picker = await reader.waitForSelector('input[type="file"]')
     await picker.uploadFile(file)
     await reader.waitForSelector('[aria-label="Số trang"]')
     await reader.waitForFunction(
@@ -259,6 +259,54 @@ try {
       await reader.$$eval(".rf-study-overlay title", (nodes) => nodes.map((n) => n.textContent))
     ).includes("Ghi chú tiếng Việt 日本語"),
   )
+  for (const [index, [label, color]] of [
+    ["Hình tròn", "Xanh lá"],
+    ["Hình vuông", "Xanh dương"],
+    ["Hình chữ nhật", "Đỏ"],
+  ].entries()) {
+    await selectTool(label)
+    await reader.click(`[aria-label="${color}"]`)
+    const shapeBox = await reader.$eval('[data-page="1"]', (e) => {
+      const b = e.getBoundingClientRect()
+      return { x: b.left, y: b.top, w: b.width, h: b.height }
+    })
+    await reader.mouse.move(
+      shapeBox.x + shapeBox.w * (0.1 + index * 0.25),
+      shapeBox.y + shapeBox.h * 0.25,
+    )
+    await reader.mouse.down()
+    await reader.mouse.move(
+      shapeBox.x + shapeBox.w * (0.28 + index * 0.25),
+      shapeBox.y + shapeBox.h * 0.33,
+      { steps: 5 },
+    )
+    await reader.mouse.up()
+    console.log("DRAWN", label)
+    await waitCount(4 + index)
+    const shape = await reader.$eval(".rf-study-overlay g:last-child polyline", (e) => {
+      const coordinates = [...e.points].map((p) => [p.x, p.y]),
+        b = e.closest(".rf-pdf-page").getBoundingClientRect()
+      const xs = coordinates.map((p) => p[0]),
+        ys = coordinates.map((p) => p[1])
+      return {
+        closed: coordinates[0].join() === coordinates.at(-1).join(),
+        width: ((Math.max(...xs) - Math.min(...xs)) * b.width) / 1000,
+        height: ((Math.max(...ys) - Math.min(...ys)) * b.height) / 1000,
+        color: e.parentElement.getAttribute("stroke"),
+      }
+    })
+    check(
+      `${label} closes, preserves chosen color and correct physical geometry`,
+      shape.closed &&
+        shape.color === ["#66bb6a", "#42a5f5", "#ef5350"][index] &&
+        (index === 2 || Math.abs(shape.width - shape.height) < 0.1),
+    )
+    await reader.click('[aria-label="Hoàn tác"]')
+    await waitCount(3 + index)
+    await reader.click('[aria-label="Làm lại"]')
+    await waitCount(4 + index)
+  }
+  await reader.screenshot({ path: path.join(scratch, "reader-shapes.png") })
   await selectTool("Chọn chữ")
   await click("Tải PDF có chú thích")
   let downloads = []
@@ -285,8 +333,11 @@ try {
   )
   await reader.reload()
   await load(renamed)
-  await waitCount(3)
-  check("Renamed PDF restores all three annotations after reload", (await count()) === 3)
+  await waitCount(6)
+  check(
+    "Renamed PDF restores notes and all three colored shapes after reload",
+    (await count()) === 6,
+  )
   await selectTool("Tẩy chú thích")
   await reader.$eval(".rf-study-overlay g[data-annotation] rect", (e) => {
     const b = e.getBoundingClientRect()
@@ -301,8 +352,8 @@ try {
       }),
     )
   })
-  await waitCount(2)
-  check("Eraser removes only the selected annotation", (await count()) === 2)
+  await waitCount(5)
+  check("Eraser removes only the selected annotation", (await count()) === 5)
   await selectTool("Chọn chữ")
   await click("Mục lục / Trang")
   await reader.waitForSelector(".rf-study-result")
@@ -426,8 +477,11 @@ try {
   evidence.failure = error.stack
   evidence.errors = errors
   evidence.remote = remote
+  console.error(error)
   for (const [i, page] of (await browser.pages()).entries())
-    await page.screenshot({ path: path.join(scratch, `failure-${i}.png`) }).catch(() => {})
+    await page
+      .screenshot({ path: path.join(scratch, `failure-${i}.png`), timeout: 5000 })
+      .catch(() => {})
   throw error
 } finally {
   await fs.writeFile(path.join(scratch, "evidence.json"), JSON.stringify(evidence, null, 2))

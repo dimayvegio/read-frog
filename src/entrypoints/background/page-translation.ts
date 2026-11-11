@@ -2,6 +2,7 @@ import type { WebPagePromptContext } from "@/types/content"
 import { browser } from "#imports"
 import { executeTranslate } from "@/entrypoints/background/translation/execute-translate"
 import { publicProviderRefSchema } from "@/types/config/openai"
+import { normalizeLanguageConfig } from "@/utils/config/languages"
 import { isNoTranslationSentinel } from "@/utils/constants/prompt"
 import { cleanText } from "@/utils/content/utils"
 import { db } from "@/utils/db/dexie/db"
@@ -62,7 +63,7 @@ export function setupPageTranslationHandlers(): void {
     const {
       data: {
         text,
-        langConfig,
+        langConfig: sentLangConfig,
         providerRef,
         scheduleAt,
         hash,
@@ -78,6 +79,7 @@ export function setupPageTranslationHandlers(): void {
         glossaryRevision,
       },
     } = message
+    const langConfig = normalizeLanguageConfig(sentLangConfig)
     const scope = buildTranslationScopeKey(message.sender, sessionId)
 
     const validateHtmlAttributeMarkers =

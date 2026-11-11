@@ -691,7 +691,7 @@ describe("selection toolbar requests", () => {
     expect(streamBackgroundTextMock).toHaveBeenCalledTimes(1)
 
     const updatedConfig = cloneConfig(store.get(configAtom))
-    updatedConfig.language.targetCode = "jpn"
+    updatedConfig.language.targetCode = "ja"
 
     act(() => {
       store.set(configAtom, updatedConfig)

@@ -14,17 +14,17 @@ beforeEach(() => {
 })
 describe("language detection with local fallback", () => {
   it("uses local detection without OpenAI in basic mode", async () => {
-    expect(await detectLanguageWithSource(text)).toEqual({ code: "eng", source: "franc" })
+    expect(await detectLanguageWithSource(text)).toEqual({ code: "en", source: "franc" })
     expect(mocks.send).not.toHaveBeenCalled()
   })
   it("accepts a valid OpenAI answer from the supplied public snapshot", async () => {
-    mocks.send.mockResolvedValue({ text: JSON.stringify({ code: "jpn" }) })
+    mocks.send.mockResolvedValue({ text: JSON.stringify({ code: "ja" }) })
     expect(
       await detectLanguageWithSource(text, {
         enableLLM: true,
         providerRef: { kind: "local", config: DEFAULT_OPENAI_CONFIG },
       }),
-    ).toEqual({ code: "jpn", source: "llm" })
+    ).toEqual({ code: "ja", source: "llm" })
   })
   it("keeps speech usable when an OpenAI key is missing or the request fails", async () => {
     mocks.send.mockRejectedValue(new Error("Configure an OpenAI API key"))
@@ -34,7 +34,7 @@ describe("language detection with local fallback", () => {
         llmFallbackToastContext: "speak",
         providerRef: { kind: "local", config: DEFAULT_OPENAI_CONFIG },
       }),
-    ).toEqual({ code: "eng", source: "franc" })
+    ).toEqual({ code: "en", source: "franc" })
   })
   it("falls back to und for an unsupported local language", async () => {
     mocks.franc.mockReturnValue("vmw")

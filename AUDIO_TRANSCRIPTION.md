@@ -1,5 +1,13 @@
 # F23 — Audio thành văn bản và chép lời tab trực tiếp
 
+**Kiểm tra khi nâng upstream1.59.1 (11/11/2026):** đã đối chiếu lại
+[OpenAI deprecations](https://developers.openai.com/api/docs/deprecations) và
+[file transcription](https://developers.openai.com/api/docs/guides/speech-to-text).
+Mốc shutdown `whisper-1` vẫn là **26/02/2027**; timed SRT legacy tiếp tục explicit,
+chỉ dùng segment timestamps API đã validate. Đợt này không đổi model Audio,
+không tự đổi chế độ hoặc sinh timestamp từ plaintext. Các default text/live,
+private endpoints, pin/recovery/ownership và RAM-only vẫn giữ riêng.
+
 Phát triển từ local HEAD `1ea3c17e`, sau F22. Giữ toàn bộ engine dịch, các
 DB/ZIP/config đã phát hành và Microsoft/OpenAI TTS. Đây là trang Audio riêng,
 không thay track CC và không tự thu khi mở video. Từ build `1.58.1.2`,

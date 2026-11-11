@@ -1,5 +1,6 @@
 import { TextDecoder, TextEncoder } from "node:util"
 import { beforeEach, expect, it, vi } from "vitest"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { readTranscriptionResponse, transcriptionFinal } from "./response"
 import {
   AUDIO_CHUNK,
@@ -18,7 +19,7 @@ beforeEach(() => {
 it("bounds file metadata and supports multilingual hint codes without filenames", () => {
   const start = {
     type: "start",
-    id: crypto.randomUUID(),
+    id: getRandomUUID(),
     format: "mp3",
     size: 100,
     languages: ["en", "zh", "ja", "vi"],

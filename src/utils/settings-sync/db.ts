@@ -1,6 +1,7 @@
 import type { SettingsContent, SyncClock } from "./document"
 import type { Config } from "@/types/config/config"
 import { Dexie, type Table } from "dexie"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 export interface EdgeSyncState {
   id: "main"
   device: string
@@ -56,7 +57,7 @@ export async function readSyncState(): Promise<EdgeSyncState> {
   if (!state) {
     const initial: EdgeSyncState = {
       id: "main",
-      device: crypto.randomUUID(),
+      device: getRandomUUID(),
       enabled: false,
       generation: 0,
       counter: 0,

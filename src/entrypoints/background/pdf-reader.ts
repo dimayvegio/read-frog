@@ -1,5 +1,6 @@
 import { z } from "zod"
 import { browser } from "#imports"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { onMessage } from "@/utils/message"
 import { localPdfDocument } from "@/utils/selection-result/pdf-document"
 import {
@@ -44,7 +45,7 @@ export function setupPdfReaderHandlers() {
             Date.now() - sourceSchema.parse(all[key]).createdAt > TTL),
       )
       if (expired.length) await browser.storage.session.remove(expired)
-      channel = crypto.randomUUID()
+      channel = getRandomUUID()
       await browser.storage.session.set({
         [`${PREFIX}${channel}`]: { tabId: tab.id, documentId: source.id, createdAt: Date.now() },
       })

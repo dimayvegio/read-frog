@@ -27,12 +27,15 @@ export class PdfViewport {
   private sizes: { width: number; height: number }[] = []
   private elements: HTMLDivElement[] = []
   private tops: number[] = []
+  private measured = new Set<number>()
   private leases = new Map<number, Lease>()
   private zoom: ViewPosition["zoom"] = "fit-width"
-  private scale = 1
   private destroyed = false
   private suppressed = true
   private frame = 0
+  private geometryFrame = 0
+  private resumeFrame = 0
+  private navigation = 0
   private layoutVersion = 0
   private resize: ResizeObserver
   private width = 0
@@ -47,7 +50,8 @@ export class PdfViewport {
       () => this.snapshot(),
       (page, offset) => {
         const index = Math.max(0, Math.min(this.sizes.length - 1, page - 1))
-        this.host.scrollTop = this.tops[index]! + offset * this.sizes[index]!.height * this.scale
+        this.host.scrollTop =
+          this.tops[index]! + offset * this.sizes[index]!.height * this.pageScale(index)
         this.update(true)
       },
     )
@@ -63,20 +67,17 @@ export class PdfViewport {
     this.resize.observe(host)
   }
   async init(position?: ViewPosition) {
-    // Dimensions only. Canvas and text are kept for at most three nearby pages.
-    for (let start = 1; start <= this.pdf.numPages; start += 16) {
-      const pages = await Promise.all(
-        Array.from({ length: Math.min(16, this.pdf.numPages - start + 1) }, (_, n) =>
-          this.pdf.getPage(start + n),
-        ),
-      )
-      if (this.destroyed) return
-      for (const page of pages) {
-        const view = page.getViewport({ scale: 1 })
-        this.sizes.push({ width: view.width, height: view.height })
-        page.cleanup()
-      }
-    }
+    // Measure the requested page first. Other placeholders borrow its dimensions
+    // until actually needed; opening a long PDF must not parse every page first.
+    const index = Math.max(0, Math.min(this.pdf.numPages - 1, (position?.page ?? 1) - 1))
+    const page = await this.pdf.getPage(index + 1)
+    if (this.destroyed) return
+    const base = page.getViewport({ scale: 1 })
+    this.sizes = Array.from({ length: this.pdf.numPages }, () => ({
+      width: base.width,
+      height: base.height,
+    }))
+    this.measured.add(index)
     const fragment = document.createDocumentFragment()
     for (let i = 0; i < this.sizes.length; i++) {
       const element = document.createElement("div")
@@ -91,60 +92,108 @@ export class PdfViewport {
   }
   snapshot(): ViewPosition {
     const index = pageAtOffset(this.tops, this.host.scrollTop)
-    const height = (this.sizes[index]?.height ?? 1) * this.scale
+    const height = (this.sizes[index]?.height ?? 1) * this.pageScale(index)
     return {
       page: index + 1,
       offset: Math.max(0, Math.min(1, (this.host.scrollTop - (this.tops[index] ?? 0)) / height)),
       zoom: this.zoom,
     }
   }
-  private layout(position: ViewPosition) {
-    if (this.destroyed) return
+  private pageScale(index: number) {
+    return typeof this.zoom === "number"
+      ? this.zoom
+      : Math.max(0.1, Math.min(2, (this.width - 32) / (this.sizes[index]?.width ?? 1)))
+  }
+  private suppressScroll() {
     const version = ++this.layoutVersion
     this.suppressed = true
+    cancelAnimationFrame(this.resumeFrame)
+    this.resumeFrame = requestAnimationFrame(() => {
+      this.resumeFrame = requestAnimationFrame(() => {
+        this.resumeFrame = 0
+        if (!this.destroyed && version === this.layoutVersion) this.suppressed = false
+      })
+    })
+  }
+  private measure(index: number, page: PDFPageProxy) {
+    if (this.measured.has(index)) return
+    const base = page.getViewport({ scale: 1 }),
+      previous = this.sizes[index]!
+    this.measured.add(index)
+    if (base.width === previous.width && base.height === previous.height) return
+    const anchor = this.snapshot(),
+      oldHeight = previous.height * this.pageScale(index)
+    this.sizes[index] = { width: base.width, height: base.height }
+    const scale = this.pageScale(index),
+      height = base.height * scale
+    const element = this.elements[index]!
+    element.style.width = `${base.width * scale}px`
+    element.style.height = `${height}px`
+    element.style.setProperty("--total-scale-factor", String(scale))
+    const delta = height - oldHeight
+    for (let n = index + 1; n < this.tops.length; n++) this.tops[n]! += delta
+    // Preserve the same page/fraction while estimated pages above it are corrected.
+    this.suppressScroll()
+    this.host.scrollTop =
+      this.tops[anchor.page - 1]! +
+      anchor.offset * this.sizes[anchor.page - 1]!.height * this.pageScale(anchor.page - 1)
+    if (!this.geometryFrame)
+      this.geometryFrame = requestAnimationFrame(() => {
+        this.geometryFrame = 0
+        this.update(false)
+      })
+  }
+  private layout(position: ViewPosition) {
+    if (this.destroyed) return
+    this.suppressScroll()
     this.width = this.host.clientWidth
     this.zoom = position.zoom
-    this.scale =
-      typeof this.zoom === "number"
-        ? this.zoom
-        : Math.max(
-            0.1,
-            Math.min(
-              2,
-              (this.width - 32) / this.sizes.reduce((max, s) => Math.max(max, s.width), 1),
-            ),
-          )
     for (const lease of this.leases.values()) lease.cancel()
     this.leases.clear()
     this.tops = []
     let top = 16
     this.elements.forEach((element, index) => {
       const size = this.sizes[index]!
-      element.style.width = `${size.width * this.scale}px`
-      element.style.height = `${size.height * this.scale}px`
-      element.style.setProperty("--total-scale-factor", String(this.scale))
+      const scale = this.pageScale(index)
+      element.style.width = `${size.width * scale}px`
+      element.style.height = `${size.height * scale}px`
+      element.style.setProperty("--total-scale-factor", String(scale))
       this.tops.push(top)
-      top += size.height * this.scale + 16
+      top += size.height * scale + 16
     })
     const index = Math.min(this.sizes.length - 1, Math.max(0, position.page - 1))
     this.host.scrollTop =
-      this.tops[index]! + position.offset * this.sizes[index]!.height * this.scale
+      this.tops[index]! + position.offset * this.sizes[index]!.height * this.pageScale(index)
     this.update(false)
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => {
-        if (!this.destroyed && version === this.layoutVersion) this.suppressed = false
-      }),
-    )
   }
   navigate(page: number) {
-    this.host.scrollTop = this.tops[Math.max(0, Math.min(this.sizes.length - 1, page - 1))] ?? 0
-    this.update(true)
+    const index = Math.max(0, Math.min(this.sizes.length - 1, page - 1)),
+      token = ++this.navigation
+    const jump = () => {
+      this.host.scrollTop = this.tops[index] ?? 0
+      this.update(true)
+    }
+    if (this.measured.has(index)) jump()
+    else
+      void this.pdf
+        .getPage(index + 1)
+        .then((value) => {
+          if (this.destroyed || token !== this.navigation) return
+          this.measure(index, value)
+          jump()
+        })
+        .catch(() => {
+          if (!this.destroyed && token === this.navigation)
+            this.error(`Không đọc được trang ${index + 1}.`)
+        })
   }
   setZoom(zoom: ViewPosition["zoom"]) {
+    ++this.navigation
     this.layout({ ...this.snapshot(), zoom })
     this.changed(this.snapshot(), true)
   }
   reset() {
+    ++this.navigation
     this.layout({ page: 1, offset: 0, zoom: "fit-width" })
   }
   private scrolled = () => {
@@ -172,8 +221,7 @@ export class PdfViewport {
     this.paragraphs.update()
   }
   private render(index: number) {
-    const element = this.elements[index]!,
-      scale = this.scale
+    const element = this.elements[index]!
     let stopped = false,
       render: RenderTask | undefined,
       text: TextLayer | undefined,
@@ -195,7 +243,8 @@ export class PdfViewport {
         page.cleanup()
         return
       }
-      const viewport = page.getViewport({ scale })
+      this.measure(index, page)
+      const viewport = page.getViewport({ scale: this.pageScale(index) })
       const density = Math.min(
         devicePixelRatio || 1,
         2,
@@ -282,6 +331,9 @@ export class PdfViewport {
     this.paragraphs.destroy()
     this.destroyed = true
     cancelAnimationFrame(this.frame)
+    cancelAnimationFrame(this.geometryFrame)
+    cancelAnimationFrame(this.resumeFrame)
+    ++this.navigation
     this.resize.disconnect()
     this.host.removeEventListener("scroll", this.scrolled)
     for (const lease of this.leases.values()) lease.cancel()

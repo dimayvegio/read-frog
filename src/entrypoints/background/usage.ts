@@ -1,5 +1,6 @@
 import { wrapLanguageModel, type LanguageModelMiddleware } from "ai"
 import { browser } from "#imports"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { onMessage } from "@/utils/message"
 import {
   usageDB,
@@ -16,7 +17,7 @@ export async function beginUsage(task: UsageTask, model: string) {
   const epoch = await usageEpoch().catch(() => null),
     start = performance.now()
   const base = {
-    id: crypto.randomUUID(),
+    id: getRandomUUID(),
     at: Date.now(),
     task,
     model,

@@ -1,4 +1,5 @@
 import { browser } from "#imports"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import {
   AUDIO_CHUNK,
   audioFormat,
@@ -18,7 +19,7 @@ export async function transcribeAudioFile(
 ): Promise<TranscriptionResult> {
   const metadata = startSchema.parse({
     type: "start",
-    id: crypto.randomUUID(),
+    id: getRandomUUID(),
     format: audioFormat(file.name),
     size: file.size,
     ...options,

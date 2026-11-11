@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { configSchema } from "@/types/config/config"
+import { migrate as upgradeLanguages } from "@/utils/config/migration-scripts/v124-to-v125"
 import { migrate } from "../../migration-scripts/v121-to-v122"
 import { toPortableConfig } from "../../portable"
 import { testSeries } from "../example/v121"
@@ -30,7 +31,9 @@ describe("v122 OpenAI TTS migration", () => {
       speed: 1.25,
       instructions: "Speak warmly.",
     }
-    expect(toPortableConfig(JSON.parse(JSON.stringify(raw))).tts).toEqual(raw.tts)
+    expect(toPortableConfig(JSON.parse(JSON.stringify(raw))).tts).toEqual(
+      upgradeLanguages({ tts: raw.tts }).tts,
+    )
     expect(() =>
       toPortableConfig({
         ...raw,

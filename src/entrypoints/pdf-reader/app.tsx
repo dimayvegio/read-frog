@@ -19,6 +19,7 @@ import workerURL from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { sendMessage } from "@/utils/message"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
@@ -483,7 +484,7 @@ export function PdfReader({ config }: { config: Config }) {
           onClick={() => {
             setBilingual(false)
             setRequest({
-              id: crypto.randomUUID(),
+              id: getRandomUUID(),
               text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,
               tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
               createdAt: Date.now(),

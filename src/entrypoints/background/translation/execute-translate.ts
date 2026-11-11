@@ -3,7 +3,7 @@ import type { OpenAIPublicConfig } from "@/types/config/openai"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type { PromptResolver } from "@/types/translation"
 import type { MatchedTerm } from "@/utils/glossary/types"
-import { LANG_CODE_TO_EN_NAME } from "@read-frog/definitions"
+import { LANGUAGE_ENGLISH_NAMES } from "@read-frog/definitions"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { aiTranslate } from "./openai-translate"
 
@@ -26,7 +26,7 @@ export async function executeTranslate<TContext>(
   return (
     await aiTranslate(
       prepared,
-      LANG_CODE_TO_EN_NAME[langConfig.targetCode],
+      LANGUAGE_ENGLISH_NAMES[langConfig.targetCode],
       providerConfig,
       promptResolver,
       options,

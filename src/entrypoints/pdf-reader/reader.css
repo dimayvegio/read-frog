@@ -673,6 +673,9 @@
   user-select: none;
 }
 .rf-pdf-scroll[data-study-tool="ink"],
+.rf-pdf-scroll[data-study-tool="circle"],
+.rf-pdf-scroll[data-study-tool="square"],
+.rf-pdf-scroll[data-study-tool="rectangle"],
 .rf-pdf-scroll[data-study-tool="note"] {
   cursor: crosshair;
   touch-action: none;
@@ -682,6 +685,12 @@
   cursor: crosshair;
 }
 .rf-pdf-scroll[data-study-tool="ink"] .textLayer,
+.rf-pdf-scroll:is(
+    [data-study-tool="circle"],
+    [data-study-tool="square"],
+    [data-study-tool="rectangle"]
+  )
+  :is(.textLayer, .rf-ocr-text, .rf-ocr-text span),
 .rf-pdf-scroll[data-study-tool="ink"] .rf-ocr-text,
 .rf-pdf-scroll[data-study-tool="note"] .textLayer,
 .rf-pdf-scroll[data-study-tool="note"] .rf-ocr-text {

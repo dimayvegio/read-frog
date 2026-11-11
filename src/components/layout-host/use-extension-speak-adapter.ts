@@ -1,6 +1,6 @@
 import type { LayoutSpeakOptions, SpeakAdapter, SpeakLabels } from "@read-frog/layout-engine/dom"
 import type { TTSConfig } from "@/types/config/tts"
-import { speechLanguageFromTag } from "@read-frog/definitions"
+import { resolveLanguageForSpeech } from "@read-frog/definitions"
 import { useAtomValue } from "jotai"
 import { useLayoutEffect, useMemo, useRef } from "react"
 import { selectTTSVoice, useTextToSpeech } from "@/hooks/use-text-to-speech"
@@ -62,7 +62,7 @@ export function useExtensionSpeakAdapter(
         signal.addEventListener("abort", forget, { once: true })
         const { play: playText, ttsConfig: config } = latestRef.current
         latestRef.current.onSpeech?.(text)
-        const language = speechLanguageFromTag(lang)
+        const language = resolveLanguageForSpeech(lang)
         // useTextToSpeech reports failures with its own toast, except for a
         // run nobody pressed for; the rejection only has to end the run.
         return playText(text, config, {

@@ -1,0 +1,44 @@
+import { expect, it } from "vitest"
+import { shapePoints } from "../shapes"
+import { validateStudy } from "../study-data"
+
+it("keeps circles round and squares square in physical page coordinates in either drag direction", () => {
+  for (const [width, height] of [
+    [600, 800],
+    [800, 600],
+    [1234, 456],
+  ]) {
+    for (const end of [
+      { x: 0.8, y: 0.9 },
+      { x: 0.1, y: 0.05 },
+    ]) {
+      for (const tool of ["circle", "square"] as const) {
+        const points = shapePoints(tool, { x: 0.4, y: 0.3 }, end, width!, height!)
+        const xs = points.map((p) => p.x),
+          ys = points.map((p) => p.y)
+        expect((Math.max(...xs) - Math.min(...xs)) * width!).toBeCloseTo(
+          (Math.max(...ys) - Math.min(...ys)) * height!,
+          8,
+        )
+        expect(points[0]).toEqual(points.at(-1))
+        expect(points.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1)).toBe(true)
+      }
+    }
+  }
+})
+it("keeps rectangle dimensions, rejects clicks, and fits the frozen ink format", () => {
+  expect(shapePoints("circle", { x: 0.2, y: 0.2 }, { x: 0.2, y: 0.2 }, 600, 800)).toEqual([])
+  const points = shapePoints("rectangle", { x: 0.1, y: 0.2 }, { x: 0.8, y: 0.4 }, 600, 800)
+  expect(points).toHaveLength(5)
+  expect(points[2]).toEqual({ x: 0.8, y: 0.4 })
+  expect(() =>
+    validateStudy({
+      id: "a".repeat(64),
+      revision: 0,
+      annotations: [
+        { id: "shape", page: 1, kind: "ink", color: "#ffca28", boxes: [], text: "", points },
+      ],
+      ocr: [],
+    }),
+  ).not.toThrow()
+})

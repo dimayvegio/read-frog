@@ -23,7 +23,7 @@ import {
   packSettings,
   planSettingsSync,
   readHeader,
-  readSettingsContent,
+  readRestorableSettingsContent,
   unpackSettings,
   type SettingsContent,
   type SettingsSnapshot,
@@ -75,7 +75,7 @@ async function applyContent(
   expected: string,
   signal: AbortSignal,
 ) {
-  const safe = readSettingsContent(target),
+  const safe = readRestorableSettingsContent(target),
     before = await currentContent()
   if (contentHash(before) !== expected)
     throw new Error("Cấu hình vừa thay đổi. Hãy tải lại và đồng bộ lần nữa.")
@@ -207,7 +207,7 @@ export async function runEdgeSettingsSync(resolution?: { token: string; source: 
           await applyContent(state, plan.incoming.content, expected, signal)
         await guard(state, signal)
         await settingsSyncDB.state.update("main", {
-          baseHash: plan.incoming.header.contentHash,
+          baseHash: contentHash(plan.incoming.content),
           baseClock: mergeClocks(...plan.heads.map((row) => row.header.clock)),
         })
       }

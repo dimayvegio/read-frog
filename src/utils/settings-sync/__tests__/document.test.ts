@@ -1,8 +1,10 @@
 import { gzipSync } from "node:zlib"
 import { sha256 } from "js-sha256"
 import { describe, expect, it } from "vitest"
+import { testSeries as legacyConfigs } from "@/utils/config/__tests__/example/v124"
 import { toPortableConfig } from "@/utils/config/portable"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
+import { readRestorableSettingsContent } from "../document"
 import {
   canonical,
   contentHash,
@@ -30,6 +32,45 @@ async function snapshot(value: SettingsContent, device = a, clock: SyncClock = {
   return (await unpackSettings(packed.header, packed.values))!
 }
 describe("Edge settings snapshot v1", () => {
+  it("validates and upgrades published v1/config124 bytes and preserves causal equality with v2", async () => {
+    const legacy = {
+      config: structuredClone(Object.values(legacyConfigs)[0]!.config),
+      studyHighlightsEnabled: true,
+    }
+    const encoded = gzipSync(canonical(legacy)).toString("base64")
+    const metadata = {
+      format: "read-frog-edge-settings",
+      version: 1,
+      schemaVersion: 124,
+      codec: "gzip",
+      device: a,
+      at: 1,
+      clock: { [a]: 1 },
+      contentHash: sha256(canonical(legacy)),
+      compressedHash: sha256(Uint8Array.from(Buffer.from(encoded, "base64"))),
+      chunks: Math.ceil(encoded.length / CHUNK_LENGTH),
+      encodedBytes: encoded.length,
+    }
+    const header = readHeader({ ...metadata, id: sha256(canonical(metadata)) }, headKey(a))
+    const values: Record<string, string> = {}
+    for (let n = 0; n < header.chunks; n++)
+      values[dataKey(header, n)] = encoded.slice(n * CHUNK_LENGTH, (n + 1) * CHUNK_LENGTH)
+    const old = (await unpackSettings(header, values))!
+    expect(old.content.config.language.targetCode).not.toBe("vie")
+    expect(readRestorableSettingsContent(legacy)).toEqual(old.content)
+    const current = await snapshot(old.content, b, { [a]: 1, [b]: 1 })
+    expect(current.header).toMatchObject({ version: 2, schemaVersion: 125 })
+    expect(
+      planSettingsSync([old, current], old.content, header.contentHash, header.clock).action,
+    ).toBe("agreed")
+    const changed = await snapshot({ ...old.content, studyHighlightsEnabled: false }, b, {
+      [a]: 1,
+      [b]: 1,
+    })
+    expect(
+      planSettingsSync([old, changed], old.content, header.contentHash, header.clock).action,
+    ).toBe("pull")
+  })
   it("round trips actual portable config through standard gzip chunks under the per-item limit", async () => {
     const value = content(),
       packed = await packSettings(value, a, { [a]: 1 })
@@ -48,7 +89,7 @@ describe("Edge settings snapshot v1", () => {
     const first = dataKey(packed.header, 0),
       altered = { ...packed.values, [first]: "A" + packed.values[first]!.slice(1) }
     await expect(unpackSettings(packed.header, altered)).rejects.toThrow("checksum")
-    expect(() => readHeader({ ...packed.header, version: 2 }, headKey(a))).toThrow(/Invalid/)
+    expect(() => readHeader({ ...packed.header, version: 3 }, headKey(a))).toThrow(/Invalid/)
     expect(() => readHeader(packed.header, headKey(b))).toThrow("không hợp lệ")
   })
   it("rejects embedded legacy API keys without exporting private credential data", async () => {

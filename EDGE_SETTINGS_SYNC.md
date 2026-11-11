@@ -1,5 +1,13 @@
 # Đồng bộ cấu hình qua Edge — 1.58.0-a.16
 
+**Cập nhật 1.59.1A:** writer mới dùng transport2/config125 cho BCP47; reader
+nhận nguyên bản transport1/config124, kiểm checksum raw rồi migrate. Giữ nguyên
+head-last, limits, vector clocks, lựa chọn conflict, recovery/undo DB1 và exclusions.
+Transport1 đã phát hành không bị sửa. Client1.58.x cần nâng cấp để đọc snapshot2.
+Nếu không còn snapshot legacy của base hash thì báo conflict bảo thủ, không tự
+đè local. Các mô tả transport1/config124 bên dưới là snapshot bản1.58.0.
+Chi tiết: [UPSTREAM_1_59_1_REPORT.md](UPSTREAM_1_59_1_REPORT.md).
+
 Tiếp tục từ `7cbdc3ce` (bốn phần học/từ vựng/usage đã hoàn tất và push trước).
 Package `1.58.0-a.16`, manifest numeric `1.58.0.17`, tên hiển thị **1.58.0A**.
 Theo lựa chọn của người dùng: dùng `storage.sync` của tài khoản Edge, không dùng

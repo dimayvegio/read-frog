@@ -1,4 +1,6 @@
 import type { Annotation, Box, OcrPage, Point, StudyDocument } from "./study-data"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { shapePoints, type ShapeTool } from "./shapes"
 import {
   validBox,
   searchText,
@@ -7,7 +9,7 @@ import {
   joinPdfRuns,
 } from "./study-data"
 
-export type StudyTool = "select" | "ink" | "erase" | "note"
+export type StudyTool = "select" | "ink" | "erase" | "note" | ShapeTool
 const ns = "http://www.w3.org/2000/svg"
 const clamp = (n: number) => Math.max(0, Math.min(1, n))
 function svg(name: string, attributes: Record<string, string>) {
@@ -33,6 +35,9 @@ export class PdfStudyLayer {
     page: HTMLElement
     pointer: number
     points: Point[]
+    origin: Point
+    shape?: ShapeTool
+    color: string
     path: Element
     frame: number
   }
@@ -265,7 +270,7 @@ export class PdfStudyLayer {
       }
       if (boxes.length)
         items.push({
-          id: crypto.randomUUID(),
+          id: getRandomUUID(),
           page: Number(page.dataset.page),
           kind: "highlight",
           color: this.color,
@@ -300,7 +305,7 @@ export class PdfStudyLayer {
       if (text)
         this.add([
           {
-            id: crypto.randomUUID(),
+            id: getRandomUUID(),
             page: Number(page.dataset.page),
             kind: "note",
             color: this.color,
@@ -319,7 +324,16 @@ export class PdfStudyLayer {
       "stroke-linecap": "round",
     })
     overlay.append(path)
-    this.drawing = { page, pointer: event.pointerId, points: [point], path, frame: 0 }
+    this.drawing = {
+      page,
+      pointer: event.pointerId,
+      points: [point],
+      origin: point,
+      shape: this.tool === "ink" ? undefined : this.tool,
+      color: this.color,
+      path,
+      frame: 0,
+    }
     this.host.setPointerCapture(event.pointerId)
   }
   private move = (event: PointerEvent) => {
@@ -328,8 +342,13 @@ export class PdfStudyLayer {
     event.preventDefault()
     const p = this.point(event, drawing.page),
       last = drawing.points.at(-1)!
-    if (Math.hypot(p.x - last.x, p.y - last.y) < 0.001 || drawing.points.length >= 4096) return
-    drawing.points.push(p)
+    if (drawing.shape) {
+      const box = drawing.page.getBoundingClientRect()
+      drawing.points = shapePoints(drawing.shape, drawing.origin, p, box.width, box.height)
+    } else {
+      if (Math.hypot(p.x - last.x, p.y - last.y) < 0.001 || drawing.points.length >= 4096) return
+      drawing.points.push(p)
+    }
     if (!drawing.frame)
       drawing.frame = requestAnimationFrame(() => {
         drawing.path.setAttribute(
@@ -347,10 +366,10 @@ export class PdfStudyLayer {
     if (drawing.points.length >= 2)
       this.add([
         {
-          id: crypto.randomUUID(),
+          id: getRandomUUID(),
           page: Number(drawing.page.dataset.page),
           kind: "ink",
-          color: this.color,
+          color: drawing.color,
           points: drawing.points,
           boxes: [],
           text: "",

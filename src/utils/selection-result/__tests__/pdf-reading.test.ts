@@ -128,7 +128,7 @@ describe("PDF translation cache contracts", () => {
   const config = () => {
     const value = structuredClone(DEFAULT_CONFIG)
     value.glossary.enabled = false
-    value.language.targetCode = "vie"
+    value.language.targetCode = "vi"
     return value
   }
   const run = (extra: Partial<Parameters<typeof translateNativeSelection>[0]> = {}) =>
@@ -156,7 +156,7 @@ describe("PDF translation cache contracts", () => {
     changedModel.providersConfig[0]!.model.model = "gpt-4o"
     await run({ config: changedModel })
     const changedLanguage = config()
-    changedLanguage.language.targetCode = "eng"
+    changedLanguage.language.targetCode = "en"
     await run({ config: changedLanguage })
     await run({ textOptions: { clean: false, joinHyphenatedWords: false } })
     await run({ document: documentB })

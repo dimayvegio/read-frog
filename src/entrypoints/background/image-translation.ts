@@ -5,6 +5,7 @@ import {
   imageDataURLSchema,
   type CapturedImage,
 } from "@/types/image-translation"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { onMessage } from "@/utils/message"
 import { isTrustedOptionsSender, type SettingsSender } from "./settings-sender"
 
@@ -42,7 +43,7 @@ export function setupImageTranslationHandlers() {
       for (const [key, value] of captures)
         if (Date.now() - value.createdAt > IMAGE_CAPTURE_TTL) captures.delete(key)
       while (captures.size >= 2) captures.delete(captures.keys().next().value!)
-      channel = crypto.randomUUID()
+      channel = getRandomUUID()
       captures.set(channel, { image, createdAt: Date.now() })
     }
     try {

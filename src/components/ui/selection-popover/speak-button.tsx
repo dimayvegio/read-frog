@@ -1,15 +1,22 @@
+import type { LanguageTag } from "@read-frog/definitions"
 import { IconLoader2, IconPlayerStopFilled, IconVolume } from "@tabler/icons-react"
 import { useAtomValue } from "jotai"
 import { useCallback } from "react"
 import { buttonVariants } from "@/components/ui/base-ui/button"
-import { useTextToSpeech } from "@/hooks/use-text-to-speech"
+import { selectTTSVoice, useTextToSpeech } from "@/hooks/use-text-to-speech"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { i18n } from "@/utils/i18n"
 import { cn } from "@/utils/styles/utils"
 import { DownloadTTSButton } from "./download-tts-button"
 import { SelectionPopoverTooltip, useSelectionTooltipState } from "./selection-tooltip"
 
-export function SpeakButton({ text }: { text: string | undefined }) {
+export function SpeakButton({
+  text,
+  language,
+}: {
+  text: string | undefined
+  language?: LanguageTag
+}) {
   const {
     handlePress,
     onOpenChange: handleTooltipOpenChange,
@@ -26,8 +33,12 @@ export function SpeakButton({ text }: { text: string | undefined }) {
     }
     if (!text) return
     handlePress()
-    void play(text, ttsConfig)
-  }, [handlePress, isFetching, isPlaying, play, stop, text, ttsConfig])
+    void play(
+      text,
+      ttsConfig,
+      language ? { forcedVoice: selectTTSVoice(ttsConfig, language) } : undefined,
+    )
+  }, [handlePress, isFetching, isPlaying, language, play, stop, text, ttsConfig])
 
   const tooltipText = isFetching
     ? i18n.t("speak.fetchingAudio")

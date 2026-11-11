@@ -5,6 +5,7 @@ import type { SubtitlesSource } from "@/utils/constants/subtitles"
 import type { SubtitlesFetcher } from "@/utils/subtitles/fetchers/types"
 import type { SubtitlesVideoContext } from "@/utils/subtitles/processor/translator"
 import type { SubtitlesFragment } from "@/utils/subtitles/types"
+import { isSameLanguage } from "@read-frog/definitions"
 import { toastManager } from "@/components/ui/base-ui/toast"
 import { getLocalConfig } from "@/utils/config/storage"
 import {
@@ -1067,7 +1068,8 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
       return false
     }
 
-    return sourceLanguage === targetLanguage
+    // A `pt-PT` track is not translated for a `pt-BR` reader, as on pages.
+    return isSameLanguage(sourceLanguage, targetLanguage)
   }
 
   private processPassthroughSubtitles() {

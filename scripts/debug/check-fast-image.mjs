@@ -182,7 +182,7 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
     )
     await worker.evaluate(async () => {
       const { config } = await chrome.storage.local.get("config")
-      config.language.targetCode = "eng"
+      config.language.targetCode = "en"
       await chrome.storage.local.set({ config })
     })
     await page.reload()
@@ -200,7 +200,7 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
     // Reproduce a custom template which hard-codes Chinese and has no language token.
     await worker.evaluate(async () => {
       const { config } = await chrome.storage.local.get("config")
-      config.language.targetCode = "cmn"
+      config.language.targetCode = "zh-Hans"
       config.pageTranslation.customPromptsConfig = {
         promptId: "fixed-chinese-target-fixture",
         patterns: [
@@ -214,9 +214,9 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
       }
       globalThis.__pdfTextOutput = (body) => {
         const prompt = JSON.stringify(body)
-        return prompt.includes("Vietnamese (vie)")
+        return prompt.includes("Vietnamese (vi)")
           ? "Có cần khởi tạo semaphore không?"
-          : prompt.includes("English (eng)")
+          : prompt.includes("English (en)")
             ? "Does semaphore need initialization?"
             : "使用 semaphore 时需要初始化吗？"
       }
@@ -239,8 +239,8 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
       )
     const customUploads = await imageUploads()
     for (const [code, expected] of [
-      ["vie", "Có cần khởi tạo semaphore không?"],
-      ["eng", "Does semaphore need initialization?"],
+      ["vi", "Có cần khởi tạo semaphore không?"],
+      ["en", "Does semaphore need initialization?"],
     ]) {
       await worker.evaluate(async (targetCode) => {
         const { config } = await chrome.storage.local.get("config")
@@ -266,7 +266,7 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
         `The corrected custom-prompt ${code} translation has its own warm cache`,
         (await calls()) === warmTarget,
       )
-      if (code === "vie") {
+      if (code === "vi") {
         await page.screenshot({
           path: path.join(scratch, "image-vietnamese-custom-prompt.png"),
           fullPage: true,

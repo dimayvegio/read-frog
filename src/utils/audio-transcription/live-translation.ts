@@ -44,7 +44,7 @@ export class LiveTranslationController {
   private disposed = false
   private value: LiveTranslation = {
     enabled: false,
-    target: "vie",
+    target: "vi",
     rows: [],
     message: "",
     failed: false,

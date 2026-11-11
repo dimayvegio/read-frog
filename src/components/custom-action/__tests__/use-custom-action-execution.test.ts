@@ -292,7 +292,7 @@ describe("useCustomActionExecution", () => {
         executionContext: {
           action,
           provider,
-          targetCode: "cmn",
+          targetCode: "zh-Hans",
           promptTokens: {
             selection,
             paragraphs: selection,

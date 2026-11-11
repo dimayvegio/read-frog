@@ -102,7 +102,7 @@ export async function checkYouTubeLiveView({
     "English and Vietnamese are the first target languages with dark readable options",
     await source.$$eval(
       shadow(".live-translation-controls option"),
-      (nodes) => nodes[0].value === "eng" && nodes[1].value === "vie",
+      (nodes) => nodes[0].value === "en" && nodes[1].value === "vi",
     ),
   )
   await source.click(shadow(".live-translation-controls input"))
@@ -221,7 +221,7 @@ export async function checkYouTubeLiveView({
     "toggling or moving the view retains completed translations without paid repeat requests",
     await worker.evaluate((count) => __pdfCalls.length === count, calls),
   )
-  await source.select(shadow('[aria-label="Ngôn ngữ bản dịch trực tiếp"]'), "eng")
+  await source.select(shadow('[aria-label="Ngôn ngữ bản dịch trực tiếp"]'), "en")
   await source.waitForFunction(
     () =>
       [
@@ -244,7 +244,7 @@ export async function checkYouTubeLiveView({
       )
     }),
   )
-  await source.select(shadow('[aria-label="Ngôn ngữ bản dịch trực tiếp"]'), "vie")
+  await source.select(shadow('[aria-label="Ngôn ngữ bản dịch trực tiếp"]'), "vi")
   await source.waitForFunction(
     () =>
       document

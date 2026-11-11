@@ -1,4 +1,4 @@
-import { langCodeISO6393Schema } from "@read-frog/definitions"
+import { languageTagSchema } from "@read-frog/definitions"
 import { z } from "zod"
 import { isBuiltInActionId } from "@/utils/constants/custom-action"
 import { isActionIcon } from "@/utils/iconify/action-icons"
@@ -41,7 +41,7 @@ export const selectionToolbarCustomActionOutputFieldSchema = z.object({
 // way a model answers; the layout scope converts a number field's text.
 export const selectionToolbarCustomActionSampleDataSchema = z.object({
   selection: z.string().max(MAX_CUSTOM_ACTION_SAMPLE_TEXT_LENGTH),
-  targetCode: langCodeISO6393Schema,
+  targetCode: languageTagSchema,
   values: z.record(z.string(), z.string().max(MAX_CUSTOM_ACTION_SAMPLE_TEXT_LENGTH)),
 })
 

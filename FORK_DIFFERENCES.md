@@ -1,5 +1,14 @@
 # Bản local khác upstream ở đâu?
 
+**Bản hiện tại: 1.59.1A** (`1.59.1-a.1` / manifest `1.59.1.1`), nhánh
+`codex/upstream-1.59.1-openai`, từ local `c2e595fc` và upstream tag
+`v1.59.1` / `56d05e33`. Nhận/adapt bug fixes và site rules upstream, giữ F01–F24.
+Thêm hình tròn/vuông/chữ nhật có màu; ba tối ưu PDF đã đo trước/sau.
+Config mới125, AppDB7, sync writer2/config125 đọc cả v1/config124; migrations và
+formats cũ vẫn đóng băng. Xem [UPSTREAM_1_59_1_REPORT.md](UPSTREAM_1_59_1_REPORT.md)
+và [PDF_PERFORMANCE_1_59_1.md](PDF_PERFORMANCE_1_59_1.md).
+Các mục 1.58.x bên dưới là lịch sử, không phải phiên bản/schema hiện hành.
+
 Tài liệu đối chiếu để nâng cấp tiếp mà giữ các chức năng đã phát triển riêng.
 Đọc cùng [hướng dẫn merge](UPSTREAM_UPGRADE_GUIDE.md) và [AGENTS.md](AGENTS.md).
 

@@ -1,4 +1,4 @@
-import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { LanguageTag } from "@read-frog/definitions"
 import type { Config, InputTranslationLang } from "@/types/config/config"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type { ResolvedProviderRef } from "@/utils/providers/provider-registry"
@@ -200,7 +200,7 @@ export async function translateTextForPageTitle(text: string): Promise<string> {
 async function resolveInputLang(
   lang: InputTranslationLang,
   globalLangConfig: Config["language"],
-): Promise<LangCodeISO6393> {
+): Promise<LanguageTag> {
   if (lang === "sourceCode") {
     const detectedCode = await getDetectedCodeFromStorage()
     return getFinalSourceCode(globalLangConfig.sourceCode, detectedCode)
@@ -218,7 +218,7 @@ export async function translateTextForInput(
   text: string,
   fromLang: InputTranslationLang,
   toLang: InputTranslationLang,
-  onTargetLanguageResolved?: (targetLanguage: LangCodeISO6393) => void,
+  onTargetLanguageResolved?: (targetLanguage: LanguageTag) => void,
 ): Promise<string> {
   const config = await getConfigOrThrow()
   // Capability-based, not resolveProviderConfig: that helper looks the id up in

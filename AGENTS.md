@@ -2,6 +2,9 @@
 
 ## Local Fork Upgrades
 
+- Current upstream baseline is v1.59.1 (`56d05e33`), fork config125 with frozen v124-to-v125 migration and additive AppDB7 glossary tags. Preserve migrations1–124 and all published feature DB/ZIP/report formats. Edge sync writes transport2/config125 and reads frozen transport1/config124 too: verify raw checksum before migration, retain vector clocks and legacy recovery/undo. Never downgrade/project unknown newer fields. See [UPSTREAM_1_59_1_REPORT.md](UPSTREAM_1_59_1_REPORT.md).
+- Preserve F24 closed-ink circle/square/rectangle tools, physical page aspect ratios, four colors, cancel-before-commit and existing undo/erase/export compatibility. Keep lazy measured page geometry with exact resume/navigation, three canvases, one bounded OCR worker per explicit range and document-owned bounded text LRU. Benchmark before/after sequentially on identical fixtures; report cold-search cost and JS/cache versus OS memory honestly. See [PDF_PERFORMANCE_1_59_1.md](PDF_PERFORMANCE_1_59_1.md).
+
 - Preserve F24 in [PDF_READER_TOOLS.md](PDF_READER_TOOLS.md): explicit bundled local OCR with selectable normalized geometry, opt-in existing OpenAI crop OCR, wildcard search with individual selectable results, outline/page navigation, persistent highlights/ink/Unicode notes, transactional revision conflicts, bounded undo/redo and annotated-copy export. Keep study DB1 separate from frozen PDF DB2/config/sync/vocabulary, never auto-upload/OCR/translate on open or scroll, cancel page/file/close jobs and late initialization, preserve the keyed native canvas/text host and three reading canvas leases, and retain production OCR/annotation and F20 regressions. No automatic paid fallback or guessed OpenAI word coordinates.
 
 - Preserve F23 in [AUDIO_TRANSCRIPTION.md](AUDIO_TRANSCRIPTION.md): explicit multilingual file transcription and tab audio capture in a regular page, separate record-first/live modes, private fixed endpoints and credentials, one-use owned source channels and offers, transcription-only WebRTC, bounded partial/final ordering, local turn gating and capture cleanup while multitasking. Keep TTS independent in the shared offscreen document, no microphone capture or automatic paid retries, RAM-only audio/text and honest unknown live usage costs. Preserve the source-bound live pane on supported web/file documents, exact source URL/top-frame ownership, bounded availability probe and Audio-page fallback, local-only `liveTranscriptWindowV1` geometry, fullscreen/scroll intent and opt-in contextual final-only translation: two bounded jobs, session RAM cache, no automatic retries, stale target/config/credential/route guards, and no provider calls from view-only controls. Keep this separate from native CC and Learning. No config/DB/ZIP schema changes for this feature.
@@ -48,6 +51,13 @@
 - `src/utils/host/translate/api/__tests__/free-api.test.ts` depends on live external translation services.
 - When running tests locally as an AI agent, set `SKIP_FREE_API=true`.
 - If `SKIP_FREE_API=true` is set, treat `free-api.test.ts` as intentionally skipped during local validation.
+
+## Site Rules Notes
+
+- `src/utils/site-rules/built-in/rules.json` is also published to installed extensions on every merge to `main` that changes it (`.github/workflows/publish-site-rules.yml`), and they pick it up within about six hours. Code still only ships with a release.
+- If a rule depends on code in the same PR, set `"minExtensionVersion"` on it to the version that code will ship in: the current `package.json` version with the patch number bumped. Older versions keep their bundled copy of the rule, or skip a new one. A rule using a field that older versions don't know is skipped by them automatically.
+- Deleting a rule removes it from every installed version within about six hours. If new code makes a rule unnecessary, keep the rule until that code is released and delete it in a follow-up PR.
+- Rule CSS can't load anything (`url(`, `image-set(`, `image(`, `src(`, `@import`), and no CSS string may end in a hex escape such as `\75`, with or without a carriage return after it, or installed extensions refuse the rule.
 
 ## PR Notes
 

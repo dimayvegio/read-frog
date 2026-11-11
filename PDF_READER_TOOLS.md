@@ -1,5 +1,18 @@
 # PDF Reader — công cụ đọc và OCR (F24)
 
+**Cập nhật 1.59.1A:** thêm icon **Hình tròn / Hình vuông / Hình chữ nhật**.
+Chọn một công cụ và màu Vàng/Xanh lá/Xanh dương/Đỏ rồi kéo trên trang; hình
+tròn/vuông giữ đúng tỷ lệ. Cùng cơ chế tẩy, tự lưu, undo/redo và xuất PDF đang có.
+Hình là ink khép kín trong DB1 cũ, không cần migration; chưa có chọn/kéo/sửa kích
+thước một hình sau khi lưu (có thể undo hoặc tẩy rồi vẽ lại).
+
+Reader đo trang mở/resume trước và sửa placeholder khi cần, vẫn ba canvas.
+OCR dải trang dùng một worker rồi giải phóng; hủy/chuyển file/trang dừng tác vụ.
+Search RAM LRU tối đa2.048 trang/~16MiB text payload, không tạo index khi chỉ mở
+file, không tự OCR. Tìm lần đầu có thể chậm hơn; tìm lặp dùng cache.
+Số đo và giới hạn: [PDF_PERFORMANCE_1_59_1.md](PDF_PERFORMANCE_1_59_1.md).
+Mô tả build1.58.1-a.7 bên dưới giữ làm baseline lịch sử.
+
 Build `1.58.1-a.7`, manifest `1.58.1.7` / **1.58.1A**, bắt đầu từ HEAD
 `5641db73c5f05b04d7d0448cb41eb7a1abfdb2f7`, sau upstream `v1.58.1`.
 Đây là phần mở rộng F20, giữ reader PDF.js, dịch/TTS/MP3/thư viện hiện có.

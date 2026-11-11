@@ -147,30 +147,34 @@ export const joinPdfRuns = (parts: string[]) => {
 export const normalizePdfSearch = (s: string) =>
   s.normalize("NFC").replace(/\s+/gu, " ").toLocaleLowerCase()
 export function searchText(text: string, query: string): { start: number; end: number }[] {
-  const source = normalizePdfSearch(text),
-    needle = normalizePdfSearch(query).trim()
+  return compilePdfSearch(query)(normalizePdfSearch(text))
+}
+export function compilePdfSearch(query: string) {
+  const needle = normalizePdfSearch(query).trim()
   // Literal fragments, not user-controlled regular expressions. Greedy regexes
   // can freeze the UI on large PDFs; ordered indexOf scans stay bounded instead.
   const fragments = needle.split("*").filter(Boolean)
-  if (!fragments.length || needle.length > 200) return []
-  const matches: { start: number; end: number }[] = []
-  let cursor = 0
-  while (matches.length < 100) {
-    const start = source.indexOf(fragments[0]!, cursor)
-    if (start < 0) break
-    let end = start + fragments[0]!.length,
-      missing = false
-    for (const fragment of fragments.slice(1)) {
-      const next = source.indexOf(fragment, end)
-      if (next < 0) {
-        missing = true
-        break
+  return (source: string): { start: number; end: number }[] => {
+    if (!fragments.length || needle.length > 200) return []
+    const matches: { start: number; end: number }[] = []
+    let cursor = 0
+    while (matches.length < 100) {
+      const start = source.indexOf(fragments[0]!, cursor)
+      if (start < 0) break
+      let end = start + fragments[0]!.length,
+        missing = false
+      for (const fragment of fragments.slice(1)) {
+        const next = source.indexOf(fragment, end)
+        if (next < 0) {
+          missing = true
+          break
+        }
+        end = next + fragment.length
       }
-      end = next + fragment.length
+      if (missing) break
+      matches.push({ start, end })
+      cursor = end
     }
-    if (missing) break
-    matches.push({ start, end })
-    cursor = end
+    return matches
   }
-  return matches
 }

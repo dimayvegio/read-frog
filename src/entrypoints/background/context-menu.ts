@@ -236,7 +236,9 @@ async function handleTranslateClick(tabId: number, tabUrl?: string) {
 
   if (!newState) {
     await setPageTranslationEnabled(tabId, false, tabUrl, true)
-    void sendMessage("notifyTranslationStateChanged", { enabled: false }, tabId)
+    void sendMessage("notifyTranslationStateChanged", { enabled: false }, tabId).catch(() =>
+      logger.warn("No content script for translation state"),
+    )
   }
 
   // Notify content script in that specific tab
@@ -246,7 +248,7 @@ async function handleTranslateClick(tabId: number, tabUrl?: string) {
       enabled: newState,
     },
     tabId,
-  )
+  ).catch(() => logger.warn("No content script for page translation"))
 
   // Update menu title immediately
   await updateTranslateMenuTitle(tabId, newState)
@@ -307,7 +309,9 @@ async function handleSelectionReadAloudClick(
 
   const target = typeof info.frameId === "number" ? { tabId, frameId: info.frameId } : tabId
 
-  void sendMessage("readAloudSelectionFromContextMenu", { selectionText }, target)
+  void sendMessage("readAloudSelectionFromContextMenu", { selectionText }, target).catch(() =>
+    logger.warn("No content script for selection speech"),
+  )
 }
 
 async function handleSelectionCustomActionClick(
@@ -329,5 +333,5 @@ async function handleSelectionCustomActionClick(
       selectionText,
     },
     target,
-  )
+  ).catch(() => logger.warn("No content script for selection action"))
 }

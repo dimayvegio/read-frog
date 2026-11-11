@@ -18,18 +18,18 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 
 | Trường                                   | Bản đang tích hợp                          |
 | ---------------------------------------- | ------------------------------------------ |
-| Upstream                                 | `mengxi-ream/read-frog`, tag `v1.58.1`     |
-| Commit upstream                          | `8f015c4a830951dd98fd836989e7348849e60cea` |
+| Upstream                                 | `mengxi-ream/read-frog`, tag `v1.59.1`     |
+| Commit upstream                          | `56d05e336486aa4fc92bbb76879fd00cd8235d40` |
 | Tổ tiên chung với upstream 1.57.0        | `e361e991b4127dd0d03473ed9329c24885fe420a` |
-| Bản local ngay trước lần nâng cấp này    | `6bb2038a` (gồm F23)                       |
-| Nhánh tích hợp                           | `codex/upstream-1.58.1-openai`             |
+| Bản local ngay trước lần nâng cấp này    | `c2e595fc` (gồm F01–F24)                   |
+| Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.58.1-a.7` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.58.1.7` (số hợp lệ cho Edge/Chromium)   |
-| `manifest.version_name`                  | `1.58.1A`                                  |
-| Schema cấu hình của fork                 | `124`                                      |
-| Nhánh local hiện hành                    | `codex/upstream-1.58.1-openai`             |
+| `package.json`                           | `1.59.1-a.1` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.1` (số hợp lệ cho Edge/Chromium)   |
+| `manifest.version_name`                  | `1.59.1A`                                  |
+| Schema cấu hình của fork                 | `125`                                      |
+| Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
 | Mốc source kiểm toán                     | `7ccf0ad7c6ff62a6551485eefe45e852bca087da` |
 
 Không viết chữ A vào `manifest.version`. Khi phát hành bản sửa tiếp theo trên
@@ -37,9 +37,17 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 `1.58.0A`, và dùng `1.58.0-a.1` cho package. Phiên bản package/manifest và
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
-Báo cáo đợt hiện tại: [1.58.1A](UPSTREAM_1_58_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
+Báo cáo đợt hiện tại: [1.59.1A](UPSTREAM_1_59_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
 
 ## Những tính chất và tính năng bắt buộc giữ
+
+Mốc hiện hành: upstream1.59.1/config125/AppDB7/sync writer2 reader1–2.
+Không tái dùng số migration upstream trùng fork. Giữ migrations1–124, các DB
+feature và ZIP/report đã phát hành; thêm bước mới khi cần. Đọc ledger mới trong
+[UPSTREAM_1_59_1_REPORT.md](UPSTREAM_1_59_1_REPORT.md) trước bảng lịch sử bên dưới.
+Giữ hình PDF dạng ink khép kín, page geometry lazy/resume, OCR worker dùng lại
+chỉ trong dải explicit và search LRU bounded. Chạy benchmark tuần tự cùng fixtures,
+báo cả cold-search/cache RAM tradeoff và regression PDF thật.
 
 Giữ **F24 — PDF Reader/OCR** theo [PDF_READER_TOOLS.md](PDF_READER_TOOLS.md):
 search wildcard có từng kết quả, navigation, annotations/undo/export, DB1

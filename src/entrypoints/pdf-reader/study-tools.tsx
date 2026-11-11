@@ -7,6 +7,9 @@ import {
   PanelLeft,
   MousePointer2,
   Pencil,
+  Circle,
+  Square,
+  RectangleHorizontal,
   Eraser,
   StickyNote,
   Highlighter,
@@ -19,8 +22,9 @@ import {
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
 import { LocalPdfOcr } from "./local-ocr"
-import { loadStudy, saveStudy, searchText, joinPdfRuns, STUDY_COLORS } from "./study-data"
+import { loadStudy, saveStudy, compilePdfSearch, STUDY_COLORS } from "./study-data"
 import { PdfStudyLayer } from "./study-layer"
+import { PdfTextIndex } from "./text-index"
 
 type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr"
 type Outline = { title: string; dest: string | unknown[] | null; depth: number }
@@ -72,6 +76,7 @@ export function PdfStudyTools({
     undo = useRef<Annotation[][]>([]),
     redo = useRef<Annotation[][]>([])
   const ocrPage = useRef(0)
+  const textIndex = useRef<PdfTextIndex | null>(null)
   const refreshHistory = () => setHistory({ undo: undo.current.length, redo: redo.current.length })
   const report = (error: unknown) => {
     if (alive.current)
@@ -139,6 +144,8 @@ export function PdfStudyTools({
   // One controller per document. No PDF host remounts when tools/panels change.
   useEffect(() => {
     alive.current = true
+    const index = new PdfTextIndex(pdf)
+    textIndex.current = index
     const controller = new PdfStudyLayer(viewport.element, add, remove)
     layer.current = controller
     void loadStudy(id)
@@ -190,6 +197,8 @@ export function PdfStudyTools({
       ++searchRun.current
       ocr.current?.cancel()
       controller.destroy()
+      index.destroy()
+      textIndex.current = null
       layer.current = null
       window.removeEventListener("keydown", keys)
     }
@@ -227,21 +236,20 @@ export function PdfStudyTools({
     setHits([])
     layer.current?.set(dataRef.current, needle)
     const found: Hit[] = []
+    const matchText = compilePdfSearch(needle),
+      textCache = textIndex.current
     let chars = 0
     try {
+      // Paint the busy state even when every page is served from RAM.
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      let slice = performance.now()
       for (let number = 1; number <= pdf.numPages; number++) {
-        if (token !== searchRun.current || !alive.current) return
+        if (token !== searchRun.current || !alive.current || !textCache) return
         const cached = dataRef.current.ocr.find((p) => p.page === number)
-        let text: string
-        if (cached?.words.length) text = joinPdfRuns(cached.words.map((w) => w.text))
-        else {
-          const content = await (await pdf.getPage(number)).getTextContent()
-          text = joinPdfRuns(content.items.map((item) => ("str" in item ? item.str : "")))
-        }
+        const { source, folded } = await textCache.get(number, cached)
         if (token !== searchRun.current || !alive.current) return
-        chars += text.length
-        const source = text.normalize("NFC").replace(/\s+/gu, " "),
-          matches = searchText(source, needle)
+        chars += source.length
+        const matches = matchText(folded)
         for (const [index, match] of matches.entries()) {
           if (found.length >= 1000) break
           found.push({
@@ -257,9 +265,10 @@ export function PdfStudyTools({
           setMessage("Đã đạt giới hạn tìm kiếm. Thu hẹp từ khóa nếu cần.")
           break
         }
-        if (number % 10 === 0) {
+        if (performance.now() - slice >= 8) {
           setHits([...found])
           await new Promise<void>((resolve) => setTimeout(resolve, 0))
+          slice = performance.now()
         }
       }
       if (token === searchRun.current && alive.current) setHits(found)
@@ -281,10 +290,10 @@ export function PdfStudyTools({
     const token = ++run.current
     ocrPage.current = start
     setOcrBusy(true)
+    const worker = new LocalPdfOcr()
+    ocr.current = worker
     try {
       for (let n = start; n <= end; n++) {
-        const worker = new LocalPdfOcr()
-        ocr.current = worker
         const value = await worker.read(pdf, n, language, (text) => {
           if (token === run.current && alive.current) setOcrStatus(`Trang ${n}/${end} · ${text}`)
         })
@@ -309,6 +318,7 @@ export function PdfStudyTools({
     } catch (error) {
       if (token === run.current) report(error)
     } finally {
+      worker.cancel()
       if (token === run.current && alive.current) {
         ocr.current = null
         setOcrBusy(false)
@@ -339,6 +349,9 @@ export function PdfStudyTools({
             [
               { value: "select", label: "Chọn chữ", Icon: MousePointer2 },
               { value: "ink", label: "Vẽ", Icon: Pencil },
+              { value: "circle", label: "Hình tròn", Icon: Circle },
+              { value: "square", label: "Hình vuông", Icon: Square },
+              { value: "rectangle", label: "Hình chữ nhật", Icon: RectangleHorizontal },
               { value: "erase", label: "Tẩy chú thích", Icon: Eraser },
               { value: "note", label: "Ghi chú", Icon: StickyNote },
             ] as const

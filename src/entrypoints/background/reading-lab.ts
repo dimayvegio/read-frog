@@ -1,5 +1,6 @@
 import type { Browser } from "wxt/browser"
 import { browser } from "#imports"
+import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { Sha256Hex } from "@/utils/hash"
 import { onMessage } from "@/utils/message"
 import {
@@ -32,7 +33,7 @@ export function setupReadingLabHandlers() {
     let channel = ""
     if (message.data) {
       const capture = readingCaptureSchema.parse(message.data)
-      channel = crypto.randomUUID()
+      channel = getRandomUUID()
       if (captures.size >= 10) captures.delete(captures.keys().next().value!)
       captures.set(channel, { capture, at: Date.now() })
     }

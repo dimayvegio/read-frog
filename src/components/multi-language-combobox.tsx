@@ -1,8 +1,9 @@
-import type { LangCodeISO6393 } from "@read-frog/definitions"
+import type { LanguageTag } from "@read-frog/definitions"
 import type { LanguageItem } from "./language-combobox-options"
 import { Combobox as ComboboxPrimitive } from "@base-ui/react"
+import { Icon } from "@iconify/react"
+import { languageTagSchema } from "@read-frog/definitions"
 import { useMemo } from "react"
-import { Icon } from "@/components/local-icon"
 import { Button } from "@/components/ui/base-ui/button"
 import {
   Combobox,
@@ -13,11 +14,19 @@ import {
   ComboboxList,
 } from "@/components/ui/base-ui/combobox"
 import { i18n } from "@/utils/i18n"
-import { filterLanguage, getTargetLanguageItems } from "./language-combobox-options"
+import { getLanguageLabel } from "@/utils/language-labels"
+import { filterLanguage } from "./language-combobox-options"
+
+function getLanguageItems(): LanguageItem<LanguageTag>[] {
+  return languageTagSchema.options.map((code) => ({
+    value: code,
+    label: getLanguageLabel(code),
+  }))
+}
 
 interface MultiLanguageComboboxProps {
-  selectedLanguages: LangCodeISO6393[]
-  onLanguagesChange: (languages: LangCodeISO6393[]) => void
+  selectedLanguages: LanguageTag[]
+  onLanguagesChange: (languages: LanguageTag[]) => void
   buttonLabel: string
 }
 
@@ -26,7 +35,7 @@ export function MultiLanguageCombobox({
   onLanguagesChange,
   buttonLabel,
 }: MultiLanguageComboboxProps) {
-  const languageItems = useMemo(() => getTargetLanguageItems(), [])
+  const languageItems = useMemo(() => getLanguageItems(), [])
 
   const selectedItems = useMemo(
     () => languageItems.filter((item) => selectedLanguages.includes(item.value)),
@@ -37,7 +46,7 @@ export function MultiLanguageCombobox({
     <Combobox
       multiple
       value={selectedItems}
-      onValueChange={(items: LanguageItem<LangCodeISO6393>[]) => {
+      onValueChange={(items: LanguageItem<LanguageTag>[]) => {
         onLanguagesChange(items.map((item) => item.value))
       }}
       items={languageItems}
@@ -50,7 +59,7 @@ export function MultiLanguageCombobox({
       <ComboboxContent align="end" className="w-fit">
         <ComboboxInput showTrigger={false} placeholder={i18n.t("translationHub.searchLanguages")} />
         <ComboboxList>
-          {(item: LanguageItem<LangCodeISO6393>) => (
+          {(item: LanguageItem<LanguageTag>) => (
             <ComboboxItem key={item.value} value={item}>
               {item.label}
             </ComboboxItem>

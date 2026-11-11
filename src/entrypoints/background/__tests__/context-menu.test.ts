@@ -2,6 +2,7 @@ import type { Config } from "@/types/config/config"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { browser, storage } from "#imports"
 import { i18n } from "@/utils/i18n"
+import { logger } from "@/utils/logger"
 import {
   initializeContextMenu,
   MENU_ID_SELECTION_CUSTOM_ACTION_PREFIX,
@@ -59,7 +60,7 @@ describe("background context menu", () => {
   beforeEach(() => {
     contextMenuClickListeners.length = 0
     vi.clearAllMocks()
-    sendMessageMock.mockReset()
+    sendMessageMock.mockReset().mockResolvedValue(undefined)
     openNativeSelectionMock.mockReset().mockResolvedValue(undefined)
 
     browser.contextMenus.create = vi.fn<(...args: any[]) => any>()
@@ -93,6 +94,23 @@ describe("background context menu", () => {
     ) as typeof i18n.t
   })
 
+  it("catches undeliverable page/speech/action messages while retaining native PDF selection fallback", async () => {
+    sendMessageMock.mockRejectedValue(new Error("No receiver"))
+    const warn = vi.spyOn(logger, "warn").mockImplementation(() => {})
+    registerContextMenuListeners()
+    const click = contextMenuClickListeners[0]!
+    for (const menuItemId of [
+      MENU_ID_TRANSLATE,
+      MENU_ID_SELECTION_TRANSLATE,
+      MENU_ID_SELECTION_READ_ALOUD,
+      `${MENU_ID_SELECTION_CUSTOM_ACTION_PREFIX}dictionary`,
+    ])
+      await click({ menuItemId, selectionText: "PDF text" }, { id: 5, url: "edge://version/" })
+    await Promise.resolve()
+    expect(openNativeSelectionMock).toHaveBeenCalledWith("PDF text", 5)
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
   it("creates page and selection menu items when the context menu is enabled", async () => {
     ensureInitializedConfigMock.mockResolvedValue(createConfig(true))
 

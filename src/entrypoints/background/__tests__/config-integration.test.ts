@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fakeBrowser } from "wxt/testing/fake-browser"
 import { storage } from "#imports"
 import { testSeries } from "@/utils/config/__tests__/example/v120"
+import { migrate as upgradeLanguages } from "@/utils/config/migration-scripts/v124-to-v125"
 import { CONFIG_SCHEMA_VERSION, DEFAULT_CONFIG } from "@/utils/constants/config"
 import "fake-indexeddb/auto"
 
@@ -60,7 +61,7 @@ describe("production configuration bootstrap and cleanup wiring", () => {
       const { ensureInitializedConfig } = await import("../config")
       const config = await ensureInitializedConfig()
       expect(config.tts).toMatchObject({
-        ...previous.tts,
+        ...upgradeLanguages({ tts: previous.tts }).tts,
         provider: version === 121 ? "microsoft" : "openai",
       })
       expect(config.tts.openai.model).toBe(
@@ -111,7 +112,7 @@ describe("production configuration bootstrap and cleanup wiring", () => {
     expect(result.ok).toBe(true)
     expect(await ensureInitializedConfig()).toMatchObject({
       providersConfig: [{ id: "openai-default" }],
-      tts: legacy.tts,
+      tts: upgradeLanguages({ tts: legacy.tts }).tts,
     })
     expect((await storage.getMeta("local:config")).schemaVersion).toBe(CONFIG_SCHEMA_VERSION)
     const credentials = await import("../openai-credentials")

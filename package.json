@@ -1,6 +1,6 @@
 {
   "name": "@read-frog/extension",
-  "version": "1.58.1-a.7",
+  "version": "1.59.1-a.1",
   "private": true,
   "description": "Read Frog browser extension for language learning",
   "type": "module",
@@ -49,7 +49,7 @@
     "@headless-tree/core": "^1.8.0",
     "@headless-tree/react": "^1.8.0",
     "@radix-ui/react-slot": "^1.5.0",
-    "@read-frog/definitions": "0.15.0",
+    "@read-frog/definitions": "0.16.0",
     "@read-frog/layout-engine": "0.8.0",
     "@remixicon/react": "^4.9.0",
     "@tabler/icons-react": "^3.50.0",
