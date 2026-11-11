@@ -1,6 +1,16 @@
 # PDF Reader — công cụ đọc và OCR (F24)
 
-**Bản hiện tại1.59.1-a.2 / manifest1.59.1.2:** theme PDF đồng nhất sáng; ô chọn
+**Hiện tại1.59.1-a.5 / manifest1.59.1.5:** vẽ tròn/elip, chữ nhật, đường
+thẳng, mũi tên và nét tự do. Bỏ nút vuông theo yêu cầu; hình vuông cũ vẫn còn.
+Giữ Shift với line/arrow để khóa ngang/dọc/45°. Bấm nét vẽ để chọn, kéo thân
+để di chuyển, kéo hai đầu để sửa line/arrow; các hình khác giữ tám chốt resize.
+Bảng màu/Xóa, Delete, phím mũi tên và undo/redo dùng chung, giữ ID và ghi
+một revision mỗi thao tác hoàn tất. Không ghi DB trong pointer preview.
+**Dịch đoạn đã chọn** nằm trên toolbar trước **Tải PDF có chú thích**; bôi đen
+trước để bật nút. Không còn nút nổi góc dưới trái. Không tự dịch/upload khi mở,
+cuộn hoặc chọn công cụ. Xem [PDF_DRAWING_1_59_1A5.md](PDF_DRAWING_1_59_1A5.md).
+
+**Snapshot1.59.1-a.2 / manifest1.59.1.2:** theme PDF đồng nhất sáng; ô chọn
 sổ có màu chữ rõ. Công cụ tròn vẽ elip theo hai chiều, giữ Shift để vẽ tròn.
 Chọn **Chọn / sửa hình** → bấm hình → kéo thân để di chuyển hoặc chốt cạnh/góc
 để resize; có mũi tên/undo/redo. Khung Tìm kiếm/Mục lục/Trang kéo/resize/reset được,

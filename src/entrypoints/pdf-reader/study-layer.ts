@@ -450,7 +450,8 @@ export class PdfStudyLayer {
           color: drawing.color,
           points: drawing.points,
           boxes: [],
-          text: "",
+          text:
+            drawing.shape === "arrow" ? "Mũi tên" : drawing.shape === "line" ? "Đường thẳng" : "",
         },
       ])
   }

@@ -316,57 +316,106 @@ try {
       restored.annotations.at(-1).id === existingId &&
         restored.annotations.at(-1).color === "#ef5350",
     )
-    await select("Hình vuông")
-    const squarePage = await rect('.rf-pdf-page[data-page="1"]')
-    for (const [dx, dy] of [
-      [120, 0],
-      [0, 120],
-      [-100, 1],
-      [1, -100],
+    check(
+      "Square tool is removed, line and arrow tools are available",
+      await reader.evaluate(
+        () =>
+          !document.querySelector('.rf-tool-segment [aria-label="Hình vuông"]') &&
+          !!document.querySelector('.rf-tool-segment [aria-label="Đường thẳng"]') &&
+          !!document.querySelector('.rf-tool-segment [aria-label="Mũi tên"]'),
+      ),
+    )
+    for (const [label, dx, dy] of [
+      ["Đường thẳng", 120, 0],
+      ["Đường thẳng", 0, 120],
+      ["Mũi tên", -100, 0],
+      ["Mũi tên", 0, -100],
     ]) {
-      const beforeSquare = await db()
-      await drag(
-        squarePage.x + squarePage.width * 0.5,
-        squarePage.y + squarePage.height * 0.36,
-        dx,
-        dy,
-      )
-      const square = await revision(beforeSquare.revision)
-      const p = square.annotations.at(-1).points
-      const width =
-        (Math.max(...p.map((v) => v.x)) - Math.min(...p.map((v) => v.x))) * squarePage.width
-      const height =
-        (Math.max(...p.map((v) => v.y)) - Math.min(...p.map((v) => v.y))) * squarePage.height
+      await select(label)
+      const linePage = await rect('.rf-pdf-page[data-page="1"]')
+      const beforeLine = await db()
+      await drag(linePage.x + linePage.width * 0.5, linePage.y + linePage.height * 0.36, dx, dy)
+      const drawn = await revision(beforeLine.revision),
+        item = drawn.annotations.at(-1)
       check(
-        `Square follows dominant drag ${dx},${dy} with one bounded commit`,
-        square.revision === beforeSquare.revision + 1 && Math.abs(width - height) < 1 && width > 90,
+        `${label} ${dx},${dy} commits one bounded open ink path`,
+        drawn.revision === beforeLine.revision + 1 &&
+          item.points.length === (label === "Mũi tên" ? 5 : 2) &&
+          item.points.every((p) => p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1) &&
+          Math.abs((item.points[1].x - item.points[0].x) * linePage.width - dx) < 1 &&
+          Math.abs((item.points[1].y - item.points[0].y) * linePage.height - dy) < 1,
       )
-      if (dx === 120) {
-        await reader.mouse.click(
-          squarePage.x + p[0].x * squarePage.width,
-          squarePage.y + p[0].y * squarePage.height,
-        )
-        await reader.waitForSelector(".rf-shape-selection")
-        check(
-          "An active drawing tool can click an existing shape to edit without drawing a duplicate",
-          (await db()).revision === square.revision &&
-            (await reader.$eval(".rf-shape-selection", (node) => node.dataset.shapeId)) ===
-              square.annotations.at(-1).id,
-        )
-        await reader.$eval('[data-shape-handle="move"]', (node) => node.focus())
-        await reader.keyboard.press("Delete")
-        const removedByKey = await revision(square.revision)
-        check(
-          "Delete key removes the focused shape with one undoable revision",
-          removedByKey.revision === square.revision + 1 &&
-            removedByKey.annotations.length === square.annotations.length - 1,
-        )
-        await reader.click('[aria-label="Hoàn tác"]')
-        await revision(removedByKey.revision)
+      const midpoint = {
+        x: linePage.x + ((item.points[0].x + item.points[1].x) / 2) * linePage.width,
+        y: linePage.y + ((item.points[0].y + item.points[1].y) / 2) * linePage.height,
       }
-      const beforeUndoSquare = await db()
+      await reader.mouse.click(midpoint.x, midpoint.y)
+      await reader.waitForSelector('[data-shape-handle="end"]')
+      check(
+        "Stroke selection keeps the same ID and provides two endpoint handles without writing",
+        (await db()).revision === drawn.revision &&
+          (await reader.$$("[data-shape-handle]")).length === 3 &&
+          (await reader.$eval(
+            ".rf-shape-selection",
+            (node, shapeId) => node.dataset.shapeId === shapeId,
+            item.id,
+          )),
+      )
+      const end = await rect('[data-shape-handle="end"]')
+      await drag(end.x + end.width / 2, end.y + end.height / 2, 24, 32)
+      const edited = await revision(drawn.revision),
+        editedItem = edited.annotations.at(-1)
+      check(
+        "Endpoint drag rotates/lengthens the same ink once and keeps its opposite endpoint",
+        edited.revision === drawn.revision + 1 &&
+          editedItem.id === item.id &&
+          JSON.stringify(editedItem.points[0]) === JSON.stringify(item.points[0]) &&
+          Math.abs((editedItem.points[1].x - item.points[1].x) * linePage.width - 24) < 1 &&
+          Math.abs((editedItem.points[1].y - item.points[1].y) * linePage.height - 32) < 1 &&
+          (label !== "Mũi tên" ||
+            JSON.stringify(editedItem.points[1]) === JSON.stringify(editedItem.points[3])),
+      )
+      const cancelEnd = await rect('[data-shape-handle="end"]')
+      await reader.mouse.move(cancelEnd.x + 6, cancelEnd.y + 6)
+      await reader.mouse.down()
+      await reader.mouse.move(cancelEnd.x + 45, cancelEnd.y + 45, { steps: 8 })
+      await reader.evaluate(() =>
+        document.querySelector(".rf-pdf-scroll").dispatchEvent(new Event("scroll")),
+      )
+      await reader.mouse.up()
+      await pause(60)
+      check("Canceled endpoint gesture never writes", (await db()).revision === edited.revision)
+      await reader.$eval('[data-shape-handle="start"]', (n) => n.focus())
+      await reader.keyboard.press("ArrowLeft")
+      const keyed = await revision(edited.revision)
+      check(
+        "Endpoint keyboard edit moves just the focused endpoint and preserves focus",
+        Math.abs(
+          (keyed.annotations.at(-1).points[0].x - editedItem.points[0].x) * linePage.width + 1,
+        ) < 0.1 &&
+          JSON.stringify(keyed.annotations.at(-1).points[1]) ===
+            JSON.stringify(editedItem.points[1]) &&
+          (await reader.evaluate(() => document.activeElement.dataset.shapeHandle === "start")),
+      )
+      if (label === "Mũi tên")
+        await reader.screenshot({ path: path.join(scratch, "arrow-endpoints.png") })
+      await reader.$eval('[data-shape-handle="move"]', (n) => n.focus())
+      await reader.keyboard.press("Delete")
+      const removed = await revision(keyed.revision)
+      check(
+        "Line/arrow delete is one undoable revision",
+        removed.revision === keyed.revision + 1 &&
+          !removed.annotations.some((a) => a.id === item.id),
+      )
       await reader.click('[aria-label="Hoàn tác"]')
-      await revision(beforeUndoSquare.revision)
+      const restoredLine = await revision(removed.revision)
+      check(
+        "Undo restores exact line/arrow geometry",
+        JSON.stringify(restoredLine.annotations.at(-1)) ===
+          JSON.stringify(keyed.annotations.at(-1)),
+      )
+      await reader.click('[aria-label="Làm lại"]')
+      await revision(restoredLine.revision)
     }
     check(
       "Shape property controls never call a provider",
@@ -432,13 +481,48 @@ try {
       selection.addRange(range)
       node.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }))
     })
-    await click("Dịch đoạn đã chọn")
+    check(
+      "Translate selection is in the top toolbar immediately before annotated PDF download",
+      await reader.evaluate(() => {
+        const button = document.querySelector(".rf-translate-selection")
+        return (
+          !button.disabled &&
+          button.closest(".rf-study-toolbar") &&
+          button.nextElementSibling?.classList.contains("rf-export-pdf") &&
+          !document.querySelector(".rf-reader-action") &&
+          button.getBoundingClientRect().top <
+            document.querySelector(".rf-reader-body").getBoundingClientRect().top
+        )
+      }),
+    )
+    const selectedText = await reader.evaluate(() => {
+      document.querySelector(".rf-translate-selection").addEventListener(
+        "click",
+        () => {
+          globalThis.__selectionAtToolbarClick = getSelection().toString()
+        },
+        { capture: true, once: true },
+      )
+      return getSelection().toString()
+    })
+    await reader.click(".rf-translate-selection")
+    check(
+      "Toolbar pointer click retains selection until the explicit translation action",
+      selectedText && (await reader.evaluate(() => __selectionAtToolbarClick)) === selectedText,
+    )
     await reader.waitForFunction(
       () =>
         document
           .querySelector('[data-testid="native-selection-output"]')
           ?.textContent.includes("Bản dịch PDF"),
       { polling: 100 },
+    )
+    check(
+      "Existing pipeline translates the exact selected text once",
+      await worker.evaluate(
+        (text) => __pdfCalls.length === 1 && JSON.stringify(__pdfCalls[0].body).includes(text),
+        selectedText,
+      ),
     )
     await reader.waitForFunction(
       () => document.querySelector('[aria-label="Lưu vào sổ"] option')?.value,

@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.4` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.4` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.59.1-a.5` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.5` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.59.1A`                                  |
 | Schema cấu hình của fork                 | `125`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
@@ -41,6 +41,12 @@ Báo cáo đợt hiện tại: [1.59.1A](UPSTREAM_1_59_1_REPORT.md). Các kết 
 
 ## Những tính chất và tính năng bắt buộc giữ
 
+Bản sửa a.5: giữ [PDF_DRAWING_1_59_1A5.md](PDF_DRAWING_1_59_1A5.md): không
+đưa công cụ vuông trở lại toolbar; vẫn đọc/sửa/xuất ink vuông cũ. Line/arrow
+là ink trong schema hiện có, sửa hai đầu có preview/rAF và chỉ ghi một lần khi
+thả; hủy không ghi. Nút dịch đoạn chọn nằm trước tải PDF trên toolbar, giữ
+selection và không gọi provider khi chưa bấm dịch. Không đổi schema.
+
 Bản sửa a.3: giữ [LIVE_PDF_ANIME_1_59_1A3.md](LIVE_PDF_ANIME_1_59_1A3.md),
 gồm local latency gate/default riêng của live, hủy job dịch hết phạm vi, sửa hình
 PDF bằng click/màu/xóa và context ani.pm explicit, RAM-only/source-scoped.
@@ -53,7 +59,7 @@ Mốc hiện hành: upstream1.59.1/config125/AppDB7/sync writer2 reader1–2.
 Không tái dùng số migration upstream trùng fork. Giữ migrations1–124, các DB
 feature và ZIP/report đã phát hành; thêm bước mới khi cần. Đọc ledger mới trong
 [UPSTREAM_1_59_1_REPORT.md](UPSTREAM_1_59_1_REPORT.md) trước bảng lịch sử bên dưới.
-Giữ hình PDF dạng ink khép kín, page geometry lazy/resume, OCR worker dùng lại
+Giữ hình PDF dạng ink (ellipse/rectangle khép kín, line/arrow mở), page geometry lazy/resume, OCR worker dùng lại
 chỉ trong dải explicit và search LRU bounded. Chạy benchmark tuần tự cùng fixtures,
 báo cả cold-search/cache RAM tradeoff và regression PDF thật.
 

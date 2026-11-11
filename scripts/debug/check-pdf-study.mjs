@@ -261,7 +261,7 @@ try {
   )
   for (const [index, [label, color]] of [
     ["Hình tròn", "Xanh lá"],
-    ["Hình vuông", "Xanh dương"],
+    ["Mũi tên", "Xanh dương"],
     ["Hình chữ nhật", "Đỏ"],
   ].entries()) {
     await selectTool(label)
@@ -298,10 +298,10 @@ try {
       }
     })
     check(
-      `${label} closes, preserves chosen color and correct physical geometry`,
-      shape.closed &&
+      `${label} preserves chosen color and correct ink geometry`,
+      (index === 1 ? !shape.closed : shape.closed) &&
         shape.color === ["#66bb6a", "#42a5f5", "#ef5350"][index] &&
-        (index === 2 || Math.abs(shape.width - shape.height) < 0.1),
+        (index !== 0 || Math.abs(shape.width - shape.height) < 0.1),
     )
     await reader.click('[aria-label="Hoàn tác"]')
     await waitCount(3 + index)

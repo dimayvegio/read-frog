@@ -9,7 +9,9 @@ import {
   Move,
   Pencil,
   Circle,
-  Square,
+  Minus,
+  ArrowUpRight,
+  Languages,
   RectangleHorizontal,
   Eraser,
   StickyNote,
@@ -42,6 +44,8 @@ export function PdfStudyTools({
   title,
   onOpenAiOcr,
   imageBusy,
+  hasSelection,
+  onTranslateSelection,
 }: {
   id: string
   pdf: PDFDocumentProxy
@@ -51,6 +55,8 @@ export function PdfStudyTools({
   title: string
   onOpenAiOcr: () => Promise<void>
   imageBusy: boolean
+  hasSelection: boolean
+  onTranslateSelection: () => void
 }) {
   const [data, setData] = useState<StudyDocument | null>(null),
     dataRef = useRef<StudyDocument | null>(null)
@@ -386,7 +392,8 @@ export function PdfStudyTools({
               { value: "edit", label: "Chọn / sửa hình", Icon: Move },
               { value: "ink", label: "Vẽ", Icon: Pencil },
               { value: "circle", label: "Hình tròn", Icon: Circle },
-              { value: "square", label: "Hình vuông", Icon: Square },
+              { value: "line", label: "Đường thẳng", Icon: Minus },
+              { value: "arrow", label: "Mũi tên", Icon: ArrowUpRight },
               { value: "rectangle", label: "Hình chữ nhật", Icon: RectangleHorizontal },
               { value: "erase", label: "Tẩy chú thích", Icon: Eraser },
               { value: "note", label: "Ghi chú", Icon: StickyNote },
@@ -457,35 +464,47 @@ export function PdfStudyTools({
         <button type="button" aria-expanded={panel === "ocr"} onClick={() => toggle("ocr")}>
           <ScanText size={17} /> OCR trên máy
         </button>
-        <button
-          type="button"
-          disabled={!data || exporting || saving}
-          className="rf-export-pdf"
-          onClick={async () => {
-            if (!dataRef.current) return
-            setExporting(true)
-            try {
-              const { exportAnnotatedPdf } = await import("./study-export")
-              const blob = await exportAnnotatedPdf(file, pdf, dataRef.current.annotations)
-              if (!alive.current) return
-              const url = URL.createObjectURL(blob),
-                link = document.createElement("a")
-              link.href = url
-              link.download = `${title.replace(/[\\/:*?"<>|]/g, "-")}-ReadFrog.pdf`
-              link.click()
-              setTimeout(() => URL.revokeObjectURL(url), 60000)
-              setMessage(
-                "Đã xuất bản PDF có chú thích. File gốc không đổi; lớp chữ OCR và bản dịch chỉ lưu trong Read Frog.",
-              )
-            } catch (error) {
-              report(error)
-            } finally {
-              if (alive.current) setExporting(false)
-            }
-          }}
-        >
-          <Download size={17} /> {exporting ? "Đang xuất…" : "Tải PDF có chú thích"}
-        </button>
+        <div className="rf-study-actions">
+          <button
+            type="button"
+            className="rf-translate-selection"
+            disabled={!hasSelection || tool !== "select"}
+            title="Bôi đen chữ trong PDF rồi bấm để dịch"
+            onPointerDown={(e) => e.preventDefault()}
+            onClick={onTranslateSelection}
+          >
+            <Languages size={17} /> Dịch đoạn đã chọn
+          </button>
+          <button
+            type="button"
+            disabled={!data || exporting || saving}
+            className="rf-export-pdf"
+            onClick={async () => {
+              if (!dataRef.current) return
+              setExporting(true)
+              try {
+                const { exportAnnotatedPdf } = await import("./study-export")
+                const blob = await exportAnnotatedPdf(file, pdf, dataRef.current.annotations)
+                if (!alive.current) return
+                const url = URL.createObjectURL(blob),
+                  link = document.createElement("a")
+                link.href = url
+                link.download = `${title.replace(/[\\/:*?"<>|]/g, "-")}-ReadFrog.pdf`
+                link.click()
+                setTimeout(() => URL.revokeObjectURL(url), 60000)
+                setMessage(
+                  "Đã xuất bản PDF có chú thích. File gốc không đổi; lớp chữ OCR và bản dịch chỉ lưu trong Read Frog.",
+                )
+              } catch (error) {
+                report(error)
+              } finally {
+                if (alive.current) setExporting(false)
+              }
+            }}
+          >
+            <Download size={17} /> {exporting ? "Đang xuất…" : "Tải PDF có chú thích"}
+          </button>
+        </div>
       </div>
       {tool === "edit" && (
         <p className="rf-tool-hint">
@@ -499,9 +518,10 @@ export function PdfStudyTools({
           chuyển, đổi kích thước hoặc xóa.
         </p>
       )}
-      {tool === "square" && (
+      {(tool === "line" || tool === "arrow") && (
         <p className="rf-tool-hint">
-          Kéo ngang hoặc dọc để vẽ hình vuông. Bấm vào nét hình đã vẽ để sửa.
+          Kéo để vẽ. Giữ Shift để cố định ngang, dọc hoặc góc 45°. Bấm vào nét để đổi màu, di
+          chuyển, kéo hai đầu hoặc xóa.
         </p>
       )}
       {message && (

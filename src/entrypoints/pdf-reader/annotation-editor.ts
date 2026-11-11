@@ -1,5 +1,5 @@
-import type { Annotation, Box, StudyDocument } from "./study-data"
-import { editBounds, inkBounds } from "./shapes"
+import type { Annotation, Box, Point, StudyDocument } from "./study-data"
+import { editBounds, editLinearPoints, inkBounds, linearKind } from "./shapes"
 import { STUDY_COLORS } from "./study-data"
 
 type Gesture = {
@@ -14,6 +14,7 @@ type Gesture = {
   to: Box
   handle: string
   frame: number
+  points?: Point[]
 }
 export class PdfAnnotationEditor {
   private enabled = false
@@ -39,7 +40,7 @@ export class PdfAnnotationEditor {
     host.addEventListener("pointerdown", this.down)
     host.addEventListener("pointermove", this.move)
     host.addEventListener("pointerup", this.up)
-    host.addEventListener("pointercancel", this.cancel)
+    host.addEventListener("pointercancel", this.lost)
     host.addEventListener("lostpointercapture", this.lost)
     host.addEventListener("scroll", this.scrolled)
     host.addEventListener("keydown", this.key)
@@ -81,10 +82,20 @@ export class PdfAnnotationEditor {
     move.dataset.shapeHandle = "move"
     move.dataset.shapeControl = "move"
     overlay.append(move)
-    for (const direction of ["nw", "n", "ne", "e", "se", "s", "sw", "w"]) {
+    const linear = linearKind(item)
+    for (const direction of linear
+      ? ["start", "end"]
+      : ["nw", "n", "ne", "e", "se", "s", "sw", "w"]) {
       const handle = document.createElement("button")
       handle.type = "button"
-      handle.setAttribute("aria-label", `Đổi kích thước hình ${direction}`)
+      handle.setAttribute(
+        "aria-label",
+        direction === "start"
+          ? "Chỉnh điểm đầu"
+          : direction === "end"
+            ? "Chỉnh điểm cuối"
+            : `Đổi kích thước hình ${direction}`,
+      )
       handle.title = "Kéo để đổi kích thước; phím mũi tên để chỉnh, Shift để bước lớn"
       handle.dataset.shapeHandle = direction
       handle.dataset.shapeControl = direction
@@ -131,10 +142,13 @@ export class PdfAnnotationEditor {
     }
     properties.append(done)
     const hint = document.createElement("small")
-    hint.textContent = "Kéo hình để di chuyển · Kéo cạnh/góc để đổi kích thước"
+    hint.textContent = linear
+      ? "Kéo để di chuyển · Kéo hai đầu để chỉnh · Shift: ngang/dọc/45°"
+      : "Kéo hình để di chuyển · Kéo cạnh/góc để đổi kích thước"
     properties.append(hint)
     overlay.append(properties)
-    this.position(inkBounds(item.points))
+    if (linear) this.positionLinear(item.points, page.getBoundingClientRect())
+    else this.position(inkBounds(item.points))
     this.positionProperties()
     if (focused)
       overlay
@@ -172,6 +186,32 @@ export class PdfAnnotationEditor {
         width: `${box.width * 100}%`,
         height: `${box.height * 100}%`,
       })
+  }
+  private positionLinear(points: Point[], rect: Pick<DOMRect, "width" | "height">) {
+    const box = inkBounds(points),
+      padX = 9 / rect.width,
+      padY = 9 / rect.height
+    const left = Math.max(0, box.x - padX),
+      top = Math.max(0, box.y - padY)
+    const padded = {
+      x: left,
+      y: top,
+      width: Math.min(1, box.x + box.width + padX) - left,
+      height: Math.min(1, box.y + box.height + padY) - top,
+    }
+    this.position(padded)
+    for (const [index, name] of ["start", "end"].entries()) {
+      const handle = this.overlay?.querySelector<HTMLElement>(`[data-shape-handle="${name}"]`)
+      if (handle)
+        Object.assign(handle.style, {
+          left: `${((points[index]!.x - left) / padded.width) * 100}%`,
+          top: `${((points[index]!.y - top) / padded.height) * 100}%`,
+        })
+    }
+  }
+  private paintPoints(group: SVGGElement, points: Point[]) {
+    const value = points.map((p) => `${p.x * 1000},${p.y * 1000}`).join(" ")
+    for (const path of group.querySelectorAll("polyline")) path.setAttribute("points", value)
   }
   private down = (event: PointerEvent) => {
     if (!this.enabled || this.pending || !event.isPrimary || event.button !== 0 || this.gesture)
@@ -226,13 +266,19 @@ export class PdfAnnotationEditor {
     const g = this.gesture
     if (!g) return
     g.frame = 0
+    if (g.points) {
+      this.paintPoints(g.group, g.points)
+      this.positionLinear(g.points, g.rect)
+      return
+    }
     const sx = g.to.width / g.from.width,
       sy = g.to.height / g.from.height
     g.group.setAttribute(
       "transform",
       `matrix(${sx} 0 0 ${sy} ${(g.to.x - g.from.x * sx) * 1000} ${(g.to.y - g.from.y * sy) * 1000})`,
     )
-    this.position(g.to)
+    if (linearKind(g.item)) this.positionLinear(this.transformedPoints(g, g.to), g.rect)
+    else this.position(g.to)
   }
   private move = (event: PointerEvent) => {
     const g = this.gesture
@@ -242,6 +288,22 @@ export class PdfAnnotationEditor {
       return
     }
     event.preventDefault()
+    if (g.handle === "start" || g.handle === "end") {
+      const origin = g.item.points[g.handle === "start" ? 0 : 1]!
+      g.points = editLinearPoints(
+        g.item,
+        g.handle,
+        {
+          x: origin.x + (event.clientX - g.startX) / g.rect.width,
+          y: origin.y + (event.clientY - g.startY) / g.rect.height,
+        },
+        g.rect.width,
+        g.rect.height,
+        event.shiftKey,
+      )
+      if (!g.frame) g.frame = requestAnimationFrame(this.paint)
+      return
+    }
     g.to = editBounds(
       g.from,
       g.handle,
@@ -258,6 +320,7 @@ export class PdfAnnotationEditor {
     if (!g) return
     cancelAnimationFrame(g.frame)
     g.group.removeAttribute("transform")
+    if (g.points) this.paintPoints(g.group, g.item.points)
     if (this.host.hasPointerCapture(g.pointer)) this.host.releasePointerCapture(g.pointer)
   }
   private up = (event: PointerEvent) => {
@@ -267,11 +330,40 @@ export class PdfAnnotationEditor {
     if (this.gesture !== g) return
     const to = g.to
     this.release()
+    if (g.points) {
+      this.commitPoints(g.item, g.group, g.points)
+      return
+    }
     if (JSON.stringify(g.from) === JSON.stringify(to)) {
       this.sync()
       return
     }
     this.commit(g, to)
+  }
+  private transformedPoints(g: Pick<Gesture, "item" | "from">, to: Box) {
+    const clip = (n: number) => Math.max(0, Math.min(1, n))
+    return g.item.points.map((p) => ({
+      x: clip(to.x + ((p.x - g.from.x) / g.from.width) * to.width),
+      y: clip(to.y + ((p.y - g.from.y) / g.from.height) * to.height),
+    }))
+  }
+  private commitPoints(item: Annotation, group: SVGGElement, points: Point[]) {
+    if (JSON.stringify(item.points) === JSON.stringify(points)) {
+      this.sync()
+      return
+    }
+    const epoch = this.epoch
+    this.paintPoints(group, points)
+    this.pending = true
+    void this.save(
+      item,
+      { ...item, points },
+      () => !this.destroyed && epoch === this.epoch,
+    ).finally(() => {
+      this.pending = false
+      this.paintPoints(group, item.points)
+      if (!this.destroyed) this.refresh()
+    })
   }
   private commit(g: Pick<Gesture, "item" | "group" | "from">, to: Box) {
     if (JSON.stringify(g.from) === JSON.stringify(to)) {
@@ -279,13 +371,9 @@ export class PdfAnnotationEditor {
       return
     }
     const epoch = this.epoch
-    const clip = (n: number) => Math.max(0, Math.min(1, n))
     const after = {
       ...g.item,
-      points: g.item.points.map((p) => ({
-        x: clip(to.x + ((p.x - g.from.x) / g.from.width) * to.width),
-        y: clip(to.y + ((p.y - g.from.y) / g.from.height) * to.height),
-      })),
+      points: this.transformedPoints(g, to),
     }
     // Keep the final preview until the single revision-guarded write settles.
     const sx = to.width / g.from.width,
@@ -334,6 +422,29 @@ export class PdfAnnotationEditor {
     const box = page.getBoundingClientRect(),
       step = event.shiftKey ? 10 : 1,
       from = inkBounds(item.points)
+    if (handle === "start" || handle === "end") {
+      const origin = item.points[handle === "start" ? 0 : 1]!
+      this.commitPoints(
+        item,
+        group,
+        editLinearPoints(
+          item,
+          handle,
+          {
+            x:
+              origin.x +
+              (event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0) /
+                box.width,
+            y:
+              origin.y +
+              (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0) / box.height,
+          },
+          box.width,
+          box.height,
+        ),
+      )
+      return
+    }
     const to = editBounds(
       from,
       handle,
@@ -368,7 +479,7 @@ export class PdfAnnotationEditor {
     this.host.removeEventListener("pointerdown", this.down)
     this.host.removeEventListener("pointermove", this.move)
     this.host.removeEventListener("pointerup", this.up)
-    this.host.removeEventListener("pointercancel", this.cancel)
+    this.host.removeEventListener("pointercancel", this.lost)
     this.host.removeEventListener("lostpointercapture", this.lost)
     this.host.removeEventListener("scroll", this.scrolled)
     this.host.removeEventListener("keydown", this.key)

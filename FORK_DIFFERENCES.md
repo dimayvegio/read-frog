@@ -1,6 +1,12 @@
 # Bản local khác upstream ở đâu?
 
-**Bản sửa hiện tại 1.59.1-a.4 / manifest1.59.1.4:** hướng dẫn SOFT/CC English
+**Bản sửa hiện tại 1.59.1-a.5 / manifest1.59.1.5:** bỏ riêng công cụ vuông,
+thêm đường thẳng/mũi tên có sửa hai đầu và Shift ngang/dọc/45°. Hình vuông đã
+lưu vẫn sửa/xuất được; không đổi Study DB1. Nút dịch đoạn chọn ở thanh công cụ,
+ngay trước tải PDF; chỉ thao tác dịch explicit mới dùng pipeline hiện có.
+Xem [PDF_DRAWING_1_59_1A5.md](PDF_DRAWING_1_59_1A5.md).
+
+**Bản sửa trước 1.59.1-a.4 / manifest1.59.1.4:** hướng dẫn SOFT/CC English
 riêng cho ani.pm khi HARD chỉ có chữ gắn trong video, không có native text track.
 Không đổi engine/schema hoặc thêm automatic OCR/ASR. Xem [ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md#soft--hard--bản-a4-15914).
 

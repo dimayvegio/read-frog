@@ -10,6 +10,7 @@ import {
   decodePDFRawStream,
 } from "pdf-lib"
 import { expect, it } from "vitest"
+import { shapePoints } from "../shapes"
 import { exportAnnotatedPdf } from "../study-export"
 it("exports a separate rotated PDF copy with Unicode notes and preserves the original", async () => {
   const pdf = await PDFDocument.create(),
@@ -83,4 +84,56 @@ it("exports a separate rotated PDF copy with Unicode notes and preserves the ori
     (await PDFDocument.load(await file.arrayBuffer())).getPage(0).node.Annots(),
   ).toBeUndefined()
   expect(new Uint8Array(await file.arrayBuffer())).toEqual(original)
+})
+
+it("exports new line/arrow ink and previously saved square ink without changing the source", async () => {
+  const pdf = await PDFDocument.create()
+  pdf.addPage([600, 800])
+  const bytes = await pdf.save(),
+    file = new Blob([new Uint8Array(bytes)])
+  const proxy = {
+    getPage: async () => ({
+      getViewport: () => ({
+        width: 600,
+        height: 800,
+        convertToPdfPoint: (x: number, y: number) => [x, 800 - y],
+      }),
+    }),
+  } as unknown as PDFDocumentProxy
+  const base = { page: 1, kind: "ink" as const, color: "#42a5f5", boxes: [] }
+  const output = await exportAnnotatedPdf(file, proxy, [
+    {
+      ...base,
+      id: "line",
+      text: "Đường thẳng",
+      points: shapePoints("line", { x: 0.1, y: 0.2 }, { x: 0.5, y: 0.2 }, 600, 800, false),
+    },
+    {
+      ...base,
+      id: "arrow",
+      text: "Mũi tên",
+      points: shapePoints("arrow", { x: 0.3, y: 0.4 }, { x: 0.3, y: 0.7 }, 600, 800, false),
+    },
+    {
+      ...base,
+      id: "old-square",
+      text: "",
+      points: [
+        { x: 0.2, y: 0.2 },
+        { x: 0.4, y: 0.2 },
+        { x: 0.4, y: 0.35 },
+        { x: 0.2, y: 0.35 },
+        { x: 0.2, y: 0.2 },
+      ],
+    },
+  ])
+  const copy = await PDFDocument.load(await output.arrayBuffer())
+  const contents = copy.getPage(0).node.Contents() as PDFArray
+  const ops = Array.from({ length: contents.size() }, (_, i) =>
+    new TextDecoder().decode(decodePDFRawStream(contents.lookup(i, PDFRawStream)).decode()),
+  ).join("\n")
+  expect(ops.match(/^[-\d.]+ [-\d.]+ l$/gm)).toHaveLength(9)
+  expect(ops).toContain("300 640 l")
+  expect(ops).toContain("180 240 l")
+  expect(new Uint8Array(await file.arrayBuffer())).toEqual(bytes)
 })

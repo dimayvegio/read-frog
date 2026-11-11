@@ -291,17 +291,7 @@
   max-width: 580px;
   line-height: 1.7;
 }
-.rf-reader-action {
-  position: fixed;
-  bottom: 24px;
-  left: 24px;
-  padding: 12px 18px;
-  border-radius: 10px;
-  background: #1d4ed8;
-  color: white;
-  box-shadow: 0 4px 24px #0006;
-  z-index: 10;
-}
+
 .rf-reader-error {
   color: #d94b4b;
   padding: 8px 16px;
@@ -483,8 +473,25 @@
   border-left: 1px solid #dce3df;
   padding-left: 6px;
 }
-.rf-study-tools .rf-export-pdf {
+.rf-study-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
   margin-left: auto;
+}
+.rf-study-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  white-space: nowrap;
+}
+.rf-study-tools .rf-translate-selection {
+  background: #e0f1e6;
+  color: #176b43;
+  border-color: #a8ceb8;
+}
+.rf-study-tools .rf-export-pdf {
   background: #206a47;
   color: #fff;
   border-color: #206a47;
@@ -788,7 +795,8 @@
 }
 .rf-pdf-scroll[data-study-tool="ink"],
 .rf-pdf-scroll[data-study-tool="circle"],
-.rf-pdf-scroll[data-study-tool="square"],
+.rf-pdf-scroll[data-study-tool="line"],
+.rf-pdf-scroll[data-study-tool="arrow"],
 .rf-pdf-scroll[data-study-tool="rectangle"],
 .rf-pdf-scroll[data-study-tool="note"] {
   cursor: crosshair;
@@ -879,7 +887,8 @@
 .rf-pdf-scroll[data-study-tool="ink"] .textLayer,
 .rf-pdf-scroll:is(
     [data-study-tool="circle"],
-    [data-study-tool="square"],
+    [data-study-tool="line"],
+    [data-study-tool="arrow"],
     [data-study-tool="rectangle"]
   )
   :is(.textLayer, .rf-ocr-text, .rf-ocr-text span),
@@ -1078,8 +1087,11 @@
   .rf-study-toolbar > button {
     font-size: 11px;
   }
-  .rf-study-tools .rf-export-pdf {
+  .rf-study-actions {
     margin-left: 0;
+  }
+  .rf-study-actions > button {
+    font-size: 11px;
   }
   .rf-study-message {
     padding: 2px 8px;
@@ -1093,4 +1105,10 @@
   display: inline-flex;
   gap: 6px;
   align-items: center;
+}
+
+.rf-shape-start,
+.rf-shape-end {
+  border-radius: 50%;
+  cursor: crosshair;
 }

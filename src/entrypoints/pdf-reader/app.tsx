@@ -404,6 +404,24 @@ export function PdfReader({ config }: { config: Config }) {
           page={view.page}
           onOpenAiOcr={captureImage}
           imageBusy={shotBusy}
+          hasSelection={!!selection}
+          onTranslateSelection={() => {
+            if (!selection || host.current?.dataset.studyTool !== "select") return
+            setBilingual(false)
+            setRequest({
+              id: getRandomUUID(),
+              text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,
+              tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
+              createdAt: Date.now(),
+              document: { id: documentInfo.historyId, title: documentInfo.title },
+              source: {
+                kind: "pdf",
+                documentId: documentInfo.id,
+                page: selectionPage,
+              },
+            })
+            setSelection("")
+          }}
         />
       )}
       <div className="rf-reader-body">
@@ -489,30 +507,6 @@ export function PdfReader({ config }: { config: Config }) {
           </aside>
         )}
       </div>
-      {selection && documentInfo && (
-        <button
-          type="button"
-          className="rf-reader-action"
-          onClick={() => {
-            setBilingual(false)
-            setRequest({
-              id: getRandomUUID(),
-              text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,
-              tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
-              createdAt: Date.now(),
-              document: { id: documentInfo.historyId, title: documentInfo.title },
-              source: {
-                kind: "pdf",
-                documentId: documentInfo.id,
-                page: selectionPage,
-              },
-            })
-            setSelection("")
-          }}
-        >
-          Dịch đoạn đã chọn
-        </button>
-      )}
     </main>
   )
 }
