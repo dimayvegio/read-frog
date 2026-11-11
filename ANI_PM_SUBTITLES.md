@@ -1,5 +1,39 @@
 # Phụ đề ani.pm trong bản local 1.58.0A
 
+## SOFT / HARD — bản a.4 (1.59.1.4)
+
+Ngày11/11/2026 đã đối chiếu player thật của **Aoashi Season 2**, cùng tập6:
+SOFT có track English323cue; chuyển HARD thì video vẫn có chữ Anh gắn vào hình
+nhưng native `textTracks` rỗng ở cả MAIN và isolated world. Không phải mất key
+hoặc lỗi ngữ cảnh. Trong tab Edge của người dùng, ảnh có kiểu chữ burned-in và
+Read Frog báo thiếu CC; không thay đổi lựa chọn player/key của người dùng qua UI.
+
+Cách dùng: chọn **SOFT** ở dưới player ani.pm → bật CC/chọn **English** → bật
+Read Frog. HARD không cung cấp track chữ cho adapter này; nếu một nguồn không
+có SOFT/CC, tính năng phụ đề native không thể đọc phần chữ gắn trong video.
+
+a.4 thay thông báo thiếu CC riêng cho ani.pm bằng hướng dẫn SOFT/English/HARD
+và thêm nhắc trong trang Ngữ cảnh anime. Không tự đổi server/mode/CC, không tự
+OCR/thu âm hoặc gửi paid fallback. Không đổi adapter, queue, track activation,
+cache, hai phút buffer, schema/config/data. Native CC không sẵn sàng vẫn là lỗi
+được báo; không che lỗi khác của model/key hoặc thay thông báo YouTube/X/Netflix.
+
+Regression: **4.534 unit pass,1 intentionally skipped**; type-aware lint/format/
+production ZIP pass. `check-anipm-context.mjs`: **14 checks** gồm video không có
+track, hướng dẫn rõ và0API, message wrap trong player320px; explicit bật lại
+sau khi có CC đọc được track gốc và không đổi `mode`, context/cache/nguồn vẫn đúng.
+Fixture HARD dùng document mới để kiểm lần bật đầu, tránh kế thừa toggle ON từ
+scenario context trước đó. API dùng mock; native video/TextTrack và UI là thật.
+Live site đã thử SOFT/HARD trên Chrome profile riêng; chụp/đọc Edge chỉ để đối
+chiếu, không đổi player hoặc gọi key thật. Chưa thử OpenAI thật; chưa chứng minh
+mọi server/tập có SOFT/CC. Không có bước triển khai nào bị chặn. a.3 dưới là lịch sử.
+
+ZIP a.4:21.839.284byte,472files; CRC/root manifest/safe paths và từng entry
+khớp production build. SHA-256 `ee90e32980f1601fd124c64a12d4a821c49b2a5433fe0575ba8408c744a67250`.
+Đã staged/copy đè vào thư mục cố định `Downloads\ReadFrog-Edge-1.58.0A`, manifest
+cuối và đối chiếu472hash bằng filesystem. Numeric1.59.1.4/display1.59.1A,
+key/permissions không đổi; không đụng profile/data Edge. Chờ người dùng Reload.
+
 **Bổ sung a.3 / manifest1.59.1.3:** logo Read Frog → **Ngữ cảnh anime** → nhập
 tên phim/nhân vật, xưng hô, thuật ngữ và chủ đề → **Áp dụng ngữ cảnh**.
 Tối đa1.000ký tự; giữ trong RAM/tab và chỉ nguồn video hiện tại, không lưu/sync.

@@ -6,6 +6,8 @@ export function getAniPmConfig(): PlatformConfig {
   const identifyVideo = createAniPmVideoIdentity()
   return {
     platform: "anipm",
+    noSubtitlesMessage:
+      "Chưa đọc được phụ đề rời (CC). Trên ani.pm, chọn SOFT ở dưới player, bật CC English rồi bật lại Read Frog. HARD là chữ gắn trong hình video, không có track chữ để dịch.",
     // Settlar scales/stacks its control bar below Skip Intro. Keep the menu in
     // our player overlay, so it stays full-sized and clickable above that button.
     embedded: false,

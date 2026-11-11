@@ -1064,7 +1064,12 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
         }
       }
 
-      const errorMessage = error instanceof Error ? error.message : String(error)
+      const errorMessage =
+        error instanceof NoSubtitlesError && this.config.noSubtitlesMessage
+          ? this.config.noSubtitlesMessage
+          : error instanceof Error
+            ? error.message
+            : String(error)
 
       if (error instanceof ToastSubtitlesError) {
         // The loading state has no auto-hide of its own (unlike "error"), so

@@ -1492,6 +1492,21 @@ describe("universalVideoAdapter", () => {
       })
       expect(scheduler.isActive()).toBe(true)
     })
+    it("uses platform guidance for missing native CC without translating or changing other errors", async () => {
+      const { adapter, scheduler, subtitlesFetcher } = setUpVideoWithoutSubtitles()
+      ;(adapter as any).config.platform = "anipm"
+      ;(adapter as any).config.noSubtitlesMessage = "Choose SOFT and enable CC English."
+      await (adapter as any).switchSubtitlesFetcher(SUBTITLES_SOURCE.NATIVE)
+      expect(scheduler.setState).toHaveBeenCalledWith("error", {
+        message: "Choose SOFT and enable CC English.",
+      })
+      expect(mocks.translateSubtitles).not.toHaveBeenCalled()
+      subtitlesFetcher.hasAvailableSubtitles.mockRejectedValue(
+        new OverlaySubtitlesError("A different error"),
+      )
+      await (adapter as any).switchSubtitlesFetcher(SUBTITLES_SOURCE.NATIVE)
+      expect(scheduler.setState).toHaveBeenLastCalledWith("error", { message: "A different error" })
+    })
   })
 
   it("replaceSourceTrackWindow drops cues that overlap the window by interval", () => {

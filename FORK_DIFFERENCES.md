@@ -1,6 +1,10 @@
 # Bản local khác upstream ở đâu?
 
-**Bản sửa hiện tại 1.59.1-a.3 / manifest1.59.1.3:** tối ưu chờ chốt/dịch audio
+**Bản sửa hiện tại 1.59.1-a.4 / manifest1.59.1.4:** hướng dẫn SOFT/CC English
+riêng cho ani.pm khi HARD chỉ có chữ gắn trong video, không có native text track.
+Không đổi engine/schema hoặc thêm automatic OCR/ASR. Xem [ANI_PM_SUBTITLES.md](ANI_PM_SUBTITLES.md#soft--hard--bản-a4-15914).
+
+**Bản sửa trước 1.59.1-a.3 / manifest1.59.1.3:** tối ưu chờ chốt/dịch audio
 live, đổi màu/xóa hình PDF qua chọn trực tiếp và sửa vuông kéo ngang/dọc;
 thêm ngữ cảnh anime ani.pm tùy chọn, chỉ RAM của nguồn đang xem. Không đổi schema
 so với a.2, không merge thêm upstream. Xem [LIVE_PDF_ANIME_1_59_1A3.md](LIVE_PDF_ANIME_1_59_1A3.md).

@@ -13,6 +13,8 @@ export interface PlatformConfig {
   platform: SubtitlesPlatform
   embedded?: boolean
   silentErrors?: boolean
+  /** Runtime-only guidance when a native caption track is unavailable. */
+  noSubtitlesMessage?: string
   containerShrinkRatio?: (container: HTMLElement) => number | null
   subtitlesZIndex?: number
 

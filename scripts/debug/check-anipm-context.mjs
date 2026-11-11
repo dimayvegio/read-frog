@@ -58,6 +58,7 @@ const browser = await puppeteer.launch({
     "--autoplay-policy=no-user-gesture-required",
   ],
 })
+let fixtureFrame
 try {
   const id = await browser.installExtension(path.resolve(".output/edge-mv3")),
     base = `chrome-extension://${id}/`
@@ -108,7 +109,8 @@ try {
   })
   await page.goto("https://ani.pm/anime/context-fixture")
   await page.bringToFront()
-  const frame = await page.waitForFrame((f) => f.url() === "https://embed.settlar.io/embed/v1")
+  let frame = await page.waitForFrame((f) => f.url() === "https://embed.settlar.io/embed/v1")
+  fixtureFrame = frame
   await frame.evaluate(async (base64) => {
     window.__fixtureBlob = new Blob([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], {
       type: "video/webm",
@@ -168,7 +170,7 @@ try {
   )
   await frame.click('pierce/[aria-label="Back to subtitles menu"]')
   await frame.waitForSelector('pierce/[role="switch"]', { visible: true })
-  await frame.click('pierce/[role="switch"]')
+  await frame.locator('pierce/[role="switch"]').click()
   await waitWorker(() => __pdfCalls.length > 0)
   check(
     "translation uses exact viewer context as quoted data at the fixed endpoint",
@@ -247,9 +249,111 @@ try {
     ),
   )
   await page.screenshot({ path: path.join(scratch, "anime-context.png") })
+  // Reload into a fresh HARD-like source: visible image, no native text track.
+  await page.reload({ waitUntil: "domcontentloaded" })
+  frame = await page.waitForFrame((f) => f.url() === "https://embed.settlar.io/embed/v1")
+  fixtureFrame = frame
+  await frame.evaluate(async (base64) => {
+    window.__fixtureBlob = new Blob([Uint8Array.from(atob(base64), (char) => char.charCodeAt(0))], {
+      type: "video/webm",
+    })
+    const video = document.querySelector("video")
+    const ready = new Promise((resolve) =>
+      video.addEventListener("loadedmetadata", resolve, { once: true }),
+    )
+    video.src = URL.createObjectURL(window.__fixtureBlob)
+    video.load()
+    await ready
+  }, media.toString("base64"))
+  const beforeHard = await worker.evaluate(() => __pdfCalls.length)
+  await frame.waitForSelector('pierce/[aria-label="Subtitle Translation Panel"]')
+  await frame.locator('pierce/[aria-label="Subtitle Translation Panel"]').click()
+  await frame.locator('pierce/[role="switch"]').click()
+  await frame.waitForFunction(
+    () =>
+      [...document.querySelectorAll("*")].some((node) =>
+        node.shadowRoot?.textContent.includes("Chưa đọc được phụ đề rời (CC)"),
+      ),
+    { polling: 100 },
+  )
+  check(
+    "a HARD-like source explains SOFT/CC instead of denying visible burned-in text",
+    await frame.evaluate(() =>
+      [...document.querySelectorAll("*")].some(
+        (node) =>
+          node.shadowRoot?.textContent.includes("chọn SOFT") &&
+          node.shadowRoot.textContent.includes("HARD"),
+      ),
+    ),
+  )
+  check(
+    "missing native captions never start paid OCR, ASR or translation fallback",
+    await worker.evaluate((n) => __pdfCalls.length === n, beforeHard),
+  )
+  check(
+    "long missing-CC guidance wraps inside a narrow player",
+    await frame.evaluate(() => {
+      const player = document.querySelector(".settlar-player")
+      player.style.width = "320px"
+      const roots = [...document.querySelectorAll("*")]
+        .filter((node) => node.shadowRoot)
+        .map((node) => node.shadowRoot)
+      const message = roots
+        .map((root) => root.querySelector(".read-frog-subtitles-state-message"))
+        .find(Boolean)
+      const box = message.getBoundingClientRect(),
+        playerBounds = player.getBoundingClientRect()
+      const fits =
+        box.left >= playerBounds.left &&
+        box.right <= playerBounds.right &&
+        message.scrollWidth <= message.clientWidth + 1
+      player.style.width = "1100px"
+      return fits
+    }),
+  )
+  await frame.click('pierce/[aria-label="Subtitle Translation Panel"]')
+  await frame.waitForSelector('pierce/[role="switch"]', { visible: true })
+  await frame.locator('pierce/[role="switch"]').click() // OFF before the user selects CC.
+  await frame.evaluate(() => {
+    const track = document.querySelector("video").addTextTrack("subtitles", "English", "en")
+    track.addCue(new VTTCue(0, 60, "New soft-caption source restored."))
+    track.mode = "showing"
+  })
+  await frame.locator('pierce/[role="switch"]').click()
+  await waitWorker((n) => __pdfCalls.length > n, beforeHard)
+  check(
+    "explicit re-enable translates once native SOFT captions are available",
+    await frame.evaluate(() => document.querySelector("video").textTracks[0].mode === "showing"),
+  )
   check("no uncaught fixture errors", evidence.errors.length === 0)
 } catch (error) {
   evidence.failure = error.stack
+  if (fixtureFrame)
+    evidence.debug = await fixtureFrame
+      .evaluate(() => ({
+        videos: [...document.querySelectorAll("video")].map((v) => ({
+          ready: v.readyState,
+          tracks: v.textTracks.length,
+        })),
+        roots: [...document.querySelectorAll("*")]
+          .filter((n) => n.shadowRoot)
+          .map((n) => {
+            const clone = document.createElement("div")
+            clone.innerHTML = n.shadowRoot.innerHTML
+            clone.querySelectorAll("style,script").forEach((s) => s.remove())
+            return clone.textContent.trim().slice(-1200)
+          }),
+        switches: [...document.querySelectorAll("*")]
+          .filter((n) => n.shadowRoot)
+          .flatMap((n) =>
+            [...n.shadowRoot.querySelectorAll("[role=switch]")].map((s) => ({
+              checked: s.getAttribute("aria-checked"),
+              label: s.getAttribute("aria-label"),
+            })),
+          ),
+      }))
+      .catch((e) => ({ diagnosticError: e.message }))
+  console.error(JSON.stringify(evidence.debug))
   console.error(error)
   throw error
 } finally {

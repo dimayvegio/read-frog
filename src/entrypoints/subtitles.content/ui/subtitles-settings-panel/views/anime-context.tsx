@@ -43,6 +43,10 @@ function ContextForm() {
         Chỉ giữ trong tab đang xem; đổi nguồn video sẽ xóa. Không ghi vào cấu hình hay đồng bộ.
       </p>
       <p className="text-muted-foreground">
+        Để dịch phụ đề, chọn SOFT dưới player ani.pm và bật CC English. HARD là chữ đã gắn vào hình
+        video, không phải track CC.
+      </p>
+      <p className="text-muted-foreground">
         Ngữ cảnh giúp thống nhất thuật ngữ và xưng hô, không bảo đảm hiểu toàn bộ phim. Không thêm
         lời thoại.
       </p>

@@ -64,5 +64,7 @@ describe("ani.pm observed player ownership", () => {
     expect(config.controls!.checkVisibility(player)).toBe(false)
     expect(config.embedded).toBe(false)
     expect(config.getVideoPageUrl!()).toBe("https://ani.pm")
+    expect(config.noSubtitlesMessage).toContain("SOFT")
+    expect(config.noSubtitlesMessage).toContain("HARD")
   })
 })
