@@ -1483,3 +1483,235 @@
     max-width: 125px;
   }
 }
+
+/* PDF.js-inspired separation: sticky comments versus free text editing. */
+.rf-sticky-notes {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  pointer-events: none;
+}
+.rf-sticky-marker {
+  position: absolute;
+  pointer-events: auto;
+  font:
+    13px/1.5 "Segoe UI",
+    sans-serif;
+  color: #24362e;
+}
+.rf-sticky-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #c8d9cc;
+  border-radius: 8px;
+  background: var(--note-color);
+  box-shadow: 0 2px 5px #173d2420;
+  cursor: pointer;
+  padding: 5px;
+}
+.rf-sticky-icon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: #263c2f;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.rf-sticky-popup {
+  display: none;
+  position: absolute;
+  left: 0;
+  top: 100%;
+  width: 270px;
+  max-width: 70vw;
+  padding: 14px;
+  background: #fff;
+  border: 1px solid #d5e0d9;
+  border-radius: 10px;
+  box-shadow: 0 8px 26px #152c2426;
+  z-index: 20;
+}
+.rf-sticky-marker:hover,
+.rf-sticky-marker:focus-within {
+  z-index: 25;
+}
+.rf-sticky-marker:hover .rf-sticky-popup,
+.rf-sticky-marker:focus-within .rf-sticky-popup {
+  display: block;
+}
+.rf-sticky-popup small,
+.rf-sticky-editor small {
+  display: block;
+  color: #6c7a72;
+  font-size: 11px;
+  margin: 4px 0 10px;
+}
+.rf-sticky-popup p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+  margin: 10px 0;
+}
+.rf-sticky-popup button,
+.rf-sticky-editor button,
+.rf-inline-text-editor button,
+.rf-inline-text-editor select {
+  border: 1px solid #cddbd2;
+  border-radius: 6px;
+  padding: 5px 9px;
+  background: #f7faf8;
+  color: #234d36;
+  font:
+    12px "Segoe UI",
+    sans-serif;
+  cursor: pointer;
+}
+.rf-sticky-popup div,
+.rf-sticky-editor div {
+  display: flex;
+  gap: 8px;
+}
+.rf-sticky-editor {
+  position: absolute;
+  z-index: 35;
+  background: #fff;
+  border: 1px solid #a7c7b2;
+  box-shadow: 0 8px 30px #173d2426;
+  border-radius: 10px;
+  padding: 14px;
+  width: min(310px, 75%);
+  font:
+    13px "Segoe UI",
+    sans-serif;
+  color: #234d36;
+}
+.rf-sticky-editor textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  border: 1px solid #d2dfd6;
+  border-radius: 6px;
+  padding: 8px;
+  font:
+    14px/1.5 "Segoe UI",
+    sans-serif;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+  color: #17212e;
+  background: white;
+}
+.rf-inline-text-editor {
+  position: absolute;
+  z-index: 30;
+  min-width: 220px;
+  max-width: 90%;
+  background: #fff;
+  box-shadow: 0 4px 18px #173d2426;
+  border: 2px solid #2684c7;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.rf-inline-text-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 80px;
+  padding: 5px;
+  resize: vertical;
+  box-sizing: border-box;
+  border: 0;
+  outline: none;
+  background: white;
+  font-family: "Segoe UI", sans-serif;
+  line-height: 1.25;
+}
+.rf-inline-text-editor > div {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  background: #f3f7f4;
+  border-top: 1px solid #d5e0d9;
+  padding: 6px;
+}
+.rf-pdf-scroll[data-study-tool="textbox"] :is(.textLayer span, .rf-ocr-text span) {
+  pointer-events: none;
+}
+.rf-shape-properties {
+  gap: 5px;
+  padding: 10px;
+  border-radius: 10px;
+  box-shadow: 0 5px 20px #173d2420;
+}
+.rf-shape-properties strong {
+  font-size: 12px;
+}
+.rf-shape-properties button {
+  font-size: 12px;
+  padding: 4px 7px;
+}
+.rf-shape-properties small[hidden] {
+  display: none;
+}
+.rf-study-panel:has(.rf-search-advanced) .rf-study-panel-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.rf-study-panel:has(.rf-search-advanced) form {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  gap: 8px;
+  background: #fff;
+  padding: 0 0 10px;
+  border-bottom: 1px solid #dce6df;
+}
+.rf-study-panel:has(.rf-search-advanced) input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  padding: 9px 11px;
+}
+.rf-search-advanced {
+  background: #f7faf8;
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+.rf-search-advanced summary {
+  margin: 0;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rf-search-advanced summary:after {
+  content: "＋";
+  font-size: 17px;
+  color: #61816f;
+}
+.rf-search-advanced[open] summary:after {
+  content: "−";
+}
+.rf-search-checks {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.rf-search-advanced .rf-page-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.rf-search-advanced .rf-page-range label {
+  display: grid;
+  gap: 5px;
+}
+.rf-search-summary {
+  font-weight: 600;
+  padding: 8px 0;
+  border-bottom: 1px solid #dce6df;
+  margin: 0;
+}

@@ -25,8 +25,8 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 | Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.8` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.8` (số hợp lệ cho Edge/Chromium)   |
+| `package.json`                           | `1.59.1-a.9` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.59.1.9` (số hợp lệ cho Edge/Chromium)   |
 | `manifest.version_name`                  | `1.59.1A`                                  |
 | Schema cấu hình của fork                 | `125`                                      |
 | Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
@@ -672,3 +672,5 @@ DB2 chỉ thêm ba store. Giữ structured PDF adapter/cache identity, bounded
 range cancellation, metadata source guards và production privacy assertions.
 
 PDF shortcut a.8: Alt+Q một tay; giữ Alt+Enter làm alias và các guard selection/input/tool/IME/repeat.
+
+a.9: giữ inline annotation UX, popup notes và search gọn trong [PDF_ANNOTATION_UX_A9.md](PDF_ANNOTATION_UX_A9.md); không khôi phục nút Quên vị trí hoặc Loại tài liệu.

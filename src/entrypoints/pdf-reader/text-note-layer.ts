@@ -1,6 +1,7 @@
 import type { TextNote, PdfTextNotes } from "./text-notes"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { editBounds } from "./shapes"
+import { TEXT_NOTE_COLORS } from "./text-notes"
 export class PdfTextNoteLayer {
   private clicked?: { id: string; time: number }
   private selected?: string
@@ -34,6 +35,101 @@ export class PdfTextNoteLayer {
     host.addEventListener("keydown", this.key)
     window.addEventListener("blur", this.cancel)
     this.render()
+  }
+  private editor?: HTMLFormElement
+  openEditor(note: TextNote) {
+    this.editor?.remove()
+    const page = this.host.querySelector<HTMLElement>(
+      `.rf-pdf-page[data-page="${note.page}"][data-rendered=true]`,
+    )
+    if (!page) return
+    const form = document.createElement("form")
+    form.className = "rf-inline-text-editor"
+    Object.assign(form.style, {
+      left: `${note.x * 100}%`,
+      top: `${note.y * 100}%`,
+      width: `${Math.max(0.25, note.width) * 100}%`,
+    })
+    const input = document.createElement("textarea")
+    input.setAttribute("aria-label", "Nội dung ô chữ")
+    input.maxLength = 2000
+    input.value = note.text
+    input.placeholder = "Nhập chữ tại đây…"
+    const color = document.createElement("select")
+    color.setAttribute("aria-label", "Màu ô chữ")
+    for (const [i, c] of TEXT_NOTE_COLORS.entries()) {
+      const option = new Option(["Đen", "Vàng", "Xanh lá", "Xanh dương", "Đỏ"][i], c)
+      color.add(option)
+    }
+    color.value = note.color
+    const font = document.createElement("select")
+    font.setAttribute("aria-label", "Cỡ ô chữ")
+    for (const n of [0.02, 0.025, 0.03, 0.04, 0.05])
+      font.add(new Option(`${Math.round(n * 1000)}`, String(n)))
+    font.value = String(note.font)
+    const paint = () => {
+      input.style.color = color.value
+      input.style.fontSize = `${Number(font.value) * page.clientWidth}px`
+    }
+    color.onchange = paint
+    font.onchange = paint
+    paint()
+    const actions = document.createElement("div"),
+      save = document.createElement("button"),
+      cancel = document.createElement("button")
+    save.type = "submit"
+    save.textContent = "Lưu ô chữ"
+    cancel.type = "button"
+    cancel.textContent = "Hủy"
+    cancel.onclick = () => {
+      form.remove()
+      this.editor = undefined
+    }
+    actions.append(color, font, save, cancel)
+    form.append(input, actions)
+    page.append(form)
+    this.editor = form
+    const previous = this.store.getSnapshot().data.notes.find((n) => n.id === note.id)
+    form.onpointerdown = (e) => e.stopPropagation()
+    form.onclick = (e) => e.stopPropagation()
+    form.onkeydown = (e) => {
+      e.stopPropagation()
+      if (e.key === "Escape") {
+        form.remove()
+        this.editor = undefined
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault()
+        form.requestSubmit()
+      }
+    }
+    form.onsubmit = async (e) => {
+      e.preventDefault()
+      if (save.disabled || !input.value.trim()) return
+      save.disabled = true
+      const ok = await this.store.edit(
+        (notes) => {
+          const current = notes.find((n) => n.id === note.id)
+          if (current !== previous) throw new Error("Ô chữ đã đổi. Mở lại trước khi sửa.")
+          return [
+            ...notes.filter((n) => n.id !== note.id),
+            {
+              ...(current ?? note),
+              text: input.value.trim().normalize("NFC"),
+              color: color.value,
+              font: Number(font.value),
+            },
+          ]
+        },
+        () => !this.closed && this.editor === form && form.isConnected,
+      )
+      if (ok) {
+        form.remove()
+        this.editor = undefined
+      }
+      save.disabled = false
+    }
+    input.focus({ preventScroll: true })
   }
   render = () => {
     if (this.closed || this.gesture) return
@@ -80,7 +176,15 @@ export class PdfTextNoteLayer {
     })
   }
   private down = (event: PointerEvent) => {
-    if (!event.isPrimary || event.button !== 0 || this.gesture) return
+    if (
+      !event.isPrimary ||
+      event.button !== 0 ||
+      this.gesture ||
+      (event.target as Element).closest(
+        ".rf-inline-text-editor,.rf-sticky-marker,.rf-sticky-editor",
+      )
+    )
+      return
     const mode = this.host.dataset.studyTool
     if (!["select", "edit", "textbox"].includes(mode ?? "")) return
     const target = event.target as HTMLElement,
@@ -211,6 +315,7 @@ export class PdfTextNoteLayer {
     }
   }
   destroy() {
+    this.editor?.remove()
     this.closed = true
     this.cancel()
     this.unsubscribe()

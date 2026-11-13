@@ -6,6 +6,7 @@ import { PdfAnnotationEditor } from "./annotation-editor"
 import { createPdfSourceMatcher, DEFAULT_PDF_SEARCH, type PdfSearchOptions } from "./search"
 import { shapePoints, type ShapeTool } from "./shapes"
 import { inkBounds } from "./shapes"
+import { stickyEditor, stickyMarker } from "./sticky-note"
 import { validBox, pdfRunSeparator, joinPdfRuns } from "./study-data"
 
 export type StudyTool =
@@ -59,7 +60,7 @@ export class PdfStudyLayer {
     private host: HTMLElement,
     private add: (items: Annotation[]) => void,
     private erase: (id: string) => void,
-    update: (
+    private update: (
       before: Annotation[],
       after: Annotation[],
       current: () => boolean,
@@ -67,6 +68,7 @@ export class PdfStudyLayer {
     ) => Promise<boolean>,
     private workspace: PdfWorkspace,
     private ocrCache: PdfOcrCache,
+    private createNote?: (note: Annotation, current: () => boolean) => Promise<boolean>,
   ) {
     this.editor = new PdfAnnotationEditor(
       host,
@@ -211,21 +213,25 @@ export class PdfStudyLayer {
             }),
           )
         }
-        if (item.kind === "note") {
-          const p = item.points[0]!
-          group.append(
-            svg("rect", {
-              x: String(p.x * 1000),
-              y: String(p.y * 1000),
-              width: "20",
-              height: "20",
-              stroke: "#333",
-            }),
-          )
-        }
         overlay.append(group)
       }
-      page.append(overlay)
+      page.querySelector(".rf-sticky-notes")?.remove()
+      const notes = document.createElement("div")
+      notes.className = "rf-sticky-notes"
+      for (const note of this.data.annotations.filter(
+        (a) => a.page === number && a.kind === "note",
+      ))
+        notes.append(
+          stickyMarker(
+            note,
+            () => {
+              if (this.tool === "erase") this.erase(note.id)
+              else this.editNote(page, note)
+            },
+            () => this.erase(note.id),
+          ),
+        )
+      page.append(overlay, notes)
       page.querySelector(".rf-search-overlay")?.remove()
       if (this.query) this.search(page)
     }
@@ -399,6 +405,19 @@ export class PdfStudyLayer {
       y: clamp((event.clientY - box.top) / box.height),
     }
   }
+  private noteForm?: HTMLElement
+  private editNote(page: HTMLElement, note: Annotation) {
+    this.noteForm?.remove()
+    const existed = this.data?.annotations.includes(note)
+    this.noteForm = stickyEditor(page, note, async (text, current) => {
+      if (this.closed || !current()) return false
+      if (existed) return this.update([note], [{ ...note, text }], () => !this.closed && current())
+      if (this.createNote)
+        return this.createNote({ ...note, text }, () => !this.closed && current())
+      this.add([{ ...note, text }])
+      return true
+    })
+  }
   private down = (event: PointerEvent) => {
     if (
       !event.isPrimary ||
@@ -421,19 +440,15 @@ export class PdfStudyLayer {
     }
     const point = this.point(event, page)
     if (this.tool === "note") {
-      const text = window.prompt("Nội dung ghi chú (tối đa 2.000 ký tự):")?.trim()
-      if (text)
-        this.add([
-          {
-            id: getRandomUUID(),
-            page: Number(page.dataset.page),
-            kind: "note",
-            color: this.color,
-            boxes: [],
-            points: [point],
-            text: text.slice(0, 2000),
-          },
-        ])
+      this.editNote(page, {
+        id: `note-${Date.now()}-${getRandomUUID()}`,
+        page: Number(page.dataset.page),
+        kind: "note",
+        color: this.color,
+        boxes: [],
+        points: [point],
+        text: "",
+      })
       return
     }
     const overlay = page.querySelector(".rf-study-overlay")!
@@ -532,6 +547,7 @@ export class PdfStudyLayer {
       this.host.releasePointerCapture(drawing.pointer)
   }
   destroy() {
+    this.noteForm?.remove()
     this.closed = true
     this.extendedOCR.clear()
     this.unsubscribe?.()
@@ -550,7 +566,7 @@ export class PdfStudyLayer {
     window.removeEventListener("blur", this.cancel)
     delete this.host.dataset.studyTool
     for (const node of this.host.querySelectorAll(
-      ".rf-study-overlay,.rf-ocr-text,.rf-search-overlay",
+      ".rf-study-overlay,.rf-ocr-text,.rf-search-overlay,.rf-sticky-notes,.rf-sticky-editor",
     ))
       node.remove()
     for (const node of this.host.querySelectorAll(".rf-has-ocr"))

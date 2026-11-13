@@ -250,8 +250,9 @@ try {
   await waitCount(2)
   check("Undo and redo restore a stroke once", (await count()) === 2)
   await selectTool("Ghi chú")
-  reader.once("dialog", (dialog) => dialog.accept("Ghi chú tiếng Việt 日本語"))
   await reader.mouse.click(box.x + box.w * 0.7, box.y + box.h * 0.42)
+  await reader.type('[aria-label="Nội dung ghi chú"]', "Ghi chú tiếng Việt 日本語")
+  await click("Lưu ghi chú")
   await waitCount(3)
   check(
     "Unicode sticky note is saved",
@@ -259,6 +260,45 @@ try {
       await reader.$$eval(".rf-study-overlay title", (nodes) => nodes.map((n) => n.textContent))
     ).includes("Ghi chú tiếng Việt 日本語"),
   )
+  await reader.hover(".rf-sticky-icon")
+  check(
+    "Hover reveals Unicode note content and real creation date",
+    await reader.$eval(
+      ".rf-sticky-popup",
+      (n) =>
+        n.getBoundingClientRect().height > 0 &&
+        n.textContent.includes("日本語") &&
+        !n.textContent.includes("Chưa có ngày"),
+    ),
+  )
+  await reader.$eval(".rf-sticky-popup", (n) =>
+    [...n.querySelectorAll("button")].find((b) => b.textContent === "Sửa").click(),
+  )
+  await reader.type('[aria-label="Nội dung ghi chú"]', " updated")
+  await click("Lưu ghi chú")
+  await reader.waitForFunction(
+    () => document.querySelector(".rf-sticky-popup").textContent.includes("updated"),
+    { polling: 100 },
+  )
+  check("Sticky content edits preserve annotation identity/count", (await count()) === 3)
+  await reader.click('[aria-label="Hoàn tác"]')
+  await waitCount(3)
+  await reader.waitForFunction(
+    () => !document.querySelector(".rf-sticky-popup").textContent.includes("updated"),
+    { polling: 100 },
+  )
+  await reader.$eval(".rf-sticky-popup", (n) =>
+    [...n.querySelectorAll("button")].find((b) => b.textContent === "Xóa ghi chú").click(),
+  )
+  await waitCount(2)
+  await reader.click('[aria-label="Hoàn tác"]')
+  await waitCount(3)
+  check(
+    "Sticky deletion is undoable without changing original text",
+    !!(await reader.$(".rf-sticky-icon")),
+  )
+  await reader.hover(".rf-sticky-icon")
+  await reader.screenshot({ path: path.join(scratch, "sticky-note.png") })
   for (const [index, [label, color]] of [
     ["Hình tròn", "Xanh lá"],
     ["Mũi tên", "Xanh dương"],

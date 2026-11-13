@@ -155,3 +155,11 @@ bấm **Alt+Q** bằng một tay. Alt+Enter cũ vẫn là alias tương thích. 
 chạy khi selection nằm trong PDF, ngoài ô nhập và chế độ vẽ; bỏ qua Shift,
 Ctrl/Meta/AltGraph, IME composition và key repeat. Dùng pipeline/cache cũ,
 không thêm permission, cấu hình, migration hoặc upload PDF.
+
+## Ghi chú / Ô chữ / Search a.9
+
+Xem [PDF_ANNOTATION_UX_A9.md](PDF_ANNOTATION_UX_A9.md). Ghi chú dùng icon
+và popup hover/focus có ngày tạo, Sửa/Xóa; nhập inline thay prompt. Ô chữ
+đặt trực tiếp trên lớp chữ PDF, nhập tại chỗ rồi Lưu/Ctrl+Enter hoặc Hủy/Esc.
+Search bỏ Loại tài liệu, mặc định thu tùy chọn nâng cao. Bỏ Quên vị trí;
+auto-resume vẫn luôn hoạt động. Không đổi schema và không gọi provider.

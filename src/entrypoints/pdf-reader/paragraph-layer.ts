@@ -65,14 +65,14 @@ export class PdfParagraphLayer {
           (record) =>
             (record.target instanceof Element &&
               record.target.closest(
-                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes",
+                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes,.rf-sticky-notes,.rf-sticky-editor,.rf-inline-text-editor",
               )) ||
             (record.type === "childList" &&
               [...record.addedNodes, ...record.removedNodes].every(
                 (node) =>
                   node instanceof Element &&
                   node.matches(
-                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes",
+                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes,.rf-sticky-notes,.rf-sticky-editor,.rf-inline-text-editor",
                   ),
               )),
         )
@@ -248,7 +248,9 @@ export class PdfParagraphLayer {
       (this.host.dataset.studyTool && this.host.dataset.studyTool !== "select") ||
       this.host.dataset.annotationEditing === "true" ||
       !(event.target instanceof Element) ||
-      event.target.closest("button") ||
+      event.target.closest(
+        "button,.rf-text-note,.rf-sticky-marker,.rf-inline-text-editor,.rf-sticky-editor",
+      ) ||
       window.getSelection()?.isCollapsed === false
     )
       return

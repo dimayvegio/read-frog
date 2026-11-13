@@ -82,6 +82,16 @@ export async function exportAnnotatedPdf(
           C: [color.red, color.green, color.blue],
           F: 4,
         })
+        const created = /^note-(\d{13})-/u.exec(item.id)
+        if (created)
+          annotation.set(
+            PDFName.of("CreationDate"),
+            PDFString.of(
+              "D:" +
+                new Date(Number(created[1])).toISOString().replace(/[-:T]/gu, "").slice(0, 14) +
+                "Z",
+            ),
+          )
         page.node.addAnnot(output.context.register(annotation))
         // No additional actions, scripts or links are introduced.
         annotation.delete(PDFName.of("A"))

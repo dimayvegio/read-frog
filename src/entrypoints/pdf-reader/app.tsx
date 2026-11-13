@@ -3,7 +3,7 @@ import type { Config } from "@/types/config/config"
 import type { NativeSelectionRequest } from "@/types/native-selection"
 import type { PdfReaderSource } from "@/utils/selection-result/reading-position"
 import { sha256 } from "js-sha256"
-import { BookOpen, FolderOpen, Languages, ScanLine, RotateCcw, FileText } from "lucide-react"
+import { BookOpen, FolderOpen, Languages, ScanLine, FileText } from "lucide-react"
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist"
 // oxlint-disable-next-line import/default -- Vite's ?url asset import has a generated default export.
 import workerURL from "pdfjs-dist/build/pdf.worker.min.mjs?url"
@@ -348,30 +348,6 @@ export function PdfReader({ config }: { config: Config }) {
               viewport={documentInfo.viewport}
               title={documentInfo.title}
             />
-
-            <button
-              type="button"
-              onClick={async () => {
-                const token = version.current,
-                  active = current.current
-                if (!active) return
-                active.saver?.stop()
-                try {
-                  const epoch = await sendMessage("forgetPdfReadingPosition", {
-                    documentId: documentInfo.id,
-                  })
-                  if (token !== version.current) return
-                  active.viewport?.reset()
-                  active.saver = new PdfAutosave(epoch, setStatus)
-                  setStatus("Đã quên vị trí. Tự lưu lại khi bạn cuộn hoặc chuyển trang.")
-                } catch {
-                  setError("Chưa xóa được vị trí. Mở lại file để tiếp tục tự lưu.")
-                }
-              }}
-            >
-              <RotateCcw size={16} />
-              <span className="rf-label-optional">Quên vị trí</span>
-            </button>
           </>
         )}
       </header>

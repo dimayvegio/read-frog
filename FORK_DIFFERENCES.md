@@ -1,6 +1,10 @@
 # Bản local khác upstream ở đâu?
 
-**Bản sửa hiện tại1.59.1-a.8 / manifest1.59.1.8:** phím dịch đoạn bôi đen PDF
+**Hiện tại1.59.1-a.9 / manifest1.59.1.9:** icon/popup ghi chú, inline ô chữ,
+bảng sửa hình gọn, search thu nâng cao/bỏ Loại tài liệu, bỏ Quên vị trí.
+Xem [PDF_ANNOTATION_UX_A9.md](PDF_ANNOTATION_UX_A9.md).
+
+**Bản sửa trước1.59.1-a.8 / manifest1.59.1.8:** phím dịch đoạn bôi đen PDF
 **Alt+Q**, dễ bấm một tay; Alt+Enter cũ vẫn dùng được. Guard ô nhập, selection,
 mode vẽ, IME/repeat và pipeline/cache/private API giữ nguyên; không đổi schema.
 

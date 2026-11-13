@@ -131,6 +131,10 @@ try {
         nodes.every((n) => n.getBoundingClientRect().width <= 32 && n.getAttribute("aria-label")),
     ),
   )
+  check(
+    "Position forgetting control is removed",
+    !(await reader.$eval(".rf-reader-toolbar", (n) => n.textContent.includes("Quên vị trí"))),
+  )
   check("No download-original button", !(await reader.$('[aria-label="Tải PDF gốc"]')))
   await reader.click('[aria-label="Phóng to PDF"]')
   await pause(120)
@@ -152,7 +156,16 @@ try {
   )
   check("First and last page navigation works", true)
   await reader.click('[aria-label="Tìm kiếm"]')
-  await reader.select('[aria-label="Loại tài liệu tìm kiếm"]', "rtl")
+  check(
+    "Search hides document categories and collapses advanced options",
+    !(await reader.$('[aria-label="Loại tài liệu tìm kiếm"]')) &&
+      (await reader.$eval(".rf-search-advanced", (n) => !n.open)),
+  )
+  await reader.screenshot({ path: path.join(scratch, "search-redesign.png") })
+  await reader.click(".rf-search-advanced summary")
+  await reader.click('[aria-label="Phân biệt hoa/thường"]')
+  await reader.click('[aria-label="Nguyên tên / từ"]')
+  await reader.click('[aria-label="Dùng * làm wildcard"]')
   await reader.type('[aria-label="Từ khóa PDF"]', "data[31:0]")
   await reader.keyboard.press("Enter")
   await reader.waitForFunction(() => document.querySelectorAll(".rf-study-result").length === 4, {
@@ -166,11 +179,20 @@ try {
   )
   await reader.click('[aria-label="Đóng menu PDF"]')
   await reader.click('[aria-label="Ô chữ"]')
-  await reader.click('[aria-label="Đóng menu PDF"]')
-  const page = await reader.$eval('.rf-pdf-page[data-page="1"]', (n) => {
-    const r = n.getBoundingClientRect()
-    return { x: r.x + r.width * 0.5, y: r.y + Math.min(220, r.height * 0.2) }
+  const closePanel = await reader.$('[aria-label="Đóng menu PDF"]')
+  if (closePanel) await closePanel.click()
+  const page = await reader.$eval('.rf-pdf-page[data-page="1"] .textLayer', (n) => {
+    const span = [...n.querySelectorAll("span")].find((s) =>
+      s.textContent.includes("Alpha paragraph"),
+    )
+    const r = span.getBoundingClientRect()
+    return { x: r.left + 20, y: r.top + r.height / 2 }
   })
+  await reader.mouse.click(page.x, page.y)
+  await reader.waitForSelector('[aria-label="Nội dung ô chữ"]')
+  await reader.type('[aria-label="Nội dung ô chữ"]', "Bản nháp hủy")
+  await reader.keyboard.press("Escape")
+  check("Canceled inline text draft writes nothing", (await dbNotes()).length === 0)
   await reader.mouse.click(page.x, page.y)
   await reader.waitForSelector('[aria-label="Nội dung ô chữ"]')
   await reader.type('[aria-label="Nội dung ô chữ"]', "Ghi chú tiếng Việt 日本語")
@@ -181,7 +203,6 @@ try {
     "Unicode text box persists in its additive store",
     (await dbNotes())[0].text.includes("tiếng Việt"),
   )
-  await reader.click('[aria-label="Đóng menu PDF"]')
   await reader.click('[aria-label="Chọn / sửa hình"]')
   const box = await reader.$eval(".rf-text-note", (n) => {
       const r = n.getBoundingClientRect()

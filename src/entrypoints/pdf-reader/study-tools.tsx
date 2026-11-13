@@ -96,6 +96,10 @@ export function PdfStudyTools({
     [ocrStatus, setOcrStatus] = useState("")
   const [noteDraft, setNoteDraft] = useState<TextNote | null>(null),
     [ocrCount, setOcrCount] = useState(0)
+  const textNotes = useSyncExternalStore(
+    viewport.textNotes.subscribe,
+    viewport.textNotes.getSnapshot,
+  )
   const workspace = viewport.workspace
   const history = useSyncExternalStore(workspace.subscribe, workspace.getSnapshot)
   const layer = useRef<PdfStudyLayer | null>(null),
@@ -236,11 +240,13 @@ export function PdfStudyTools({
       update,
       workspace,
       viewport.ocrCache,
+      (note, current) =>
+        write((p) => ({ ...p, annotations: [...p.annotations, note] }), true, current),
     )
     layer.current = controller
     const noteLayer = new PdfTextNoteLayer(viewport.element, viewport.textNotes, (note) => {
-      setNoteDraft(note)
-      setPanel("text")
+      noteLayer.openEditor(note)
+      setPanel("")
     })
     void viewport.ocrCache
       .count()
@@ -548,7 +554,7 @@ export function PdfStudyTools({
               aria-pressed={tool === value}
               onClick={() => {
                 setTool(value)
-                if (value === "textbox") setPanel("text")
+                if (value === "textbox") setPanel("")
               }}
             >
               <Icon size={17} />
@@ -610,7 +616,9 @@ export function PdfStudyTools({
         </button>
         <button type="button" onClick={() => toggle("annotations")}>
           <MessageSquareText size={17} /> Chú thích{" "}
-          <span className="rf-tool-count">{data?.annotations.length ?? 0}</span>
+          <span className="rf-tool-count">
+            {(data?.annotations.length ?? 0) + textNotes.data.notes.length}
+          </span>
         </button>
         <button type="button" aria-expanded={panel === "ocr"} onClick={() => toggle("ocr")}>
           <ScanText size={17} /> OCR trên máy
@@ -736,36 +744,8 @@ export function PdfStudyTools({
                   {searching ? "Đang tìm…" : "Tìm"}
                 </button>
               </form>
-              <details className="rf-search-advanced" open>
+              <details className="rf-search-advanced">
                 <summary>Tùy chọn tìm kiếm</summary>
-                <label>
-                  Loại tài liệu
-                  <select
-                    aria-label="Loại tài liệu tìm kiếm"
-                    value={searchPreset}
-                    onChange={(e) => {
-                      const preset = e.target.value
-                      changeSearchOptions(
-                        preset === "rtl"
-                          ? {
-                              ...DEFAULT_PDF_SEARCH,
-                              caseSensitive: true,
-                              wholeWord: true,
-                              wildcards: false,
-                            }
-                          : preset === "datasheet"
-                            ? { ...DEFAULT_PDF_SEARCH, wildcards: false, ignoreSpaces: true }
-                            : DEFAULT_PDF_SEARCH,
-                        preset,
-                      )
-                    }}
-                  >
-                    <option value="guide">User guide / Thông thường</option>
-                    <option value="datasheet">Datasheet / Bảng thông số</option>
-                    <option value="rtl">RTL / DV / Tên tín hiệu</option>
-                    <option value="custom">Tùy chỉnh</option>
-                  </select>
-                </label>
                 <div className="rf-search-checks">
                   {(
                     [
@@ -1081,7 +1061,7 @@ export function PdfStudyTools({
               >
                 Xóa chú thích
               </button>
-              {!data?.annotations.length && (
+              {!data?.annotations.length && !textNotes.data.notes.length && (
                 <p>Chưa có chú thích. Bôi đen chữ rồi Tô sáng, hoặc chọn Vẽ / Ghi chú.</p>
               )}
               {data?.annotations.map((a) => (
@@ -1097,6 +1077,32 @@ export function PdfStudyTools({
                     disabled={saving}
                     aria-label="Xóa chú thích"
                     onClick={() => remove(a.id)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {textNotes.data.notes.map((note) => (
+                <div className="rf-study-annotation" key={note.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      viewport.navigate(note.page)
+                      setNoteDraft(note)
+                      setPanel("text")
+                    }}
+                  >
+                    Trang {note.page} · Ô chữ
+                    <br />
+                    {note.text.slice(0, 240)}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Xóa ô chữ"
+                    disabled={history.busy}
+                    onClick={() =>
+                      void viewport.textNotes.edit((notes) => notes.filter((n) => n.id !== note.id))
+                    }
                   >
                     ×
                   </button>

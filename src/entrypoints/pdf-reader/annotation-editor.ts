@@ -121,7 +121,8 @@ export class PdfAnnotationEditor {
     properties.setAttribute("role", "toolbar")
     properties.setAttribute("aria-label", "Sửa hình đã chọn")
     const count = document.createElement("strong")
-    count.textContent = `${chosen.length} hình · Shift+bấm để chọn nhiều`
+    count.textContent = `${chosen.length} hình`
+    count.title = "Shift+bấm để chọn nhiều"
     properties.append(count)
     const names = ["Vàng", "Xanh lá", "Xanh dương", "Đỏ"]
     for (const [index, color] of STUDY_COLORS.entries()) {
@@ -139,7 +140,7 @@ export class PdfAnnotationEditor {
       }
       properties.append(button)
     }
-    for (const [text, label, action] of [
+    for (const [_text, label, action] of [
       ["Copy", "Sao chép hình", () => this.copy()],
       ["Dán", "Dán hình", () => this.paste()],
       [
@@ -153,7 +154,26 @@ export class PdfAnnotationEditor {
     ] as const) {
       const b = document.createElement("button")
       b.type = "button"
-      b.textContent = text
+      const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg")
+      icon.setAttribute("viewBox", "0 0 24 24")
+      icon.setAttribute("width", "16")
+      icon.setAttribute("height", "16")
+      icon.setAttribute("fill", "none")
+      icon.setAttribute("stroke", "currentColor")
+      icon.setAttribute("stroke-width", "1.7")
+      icon.setAttribute("aria-hidden", "true")
+      const path = document.createElementNS(icon.namespaceURI, "path")
+      path.setAttribute(
+        "d",
+        label === "Sao chép hình"
+          ? "M9 9h12v12H9z M5 15H3V3h12v2"
+          : label === "Dán hình"
+            ? "M9 3h6v4H9z M7 5H4v16h16V5h-3"
+            : "M4 4h12v12H4z M8 20h12V8 M7 10h6 M10 7v6",
+      )
+      icon.append(path)
+      b.append(icon)
+      b.title = label
       b.setAttribute("aria-label", label)
       b.disabled = this.pending || (label === "Dán hình" && !this.clipboard.length)
       b.onclick = action
@@ -181,6 +201,7 @@ export class PdfAnnotationEditor {
     }
     properties.append(done)
     const hint = document.createElement("small")
+    hint.hidden = true
     hint.textContent = linear
       ? "Kéo để di chuyển · Kéo hai đầu để chỉnh · Shift: ngang/dọc/45°"
       : "Kéo hình để di chuyển · Kéo cạnh/góc để đổi kích thước"
@@ -199,7 +220,7 @@ export class PdfAnnotationEditor {
     if (!properties || !this.overlay) return
     const box = this.overlay.getBoundingClientRect()
     const viewport = this.host.getBoundingClientRect()
-    const width = Math.min(340, innerWidth - 16)
+    const width = Math.min(300, innerWidth - 16)
     properties.style.width = `${width}px`
     const height = properties.getBoundingClientRect().height
     properties.hidden = box.bottom < viewport.top || box.top > viewport.bottom
