@@ -1,3 +1,4 @@
+import { AudioLines, Gauge, Headphones, Mic, RefreshCw } from "lucide-react"
 import { Icon } from "@/components/local-icon"
 import { i18n } from "@/utils/i18n"
 import { sendMessage } from "@/utils/message"
@@ -23,17 +24,17 @@ function App() {
   return (
     <>
       <div className="relative">
-        <div className="flex flex-col gap-4 bg-background px-6 pt-5 pb-4">
+        <div className="flex flex-col gap-3 bg-background px-4 pt-3.5 pb-2">
           {/* gap-2 + a non-shrinking icon rail is what bounds the account menu:
               whatever is left of the 320px popup is its width, and a long display
               name ellipses inside that instead of pushing the icons off. */}
           <div className="flex items-center justify-between gap-2">
-            <span className="font-semibold">Read Frog</span>
+            <span className="font-semibold text-sm">FlowRead</span>
             <div className="flex shrink-0 items-center">
               <PdfPanelButton />
               <button
                 type="button"
-                className="rounded-md px-2 py-1 text-xs hover:bg-muted"
+                className="rounded-md px-2 py-1 text-xs font-medium hover:bg-muted"
                 onClick={() => void sendMessage("openVocabulary", undefined)}
               >
                 Sổ từ
@@ -54,43 +55,50 @@ function App() {
           <Hotkey />
           <AISmartContext />
           <StudyHighlightsSwitch />
-          <button
-            type="button"
-            className="text-left text-[13px] underline"
-            onClick={() => void sendMessage("openReadingLab", undefined)}
-          >
-            {i18n.t("readingLab.library")}
-          </button>
-          <button
-            type="button"
-            className="text-left text-[13px] underline"
-            onClick={() => void sendMessage("openUsageDashboard", undefined)}
-          >
-            Chi phí và tốc độ OpenAI
-          </button>
-          <button
-            type="button"
-            className="text-left text-[13px] underline"
-            data-open-pronunciation
-            onClick={() => void sendMessage("openPronunciation", undefined)}
-          >
-            Phát âm
-          </button>
-          <button
-            type="button"
-            className="text-left text-[13px] underline"
-            data-open-audio-transcription
-            onClick={() => void sendMessage("openAudioTranscription", undefined)}
-          >
-            Audio → Văn bản
-          </button>
-          <button
-            type="button"
-            className="text-left text-[13px] underline"
-            onClick={() => void sendMessage("openSettingsSync", undefined)}
-          >
-            Đồng bộ cấu hình Edge
-          </button>
+          <div className="grid grid-cols-2 gap-1.5 pt-1">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-left text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              onClick={() => void sendMessage("openReadingLab", undefined)}
+            >
+              <Headphones className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">{i18n.t("readingLab.library")}</span>
+            </button>
+            <button
+              type="button"
+              data-open-pronunciation
+              className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-left text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              onClick={() => void sendMessage("openPronunciation", undefined)}
+            >
+              <Mic className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">Phát âm</span>
+            </button>
+            <button
+              type="button"
+              data-open-audio-transcription
+              className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-left text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              onClick={() => void sendMessage("openAudioTranscription", undefined)}
+            >
+              <AudioLines className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">Audio → Văn bản</span>
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-left text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              onClick={() => void sendMessage("openUsageDashboard", undefined)}
+            >
+              <Gauge className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">Chi phí OpenAI</span>
+            </button>
+            <button
+              type="button"
+              className="col-span-2 flex items-center justify-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              onClick={() => void sendMessage("openSettingsSync", undefined)}
+            >
+              <RefreshCw className="size-3.5 shrink-0 text-muted-foreground" />
+              <span>Đồng bộ cấu hình Edge</span>
+            </button>
+          </div>
         </div>
         {/* Out of flow on purpose: the card appears on its own schedule, and letting it
             grow the popup would shift every control out from under the user's cursor. */}

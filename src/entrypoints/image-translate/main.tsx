@@ -3,6 +3,6 @@ import { ImageTranslation } from "./app"
 import "./style.css"
 void mountExtensionPage((config) => <ImageTranslation config={config} />)
   .then(() => {
-    document.title = "Dịch ảnh | Read Frog"
+    document.title = "Dịch ảnh | FlowRead"
   })
   .catch(showSelectionRecovery)

@@ -1,6 +1,6 @@
-name: Read Frog
-extName: "Read Frog - AI 이중 번역·동영상 자막·단어장"
-extDescription: "웹페이지와 YouTube·Netflix·X 동영상 자막을 AI로 이중 번역합니다. 모르는 단어는 저장해 플래시카드로 복습하세요."
+name: FlowRead
+extName: FlowRead
+extDescription: "스마트 AI 이중 언어 읽기, PDF, 동영상 자막 및 단어 학습."
 uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 account:
   login: 로그인

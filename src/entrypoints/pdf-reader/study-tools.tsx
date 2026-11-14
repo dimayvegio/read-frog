@@ -27,11 +27,17 @@ import {
   ScanText,
   Download,
   FileText,
+  Sparkles,
+  FileDown,
   ChevronUp,
   ChevronDown,
+  ChevronRight,
+  ChevronsDownUp,
+  ChevronsUpDown,
   BookmarkPlus,
 } from "lucide-react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
+import { i18n } from "@/utils/i18n"
 import { PdfBookmarks } from "./bookmarks"
 import { LocalPdfOcr } from "./local-ocr"
 import { PdfPageRange, readPageRange } from "./page-range"
@@ -44,7 +50,13 @@ import { PdfTextNoteLayer } from "./text-note-layer"
 import { PdfTextNotePanel } from "./text-note-panel"
 
 type Panel = "" | "search" | "outline" | "pages" | "annotations" | "ocr" | "bookmarks" | "text"
-type Outline = { title: string; dest: string | unknown[] | null; depth: number }
+interface OutlineNode {
+  id: string
+  title: string
+  dest: string | unknown[] | null
+  depth: number
+  items: OutlineNode[]
+}
 type Hit = { page: number; text: string; index: number }
 export function PdfStudyTools({
   id,
@@ -57,6 +69,9 @@ export function PdfStudyTools({
   imageBusy,
   hasSelection,
   onTranslateSelection,
+  onSummarizePage,
+  onExportStudyNotes,
+  onPanelChange,
 }: {
   id: string
   pdf: PDFDocumentProxy
@@ -68,11 +83,18 @@ export function PdfStudyTools({
   imageBusy: boolean
   hasSelection: boolean
   onTranslateSelection: () => void
+  onSummarizePage?: (page: number) => void
+  onExportStudyNotes?: () => void
+  onPanelChange?: (panel: Panel) => void
 }) {
   const [data, setData] = useState<StudyDocument | null>(null),
     dataRef = useRef<StudyDocument | null>(null)
   const [panel, setPanel] = useState<Panel>(""),
     [tool, setTool] = useState<StudyTool>("select")
+
+  useEffect(() => {
+    onPanelChange?.(panel)
+  }, [panel, onPanelChange])
   const [color, setColor] = useState<string>(STUDY_COLORS[0]),
     [message, setMessage] = useState("")
   const [saving, setSaving] = useState(false),
@@ -87,7 +109,9 @@ export function PdfStudyTools({
     [emptyPages, setEmptyPages] = useState(0)
   const [activeHit, setActiveHit] = useState(-1),
     [outlineQuery, setOutlineQuery] = useState("")
-  const [outline, setOutline] = useState<Outline[]>([]),
+  const [outline, setOutline] = useState<OutlineNode[]>([]),
+    [expandedOutline, setExpandedOutline] = useState<Set<string>>(new Set()),
+    [outlinePages, setOutlinePages] = useState<Record<string, number>>({}),
     [pageGroup, setPageGroup] = useState(0)
   const [language, setLanguage] = useState("eng"),
     [rangeEnd, setRangeEnd] = useState("")
@@ -259,23 +283,69 @@ export function PdfStudyTools({
         if (alive.current) install(value)
       })
       .catch(report)
-    const flatten = (
-      items: Awaited<ReturnType<PDFDocumentProxy["getOutline"]>>,
+    const buildTree = (
+      rawItems: Awaited<ReturnType<PDFDocumentProxy["getOutline"]>>,
       depth = 0,
-    ): Outline[] => {
-      if (!items || depth > 12) return []
-      const result: Outline[] = []
-      for (const item of items.slice(0, 500)) {
-        result.push({ title: item.title.slice(0, 240), dest: item.dest, depth })
-        result.push(...flatten(item.items, depth + 1))
-        if (result.length >= 500) break
+      path = "root",
+    ): OutlineNode[] => {
+      if (!rawItems || depth > 10) return []
+      const list: OutlineNode[] = []
+      for (let i = 0; i < rawItems.length; i++) {
+        const item = rawItems[i]
+        if (!item) continue
+        const id = `${path}-${depth}-${i}`
+        list.push({
+          id,
+          title: (item.title || "Chương không tên").trim().slice(0, 240),
+          dest: item.dest,
+          depth,
+          items: buildTree(item.items, depth + 1, id),
+        })
       }
-      return result.slice(0, 500)
+      return list
     }
     void pdf
       .getOutline()
-      .then((items) => {
-        if (alive.current) setOutline(flatten(items))
+      .then((raw) => {
+        if (!alive.current) return
+        const tree = buildTree(raw)
+        setOutline(tree)
+        const initialExpanded = new Set<string>()
+        const collectInitial = (nodes: OutlineNode[]) => {
+          for (const node of nodes) {
+            if (node.depth <= 1 && node.items.length > 0) {
+              initialExpanded.add(node.id)
+              collectInitial(node.items)
+            }
+          }
+        }
+        collectInitial(tree)
+        setExpandedOutline(initialExpanded)
+        const resolvePages = async (nodes: OutlineNode[]) => {
+          for (const node of nodes) {
+            if (!alive.current) return
+            if (node.dest) {
+              try {
+                const dest =
+                  typeof node.dest === "string" ? await pdf.getDestination(node.dest) : node.dest
+                if (dest?.length) {
+                  const ref = dest[0]
+                  const index =
+                    typeof ref === "number"
+                      ? ref
+                      : await pdf.getPageIndex(ref as { num: number; gen: number })
+                  if (alive.current && Number.isInteger(index)) {
+                    setOutlinePages((prev) => ({ ...prev, [node.id]: index + 1 }))
+                  }
+                }
+              } catch {}
+            }
+            if (node.items.length > 0) {
+              void resolvePages(node.items)
+            }
+          }
+        }
+        void resolvePages(tree)
       })
       .catch(() => {})
     const keys = (event: KeyboardEvent) => {
@@ -337,6 +407,50 @@ export function PdfStudyTools({
     setActiveHit(-1)
     setSearching(false)
     if (dataRef.current) layer.current?.set(dataRef.current, "")
+  }
+
+  const expandAllOutline = () => {
+    const all = new Set<string>()
+    const addAll = (nodes: OutlineNode[]) => {
+      for (const node of nodes) {
+        if (node.items.length > 0) {
+          all.add(node.id)
+          addAll(node.items)
+        }
+      }
+    }
+    addAll(outline)
+    setExpandedOutline(all)
+  }
+
+  const collapseAllOutline = () => {
+    setExpandedOutline(new Set())
+  }
+
+  const toggleOutlineNode = (id: string) => {
+    setExpandedOutline((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const filterOutlineTree = (nodes: OutlineNode[], q: string): OutlineNode[] => {
+    if (!q) return nodes
+    const lower = q.toLocaleLowerCase()
+    const result: OutlineNode[] = []
+    for (const node of nodes) {
+      const filteredChildren = filterOutlineTree(node.items, q)
+      const selfMatches = node.title.toLocaleLowerCase().includes(lower)
+      if (selfMatches || filteredChildren.length > 0) {
+        result.push({
+          ...node,
+          items: filteredChildren,
+        })
+      }
+    }
+    return result
   }
   const changeSearchOptions = (options: PdfSearchOptions, preset = "custom") => {
     ++searchRun.current
@@ -533,11 +647,11 @@ export function PdfStudyTools({
               { value: "select", label: "Chọn chữ", Icon: MousePointer2 },
               { value: "hand", label: "Kéo trang PDF", Icon: Hand },
               { value: "edit", label: "Chọn / sửa hình", Icon: Move },
-              { value: "ink", label: "Vẽ", Icon: Pencil },
+              { value: "ink", label: "Vẽ tự do", Icon: Pencil },
+              { value: "rectangle", label: "Hình chữ nhật", Icon: RectangleHorizontal },
               { value: "circle", label: "Hình tròn", Icon: Circle },
               { value: "line", label: "Đường thẳng", Icon: Minus },
               { value: "arrow", label: "Mũi tên", Icon: ArrowUpRight },
-              { value: "rectangle", label: "Hình chữ nhật", Icon: RectangleHorizontal },
               { value: "erase", label: "Tẩy chú thích", Icon: Eraser },
               { value: "note", label: "Ghi chú", Icon: StickyNote },
               { value: "textbox", label: "Ô chữ", Icon: TextCursorInput },
@@ -615,26 +729,53 @@ export function PdfStudyTools({
           <Redo2 size={17} />
         </button>
         <button type="button" onClick={() => toggle("annotations")}>
-          <MessageSquareText size={17} /> Chú thích{" "}
+          <MessageSquareText size={17} /> {i18n.t("pdfReader.annotations") || "Chú thích"}{" "}
           <span className="rf-tool-count">
             {(data?.annotations.length ?? 0) + textNotes.data.notes.length}
           </span>
         </button>
         <button type="button" aria-expanded={panel === "ocr"} onClick={() => toggle("ocr")}>
-          <ScanText size={17} /> OCR trên máy
+          <ScanText size={17} /> {i18n.t("pdfReader.localOcr") || "OCR trên máy"}
         </button>
         <div className="rf-study-actions">
+          {onSummarizePage && (
+            <button
+              type="button"
+              className="rf-summarize-page"
+              title={i18n.t("pdfReader.pageSummaryTitle") || `Tóm tắt trang ${page} bằng AI`}
+              onClick={() => onSummarizePage(page)}
+            >
+              <Sparkles size={17} /> {i18n.t("pdfReader.pageSummary") || "Tóm tắt trang"}
+            </button>
+          )}
           <button
             type="button"
             className="rf-translate-selection"
             disabled={!hasSelection || tool !== "select"}
-            title="Bôi đen chữ rồi dịch (Alt+Q)"
+            title={i18n.t("pdfReader.translateSelectionTitle") || "Bôi đen chữ rồi dịch (Alt+Q)"}
             aria-keyshortcuts="Alt+Q"
             onPointerDown={(e) => e.preventDefault()}
-            onClick={onTranslateSelection}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => {
+              e.preventDefault()
+              onTranslateSelection()
+            }}
           >
-            <Languages size={17} /> Dịch đoạn đã chọn
+            <Languages size={17} /> {i18n.t("pdfReader.translateSelection") || "Dịch đoạn đã chọn"}
           </button>
+          {onExportStudyNotes && (
+            <button
+              type="button"
+              className="rf-export-summary-notes"
+              title={
+                i18n.t("pdfReader.exportNotesTitle") ||
+                "Xuất ghi chú, bookmark, từ vựng và câu đã dịch thành file Markdown (.md)"
+              }
+              onClick={onExportStudyNotes}
+            >
+              <FileDown size={17} /> {i18n.t("pdfReader.exportNotes") || "Xuất ghi chú MD"}
+            </button>
+          )}
           <button
             type="button"
             disabled={!data || exporting || saving || history.busy}
@@ -668,7 +809,7 @@ export function PdfStudyTools({
               }
             }}
           >
-            <Download size={17} /> {exporting ? "Đang xuất…" : "Tải PDF có chú thích"}
+            <Download size={17} /> {exporting ? "Đang xuất…" : (i18n.t("pdfReader.exportAnnotatedPdf") || "Tải PDF có chú thích")}
           </button>
         </div>
       </div>
@@ -938,53 +1079,114 @@ export function PdfStudyTools({
               </nav>
               {panel === "outline" && (
                 <>
-                  {!!outline.length && (
-                    <input
-                      className="rf-outline-filter"
-                      aria-label="Lọc mục lục PDF"
-                      type="search"
-                      placeholder="Lọc mục lục…"
-                      value={outlineQuery}
-                      onChange={(event) => setOutlineQuery(event.target.value)}
-                    />
-                  )}
+                  <div className="rf-outline-header-bar">
+                    {!!outline.length && (
+                      <input
+                        className="rf-outline-filter"
+                        aria-label="Lọc mục lục PDF"
+                        type="search"
+                        placeholder="Lọc mục lục…"
+                        value={outlineQuery}
+                        onChange={(event) => setOutlineQuery(event.target.value)}
+                      />
+                    )}
+                    {!!outline.length && (
+                      <div className="rf-outline-actions">
+                        <button
+                          type="button"
+                          className="rf-outline-action-btn"
+                          title="Mở rộng tất cả các mục"
+                          onClick={expandAllOutline}
+                        >
+                          <ChevronsUpDown size={13} /> Mở rộng tất cả
+                        </button>
+                        <button
+                          type="button"
+                          className="rf-outline-action-btn"
+                          title="Thu gọn tất cả các mục"
+                          onClick={collapseAllOutline}
+                        >
+                          <ChevronsDownUp size={13} /> Thu gọn tất cả
+                        </button>
+                      </div>
+                    )}
+                  </div>
                   {!outline.length && (
-                    <p>File này không có mục lục nhúng. Dùng danh sách Trang để di chuyển.</p>
+                    <p className="rf-outline-empty">
+                      File này không có mục lục nhúng. Dùng danh sách Trang để di chuyển.
+                    </p>
                   )}
-                  {outline
-                    .filter((item) =>
-                      item.title
-                        .toLocaleLowerCase()
-                        .includes(outlineQuery.trim().toLocaleLowerCase()),
-                    )
-                    .map((item) => (
-                      <button
-                        type="button"
-                        key={`${item.depth}:${item.title}:${JSON.stringify(item.dest)}`}
-                        className="rf-study-result"
-                        style={{ paddingLeft: 8 + item.depth * 12 }}
-                        onClick={async () => {
-                          try {
-                            const dest =
-                              typeof item.dest === "string"
-                                ? await pdf.getDestination(item.dest)
-                                : item.dest
-                            if (!dest?.length) return
-                            const ref = dest[0],
-                              index =
-                                typeof ref === "number"
-                                  ? ref
-                                  : await pdf.getPageIndex(ref as { num: number; gen: number })
-                            if (alive.current && Number.isInteger(index))
-                              viewport.navigate(index + 1)
-                          } catch {
-                            report(new Error("Không mở được mục này."))
-                          }
-                        }}
-                      >
-                        {item.title}
-                      </button>
-                    ))}
+                  {!!outline.length && (
+                    <div className="rf-outline-tree">
+                      {(outlineQuery.trim()
+                        ? filterOutlineTree(outline, outlineQuery.trim())
+                        : outline
+                      ).map(function renderNode(item): React.ReactNode {
+                        const hasChildren = item.items.length > 0
+                        const isExpanded = !!outlineQuery.trim() || expandedOutline.has(item.id)
+                        const pageNum = outlinePages[item.id]
+                        const isCurrentPage = pageNum !== undefined && pageNum === page
+                        return (
+                          <div key={item.id} className="rf-outline-node">
+                            <div
+                              className={`rf-outline-row ${isCurrentPage ? "active-page" : ""}`}
+                              style={{ paddingLeft: `${8 + item.depth * 14}px` }}
+                            >
+                              {hasChildren ? (
+                                <button
+                                  type="button"
+                                  className={`rf-outline-toggle ${isExpanded ? "expanded" : ""}`}
+                                  aria-label={isExpanded ? "Thu gọn mục con" : "Mở rộng mục con"}
+                                  title={isExpanded ? "Thu gọn" : "Mở rộng"}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleOutlineNode(item.id)
+                                  }}
+                                >
+                                  <ChevronRight size={13} className="rf-outline-chevron" />
+                                </button>
+                              ) : (
+                                <span className="rf-outline-spacer" />
+                              )}
+                              <button
+                                type="button"
+                                className="rf-outline-item-title"
+                                title={item.title}
+                                onClick={async () => {
+                                  try {
+                                    const dest =
+                                      typeof item.dest === "string"
+                                        ? await pdf.getDestination(item.dest)
+                                        : item.dest
+                                    if (!dest?.length) return
+                                    const ref = dest[0],
+                                      index =
+                                        typeof ref === "number"
+                                          ? ref
+                                          : await pdf.getPageIndex(ref as { num: number; gen: number })
+                                    if (alive.current && Number.isInteger(index))
+                                      viewport.navigate(index + 1)
+                                  } catch {
+                                    report(new Error("Không mở được mục này."))
+                                  }
+                                }}
+                              >
+                                <span className="rf-outline-text">{item.title}</span>
+                                {pageNum !== undefined && (
+                                  <span className="rf-outline-page-badge" title={`Trang ${pageNum}`}>
+                                    {pageNum}
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+                            {hasChildren && isExpanded && (
+                              <div className="rf-outline-children">{item.items.map(renderNode)}</div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
                 </>
               )}
               {panel === "pages" && (

@@ -70,6 +70,10 @@ export default defineBackground({
         active: true,
       })
     })
+    onMessage("getTabContext", async (message) => ({
+      title: message.sender.tab?.title ?? "",
+      url: message.sender.tab?.url ?? "",
+    }))
     onMessage("openOptionsPage", async (message) => {
       await openOptionsPage(message.data)
     })

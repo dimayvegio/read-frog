@@ -25,8 +25,10 @@ import { getLocalConfig } from "@/utils/config/storage"
 import { sendMessage } from "@/utils/message"
 import { getPdfHistoryEpoch } from "@/utils/selection-result/pdf-history"
 import { PdfBatchTranslation } from "./batch-translation"
+import { exportBilingualHtml, exportBilingualMarkdown } from "./bilingual-export"
 import { PdfBilingualSession, translationConfigIdentity } from "./bilingual-session"
 import { mergeParagraphs, splitParagraph } from "./paragraph-edits"
+import { useParagraphSelection } from "./paragraph-selection"
 
 export interface PdfBilingualHandle {
   translatePage: () => void
@@ -88,6 +90,7 @@ export function PdfBilingualPane({
   ref,
   onBusy,
   textOptions,
+  width,
 }: {
   viewport: PdfViewport
   pdf: PDFDocumentProxy
@@ -96,6 +99,7 @@ export function PdfBilingualPane({
   ref?: Ref<PdfBilingualHandle>
   onBusy: (busy: boolean) => void
   textOptions: PdfTextOptions
+  width?: number
 }) {
   const config = useAtomValue(configAtom),
     identity = useMemo(
@@ -163,7 +167,11 @@ export function PdfBilingualPane({
     viewport.paragraphs.getSnapshot,
   )
   return (
-    <aside className="rf-reader-bilingual" aria-label="Bản dịch PDF theo đoạn">
+    <aside
+      className="rf-reader-bilingual"
+      style={width !== undefined ? { width: `${width}%` } : undefined}
+      aria-label="Bản dịch PDF theo đoạn"
+    >
       <header className="rf-bilingual-heading">
         <strong>BẢN DỊCH</strong>
         <LanguageChoice />
@@ -233,6 +241,7 @@ function BilingualWorkspace({
     viewport.paragraphs.subscribe,
     viewport.paragraphs.getSnapshot,
   )
+  const multi = useParagraphSelection(viewport, snapshot, workspace.busy)
   const createSession = () =>
     new PdfBilingualSession(
       config,
@@ -354,6 +363,26 @@ function BilingualWorkspace({
             Dừng dịch
           </button>
         )}
+        <div className="rf-bilingual-export-group">
+          <button
+            type="button"
+            title="Xuất bản dịch trang này ra Markdown (.md)"
+            disabled={!snapshot.paragraphs.length}
+            onClick={() =>
+              exportBilingualMarkdown(document.title, snapshot.paragraphs, translations)
+            }
+          >
+            Xuất MD
+          </button>
+          <button
+            type="button"
+            title="Xuất bản dịch trang này ra HTML song ngữ offline (.html)"
+            disabled={!snapshot.paragraphs.length}
+            onClick={() => exportBilingualHtml(document.title, snapshot.paragraphs, translations)}
+          >
+            Xuất HTML
+          </button>
+        </div>
       </div>
       <PdfBatchTranslation
         pdf={pdf}
@@ -374,6 +403,12 @@ function BilingualWorkspace({
       {translations.message && (
         <p className="rf-bilingual-note" role="status">
           {translations.message}
+        </p>
+      )}
+      {multi.popup}
+      {!!multi.ids.length && (
+        <p className="rf-bilingual-note">
+          Đã chọn {multi.ids.length} đoạn · Chuột phải để gộp/xóa · Esc bỏ chọn
         </p>
       )}
       <div
@@ -416,14 +451,34 @@ function BilingualWorkspace({
             <article
               key={paragraph.id}
               data-translation-id={paragraph.id}
-              className={`rf-bilingual-card ${snapshot.activeId === paragraph.id ? "active" : ""} ${paragraph.excluded ? "excluded" : ""}`}
+              onContextMenu={(e) => {
+                if ((e.target as Element).closest("textarea,input,[contenteditable=true]")) return
+                e.preventDefault()
+                multi.context(paragraph.id, e.clientX, e.clientY)
+              }}
+              onClick={(e) => {
+                if (
+                  (e.ctrlKey || e.metaKey) &&
+                  !(e.target as Element).closest("button,input,textarea,select")
+                ) {
+                  e.preventDefault()
+                  multi.toggle(paragraph.id)
+                }
+              }}
+              className={`rf-bilingual-card ${multi.ids.includes(paragraph.id) ? "multi-selected" : ""} ${snapshot.activeId === paragraph.id ? "active" : ""} ${paragraph.excluded ? "excluded" : ""}`}
             >
               <header>
                 <button
                   type="button"
                   aria-label={`Chọn bản dịch đoạn ${paragraph.index + 1}`}
                   aria-pressed={snapshot.activeId === paragraph.id}
-                  onClick={() => viewport.paragraphs.select(paragraph.id, sync)}
+                  onClick={(e) => {
+                    if (e.ctrlKey || e.metaKey) multi.toggle(paragraph.id)
+                    else {
+                      multi.clear()
+                      viewport.paragraphs.select(paragraph.id, sync)
+                    }
+                  }}
                 >
                   {String(paragraph.index + 1).padStart(2, "0")}
                 </button>

@@ -123,7 +123,19 @@ export class PdfAnnotationEditor {
     const count = document.createElement("strong")
     count.textContent = `${chosen.length} hình`
     count.title = "Shift+bấm để chọn nhiều"
-    properties.append(count)
+    const header = document.createElement("div"),
+      tools = document.createElement("div"),
+      colors = document.createElement("div"),
+      actions = document.createElement("div"),
+      settings = document.createElement("div")
+    header.className = "rf-shape-toolbar-header"
+    tools.className = "rf-shape-toolbar-tools"
+    colors.className = "rf-shape-toolbar-colors"
+    actions.className = "rf-shape-toolbar-actions"
+    settings.className = "rf-shape-toolbar-settings"
+    header.append(count)
+    tools.append(colors, actions)
+    properties.append(header, tools, settings)
     const names = ["Vàng", "Xanh lá", "Xanh dương", "Đỏ"]
     for (const [index, color] of STUDY_COLORS.entries()) {
       const button = document.createElement("button")
@@ -138,7 +150,7 @@ export class PdfAnnotationEditor {
       button.onclick = () => {
         if (item.color !== color) this.change(item, { ...item, color })
       }
-      properties.append(button)
+      colors.append(button)
     }
     for (const [_text, label, action] of [
       ["Copy", "Sao chép hình", () => this.copy()],
@@ -177,9 +189,9 @@ export class PdfAnnotationEditor {
       b.setAttribute("aria-label", label)
       b.disabled = this.pending || (label === "Dán hình" && !this.clipboard.length)
       b.onclick = action
-      properties.append(b)
+      actions.append(b)
     }
-    this.styleControls(properties, chosen)
+    this.styleControls(settings, chosen)
     const remove = document.createElement("button")
     remove.type = "button"
     remove.textContent = "Xóa"
@@ -188,7 +200,7 @@ export class PdfAnnotationEditor {
     remove.setAttribute("aria-label", "Xóa hình đã chọn")
     remove.disabled = this.pending
     remove.onclick = () => this.change(item, null)
-    properties.append(remove)
+    actions.append(remove)
     const done = document.createElement("button")
     done.type = "button"
     done.textContent = "×"
@@ -199,7 +211,7 @@ export class PdfAnnotationEditor {
       this.extra.clear()
       this.sync()
     }
-    properties.append(done)
+    header.append(done)
     const hint = document.createElement("small")
     hint.hidden = true
     hint.textContent = linear
@@ -220,7 +232,7 @@ export class PdfAnnotationEditor {
     if (!properties || !this.overlay) return
     const box = this.overlay.getBoundingClientRect()
     const viewport = this.host.getBoundingClientRect()
-    const width = Math.min(300, innerWidth - 16)
+    const width = Math.min(340, innerWidth - 16)
     properties.style.width = `${width}px`
     const height = properties.getBoundingClientRect().height
     properties.hidden = box.bottom < viewport.top || box.top > viewport.bottom

@@ -1,6 +1,6 @@
-name: Read Frog
-extName: "Read Frog - AI対訳翻訳・二重字幕・単語帳"
-extDescription: "ウェブページと YouTube・Netflix・X の動画字幕を AI で対訳翻訳。知らない単語は保存して、フラッシュカードで復習できます。"
+name: FlowRead
+extName: FlowRead
+extDescription: "スマートなAI対訳読書、PDF閲覧、動画字幕、単語学習。"
 uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 account:
   login: ログイン

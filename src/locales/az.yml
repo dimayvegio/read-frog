@@ -1,6 +1,6 @@
-name: Read Frog
-extName: "Read Frog - Sİ tərcüməsi və söz kartları"
-extDescription: "Veb-səhifələr və YouTube, Netflix, X altyazıları üçün Sİ ilə ikidilli tərcümə. Yeni sözləri saxlayın, kartlarla təkrarlayın."
+name: FlowRead
+extName: FlowRead
+extDescription: "Ağıllı ikidilli Sİ oxu, PDF, video altyazıları və söz öyrənmə."
 uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 account:
   login: Daxil ol

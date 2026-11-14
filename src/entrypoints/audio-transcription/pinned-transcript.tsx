@@ -122,7 +122,7 @@ export function PinnedTranscript({
         return
       }
       current.current = child
-      child.document.title = "Read Frog · Chép lời đã ghim"
+      child.document.title = "FlowRead · Chép lời đã ghim"
       const style = child.document.createElement("style")
       style.textContent = css
       child.document.head.append(style)

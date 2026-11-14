@@ -3,6 +3,6 @@ import { ReadingLab } from "./app"
 import "./style.css"
 void mountExtensionPage(() => <ReadingLab />)
   .then(() => {
-    document.title = "Luyện nghe & Thư viện | Read Frog"
+    document.title = "Luyện nghe & Thư viện | FlowRead"
   })
   .catch(showSelectionRecovery)

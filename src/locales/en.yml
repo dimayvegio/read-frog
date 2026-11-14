@@ -1,6 +1,6 @@
-name: Read Frog
-extName: "Read Frog - AI Translation & Flashcards"
-extDescription: "Bilingual AI translation for web pages and YouTube, Netflix and X subtitles. Save new words and review them as flashcards."
+name: FlowRead
+extName: FlowRead
+extDescription: "Smart bilingual AI reading, PDF, video subtitles & language learning."
 uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 account:
   login: Log in
@@ -2154,3 +2154,50 @@ selectionResult:
   tooLong: Select a shorter passage (up to $1 characters).
   empty: This selection has expired. Select text in the PDF and use Read Frog → Translate again.
   hint: To translate another passage, select it in the PDF, then right-click and choose Read Frog → Translate. Only the selected text is sent for translation.
+  translateTab: Translation
+  technicalExplain: Technical Explanation
+  sectionSummary: Section Summary
+  cacheLoaded: "Loaded from local cache — no API call."
+  explainSaved: "Technical explanation saved to local cache."
+  summarySaved: "Section summary saved to local cache."
+  translationSaved: "Translation saved to local cache."
+  closePanel: Close translation ×
+
+pdfReader:
+  horizontalBarLabel: Horizontal PDF position
+  horizontalBarTitle: Drag slider to pan PDF horizontally · Double-click to center
+  nudgeLeft: Move left
+  nudgeLeftTitle: Move left 30px
+  nudgeRight: Move right
+  nudgeRightTitle: Move right 30px
+  recenter: Center
+  recenterTitle: Center document
+  navBack: Back
+  navBackTitle: "Previous viewed position (Alt+Left)"
+  navForward: Forward
+  navForwardTitle: "Next viewed position (Alt+Right)"
+  pageSummary: Page Summary
+  pageSummaryTitle: Generate AI summary for this page
+  exportNotes: Export Notes MD
+  exportNotesTitle: Export study notes, translations and bookmarks to Markdown
+  quickDictLookup: "Looking up..."
+  quickDictSave: Save to vocabulary
+  quickDictSaved: Saved
+  quickDictOpenPanel: Open translation panel
+  translateSelection: Translate selection
+  translateSelectionTitle: "Select text and translate (Alt+Q)"
+  exportAnnotatedPdf: Download Annotated PDF
+  localOcr: Local OCR
+  annotations: Notes
+  paragraphBilingual: Paragraph bilingual
+  pageSummaryModalTitle: "AI Summary · Page $1"
+  pageSummaryLoading: "Reading content and analyzing page $1 with AI..."
+  pageSummaryTooShort: "This page has no text layer or is too short to summarize. Try running local OCR first."
+  pageSummaryCopy: Copy summary
+  pageSummaryCopied: Copied
+  quickDictPronounce: Pronounce
+  quickDictClose: Close
+  quickDictSaving: "Saving..."
+  quickDictSavedToNotebook: Saved to vocabulary
+  quickDictDetailedTranslate: "Detailed translation →"
+  quickDictSaveError: "Unable to save word to notebook. Try again later."

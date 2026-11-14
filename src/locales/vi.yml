@@ -1,6 +1,6 @@
-name: Read Frog
-extName: "Read Frog - Dịch AI và thẻ ghi nhớ"
-extDescription: "Dịch song ngữ bằng AI cho trang web và phụ đề YouTube, Netflix, X. Lưu từ mới và ôn tập bằng thẻ ghi nhớ."
+name: FlowRead
+extName: FlowRead
+extDescription: "Đọc song ngữ AI thông minh, đọc PDF, phụ đề video và học từ vựng."
 uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 account:
   login: Đăng nhập
@@ -2007,3 +2007,50 @@ selectionResult:
   tooLong: Hãy chọn đoạn ngắn hơn (tối đa $1 ký tự).
   empty: Vùng chọn đã hết hạn. Hãy bôi đen văn bản trong PDF rồi chọn Read Frog → Translate lần nữa.
   hint: Để dịch đoạn khác, bôi đen trong PDF, bấm chuột phải rồi chọn Read Frog → Translate. Chỉ văn bản đã chọn được gửi đi dịch.
+  translateTab: Dịch
+  technicalExplain: Giải thích kỹ thuật
+  sectionSummary: Tóm tắt đoạn
+  cacheLoaded: "Dùng bản lưu trên máy — không gọi API."
+  explainSaved: "Đã lưu bản giải thích trên máy."
+  summarySaved: "Đã lưu bản tóm tắt trên máy."
+  translationSaved: "Đã lưu bản dịch trên máy."
+  closePanel: Đóng khung dịch ×
+
+pdfReader:
+  horizontalBarLabel: Thanh kéo ngang vị trí PDF
+  horizontalBarTitle: Kéo thanh trượt để dời vị trí PDF sang ngang · Bấm đúp để căn giữa
+  nudgeLeft: Dời sang trái
+  nudgeLeftTitle: Dời sang trái 30px
+  nudgeRight: Dời sang phải
+  nudgeRightTitle: Dời sang phải 30px
+  recenter: Căn giữa
+  recenterTitle: Đưa trang về chính giữa
+  navBack: Quay lại
+  navBackTitle: "Vị trí đã xem trước (Alt+Mũi tên trái)"
+  navForward: Đi tiếp
+  navForwardTitle: "Vị trí đã xem sau (Alt+Mũi tên phải)"
+  pageSummary: Tóm tắt trang
+  pageSummaryTitle: Tóm tắt nội dung trang này bằng AI
+  exportNotes: Xuất ghi chú MD
+  exportNotesTitle: Xuất toàn bộ ghi chú, câu đã dịch và từ vựng ra file Markdown
+  quickDictLookup: "Đang tra từ..."
+  quickDictSave: Lưu vào sổ từ
+  quickDictSaved: Đã lưu
+  quickDictOpenPanel: Mở khung dịch
+  translateSelection: Dịch đoạn đã chọn
+  translateSelectionTitle: "Bôi đen chữ rồi dịch (Alt+Q)"
+  exportAnnotatedPdf: Tải PDF có chú thích
+  localOcr: OCR trên máy
+  annotations: Chú thích
+  paragraphBilingual: Song ngữ theo đoạn
+  pageSummaryModalTitle: "Tóm tắt AI · Trang $1"
+  pageSummaryLoading: "Đang đọc nội dung và phân tích trang $1 bằng AI…"
+  pageSummaryTooShort: "Trang này chưa có lớp chữ văn bản hoặc quá ngắn để tóm tắt. Bạn hãy thử quét OCR trang trước."
+  pageSummaryCopy: Sao chép tóm tắt
+  pageSummaryCopied: Đã sao chép
+  quickDictPronounce: Phát âm
+  quickDictClose: Đóng
+  quickDictSaving: "Đang lưu…"
+  quickDictSavedToNotebook: Đã lưu vào sổ từ
+  quickDictDetailedTranslate: "Dịch chi tiết →"
+  quickDictSaveError: "Không thể lưu từ vào sổ. Thử lại sau."

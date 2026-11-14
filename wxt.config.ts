@@ -38,12 +38,12 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.59.1.9",
-    version_name: "1.59.1A",
+    version: "1.59.3.1",
+    version_name: "1.59.3A",
     commands: {
       "capture-and-translate": {
         suggested_key: { default: "Alt+Shift+S" },
-        description: "Chụp vùng và dịch ảnh với Read Frog",
+        description: "Chụp vùng và dịch ảnh với FlowRead",
       },
     },
     description: "__MSG_extDescription__",

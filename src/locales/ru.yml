@@ -1,6 +1,6 @@
-name: Read Frog
-extName: "Read Frog - ИИ-перевод и карточки"
-extDescription: "Двуязычный ИИ-перевод веб-страниц и субтитров YouTube, Netflix и X. Сохраняйте новые слова и повторяйте их на карточках."
+name: FlowRead
+extName: FlowRead
+extDescription: "Умное двуязычное ИИ-чтение, PDF, субтитры к видео и изучение слов."
 uninstallSurveyUrl: https://tally.so/r/nPK6Ob
 account:
   login: Войти

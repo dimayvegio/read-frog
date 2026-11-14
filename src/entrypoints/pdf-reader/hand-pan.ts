@@ -2,6 +2,7 @@
 export class PdfHandPan {
   private gesture?: {
     pointer: number
+    button: number
     x: number
     y: number
     left: number
@@ -24,19 +25,21 @@ export class PdfHandPan {
     window.addEventListener("resize", this.cancel)
   }
   private down = (event: PointerEvent) => {
+    const isMiddleClick = event.button === 1
+    const isHandTool = event.button === 0 && this.host.dataset.studyTool === "hand"
+    if (this.gesture || !event.isPrimary || (!isMiddleClick && !isHandTool)) return
+    const target = event.target as Element | null
     if (
-      this.gesture ||
-      !event.isPrimary ||
-      event.button !== 0 ||
-      this.host.dataset.studyTool !== "hand" ||
-      !(event.target as Element).closest(".rf-pdf-page[data-rendered=true]") ||
-      (event.target as Element).closest("button")
+      target?.closest(
+        "button, input, select, textarea, .rf-study-panel, .rf-bilingual-splitter, [data-panel-handle]",
+      )
     )
       return
     event.preventDefault()
     event.stopImmediatePropagation()
     this.gesture = {
       pointer: event.pointerId,
+      button: event.button,
       x: event.clientX,
       y: event.clientY,
       left: this.host.scrollLeft,
@@ -58,7 +61,7 @@ export class PdfHandPan {
   private move = (event: PointerEvent) => {
     const g = this.gesture
     if (!g || event.pointerId !== g.pointer) return
-    if (this.host.dataset.studyTool !== "hand") {
+    if (g.button === 0 && this.host.dataset.studyTool !== "hand") {
       this.cancel()
       return
     }

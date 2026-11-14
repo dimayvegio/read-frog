@@ -2,6 +2,13 @@ import { GripVertical, RotateCcw, X } from "lucide-react"
 import { useLayoutEffect, useRef } from "react"
 
 type Rect = { left: number; top: number; width: number; height: number }
+
+let lastStudyPanelRect: Rect | null = null
+
+export function clearStudyPanelState(): void {
+  lastStudyPanelRect = null
+}
+
 export function StudyPanel({
   title,
   children,
@@ -36,16 +43,25 @@ export function StudyPanel({
         height: `${current.height}px`,
       })
     }
-    const reset = () => {
-      current = clamp({
-        left: 16,
-        top: element.closest(".rf-study-tools")!.getBoundingClientRect().bottom + 8,
-        width: 370,
-        height: Math.min(580, innerHeight * 0.68),
+    const computeDefault = (): Rect => {
+      const toolBottom = element.closest(".rf-study-tools")?.getBoundingClientRect().bottom ?? 80
+      const availableHeight = innerHeight - toolBottom - 18
+      const preferredWidth = Math.min(348, Math.max(300, innerWidth - 32))
+      return clamp({
+        left: 8,
+        top: toolBottom + 6,
+        width: preferredWidth,
+        height: Math.max(340, availableHeight),
       })
+    }
+    const reset = () => {
+      current = computeDefault()
+      lastStudyPanelRect = current
       paint()
     }
-    reset()
+    current = lastStudyPanelRect ? clamp(lastStudyPanelRect) : computeDefault()
+    lastStudyPanelRect = current
+    paint()
     const down = (event: PointerEvent) => {
       const handle = (event.target as Element).closest<HTMLElement>("[data-panel-handle]")?.dataset
         .panelHandle
@@ -100,6 +116,7 @@ export function StudyPanel({
       move(event)
       cancelAnimationFrame(frame)
       paint()
+      lastStudyPanelRect = current
       release()
     }
     const cancel = () => {
@@ -107,6 +124,7 @@ export function StudyPanel({
       current = active.from
       cancelAnimationFrame(frame)
       paint()
+      lastStudyPanelRect = current
       release()
     }
     const key = (event: KeyboardEvent) => {
@@ -126,10 +144,12 @@ export function StudyPanel({
         event.key === "ArrowLeft" ? -10 : event.key === "ArrowRight" ? 10 : 0,
         event.key === "ArrowUp" ? -10 : event.key === "ArrowDown" ? 10 : 0,
       )
+      lastStudyPanelRect = current
     }
     const resize = () => {
       cancel()
       current = clamp(current)
+      lastStudyPanelRect = current
       paint()
     }
     element.addEventListener("pointerdown", down)

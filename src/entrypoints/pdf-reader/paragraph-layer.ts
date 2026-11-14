@@ -378,7 +378,21 @@ export class PdfParagraphLayer {
           left: `${Math.max(2, paragraph.x * box.width - 27)}px`,
           top: `${paragraph.y * box.height}px`,
         })
-        badge.onclick = () => this.pick(paragraph)
+        badge.onclick = (e) => {
+          if (e.ctrlKey || e.metaKey)
+            this.host.dispatchEvent(
+              new CustomEvent("rf-paragraph-action", { detail: { id: paragraph.id } }),
+            )
+          else this.pick(paragraph)
+        }
+        badge.oncontextmenu = (e) => {
+          e.preventDefault()
+          this.host.dispatchEvent(
+            new CustomEvent("rf-paragraph-action", {
+              detail: { id: paragraph.id, x: e.clientX, y: e.clientY },
+            }),
+          )
+        }
         overlays.append(highlight, badge)
       }
       if (

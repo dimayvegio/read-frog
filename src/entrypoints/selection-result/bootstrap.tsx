@@ -43,7 +43,7 @@ export async function mountExtensionPage(
 ) {
   const [config, theme] = await Promise.all([getLocalConfig(), getLocalThemeMode()])
   await initI18n(config.uiLanguage)
-  document.title = `${i18n.t("selectionResult.title")} | Read Frog`
+  document.title = `${i18n.t("selectionResult.title")} | FlowRead`
   renderPersistentReactRoot(
     document.getElementById("root")!,
     <QueryClientProvider client={queryClient}>

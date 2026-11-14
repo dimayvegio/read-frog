@@ -3,6 +3,6 @@ import { PronunciationPractice } from "./app"
 import "./style.css"
 void mountExtensionPage(() => <PronunciationPractice />)
   .then(() => {
-    document.title = "Phát âm | Read Frog"
+    document.title = "Phát âm | FlowRead"
   })
   .catch(showSelectionRecovery)

@@ -31,10 +31,11 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
     const refresh = () => {
       void sendMessage("getVocabularyNotebooks", undefined)
         .then((snapshot) => {
-          if (!disposed) {
-            setNotebooks(snapshot.notebooks)
+          if (!disposed && snapshot) {
+            const list = snapshot.notebooks ?? []
+            setNotebooks(list)
             setNotebookId((current) =>
-              snapshot.notebooks.some((n) => n.id === current)
+              list.some((n) => n.id === current)
                 ? current
                 : (snapshot.activeNotebookId ?? ""),
             )

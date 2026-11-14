@@ -113,6 +113,7 @@ interface ProtocolMap {
   selectVocabularyNotebook: (data: { notebookId: string }) => void
   openVocabulary: () => void
   openTranslationHub: () => void
+  getTabContext: () => { title: string; url: string }
   // navigation
 
   openOptionsPage: (data?: { route?: `/${string}` }) => void

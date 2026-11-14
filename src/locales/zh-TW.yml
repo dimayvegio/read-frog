@@ -1,6 +1,6 @@
-name: 陪讀蛙
-extName: "陪讀蛙 - AI 雙語翻譯、影片字幕與背單字"
-extDescription: "用 AI 雙語對照翻譯網頁，以及 YouTube、Netflix、X 的影片字幕。遇到生字一鍵儲存，用閃卡複習。"
+name: FlowRead
+extName: FlowRead
+extDescription: "智慧 AI 雙語閱讀、PDF 深度研讀、影片字幕與生字學習。"
 uninstallSurveyUrl: https://tally.so/r/3E9XDL
 account:
   login: 登入

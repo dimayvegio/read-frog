@@ -9,21 +9,32 @@ import { getDocument, GlobalWorkerOptions } from "pdfjs-dist"
 import workerURL from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
+import { i18n } from "@/utils/i18n"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { sendMessage } from "@/utils/message"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
+import { listPdfHistory } from "@/utils/selection-result/pdf-history"
 import { SelectionTranslation } from "../selection-result/app"
 import { PdfAutosave } from "./autosave"
 import { PdfBilingualPane, type PdfBilingualHandle } from "./bilingual-pane"
 import { PdfDocumentActions } from "./document-actions"
+import { mergeHighlightBoxes } from "./highlight-boxes"
+import { HorizontalPositionBar } from "./horizontal-position-bar"
+import { PdfPageSummaryModal } from "./page-summary"
+import { QuickDictionaryPopover, type QuickWordTarget } from "./quick-dictionary"
 import { PdfReaderNavigation } from "./reader-navigation"
+import { pdfPicker, rememberPdf, type RecentPdf } from "./recent-files"
+import { RecentFilesMenu } from "./recent-files-menu"
+import { loadStudy } from "./study-data"
+import { exportStudySummaryFile } from "./study-summary-export"
 import { PdfStudyTools } from "./study-tools"
 import { PdfViewport, type ViewPosition } from "./viewport"
 
 GlobalWorkerOptions.workerSrc = workerURL
 const MAX_BYTES = 200 * 1024 * 1024
 const titleFor = (name: string) => name.replace(/\p{Cc}/gu, " ").slice(0, 240) || "PDF"
+
 export function PdfReader({ config }: { config: Config }) {
   const host = useRef<HTMLDivElement>(null),
     input = useRef<HTMLInputElement>(null)
@@ -50,16 +61,92 @@ export function PdfReader({ config }: { config: Config }) {
   const [selectionPage, setSelectionPage] = useState(1)
   const [shotBusy, setShotBusy] = useState(false)
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
+  const [activeHighlight, setActiveHighlight] = useState<Record<
+    number,
+    Array<{ x: number; y: number; width: number; height: number }>
+  > | null>(null)
   const [textOptions, setTextOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
   const [bilingual, setBilingual] = useState(false),
     [bilingualBusy, setBilingualBusy] = useState(false)
+  const [panX, setPanX] = useState(0)
+  const originalColumnRef = useRef<HTMLDivElement>(null)
+  const [quickWord, setQuickWord] = useState<QuickWordTarget | null>(null)
+  const [summaryModalPage, setSummaryModalPage] = useState<number | null>(null)
+  const [activeStudyPanel, setActiveStudyPanel] = useState("")
+  const [bilingualWidth, setBilingualWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem("rf-bilingual-width")
+      return saved ? Math.min(75, Math.max(25, Number(saved))) : 48
+    } catch {
+      return 48
+    }
+  })
+  const [translationWidth, setTranslationWidth] = useState(() => {
+    try {
+      const saved = localStorage.getItem("rf-translation-width")
+      return saved ? Math.min(800, Math.max(260, Number(saved))) : 390
+    } catch {
+      return 390
+    }
+  })
+
+  const onTranslationSplitterDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    const container = host.current?.closest<HTMLElement>(".rf-reader-body")
+    if (!container) return
+    container.classList.add("rf-resizing")
+    const onMove = (event: PointerEvent) => {
+      const box = container.getBoundingClientRect()
+      const newWidth = box.right - event.clientX
+      const maxW = Math.round(box.width * 0.75)
+      const clamped = Math.min(maxW, Math.max(260, Math.round(newWidth)))
+      setTranslationWidth(clamped)
+      try {
+        localStorage.setItem("rf-translation-width", String(clamped))
+      } catch {}
+    }
+    const onUp = () => {
+      container.classList.remove("rf-resizing")
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+    }
+    window.addEventListener("pointermove", onMove)
+    window.addEventListener("pointerup", onUp)
+  }
+
+  const onSplitterDown = (e: React.PointerEvent) => {
+    e.preventDefault()
+    const container = host.current?.closest<HTMLElement>(".rf-reader-body")
+    if (!container) return
+    container.classList.add("rf-resizing")
+    const onMove = (event: PointerEvent) => {
+      const box = container.getBoundingClientRect()
+      const newWidth = ((box.right - event.clientX) / box.width) * 100
+      const clamped = Math.min(75, Math.max(25, Math.round(newWidth * 10) / 10))
+      setBilingualWidth(clamped)
+      try {
+        localStorage.setItem("rf-bilingual-width", String(clamped))
+      } catch {}
+    }
+    const onUp = () => {
+      container.classList.remove("rf-resizing")
+      window.removeEventListener("pointermove", onMove)
+      window.removeEventListener("pointerup", onUp)
+    }
+    window.addEventListener("pointermove", onMove)
+    window.addEventListener("pointerup", onUp)
+  }
+
   const bilingualPane = useRef<PdfBilingualHandle>(null)
   const dispose = () => {
     current.current?.saver?.stop()
     current.current?.viewport?.destroy()
     void current.current?.task.destroy()
     current.current = null
+    setActiveHighlight(null)
+    document.title = "Đọc PDF | FlowRead"
   }
+
   useEffect(() => {
     let stopped = false
     let remove: (() => void) | undefined
@@ -67,8 +154,6 @@ export function PdfReader({ config }: { config: Config }) {
       .getCurrent()
       .then((tab) => {
         if (stopped || !documentInfo || tab?.id === undefined) return
-        // A non-target reader must not reply: runtime messaging broadcasts to
-        // extension pages and the first reply wins. Keep this listener raw.
         const listener: Parameters<typeof browser.runtime.onMessage.addListener>[0] = (
           message,
           sender,
@@ -97,7 +182,13 @@ export function PdfReader({ config }: { config: Config }) {
       remove?.()
     }
   }, [documentInfo])
-  const load = async (file: Blob, name: string, source?: PdfReaderSource) => {
+
+  const load = async (
+    file: Blob,
+    name: string,
+    source?: PdfReaderSource,
+    handle?: import("./recent-files").PdfFileHandle,
+  ) => {
     const token = ++version.current
     dispose()
     setLoading(true)
@@ -169,6 +260,8 @@ export function PdfReader({ config }: { config: Config }) {
       await viewport.init(saved.position ?? undefined)
       if (token !== version.current) return
       setDocumentInfo({ id, historyId, title, count: pdf.numPages, viewport, pdf, file })
+      document.title = `${title} | FlowRead`
+      void rememberPdf(id, title, file.size, handle, () => token === version.current).catch(() => {})
       setStatus(
         saved.position
           ? `Đã khôi phục vị trí đọc — trang ${saved.position.page}. Tự lưu khi bạn đọc tiếp.`
@@ -183,6 +276,7 @@ export function PdfReader({ config }: { config: Config }) {
       if (token === version.current) setLoading(false)
     }
   }
+
   const captureImage = async () => {
     const active = current.current,
       token = version.current
@@ -198,6 +292,7 @@ export function PdfReader({ config }: { config: Config }) {
       setShotBusy(false)
     }
   }
+
   useEffect(() => {
     const channel = new URLSearchParams(location.search).get("file")
     const token = version.current
@@ -232,13 +327,67 @@ export function PdfReader({ config }: { config: Config }) {
     }
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- startup source is immutable; file picker starts subsequent loads explicitly.
   }, [])
-  const translateSelection = () => {
-    if (!documentInfo || !selection || host.current?.dataset.studyTool !== "select") return
+
+  const translateSelection = (overrideText?: unknown) => {
+    const textToTranslate = typeof overrideText === "string" ? overrideText : selection
+    if (!documentInfo || !textToTranslate || typeof textToTranslate !== "string" || !textToTranslate.trim()) return
+    if (host.current?.dataset.studyTool !== "select") return
+    const sel = window.getSelection()
+    if (sel && sel.rangeCount > 0 && host.current) {
+      const range = sel.getRangeAt(0)
+      const rects = Array.from(range.getClientRects())
+      if (rects.length > 0) {
+        const pagesMap: Record<
+          number,
+          Array<{ x: number; y: number; width: number; height: number }>
+        > = {}
+        const pageElements = Array.from(
+          host.current.querySelectorAll<HTMLElement>(".rf-pdf-page"),
+        )
+
+        for (const r of rects) {
+          if (r.width < 1 || r.height < 1) continue
+          let bestPage: HTMLElement | null = null
+          let maxOverlap = 0
+          for (const pageEl of pageElements) {
+            const pRect = pageEl.getBoundingClientRect()
+            const overlap = Math.min(r.bottom, pRect.bottom) - Math.max(r.top, pRect.top)
+            if (overlap > maxOverlap) {
+              maxOverlap = overlap
+              bestPage = pageEl
+            }
+          }
+          if (bestPage) {
+            const pageNum = Number(bestPage.dataset.page) || selectionPage
+            const pRect = bestPage.getBoundingClientRect()
+            if (!pagesMap[pageNum]) pagesMap[pageNum] = []
+            pagesMap[pageNum].push({
+              x: Math.max(0, Math.min(1, (r.left - pRect.left) / pRect.width)),
+              y: Math.max(0, Math.min(1, (r.top - pRect.top) / pRect.height)),
+              width: Math.min(1, r.width / pRect.width),
+              height: Math.min(1, r.height / pRect.height),
+            })
+          }
+        }
+
+        const finalHighlights: Record<
+          number,
+          Array<{ x: number; y: number; width: number; height: number }>
+        > = {}
+        for (const [pStr, rawList] of Object.entries(pagesMap)) {
+          const pNum = Number(pStr)
+          finalHighlights[pNum] = mergeHighlightBoxes(rawList)
+        }
+        if (Object.keys(finalHighlights).length > 0) {
+          setActiveHighlight(finalHighlights)
+        }
+      }
+    }
     setBilingual(false)
     setRequest({
       id: getRandomUUID(),
-      text: selection.length > MAX_NATIVE_SELECTION_LENGTH ? "" : selection,
-      tooLong: selection.length > MAX_NATIVE_SELECTION_LENGTH,
+      text: textToTranslate.length > MAX_NATIVE_SELECTION_LENGTH ? "" : textToTranslate,
+      tooLong: textToTranslate.length > MAX_NATIVE_SELECTION_LENGTH,
       createdAt: Date.now(),
       document: { id: documentInfo.historyId, title: documentInfo.title },
       source: {
@@ -249,6 +398,53 @@ export function PdfReader({ config }: { config: Config }) {
     })
     setSelection("")
   }
+
+  useEffect(() => {
+    const el = host.current
+    if (!el) return
+
+    const renderHighlight = () => {
+      const existing = el.querySelectorAll(".rf-active-translation-layer")
+      existing.forEach((layer) => layer.remove())
+
+      if (!activeHighlight) return
+
+      for (const [pageStr, boxes] of Object.entries(activeHighlight)) {
+        const pageNum = Number(pageStr)
+        if (!Number.isFinite(pageNum)) continue
+        const pageEl = el.querySelector<HTMLElement>(`.rf-pdf-page[data-page="${pageNum}"]`)
+        if (!pageEl) continue
+
+        const layer = document.createElement("div")
+        layer.className = "rf-active-translation-layer"
+
+        for (const box of boxes) {
+          const mark = document.createElement("div")
+          mark.className = "rf-active-translation-highlight"
+          mark.style.left = `${(box.x * 100).toFixed(3)}%`
+          mark.style.top = `${(box.y * 100).toFixed(3)}%`
+          mark.style.width = `${(box.width * 100).toFixed(3)}%`
+          mark.style.height = `${(box.height * 100).toFixed(3)}%`
+          layer.appendChild(mark)
+        }
+
+        pageEl.appendChild(layer)
+      }
+    }
+
+    renderHighlight()
+
+    el.addEventListener("rf-pdf-render", renderHighlight)
+    el.addEventListener("rf-pdf-view-change", renderHighlight)
+
+    return () => {
+      el.removeEventListener("rf-pdf-render", renderHighlight)
+      el.removeEventListener("rf-pdf-view-change", renderHighlight)
+      const existing = el.querySelectorAll(".rf-active-translation-layer")
+      existing.forEach((layer) => layer.remove())
+    }
+  }, [activeHighlight, documentInfo])
+
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
       if (
@@ -278,13 +474,66 @@ export function PdfReader({ config }: { config: Config }) {
     window.addEventListener("keydown", key)
     return () => window.removeEventListener("keydown", key)
   })
+
+  const handleExportStudyNotes = async () => {
+    if (!documentInfo) return
+    try {
+      const study = await loadStudy(documentInfo.id)
+      const translations = await listPdfHistory(documentInfo.id)
+      const bookmarks = documentInfo.viewport.workspace.getSnapshot().data.bookmarks
+      const textNotes = documentInfo.viewport.textNotes.getSnapshot().data.notes
+
+      let vocabularyWords: any[] = []
+      try {
+        const snap = await sendMessage("getVocabularyStudySnapshot", undefined)
+        vocabularyWords = snap.words.map((w) => ({
+          word: w.variants[0] || w.word || "",
+          meaning: w.meaning || "",
+          context: w.context || "",
+        }))
+      } catch {}
+
+      exportStudySummaryFile({
+        documentId: documentInfo.id,
+        title: documentInfo.title,
+        numPages: documentInfo.pdf.numPages,
+        bookmarks: bookmarks.map((b) => ({
+          page: b.page,
+          name: b.name,
+          note: b.note,
+          color: b.color,
+        })),
+        textNotes: textNotes.map((n) => ({
+          page: n.page,
+          text: n.text,
+          color: n.color,
+        })),
+        annotations: study.annotations.map((a) => ({
+          page: a.page,
+          kind: a.kind,
+          text: a.text,
+          color: a.color,
+        })),
+        translations: translations.map((t) => ({
+          original: t.original,
+          output: t.output,
+          targetLanguage: t.targetLanguage,
+          updatedAt: t.updatedAt,
+        })),
+        vocabularyWords,
+      })
+    } catch (err: any) {
+      alert("Không thể xuất ghi chú học tập: " + (err?.message || "Lỗi"))
+    }
+  }
+
   return (
     <main className="rf-reader">
       <header className="rf-reader-toolbar">
         <strong className="rf-reader-brand">
           <BookOpen size={22} />
           <span>
-            Read Frog <small>PDF Reader</small>
+            FlowRead <small>PDF Reader</small>
           </span>
         </strong>
         {documentInfo && (
@@ -293,7 +542,25 @@ export function PdfReader({ config }: { config: Config }) {
             {documentInfo.title}
           </span>
         )}
-        <button type="button" onClick={() => input.current?.click()}>
+        <button
+          type="button"
+          onClick={async () => {
+            const picker = pdfPicker()
+            if (picker) {
+              try {
+                const [handle] = await picker({
+                  types: [{ description: "PDF", accept: { "application/pdf": [".pdf"] } }],
+                })
+                if (handle) {
+                  const file = await handle.getFile()
+                  void load(file, file.name, undefined, handle)
+                  return
+                }
+              } catch {}
+            }
+            input.current?.click()
+          }}
+        >
           <FolderOpen size={17} /> Mở PDF trên máy
         </button>
         <input
@@ -308,6 +575,15 @@ export function PdfReader({ config }: { config: Config }) {
             if (file) void load(file, file.name)
           }}
         />
+        <RecentFilesMenu
+          refresh={documentInfo?.id ?? ""}
+          onOpen={async (item) => {
+            if (item.handle) {
+              const file = await (item.handle as any).getFile()
+              if (file) void load(file, file.name)
+            }
+          }}
+        />
         {documentInfo && (
           <>
             <button
@@ -315,11 +591,12 @@ export function PdfReader({ config }: { config: Config }) {
               aria-pressed={bilingual}
               onClick={() => {
                 setRequest(null)
+                setActiveHighlight(null)
                 setSelection("")
                 setBilingual((value) => !value)
               }}
             >
-              <Languages size={17} /> Song ngữ theo đoạn
+              <Languages size={17} /> {i18n.t("pdfReader.paragraphBilingual") || "Song ngữ theo đoạn"}
             </button>
             {bilingual && (
               <button
@@ -362,9 +639,9 @@ export function PdfReader({ config }: { config: Config }) {
       {!documentInfo && !loading && (
         <p className="rf-reader-empty">
           Chọn file PDF để đọc và tự nhớ trang, vị trí cuộn, thu phóng. Lần sau mở lại cùng file, kể
-          cả đổi tên, sẽ trở về chỗ đang đọc. PDF không được sao chép vào bộ nhớ extension. Bạn cần
-          chọn lại file nếu mở một phiên mới. Chức năng tự lưu hoạt động trong trình đọc Read Frog
-          này.
+          cả đổi tên, sẽ trở về chỗ đang đọc. PDF không được sao chép vào bộ nhớ extension. Dùng Gần
+          đây để mở lại; trình duyệt có thể yêu cầu cấp lại quyền đọc file. Chức năng tự lưu hoạt
+          động trong trình đọc FlowRead này.
         </p>
       )}
       {documentInfo && (
@@ -379,11 +656,24 @@ export function PdfReader({ config }: { config: Config }) {
           onOpenAiOcr={captureImage}
           imageBusy={shotBusy}
           hasSelection={!!selection}
-          onTranslateSelection={translateSelection}
+          onTranslateSelection={() => translateSelection()}
+          onSummarizePage={(pg) => setSummaryModalPage(pg)}
+          onExportStudyNotes={handleExportStudyNotes}
+          onPanelChange={setActiveStudyPanel}
         />
       )}
       <div className="rf-reader-body">
-        <div className="rf-reader-original-column">
+        <div
+          ref={originalColumnRef}
+          className={`rf-reader-original-column ${activeStudyPanel ? "rf-has-left-panel" : ""}`}
+          style={
+            {
+              ...(bilingual && documentInfo ? { flex: `1 1 ${100 - bilingualWidth}%` } : {}),
+              ...(!bilingual && request ? { flex: "1 1 0%", minWidth: 0 } : {}),
+              "--rf-pdf-pan-x": `${panX}px`,
+            } as React.CSSProperties
+          }
+        >
           {bilingual && documentInfo && (
             <div key="pdf-label" className="rf-bilingual-source-heading">
               BẢN GỐC · Trang {view.page}
@@ -435,8 +725,84 @@ export function PdfReader({ config }: { config: Config }) {
               if (selected?.anchorNode && host.current?.contains(selected.anchorNode))
                 setSelection(selected.toString().trim())
             }}
+            onDoubleClick={() => {
+              if (
+                host.current?.dataset.annotationEditing === "true" ||
+                (host.current?.dataset.studyTool && host.current.dataset.studyTool !== "select")
+              ) {
+                return
+              }
+              const sel = window.getSelection()
+              const text = sel?.toString().trim()
+              if (
+                text &&
+                /^[A-Za-z][A-Za-z'-]{1,45}$/.test(text) &&
+                sel &&
+                sel.rangeCount > 0 &&
+                host.current?.contains(sel.anchorNode)
+              ) {
+                const range = sel.getRangeAt(0)
+                const clientRect = range.getBoundingClientRect()
+                const parent = sel.anchorNode?.parentElement?.closest<HTMLElement>(
+                  ".rf-pdf-paragraph, .rf-pdf-text-layer, .rf-pdf-page",
+                )
+                const context = parent?.textContent?.slice(0, 1000) || text
+                setQuickWord({
+                  word: text,
+                  rect: {
+                    top: clientRect.top,
+                    bottom: clientRect.bottom,
+                    left: clientRect.left,
+                    right: clientRect.right,
+                    width: clientRect.width,
+                    height: clientRect.height,
+                  },
+                  context,
+                  page: view.page,
+                })
+              }
+            }}
           />
+          {documentInfo && (
+            <HorizontalPositionBar
+              offset={panX}
+              onChange={setPanX}
+              containerRef={originalColumnRef}
+            />
+          )}
+          {quickWord && documentInfo && (
+            <QuickDictionaryPopover
+              target={quickWord}
+              documentId={documentInfo.id}
+              documentTitle={documentInfo.title}
+              config={config}
+              onClose={() => setQuickWord(null)}
+              onOpenPanel={(word) => {
+                setQuickWord(null)
+                setSelection(word)
+                translateSelection(word)
+              }}
+            />
+          )}
         </div>
+        {bilingual && documentInfo && (
+          <div
+            className="rf-bilingual-splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Kéo để chỉnh tỷ lệ cột song ngữ"
+            title="Kéo chuột để chỉnh độ rộng · Bấm đúp về 50/50"
+            onPointerDown={onSplitterDown}
+            onDoubleClick={() => {
+              setBilingualWidth(50)
+              try {
+                localStorage.setItem("rf-bilingual-width", "50")
+              } catch {}
+            }}
+          >
+            <div className="rf-bilingual-splitter-handle" />
+          </div>
+        )}
         {bilingual && documentInfo && (
           <PdfBilingualPane
             key={documentInfo.id}
@@ -447,12 +813,40 @@ export function PdfReader({ config }: { config: Config }) {
             pageCount={documentInfo.count}
             onBusy={setBilingualBusy}
             textOptions={textOptions}
+            width={bilingualWidth}
           />
         )}
         {!bilingual && request && (
-          <aside className="rf-reader-translation">
-            <button type="button" onClick={() => setRequest(null)}>
-              Đóng khung dịch ×
+          <div
+            className="rf-bilingual-splitter rf-translation-splitter"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Kéo để chỉnh độ rộng khung dịch"
+            title="Kéo chuột để chỉnh độ rộng khung dịch · Bấm đúp về mặc định (390px)"
+            onPointerDown={onTranslationSplitterDown}
+            onDoubleClick={() => {
+              setTranslationWidth(390)
+              try {
+                localStorage.setItem("rf-translation-width", "390")
+              } catch {}
+            }}
+          >
+            <div className="rf-bilingual-splitter-handle" />
+          </div>
+        )}
+        {!bilingual && request && (
+          <aside
+            className="rf-reader-translation"
+            style={{ width: `${translationWidth}px`, flex: "none" }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setRequest(null)
+                setActiveHighlight(null)
+              }}
+            >
+              {i18n.t("selectionResult.closePanel") || "Đóng khung dịch ×"}
             </button>
             <SelectionTranslation
               key={request.id}
@@ -466,6 +860,14 @@ export function PdfReader({ config }: { config: Config }) {
           </aside>
         )}
       </div>
+      {summaryModalPage !== null && documentInfo && (
+        <PdfPageSummaryModal
+          page={summaryModalPage}
+          pdf={documentInfo.pdf}
+          config={config}
+          onClose={() => setSummaryModalPage(null)}
+        />
+      )}
     </main>
   )
 }

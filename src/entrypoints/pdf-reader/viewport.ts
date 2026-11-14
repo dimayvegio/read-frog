@@ -35,6 +35,7 @@ export class PdfViewport {
   get navigationToken() {
     return this.navigation
   }
+  private rotation = 0
   private sizes: { width: number; height: number }[] = []
   private elements: HTMLDivElement[] = []
   private tops: number[] = []
@@ -53,6 +54,10 @@ export class PdfViewport {
   private hand: PdfHandPan
   private wheelFrame = 0
   private wheelTarget?: { zoom: number; anchor: { x: number; y: number } }
+  private backStack: ViewPosition[] = []
+  private forwardStack: ViewPosition[] = []
+  private isNavigatingHistory = false
+  private historyListeners = new Set<() => void>()
   constructor(
     private host: HTMLDivElement,
     private pdf: PDFDocumentProxy,
@@ -93,7 +98,7 @@ export class PdfViewport {
     const index = Math.max(0, Math.min(this.pdf.numPages - 1, (position?.page ?? 1) - 1))
     const page = await this.pdf.getPage(index + 1)
     if (this.destroyed) return
-    const base = page.getViewport({ scale: 1 })
+    const base = page.getViewport({ scale: 1, rotation: this.rotation })
     this.sizes = Array.from({ length: this.pdf.numPages }, () => ({
       width: base.width,
       height: base.height,
@@ -138,7 +143,7 @@ export class PdfViewport {
   }
   private measure(index: number, page: PDFPageProxy) {
     if (this.measured.has(index)) return
-    const base = page.getViewport({ scale: 1 }),
+    const base = page.getViewport({ scale: 1, rotation: this.rotation }),
       previous = this.sizes[index]!
     this.measured.add(index)
     if (base.width === previous.width && base.height === previous.height) return
@@ -188,7 +193,87 @@ export class PdfViewport {
       this.tops[index]! + position.offset * this.sizes[index]!.height * this.pageScale(index)
     this.update(false)
   }
+  getRotation() {
+    return this.rotation
+  }
+  rotate(delta = 90) {
+    this.rotation = (((this.rotation + delta) % 360) + 360) % 360
+    this.measured.clear()
+    for (const lease of this.leases.values()) lease.cancel()
+    this.leases.clear()
+    void this.rebuildSizes()
+  }
+  private async rebuildSizes() {
+    const snap = this.snapshot()
+    const index = Math.max(0, Math.min(this.pdf.numPages - 1, snap.page - 1))
+    const page = await this.pdf.getPage(index + 1)
+    if (this.destroyed) return
+    const base = page.getViewport({ scale: 1, rotation: this.rotation })
+    this.sizes = Array.from({ length: this.pdf.numPages }, () => ({
+      width: base.width,
+      height: base.height,
+    }))
+    this.measured.add(index)
+    this.layout(snap)
+  }
+  canGoBack() {
+    return this.backStack.length > 0
+  }
+  canGoForward() {
+    return this.forwardStack.length > 0
+  }
+  onHistoryChange(listener: () => void) {
+    this.historyListeners.add(listener)
+    return () => {
+      this.historyListeners.delete(listener)
+    }
+  }
+  private notifyHistoryChange() {
+    this.host.dispatchEvent(new Event("rf-pdf-history-change"))
+    for (const listener of this.historyListeners) {
+      try {
+        listener()
+      } catch {}
+    }
+  }
+  goBack(): boolean {
+    if (!this.canGoBack()) return false
+    const current = this.snapshot()
+    const target = this.backStack.pop()!
+    this.forwardStack.push({ ...current })
+    this.isNavigatingHistory = true
+    try {
+      this.navigate(target.page, target.offset, target.zoom)
+    } finally {
+      this.isNavigatingHistory = false
+    }
+    this.notifyHistoryChange()
+    return true
+  }
+  goForward(): boolean {
+    if (!this.canGoForward()) return false
+    const current = this.snapshot()
+    const target = this.forwardStack.pop()!
+    this.backStack.push({ ...current })
+    this.isNavigatingHistory = true
+    try {
+      this.navigate(target.page, target.offset, target.zoom)
+    } finally {
+      this.isNavigatingHistory = false
+    }
+    this.notifyHistoryChange()
+    return true
+  }
   navigate(page: number, offset = 0, zoom = this.zoom) {
+    if (!this.isNavigatingHistory && this.sizes.length > 0) {
+      const current = this.snapshot()
+      if (current.page !== page || Math.abs(current.offset - offset) > 0.05) {
+        this.backStack.push({ ...current })
+        if (this.backStack.length > 50) this.backStack.shift()
+        this.forwardStack = []
+        this.notifyHistoryChange()
+      }
+    }
     const index = Math.max(0, Math.min(this.sizes.length - 1, page - 1)),
       token = ++this.navigation
     const jump = () => {
@@ -324,7 +409,7 @@ export class PdfViewport {
         return
       }
       this.measure(index, page)
-      const viewport = page.getViewport({ scale: this.pageScale(index) })
+      const viewport = page.getViewport({ scale: this.pageScale(index), rotation: this.rotation })
       const density = Math.min(
         devicePixelRatio || 1,
         2,

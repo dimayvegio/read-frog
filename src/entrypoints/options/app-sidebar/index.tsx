@@ -22,7 +22,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="transition-all group-data-[state=expanded]:px-5 group-data-[state=expanded]:pt-4">
-        <span className="font-semibold">Read Frog</span>
+        <span className="font-semibold">FlowRead</span>
         <InputGroup onClick={() => setCommandPaletteOpen(true)} className="bg-background">
           <InputGroupInput
             readOnly

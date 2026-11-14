@@ -3,6 +3,7 @@ import type { ThinkingSnapshot } from "@/types/background-stream"
 import type { VocabularyCapture } from "@/utils/vocabulary/schema"
 import { IconLoader2 } from "@tabler/icons-react"
 import { Activity } from "react"
+import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { Thinking } from "@/components/thinking"
 import { CopyButton } from "@/components/ui/selection-popover/copy-button"
 import { ReadingLabButton } from "@/components/ui/selection-popover/reading-lab-button"
@@ -17,6 +18,7 @@ interface TranslationContentProps {
   isTranslating: boolean
   thinking: ThinkingSnapshot | null
   vocabularySource?: Omit<VocabularyCapture, "word">
+  renderMarkdown?: boolean
 }
 
 export function TranslationContent({
@@ -26,9 +28,14 @@ export function TranslationContent({
   isTranslating,
   thinking,
   vocabularySource,
+  renderMarkdown = false,
 }: TranslationContentProps) {
   const showLoadingIndicator = isTranslating && !thinking && !translatedText
   const showStreamingIndicator = isTranslating && !thinking && translatedText
+  const isMd =
+    renderMarkdown ||
+    (translatedText ? /^(#{1,6}\s|[-*]\s|\d+\.\s|\*\*)/m.test(translatedText) : false)
+
   return (
     <div className="p-4">
       <SelectionSourceContent
@@ -38,13 +45,25 @@ export function TranslationContent({
       />
       <div className="space-y-2">
         {thinking && <Thinking status={thinking.status} content={thinking.text} />}
-        <p className="text-sm [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
-          {showLoadingIndicator && (
-            <IconLoader2 className="inline size-4 animate-spin" strokeWidth={1.6} />
-          )}
-          {translatedText}
-          {showStreamingIndicator && " ●"}
-        </p>
+        {isMd ? (
+          <div className="text-sm [overflow-wrap:anywhere] break-words">
+            {showLoadingIndicator && (
+              <IconLoader2 className="inline size-4 animate-spin mb-2" strokeWidth={1.6} />
+            )}
+            {translatedText && <MarkdownRenderer content={translatedText} />}
+            {showStreamingIndicator && (
+              <span className="text-blue-500 font-bold animate-pulse"> ●</span>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm [overflow-wrap:anywhere] break-words whitespace-pre-wrap">
+            {showLoadingIndicator && (
+              <IconLoader2 className="inline size-4 animate-spin" strokeWidth={1.6} />
+            )}
+            {translatedText}
+            {showStreamingIndicator && " ●"}
+          </p>
+        )}
         <Activity mode={translatedText ? "visible" : "hidden"}>
           <div className="flex items-center gap-1">
             <CopyButton text={translatedText} />

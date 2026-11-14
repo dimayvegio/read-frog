@@ -22,11 +22,15 @@ import {
   NATIVE_SELECTION_STORAGE_PREFIX,
   NATIVE_PANEL_STORAGE_PREFIX,
 } from "@/types/native-selection"
+import { aiCacheKey, readAiCache, saveAiCache } from "@/utils/ai-cache/db"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { getLocalConfig } from "@/utils/config/storage"
+import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
 import { StreamPortError } from "@/utils/content-script/port-streaming"
 import { i18n } from "@/utils/i18n"
 import { sendMessage } from "@/utils/message"
+import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
+import { ProviderSetupError } from "@/utils/providers/provider-setup-error"
 import { prepareStructuredPdfText } from "@/utils/selection-result/pdf-structure"
 import {
   preparePdfText,
@@ -36,6 +40,23 @@ import {
 import { translateNativeSelection } from "@/utils/selection-result/translate"
 import { PdfHistoryPanel, pdfLanguageName } from "./pdf-history-panel"
 import { PdfReaderButton } from "./pdf-reader-button"
+
+interface CachedAiResult {
+  output: string
+  thinking: ThinkingSnapshot | null
+  cacheState: string
+}
+
+// Module-level session cache: survives component remounts and tab switching
+const sessionAiCache = new Map<string, CachedAiResult>()
+
+export function clearSessionAiCache(): void {
+  sessionAiCache.clear()
+}
+
+function getAiSessionKey(docId: string, text: string, mode: string): string {
+  return `${docId || "doc"}:${text.trim()}:${mode}`
+}
 
 export function SelectionTranslation({
   request,
@@ -59,13 +80,15 @@ export function SelectionTranslation({
   onTextOptions: (options: PdfTextOptions) => void
 }) {
   const { targetCode: targetLanguage } = useAtomValue(configFieldsAtomMap.language)
+  const initialText = typeof request.text === "string" ? request.text : ""
   const [output, setOutput] = useState("")
   const [thinking, setThinking] = useState<ThinkingSnapshot | null>(null)
   const [loading, setLoading] = useState(!request.tooLong)
   const [error, setError] = useState<SelectionToolbarInlineError | null>(null)
   const [retry, setRetry] = useState(0)
-  const [sourceText, setSourceText] = useState(request.text)
+  const [sourceText, setSourceText] = useState(initialText)
   const [historical, setHistorical] = useState<PdfHistoryRecord | null>(null)
+  const [aiMode, setAiMode] = useState<"translate" | "explain" | "summary">("translate")
   const [bypassCache, setBypassCache] = useState(false)
   const [cacheState, setCacheState] = useState("")
   const [historyRevision, setHistoryRevision] = useState(0)
@@ -73,12 +96,50 @@ export function SelectionTranslation({
     sourceText.length > MAX_NATIVE_SELECTION_LENGTH || (!sourceText && request.tooLong)
   const controllerRef = useRef<AbortController | null>(null)
 
+  const switchAiMode = (newMode: "translate" | "explain" | "summary") => {
+    if (newMode === aiMode) return
+    setBypassCache(false)
+    const targetSessionKey = getAiSessionKey(request.document?.id ?? "", sourceText, newMode)
+    const cached = sessionAiCache.get(targetSessionKey)
+    if (cached?.output) {
+      controllerRef.current?.abort()
+      setOutput(cached.output)
+      setThinking(cached.thinking)
+      setCacheState(
+        cached.cacheState ||
+          i18n.t("selectionResult.cacheLoaded") ||
+          "Dùng bản lưu trên máy — không gọi API.",
+      )
+      setError(null)
+      setLoading(false)
+    }
+    setAiMode(newMode)
+  }
+
   useEffect(() => {
     if (tooLong || historical) return undefined
+    const sessionKey = getAiSessionKey(request.document?.id ?? "", sourceText, aiMode)
+    if (!bypassCache && sessionAiCache.get(sessionKey)?.output) {
+      const mem = sessionAiCache.get(sessionKey)!
+      setOutput(mem.output)
+      setThinking(mem.thinking)
+      setCacheState(
+        mem.cacheState ||
+          i18n.t("selectionResult.cacheLoaded") ||
+          "Dùng bản lưu trên máy — không gọi API.",
+      )
+      setError(null)
+      setLoading(false)
+      return undefined
+    }
+
     const controller = new AbortController()
     controllerRef.current = controller
     const abort = () => controller.abort()
     window.addEventListener("pagehide", abort)
+    let accumulated = ""
+    let latestThinking: ThinkingSnapshot | null = null
+
     void (async () => {
       try {
         const current = await getLocalConfig()
@@ -88,36 +149,162 @@ export function SelectionTranslation({
         setError(null)
         setLoading(true)
         setCacheState("")
-        const translated = await translateNativeSelection({
-          text: sourceText,
-          document: request.document,
-          textOptions,
-          bypassCache,
-          imageCache,
-          pretranslated,
-          onCacheState: (state, message) => {
-            if (controller.signal.aborted) return
-            setCacheState(
-              message ??
-                (state === "cached"
-                  ? "Dùng bản lưu trên máy — không gọi API."
-                  : state === "saved"
-                    ? "Đã lưu bản dịch trên máy."
-                    : "Đã dịch nhưng chưa lưu được lịch sử."),
-            )
-            if (state === "saved") setHistoryRevision((value) => value + 1)
-          },
-          config: { ...current, language: { ...current.language, targetCode: targetLanguage } },
-          signal: controller.signal,
-          onChunk: (chunk) => {
-            if (controller.signal.aborted) return
-            setOutput(chunk.output)
-            setThinking(chunk.thinking)
-          },
-        })
-        if (!controller.signal.aborted) {
-          setOutput(translated.output)
-          setThinking(translated.thinking)
+        if (aiMode === "explain" || aiMode === "summary") {
+          const cacheKey = aiCacheKey(aiMode, request.document?.id ?? "", sourceText.trim())
+          if (!bypassCache) {
+            const cached = await readAiCache(cacheKey)
+            if (cached) {
+              if (controller.signal.aborted) return
+              setOutput(cached)
+              setThinking(null)
+              const cacheMsg =
+                i18n.t("selectionResult.cacheLoaded") || "Dùng bản lưu trên máy — không gọi API."
+              setCacheState(cacheMsg)
+              setLoading(false)
+              sessionAiCache.set(sessionKey, {
+                output: cached,
+                thinking: null,
+                cacheState: cacheMsg,
+              })
+              return
+            }
+          }
+          const provider = resolveProviderRefForCapability(
+            "selectionTranslation",
+            current.providersConfig,
+            current.selectionToolbar.features.translate.providerId,
+          )
+          if (!provider) throw new ProviderSetupError("Configure OpenAI in settings")
+          const isVi = current.language.targetCode === "vi" || current.uiLanguage === "vi"
+          const instructions =
+            aiMode === "explain"
+              ? isVi
+                ? "Bạn là kỹ sư và chuyên gia công nghệ. Hãy giải thích kỹ thuật chi tiết về đoạn văn bản sau bằng tiếng Việt: làm rõ nghĩa của các thuật ngữ chuyên ngành, nguyên lý hoạt động và bối cảnh kỹ thuật trong thực tế."
+                : "You are an expert engineer. Please provide a detailed technical explanation of the following text in English: clarify terminology, core mechanisms, and real-world engineering context."
+              : isVi
+                ? "Hãy tóm tắt ngắn gọn ý chính của đoạn văn bản sau bằng tiếng Việt (1 đến 3 câu súc tích hoặc các gạch đầu dòng ngắn)."
+                : "Please summarize the core points of the following text concisely in English (1 to 3 clear sentences or bullet points)."
+          await streamBackgroundText(
+            {
+              providerKind: "local",
+              providerId: provider.config.id,
+              providerConfig: provider.config,
+              instructions,
+              prompt: sourceText,
+              usageTask: "selection",
+            },
+            {
+              signal: controller.signal,
+              onChunk: (chunk) => {
+                if (controller.signal.aborted) return
+                setOutput(chunk.output)
+                accumulated = chunk.output
+                latestThinking = chunk.thinking
+                setThinking(chunk.thinking)
+                if (chunk.output) {
+                  sessionAiCache.set(sessionKey, {
+                    output: chunk.output,
+                    thinking: chunk.thinking,
+                    cacheState:
+                      i18n.t("selectionResult.cacheLoaded") ||
+                      "Dùng bản lưu trên máy — không gọi API.",
+                  })
+                }
+              },
+            },
+          )
+          if (!controller.signal.aborted && accumulated) {
+            await saveAiCache(cacheKey, aiMode, sourceText, accumulated)
+            const stateMsg =
+              aiMode === "explain"
+                ? i18n.t("selectionResult.explainSaved") || "Đã lưu bản giải thích trên máy."
+                : i18n.t("selectionResult.summarySaved") || "Đã lưu bản tóm tắt trên máy."
+            setCacheState(stateMsg)
+            sessionAiCache.set(sessionKey, {
+              output: accumulated,
+              thinking: latestThinking,
+              cacheState: stateMsg,
+            })
+          }
+        } else {
+          const translateCacheKey = aiCacheKey(
+            "translate",
+            request.document?.id ?? "",
+            sourceText.trim(),
+          )
+          const translateSessionKey = getAiSessionKey(
+            request.document?.id ?? "",
+            sourceText,
+            "translate",
+          )
+          if (!bypassCache) {
+            const cached = await readAiCache(translateCacheKey)
+            if (cached) {
+              if (controller.signal.aborted) return
+              setOutput(cached)
+              setThinking(null)
+              const cacheMsg =
+                i18n.t("selectionResult.cacheLoaded") || "Dùng bản lưu trên máy — không gọi API."
+              setCacheState(cacheMsg)
+              setLoading(false)
+              sessionAiCache.set(translateSessionKey, {
+                output: cached,
+                thinking: null,
+                cacheState: cacheMsg,
+              })
+              return
+            }
+          }
+          const translated = await translateNativeSelection({
+            text: sourceText,
+            document: request.document,
+            textOptions,
+            bypassCache,
+            imageCache,
+            pretranslated,
+            onCacheState: (state, message) => {
+              if (controller.signal.aborted) return
+              setCacheState(
+                message ??
+                  (state === "cached"
+                    ? (i18n.t("selectionResult.cacheLoaded") ||
+                      "Dùng bản lưu trên máy — không gọi API.")
+                    : state === "saved"
+                      ? (i18n.t("selectionResult.translationSaved") ||
+                        "Đã lưu bản dịch trên máy.")
+                      : "Đã dịch nhưng chưa lưu được lịch sử."),
+              )
+              if (state === "saved") setHistoryRevision((value) => value + 1)
+            },
+            config: { ...current, language: { ...current.language, targetCode: targetLanguage } },
+            signal: controller.signal,
+            onChunk: (chunk) => {
+              if (controller.signal.aborted) return
+              setOutput(chunk.output)
+              setThinking(chunk.thinking)
+              if (chunk.output) {
+                sessionAiCache.set(translateSessionKey, {
+                  output: chunk.output,
+                  thinking: chunk.thinking,
+                  cacheState:
+                    i18n.t("selectionResult.cacheLoaded") ||
+                    "Dùng bản lưu trên máy — không gọi API.",
+                })
+              }
+            },
+          })
+          if (!controller.signal.aborted && translated.output) {
+            setOutput(translated.output)
+            setThinking(translated.thinking)
+            const cacheMsg =
+              i18n.t("selectionResult.cacheLoaded") || "Dùng bản lưu trên máy — không gọi API."
+            sessionAiCache.set(translateSessionKey, {
+              output: translated.output,
+              thinking: translated.thinking,
+              cacheState: cacheMsg,
+            })
+            void saveAiCache(translateCacheKey, "translate", sourceText, translated.output)
+          }
         }
       } catch (cause) {
         if (!controller.signal.aborted) {
@@ -135,6 +322,16 @@ export function SelectionTranslation({
       }
     })()
     return () => {
+      if (accumulated && accumulated.trim()) {
+        sessionAiCache.set(sessionKey, {
+          output: accumulated,
+          thinking: latestThinking,
+          cacheState:
+            i18n.t("selectionResult.cacheLoaded") || "Dùng bản lưu trên máy — không gọi API.",
+        })
+        const cacheKey = aiCacheKey(aiMode, request.document?.id ?? "", sourceText.trim())
+        void saveAiCache(cacheKey, aiMode, sourceText, accumulated)
+      }
       controller.abort()
       window.removeEventListener("pagehide", abort)
     }
@@ -150,9 +347,12 @@ export function SelectionTranslation({
     tooLong,
     imageCache,
     pretranslated,
+    aiMode,
   ])
 
   const rerun = () => {
+    const sessionKey = getAiSessionKey(request.document?.id ?? "", sourceText, aiMode)
+    sessionAiCache.delete(sessionKey)
     controllerRef.current?.abort()
     setOutput("")
     setThinking(null)
@@ -175,7 +375,16 @@ export function SelectionTranslation({
         className={`${panel ? "min-h-0 flex-1" : "h-screen"} flex flex-col bg-popover text-popover-foreground`}
       >
         <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
-          <SelectionToolbarTitleContent title="Translation" icon="ri:translate" />
+          <SelectionToolbarTitleContent
+            title={
+              aiMode === "explain"
+                ? (i18n.t("selectionResult.technicalExplain") || "Giải thích kỹ thuật")
+                : aiMode === "summary"
+                  ? (i18n.t("selectionResult.sectionSummary") || "Tóm tắt đoạn")
+                  : (i18n.t("selectionResult.translateTab") || "Dịch")
+            }
+            icon={aiMode === "explain" ? "ri:cpu-line" : aiMode === "summary" ? "ri:file-text-line" : "ri:translate"}
+          />
           <div className="flex items-center gap-1">
             <TargetLanguageSelector />
             {loading && (
@@ -205,6 +414,41 @@ export function SelectionTranslation({
             {!panel && <SelectionPopover.Close />}
           </div>
         </header>
+        <div className="flex items-center gap-1.5 border-b px-4 py-1.5 bg-muted/20 text-xs">
+          <button
+            type="button"
+            className={`rounded px-2.5 py-1 font-medium transition-colors cursor-pointer ${
+              aiMode === "translate"
+                ? "bg-background text-foreground shadow-xs border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => switchAiMode("translate")}
+          >
+            {i18n.t("selectionResult.translateTab") || "Dịch"}
+          </button>
+          <button
+            type="button"
+            className={`rounded px-2.5 py-1 font-medium transition-colors cursor-pointer ${
+              aiMode === "explain"
+                ? "bg-background text-foreground shadow-xs border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => switchAiMode("explain")}
+          >
+            {i18n.t("selectionResult.technicalExplain") || "Giải thích kỹ thuật"}
+          </button>
+          <button
+            type="button"
+            className={`rounded px-2.5 py-1 font-medium transition-colors cursor-pointer ${
+              aiMode === "summary"
+                ? "bg-background text-foreground shadow-xs border"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+            onClick={() => switchAiMode("summary")}
+          >
+            {i18n.t("selectionResult.sectionSummary") || "Tóm tắt đoạn"}
+          </button>
+        </div>
         <section className="shrink-0 border-b px-4 py-2 text-sm" data-testid="pdf-reading-controls">
           <p className="font-medium break-words">
             {request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn"}
@@ -347,6 +591,7 @@ export function SelectionTranslation({
                 }
                 isTranslating={loading}
                 thinking={thinking}
+                renderMarkdown={aiMode === "explain" || aiMode === "summary"}
                 vocabularySource={{
                   context: sourceText.slice(0, 1800),
                   sourceTitle: request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn",

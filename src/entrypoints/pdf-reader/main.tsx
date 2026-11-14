@@ -7,7 +7,7 @@ import "./reader.css"
 // user's stored theme for other extension pages.
 void mountExtensionPage((config) => <PdfReader config={config} />, { forcedTheme: "light" })
   .then(() => {
-    document.title = "Đọc PDF | Read Frog"
+    document.title = "Đọc PDF | FlowRead"
     const controller = new AbortController()
     window.addEventListener("pagehide", () => controller.abort(), { once: true })
     void import("@/utils/vocabulary/study-highlights").then(({ startStudyHighlights }) => {

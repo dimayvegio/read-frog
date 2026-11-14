@@ -1,5 +1,7 @@
 import type { PdfViewport, ViewPosition } from "./viewport"
 import {
+  ArrowLeft,
+  ArrowRight,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -9,8 +11,10 @@ import {
   Maximize,
   Minimize,
   Check,
+  RotateCw,
 } from "lucide-react"
 import { useEffect, useRef, useState } from "react"
+import { i18n } from "@/utils/i18n"
 import { parsePdfZoom, stepPdfZoom } from "./zoom"
 
 const presets = [0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 3, 4]
@@ -27,12 +31,22 @@ export function PdfReaderNavigation({
   const [draft, setDraft] = useState<string | null>(null),
     [message, setMessage] = useState("")
   const [fullscreen, setFullscreen] = useState(() => !!document.fullscreenElement)
+  const [canBack, setCanBack] = useState(() => viewport.canGoBack())
+  const [canForward, setCanForward] = useState(() => viewport.canGoForward())
   const input = useRef<HTMLInputElement>(null)
   const editing = draft !== null
   const step = (direction: number) => viewport.setZoom(stepPdfZoom(viewport.zoomValue(), direction))
   useEffect(() => {
     if (editing) input.current?.focus()
   }, [editing])
+  useEffect(() => {
+    const updateHistory = () => {
+      setCanBack(viewport.canGoBack())
+      setCanForward(viewport.canGoForward())
+    }
+    updateHistory()
+    return viewport.onHistoryChange(updateHistory)
+  }, [viewport])
   useEffect(() => {
     const changed = () => setFullscreen(!!document.fullscreenElement)
     const keys = (event: KeyboardEvent) => {
@@ -44,7 +58,15 @@ export function PdfReaderNavigation({
       )
         return
       if (target !== document.body && !target.closest(".rf-reader")) return
-      if (event.ctrlKey || event.metaKey) {
+      if (event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault()
+          viewport.goBack()
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault()
+          viewport.goForward()
+        }
+      } else if (event.ctrlKey || event.metaKey) {
         if (["+", "=", "-", "0"].includes(event.key)) {
           event.preventDefault()
           if (event.key === "0") viewport.setZoom(1)
@@ -53,6 +75,14 @@ export function PdfReaderNavigation({
           event.preventDefault()
           viewport.navigate(event.key === "Home" ? 1 : count)
         }
+      } else if (
+        target.closest('.rf-pdf-scroll:not([data-annotation-editing="true"])') &&
+        event.key.toLowerCase() === "r" &&
+        !event.altKey &&
+        !event.shiftKey
+      ) {
+        event.preventDefault()
+        viewport.rotate(90)
       } else if (
         target.closest('.rf-pdf-scroll:not([data-annotation-editing="true"])') &&
         ["PageUp", "PageDown"].includes(event.key)
@@ -85,6 +115,27 @@ export function PdfReaderNavigation({
         role="group"
         aria-label="Điều hướng và thu phóng PDF"
       >
+        <button
+          type="button"
+          className="rf-reader-icon"
+          aria-label={i18n.t("pdfReader.navBack") || "Quay lại"}
+          title={i18n.t("pdfReader.navBackTitle") || "Lịch sử: Quay lại vị trí trước (Alt+←)"}
+          disabled={!canBack}
+          onClick={() => viewport.goBack()}
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <button
+          type="button"
+          className="rf-reader-icon"
+          aria-label={i18n.t("pdfReader.navForward") || "Đi tiếp"}
+          title={i18n.t("pdfReader.navForwardTitle") || "Lịch sử: Đi tiếp vị trí sau (Alt+→)"}
+          disabled={!canForward}
+          onClick={() => viewport.goForward()}
+        >
+          <ArrowRight size={16} />
+        </button>
+        <div className="rf-reader-nav-divider" />
         <button
           type="button"
           className="rf-reader-icon"
@@ -227,6 +278,15 @@ export function PdfReaderNavigation({
             <Plus size={16} />
           </button>
         </div>
+        <button
+          type="button"
+          className="rf-reader-icon"
+          aria-label="Xoay trang"
+          title="Xoay 90° (R)"
+          onClick={() => viewport.rotate(90)}
+        >
+          <RotateCw size={16} />
+        </button>
         <button
           type="button"
           className="rf-reader-icon"
