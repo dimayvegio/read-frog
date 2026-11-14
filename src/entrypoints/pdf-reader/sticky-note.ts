@@ -1,4 +1,5 @@
 import type { Annotation } from "./study-data"
+import { toView } from "./page-geometry"
 
 export function noteDate(id: string) {
   const value = /^note-(\d{13})-/u.exec(id)
@@ -30,8 +31,9 @@ export function stickyEditor(
   cancel.onclick = () => form.remove()
   actions.append(submit, cancel)
   form.append(header, date, input, actions)
-  form.style.left = `${Math.min(0.55, note.points[0]!.x) * 100}%`
-  form.style.top = `${Math.min(0.7, note.points[0]!.y) * 100}%`
+  const anchor = toView(page, note.points[0]!)
+  form.style.left = `${Math.min(0.55, anchor.x) * 100}%`
+  form.style.top = `${Math.min(0.7, anchor.y) * 100}%`
   form.onpointerdown = (e) => e.stopPropagation()
   form.onclick = (e) => e.stopPropagation()
   form.onkeydown = (e) => {

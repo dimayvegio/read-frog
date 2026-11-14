@@ -1,6 +1,7 @@
 import type { Annotation, Box, Point, StudyDocument } from "./study-data"
 import type { PdfWorkspace, InkStyle } from "./workspace"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { canonicalLayer, canonicalSize, pageDelta } from "./page-geometry"
 import { editBounds, editLinearPoints, inkBounds, linearKind } from "./shapes"
 import { STUDY_COLORS } from "./study-data"
 
@@ -24,6 +25,8 @@ export class PdfAnnotationEditor {
   private selected?: string
   private extra = new Set<string>()
   private clipboard: { item: Annotation; style?: InkStyle }[] = []
+  private coordinateLayer?: HTMLDivElement
+  private properties?: HTMLDivElement
   private overlay?: HTMLDivElement
   private gesture?: Gesture
   private epoch = 0
@@ -68,10 +71,13 @@ export class PdfAnnotationEditor {
   }
   sync() {
     if (this.gesture) return
-    const focused = this.overlay?.contains(document.activeElement)
+    const focused = this.properties?.contains(document.activeElement)
       ? (document.activeElement as HTMLElement).dataset.shapeControl
       : undefined
     this.overlay?.remove()
+    this.coordinateLayer?.remove()
+    this.properties?.remove()
+    this.properties = undefined
     this.overlay = undefined
     delete this.host.dataset.annotationEditing
     if (this.destroyed || !this.enabled || !this.selected) return
@@ -88,7 +94,12 @@ export class PdfAnnotationEditor {
     overlay.dataset.shapeId = item.id
     this.overlay = overlay
     this.host.dataset.annotationEditing = "true"
-    page.append(overlay)
+    const coordinates = document.createElement("div")
+    coordinates.className = "rf-shape-coordinate-layer"
+    canonicalLayer(page, coordinates)
+    coordinates.append(overlay)
+    this.coordinateLayer = coordinates
+    page.append(coordinates)
     const move = document.createElement("button")
     move.type = "button"
     move.setAttribute("aria-label", "Di chuyển hình")
@@ -218,17 +229,18 @@ export class PdfAnnotationEditor {
       ? "Kéo để di chuyển · Kéo hai đầu để chỉnh · Shift: ngang/dọc/45°"
       : "Kéo hình để di chuyển · Kéo cạnh/góc để đổi kích thước"
     properties.append(hint)
-    overlay.append(properties)
-    if (linear) this.positionLinear(item.points, page.getBoundingClientRect())
+    this.properties = properties
+    this.host.closest(".rf-reader")?.append(properties)
+    if (linear) this.positionLinear(item.points, canonicalSize(page))
     else this.position(inkBounds(chosen.flatMap((a) => a.points)))
     this.positionProperties()
     if (focused)
-      overlay
+      properties
         .querySelector<HTMLButtonElement>(`[data-shape-control="${focused}"]`)
         ?.focus({ preventScroll: true })
   }
   private positionProperties() {
-    const properties = this.overlay?.querySelector<HTMLElement>(".rf-shape-properties")
+    const properties = this.properties
     if (!properties || !this.overlay) return
     const box = this.overlay.getBoundingClientRect()
     const viewport = this.host.getBoundingClientRect()
@@ -517,7 +529,7 @@ export class PdfAnnotationEditor {
       group: members[0]!.group,
       members,
       page,
-      rect: page.getBoundingClientRect(),
+      rect: new DOMRect(0, 0, canonicalSize(page).width, canonicalSize(page).height),
       startX: event.clientX,
       startY: event.clientY,
       from,
@@ -525,7 +537,7 @@ export class PdfAnnotationEditor {
       handle: handle?.dataset.shapeHandle ?? "move",
       frame: 0,
     }
-    this.overlay?.querySelector<HTMLElement>(".rf-shape-properties")?.setAttribute("hidden", "")
+    this.properties?.setAttribute("hidden", "")
     this.overlay
       ?.querySelector<HTMLButtonElement>(
         `[data-shape-handle="${handle?.dataset.shapeHandle ?? "move"}"]`,
@@ -561,14 +573,15 @@ export class PdfAnnotationEditor {
       return
     }
     event.preventDefault()
+    const delta = pageDelta(g.page, event.clientX - g.startX, event.clientY - g.startY)
     if (g.handle === "start" || g.handle === "end") {
       const origin = g.item.points[g.handle === "start" ? 0 : 1]!
       g.points = editLinearPoints(
         g.item,
         g.handle,
         {
-          x: origin.x + (event.clientX - g.startX) / g.rect.width,
-          y: origin.y + (event.clientY - g.startY) / g.rect.height,
+          x: origin.x + delta.x,
+          y: origin.y + delta.y,
         },
         g.rect.width,
         g.rect.height,
@@ -577,14 +590,7 @@ export class PdfAnnotationEditor {
       if (!g.frame) g.frame = requestAnimationFrame(this.paint)
       return
     }
-    g.to = editBounds(
-      g.from,
-      g.handle,
-      (event.clientX - g.startX) / g.rect.width,
-      (event.clientY - g.startY) / g.rect.height,
-      4 / g.rect.width,
-      4 / g.rect.height,
-    )
+    g.to = editBounds(g.from, g.handle, delta.x, delta.y, 4 / g.rect.width, 4 / g.rect.height)
     if (!g.frame) g.frame = requestAnimationFrame(this.paint)
   }
   private release() {
@@ -715,9 +721,14 @@ export class PdfAnnotationEditor {
         (n) => n.dataset.annotation === item?.id,
       )
     if (!item || !page || !group) return
-    const box = page.getBoundingClientRect(),
+    const box = canonicalSize(page),
       step = event.shiftKey ? 10 : 1,
       from = inkBounds(this.chosen().flatMap((a) => a.points))
+    const delta = pageDelta(
+      page,
+      event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0,
+      event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0,
+    )
     if (handle === "start" || handle === "end") {
       const origin = item.points[handle === "start" ? 0 : 1]!
       this.commitPoints(
@@ -727,13 +738,8 @@ export class PdfAnnotationEditor {
           item,
           handle,
           {
-            x:
-              origin.x +
-              (event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0) /
-                box.width,
-            y:
-              origin.y +
-              (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0) / box.height,
+            x: origin.x + delta.x,
+            y: origin.y + delta.y,
           },
           box.width,
           box.height,
@@ -741,14 +747,7 @@ export class PdfAnnotationEditor {
       )
       return
     }
-    const to = editBounds(
-      from,
-      handle,
-      (event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0) / box.width,
-      (event.key === "ArrowUp" ? -step : event.key === "ArrowDown" ? step : 0) / box.height,
-      4 / box.width,
-      4 / box.height,
-    )
+    const to = editBounds(from, handle, delta.x, delta.y, 4 / box.width, 4 / box.height)
     const members = this.chosen()
       .map((a) => ({
         item: a,
@@ -780,6 +779,8 @@ export class PdfAnnotationEditor {
     this.clipboard = []
     this.cancel()
     this.overlay?.remove()
+    this.properties?.remove()
+    this.coordinateLayer?.remove()
     delete this.host.dataset.annotationEditing
     this.host.removeEventListener("pointerdown", this.down)
     this.host.removeEventListener("pointermove", this.move)

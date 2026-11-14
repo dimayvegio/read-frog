@@ -48,11 +48,11 @@ export function TranslationContent({
         {isMd ? (
           <div className="text-sm [overflow-wrap:anywhere] break-words">
             {showLoadingIndicator && (
-              <IconLoader2 className="inline size-4 animate-spin mb-2" strokeWidth={1.6} />
+              <IconLoader2 className="mb-2 inline size-4 animate-spin" strokeWidth={1.6} />
             )}
             {translatedText && <MarkdownRenderer content={translatedText} />}
             {showStreamingIndicator && (
-              <span className="text-blue-500 font-bold animate-pulse"> ●</span>
+              <span className="animate-pulse font-bold text-blue-500"> ●</span>
             )}
           </div>
         ) : (

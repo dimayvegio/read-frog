@@ -206,6 +206,7 @@ try {
   )
   await reader.screenshot({ path: path.join(scratch, "search-desktop.png") })
   await reader.click('[aria-label="Đóng menu PDF"]')
+  await pause(350)
   await reader.waitForFunction(() => !!document.querySelector('[data-page="1"] .textLayer span'), {
     polling: 100,
   })
@@ -227,7 +228,7 @@ try {
       n.textContent.includes("Highlight a sentence"),
     )) && (await count()) === 1,
   )
-  await selectTool("Vẽ")
+  await selectTool("Vẽ tự do")
   const box = await reader.$eval('[data-page="1"]', (e) => {
     const b = e.getBoundingClientRect()
     return { x: b.left, y: b.top, w: b.width, h: b.height }
@@ -350,7 +351,7 @@ try {
   }
   await reader.screenshot({ path: path.join(scratch, "reader-shapes.png") })
   await selectTool("Chọn chữ")
-  await click("Tải PDF có chú thích")
+  await click("Download Annotated PDF")
   let downloads = []
   for (let n = 0; n < 100; n++) {
     downloads = (await fs.readdir(path.join(scratch, "downloads"))).filter((filename) =>
@@ -398,13 +399,14 @@ try {
   check("Eraser removes only the selected annotation", (await count()) === 5)
   await selectTool("Chọn chữ")
   await click("Mục lục / Trang")
-  await reader.waitForSelector(".rf-study-result")
+  await reader.waitForSelector(".rf-outline-item-title")
   check(
     "Embedded PDF outline is listed",
-    await reader.$eval(".rf-study-result", (n) => n.textContent === "Chapter one"),
+    await reader.$eval(".rf-outline-item-title", (n) => n.textContent.includes("Chapter one")),
   )
   await reader.click('[aria-label="Đóng menu PDF"]')
-  await click("OCR trên máy")
+  await pause(350)
+  await click("Local OCR")
   const beforeImage = new Set(browser.targets())
   await click("OpenAI OCR vùng khó")
   const imageTarget = await browser.waitForTarget(
@@ -421,9 +423,10 @@ try {
   await imageEditor.close()
   await reader.bringToFront()
   await reader.click('[aria-label="Đóng menu PDF"]')
+  await pause(350)
   for (const [i, [language, expected]] of texts.entries()) {
     await navigate(i + 2)
-    await click("OCR trên máy")
+    await click("Local OCR")
     await reader.select('[aria-label="Ngôn ngữ OCR"]', language)
     const started = Date.now()
     await reader.click("#pdf-local-ocr")
@@ -440,8 +443,9 @@ try {
       text.includes(fragment),
     )
     await reader.click('[aria-label="Đóng menu PDF"]')
+    await pause(350)
     if (language === "eng") {
-      await click("Song ngữ theo đoạn")
+      await click("Paragraph bilingual")
       await reader.waitForFunction(
         () =>
           [...document.querySelectorAll(".rf-bilingual-card")].some((n) =>
@@ -453,7 +457,7 @@ try {
         "OCR words feed existing bilingual paragraphs without a provider call",
         (await worker.evaluate(() => __pdfCalls.length)) === 0,
       )
-      await click("Song ngữ theo đoạn")
+      await click("Paragraph bilingual")
     }
   }
   await reader.keyboard.down("Control")
@@ -469,6 +473,7 @@ try {
     await reader.$eval(".rf-study-result", (n) => n.textContent.includes("Trang 5")),
   )
   await reader.click('[aria-label="Đóng menu PDF"]')
+  await pause(350)
   check("Four OCR languages use bundled assets without HTTP requests", remote.length === 0)
   check(
     "Reading retains at most three PDF canvases",
@@ -482,7 +487,7 @@ try {
     "OCR geometry/text survive reload and file rename without rerunning OCR",
     await reader.$eval('[data-page="2"] .rf-ocr-text', (n) => n.textContent.includes("Learning")),
   )
-  await click("OCR trên máy")
+  await click("Local OCR")
   await reader.click("#pdf-local-ocr")
   await reader.waitForSelector("#pdf-local-ocr:disabled")
   await navigate(6)
@@ -494,11 +499,12 @@ try {
     !(await reader.$(".rf-pdf-page[data-page='6'] .rf-ocr-text")),
   )
   await reader.click('[aria-label="Đóng menu PDF"]')
+  await pause(350)
   await navigate(1)
   await reader.screenshot({ path: path.join(scratch, "reader-desktop.png") })
   await reader.setViewport({ width: 390, height: 844 })
   await pause(500)
-  await click("OCR trên máy")
+  await click("Local OCR")
   await reader.screenshot({ path: path.join(scratch, "reader-mobile.png") })
   check(
     "Phone layout keeps reader/menu within the viewport",

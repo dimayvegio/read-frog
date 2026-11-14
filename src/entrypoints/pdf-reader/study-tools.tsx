@@ -283,6 +283,7 @@ export function PdfStudyTools({
         if (alive.current) install(value)
       })
       .catch(report)
+    let remainingOutlineNodes = 500
     const buildTree = (
       rawItems: Awaited<ReturnType<PDFDocumentProxy["getOutline"]>>,
       depth = 0,
@@ -290,16 +291,17 @@ export function PdfStudyTools({
     ): OutlineNode[] => {
       if (!rawItems || depth > 10) return []
       const list: OutlineNode[] = []
-      for (let i = 0; i < rawItems.length; i++) {
+      for (let i = 0; i < rawItems.length && remainingOutlineNodes > 0; i++) {
+        remainingOutlineNodes--
         const item = rawItems[i]
         if (!item) continue
-        const id = `${path}-${depth}-${i}`
+        const nodeId = `${path}-${depth}-${i}`
         list.push({
-          id,
+          id: nodeId,
           title: (item.title || "Chương không tên").trim().slice(0, 240),
           dest: item.dest,
           depth,
-          items: buildTree(item.items, depth + 1, id),
+          items: buildTree(item.items, depth + 1, nodeId),
         })
       }
       return list
@@ -321,31 +323,6 @@ export function PdfStudyTools({
         }
         collectInitial(tree)
         setExpandedOutline(initialExpanded)
-        const resolvePages = async (nodes: OutlineNode[]) => {
-          for (const node of nodes) {
-            if (!alive.current) return
-            if (node.dest) {
-              try {
-                const dest =
-                  typeof node.dest === "string" ? await pdf.getDestination(node.dest) : node.dest
-                if (dest?.length) {
-                  const ref = dest[0]
-                  const index =
-                    typeof ref === "number"
-                      ? ref
-                      : await pdf.getPageIndex(ref as { num: number; gen: number })
-                  if (alive.current && Number.isInteger(index)) {
-                    setOutlinePages((prev) => ({ ...prev, [node.id]: index + 1 }))
-                  }
-                }
-              } catch {}
-            }
-            if (node.items.length > 0) {
-              void resolvePages(node.items)
-            }
-          }
-        }
-        void resolvePages(tree)
       })
       .catch(() => {})
     const keys = (event: KeyboardEvent) => {
@@ -409,6 +386,50 @@ export function PdfStudyTools({
     if (dataRef.current) layer.current?.set(dataRef.current, "")
   }
 
+  const outlineResolved = useRef<Record<string, number>>({})
+  useEffect(() => {
+    if (panel !== "outline") return undefined
+    let stopped = false
+    const visible: OutlineNode[] = []
+    const collect = (nodes: OutlineNode[]) => {
+      for (const node of nodes) {
+        visible.push(node)
+        if (expandedOutline.has(node.id)) collect(node.items)
+      }
+    }
+    collect(outline)
+    void (async () => {
+      let changed = 0
+      for (const node of visible) {
+        if (stopped || !alive.current) return
+        if (!node.dest || outlineResolved.current[node.id] !== undefined) continue
+        try {
+          const dest =
+            typeof node.dest === "string" ? await pdf.getDestination(node.dest) : node.dest
+          if (stopped || !alive.current) return
+          if (!dest?.length) continue
+          const ref = dest[0],
+            pageIndex =
+              typeof ref === "number"
+                ? ref
+                : await pdf.getPageIndex(ref as { num: number; gen: number })
+          if (stopped || !alive.current) return
+          if (Number.isInteger(pageIndex) && pageIndex >= 0 && pageIndex < pdf.numPages) {
+            outlineResolved.current[node.id] = pageIndex + 1
+            changed++
+          }
+          if (changed && changed % 16 === 0) setOutlinePages({ ...outlineResolved.current })
+        } catch {
+          /* A malformed destination must not block other outline entries. */
+        }
+      }
+      if (!stopped && alive.current && changed) setOutlinePages({ ...outlineResolved.current })
+    })()
+    return () => {
+      stopped = true
+    }
+  }, [panel, outline, expandedOutline, pdf])
+
   const expandAllOutline = () => {
     const all = new Set<string>()
     const addAll = (nodes: OutlineNode[]) => {
@@ -427,11 +448,11 @@ export function PdfStudyTools({
     setExpandedOutline(new Set())
   }
 
-  const toggleOutlineNode = (id: string) => {
+  const toggleOutlineNode = (nodeId: string) => {
     setExpandedOutline((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(nodeId)) next.delete(nodeId)
+      else next.add(nodeId)
       return next
     })
   }
@@ -809,7 +830,10 @@ export function PdfStudyTools({
               }
             }}
           >
-            <Download size={17} /> {exporting ? "Đang xuất…" : (i18n.t("pdfReader.exportAnnotatedPdf") || "Tải PDF có chú thích")}
+            <Download size={17} />{" "}
+            {exporting
+              ? "Đang xuất…"
+              : i18n.t("pdfReader.exportAnnotatedPdf") || "Tải PDF có chú thích"}
           </button>
         </div>
       </div>
@@ -1163,7 +1187,9 @@ export function PdfStudyTools({
                                       index =
                                         typeof ref === "number"
                                           ? ref
-                                          : await pdf.getPageIndex(ref as { num: number; gen: number })
+                                          : await pdf.getPageIndex(
+                                              ref as { num: number; gen: number },
+                                            )
                                     if (alive.current && Number.isInteger(index))
                                       viewport.navigate(index + 1)
                                   } catch {
@@ -1173,14 +1199,19 @@ export function PdfStudyTools({
                               >
                                 <span className="rf-outline-text">{item.title}</span>
                                 {pageNum !== undefined && (
-                                  <span className="rf-outline-page-badge" title={`Trang ${pageNum}`}>
+                                  <span
+                                    className="rf-outline-page-badge"
+                                    title={`Trang ${pageNum}`}
+                                  >
                                     {pageNum}
                                   </span>
                                 )}
                               </button>
                             </div>
                             {hasChildren && isExpanded && (
-                              <div className="rf-outline-children">{item.items.map(renderNode)}</div>
+                              <div className="rf-outline-children">
+                                {item.items.map(renderNode)}
+                              </div>
                             )}
                           </div>
                         )

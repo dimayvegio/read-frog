@@ -9,23 +9,26 @@ import { getDocument, GlobalWorkerOptions } from "pdfjs-dist"
 import workerURL from "pdfjs-dist/build/pdf.worker.min.mjs?url"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
-import { i18n } from "@/utils/i18n"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { i18n } from "@/utils/i18n"
 import { sendMessage } from "@/utils/message"
-import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { listPdfHistory } from "@/utils/selection-result/pdf-history"
+import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
+import { loadLibrary } from "@/utils/vocabulary/db"
 import { SelectionTranslation } from "../selection-result/app"
 import { PdfAutosave } from "./autosave"
 import { PdfBilingualPane, type PdfBilingualHandle } from "./bilingual-pane"
 import { PdfDocumentActions } from "./document-actions"
 import { mergeHighlightBoxes } from "./highlight-boxes"
 import { HorizontalPositionBar } from "./horizontal-position-bar"
+import { canonicalLayer, pageBox } from "./page-geometry"
 import { PdfPageSummaryModal } from "./page-summary"
 import { QuickDictionaryPopover, type QuickWordTarget } from "./quick-dictionary"
 import { PdfReaderNavigation } from "./reader-navigation"
-import { pdfPicker, rememberPdf, type RecentPdf } from "./recent-files"
+import { pdfPicker, rememberPdf } from "./recent-files"
 import { RecentFilesMenu } from "./recent-files-menu"
+import { usePdfSplitter } from "./splitter"
 import { loadStudy } from "./study-data"
 import { exportStudySummaryFile } from "./study-summary-export"
 import { PdfStudyTools } from "./study-tools"
@@ -76,7 +79,9 @@ export function PdfReader({ config }: { config: Config }) {
   const [bilingualWidth, setBilingualWidth] = useState(() => {
     try {
       const saved = localStorage.getItem("rf-bilingual-width")
-      return saved ? Math.min(75, Math.max(25, Number(saved))) : 48
+      return saved && Number.isFinite(Number(saved))
+        ? Math.min(75, Math.max(25, Number(saved)))
+        : 48
     } catch {
       return 48
     }
@@ -84,58 +89,20 @@ export function PdfReader({ config }: { config: Config }) {
   const [translationWidth, setTranslationWidth] = useState(() => {
     try {
       const saved = localStorage.getItem("rf-translation-width")
-      return saved ? Math.min(800, Math.max(260, Number(saved))) : 390
+      return saved && Number.isFinite(Number(saved))
+        ? Math.min(800, Math.max(260, Number(saved)))
+        : 390
     } catch {
       return 390
     }
   })
 
-  const onTranslationSplitterDown = (e: React.PointerEvent) => {
-    e.preventDefault()
-    const container = host.current?.closest<HTMLElement>(".rf-reader-body")
-    if (!container) return
-    container.classList.add("rf-resizing")
-    const onMove = (event: PointerEvent) => {
-      const box = container.getBoundingClientRect()
-      const newWidth = box.right - event.clientX
-      const maxW = Math.round(box.width * 0.75)
-      const clamped = Math.min(maxW, Math.max(260, Math.round(newWidth)))
-      setTranslationWidth(clamped)
-      try {
-        localStorage.setItem("rf-translation-width", String(clamped))
-      } catch {}
-    }
-    const onUp = () => {
-      container.classList.remove("rf-resizing")
-      window.removeEventListener("pointermove", onMove)
-      window.removeEventListener("pointerup", onUp)
-    }
-    window.addEventListener("pointermove", onMove)
-    window.addEventListener("pointerup", onUp)
-  }
-
-  const onSplitterDown = (e: React.PointerEvent) => {
-    e.preventDefault()
-    const container = host.current?.closest<HTMLElement>(".rf-reader-body")
-    if (!container) return
-    container.classList.add("rf-resizing")
-    const onMove = (event: PointerEvent) => {
-      const box = container.getBoundingClientRect()
-      const newWidth = ((box.right - event.clientX) / box.width) * 100
-      const clamped = Math.min(75, Math.max(25, Math.round(newWidth * 10) / 10))
-      setBilingualWidth(clamped)
-      try {
-        localStorage.setItem("rf-bilingual-width", String(clamped))
-      } catch {}
-    }
-    const onUp = () => {
-      container.classList.remove("rf-resizing")
-      window.removeEventListener("pointermove", onMove)
-      window.removeEventListener("pointerup", onUp)
-    }
-    window.addEventListener("pointermove", onMove)
-    window.addEventListener("pointerup", onUp)
-  }
+  const onTranslationSplitterDown = usePdfSplitter(
+    "pixels",
+    setTranslationWidth,
+    "rf-translation-width",
+  )
+  const onSplitterDown = usePdfSplitter("percent", setBilingualWidth, "rf-bilingual-width")
 
   const bilingualPane = useRef<PdfBilingualHandle>(null)
   const dispose = () => {
@@ -196,6 +163,10 @@ export function PdfReader({ config }: { config: Config }) {
     setSelection("")
     setRequest(null)
     setDocumentInfo(null)
+    setSummaryModalPage(null)
+    setQuickWord(null)
+    setPanX(0)
+    setActiveStudyPanel("")
     try {
       if (file.size > MAX_BYTES) throw new Error("Trình đọc hiện hỗ trợ file tối đa 200 MiB.")
       const bytes = new Uint8Array(await file.arrayBuffer())
@@ -261,7 +232,9 @@ export function PdfReader({ config }: { config: Config }) {
       if (token !== version.current) return
       setDocumentInfo({ id, historyId, title, count: pdf.numPages, viewport, pdf, file })
       document.title = `${title} | FlowRead`
-      void rememberPdf(id, title, file.size, handle, () => token === version.current).catch(() => {})
+      void rememberPdf(id, title, file.size, handle, () => token === version.current).catch(
+        () => {},
+      )
       setStatus(
         saved.position
           ? `Đã khôi phục vị trí đọc — trang ${saved.position.page}. Tự lưu khi bạn đọc tiếp.`
@@ -330,7 +303,13 @@ export function PdfReader({ config }: { config: Config }) {
 
   const translateSelection = (overrideText?: unknown) => {
     const textToTranslate = typeof overrideText === "string" ? overrideText : selection
-    if (!documentInfo || !textToTranslate || typeof textToTranslate !== "string" || !textToTranslate.trim()) return
+    if (
+      !documentInfo ||
+      !textToTranslate ||
+      typeof textToTranslate !== "string" ||
+      !textToTranslate.trim()
+    )
+      return
     if (host.current?.dataset.studyTool !== "select") return
     const sel = window.getSelection()
     if (sel && sel.rangeCount > 0 && host.current) {
@@ -341,9 +320,7 @@ export function PdfReader({ config }: { config: Config }) {
           number,
           Array<{ x: number; y: number; width: number; height: number }>
         > = {}
-        const pageElements = Array.from(
-          host.current.querySelectorAll<HTMLElement>(".rf-pdf-page"),
-        )
+        const pageElements = Array.from(host.current.querySelectorAll<HTMLElement>(".rf-pdf-page"))
 
         for (const r of rects) {
           if (r.width < 1 || r.height < 1) continue
@@ -359,14 +336,8 @@ export function PdfReader({ config }: { config: Config }) {
           }
           if (bestPage) {
             const pageNum = Number(bestPage.dataset.page) || selectionPage
-            const pRect = bestPage.getBoundingClientRect()
             if (!pagesMap[pageNum]) pagesMap[pageNum] = []
-            pagesMap[pageNum].push({
-              x: Math.max(0, Math.min(1, (r.left - pRect.left) / pRect.width)),
-              y: Math.max(0, Math.min(1, (r.top - pRect.top) / pRect.height)),
-              width: Math.min(1, r.width / pRect.width),
-              height: Math.min(1, r.height / pRect.height),
-            })
+            pagesMap[pageNum].push(pageBox(bestPage, r))
           }
         }
 
@@ -401,7 +372,7 @@ export function PdfReader({ config }: { config: Config }) {
 
   useEffect(() => {
     const el = host.current
-    if (!el) return
+    if (!el) return undefined
 
     const renderHighlight = () => {
       const existing = el.querySelectorAll(".rf-active-translation-layer")
@@ -417,6 +388,7 @@ export function PdfReader({ config }: { config: Config }) {
 
         const layer = document.createElement("div")
         layer.className = "rf-active-translation-layer"
+        canonicalLayer(pageEl, layer)
 
         for (const box of boxes) {
           const mark = document.createElement("div")
@@ -479,19 +451,29 @@ export function PdfReader({ config }: { config: Config }) {
     if (!documentInfo) return
     try {
       const study = await loadStudy(documentInfo.id)
-      const translations = await listPdfHistory(documentInfo.id)
+      const translations = await listPdfHistory(documentInfo.historyId)
       const bookmarks = documentInfo.viewport.workspace.getSnapshot().data.bookmarks
       const textNotes = documentInfo.viewport.textNotes.getSnapshot().data.notes
 
-      let vocabularyWords: any[] = []
-      try {
-        const snap = await sendMessage("getVocabularyStudySnapshot", undefined)
-        vocabularyWords = snap.words.map((w) => ({
-          word: w.variants[0] || w.word || "",
-          meaning: w.meaning || "",
-          context: w.context || "",
+      const library = await loadLibrary()
+      const sourceCards = new Set(
+        library.sources
+          .filter(
+            (source) =>
+              source.locator.kind === "pdf" &&
+              [documentInfo.id, documentInfo.historyId].includes(source.locator.documentId ?? ""),
+          )
+          .map((source) => source.cardId),
+      )
+      const vocabularyWords = library.cards
+        .filter((card) => sourceCards.has(card.id))
+        .map((card) => ({
+          word: card.word,
+          ipa: card.ipa,
+          meaning: card.meaning,
+          context: card.context,
         }))
-      } catch {}
+      if (current.current?.viewport !== documentInfo.viewport) return
 
       exportStudySummaryFile({
         documentId: documentInfo.id,
@@ -545,6 +527,7 @@ export function PdfReader({ config }: { config: Config }) {
         <button
           type="button"
           onClick={async () => {
+            const pickerVersion = version.current
             const picker = pdfPicker()
             if (picker) {
               try {
@@ -553,10 +536,13 @@ export function PdfReader({ config }: { config: Config }) {
                 })
                 if (handle) {
                   const file = await handle.getFile()
-                  void load(file, file.name, undefined, handle)
+                  if (pickerVersion === version.current)
+                    void load(file, file.name, undefined, handle)
                   return
                 }
-              } catch {}
+              } catch (pickerError) {
+                if (pickerError instanceof DOMException && pickerError.name === "AbortError") return
+              }
             }
             input.current?.click()
           }}
@@ -578,9 +564,24 @@ export function PdfReader({ config }: { config: Config }) {
         <RecentFilesMenu
           refresh={documentInfo?.id ?? ""}
           onOpen={async (item) => {
-            if (item.handle) {
-              const file = await (item.handle as any).getFile()
-              if (file) void load(file, file.name)
+            if (!item.handle) {
+              input.current?.click()
+              return
+            }
+            const token = version.current
+            try {
+              const permission = await item.handle.queryPermission({ mode: "read" })
+              if (
+                permission !== "granted" &&
+                (await item.handle.requestPermission({ mode: "read" })) !== "granted"
+              ) {
+                if (token === version.current) input.current?.click()
+                return
+              }
+              const file = await item.handle.getFile()
+              if (token === version.current) await load(file, file.name, undefined, item.handle)
+            } catch {
+              if (token === version.current) input.current?.click()
             }
           }}
         />
@@ -596,7 +597,8 @@ export function PdfReader({ config }: { config: Config }) {
                 setBilingual((value) => !value)
               }}
             >
-              <Languages size={17} /> {i18n.t("pdfReader.paragraphBilingual") || "Song ngữ theo đoạn"}
+              <Languages size={17} />{" "}
+              {i18n.t("pdfReader.paragraphBilingual") || "Song ngữ theo đoạn"}
             </button>
             {bilingual && (
               <button
@@ -668,7 +670,7 @@ export function PdfReader({ config }: { config: Config }) {
           className={`rf-reader-original-column ${activeStudyPanel ? "rf-has-left-panel" : ""}`}
           style={
             {
-              ...(bilingual && documentInfo ? { flex: `1 1 ${100 - bilingualWidth}%` } : {}),
+              ...(bilingual && documentInfo ? { flex: "1 1 0%" } : {}),
               ...(!bilingual && request ? { flex: "1 1 0%", minWidth: 0 } : {}),
               "--rf-pdf-pan-x": `${panX}px`,
             } as React.CSSProperties
@@ -743,10 +745,11 @@ export function PdfReader({ config }: { config: Config }) {
               ) {
                 const range = sel.getRangeAt(0)
                 const clientRect = range.getBoundingClientRect()
-                const parent = sel.anchorNode?.parentElement?.closest<HTMLElement>(
-                  ".rf-pdf-paragraph, .rf-pdf-text-layer, .rf-pdf-page",
-                )
-                const context = parent?.textContent?.slice(0, 1000) || text
+                const parent =
+                  sel.anchorNode?.parentElement?.closest<HTMLElement>(".textLayer,.rf-ocr-text")
+                const nativeText = parent?.textContent ?? text
+                const at = Math.max(0, nativeText.indexOf(text))
+                const context = nativeText.slice(Math.max(0, at - 300), at + 700)
                 setQuickWord({
                   word: text,
                   rect: {
@@ -758,7 +761,8 @@ export function PdfReader({ config }: { config: Config }) {
                     height: clientRect.height,
                   },
                   context,
-                  page: view.page,
+                  page:
+                    Number(parent?.closest<HTMLElement>(".rf-pdf-page")?.dataset.page) || view.page,
                 })
               }
             }}
@@ -837,7 +841,7 @@ export function PdfReader({ config }: { config: Config }) {
         {!bilingual && request && (
           <aside
             className="rf-reader-translation"
-            style={{ width: `${translationWidth}px`, flex: "none" }}
+            style={{ width: `var(--rf-translation-width, ${translationWidth}px)`, flex: "none" }}
           >
             <button
               type="button"
@@ -863,6 +867,8 @@ export function PdfReader({ config }: { config: Config }) {
       {summaryModalPage !== null && documentInfo && (
         <PdfPageSummaryModal
           page={summaryModalPage}
+          documentId={documentInfo.id}
+          viewport={documentInfo.viewport}
           pdf={documentInfo.pdf}
           config={config}
           onClose={() => setSummaryModalPage(null)}

@@ -178,9 +178,11 @@ try {
     await reader.$eval(".rf-search-summary", (n) => n.textContent.includes("4")),
   )
   await reader.click('[aria-label="Đóng menu PDF"]')
+  await pause(350)
   await reader.click('[aria-label="Ô chữ"]')
   const closePanel = await reader.$('[aria-label="Đóng menu PDF"]')
   if (closePanel) await closePanel.click()
+  await pause(350)
   const page = await reader.$eval('.rf-pdf-page[data-page="1"] .textLayer', (n) => {
     const span = [...n.querySelectorAll("span")].find((s) =>
       s.textContent.includes("Alpha paragraph"),
@@ -261,7 +263,7 @@ try {
     )) && network.length === 0,
   )
   await reader.click('[aria-label="Đóng thao tác tài liệu"]')
-  await click("Song ngữ theo đoạn")
+  await click("Paragraph bilingual")
   await reader.waitForSelector(".rf-bilingual-card")
   await reader.click(".rf-batch-translation summary")
   await reader.type('[aria-label="Dịch song ngữ từ trang"]', "1")
@@ -302,7 +304,7 @@ try {
   await reader.waitForFunction(
     () =>
       ![...document.querySelectorAll("button")].find((n) =>
-        n.textContent.includes("Dịch đoạn đã chọn"),
+        n.textContent.includes("Translate selection"),
       ).disabled,
     { polling: 100 },
   )

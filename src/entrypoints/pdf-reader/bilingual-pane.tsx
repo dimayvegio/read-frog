@@ -169,7 +169,7 @@ export function PdfBilingualPane({
   return (
     <aside
       className="rf-reader-bilingual"
-      style={width !== undefined ? { width: `${width}%` } : undefined}
+      style={width !== undefined ? { width: `var(--rf-bilingual-width, ${width}%)` } : undefined}
       aria-label="Bản dịch PDF theo đoạn"
     >
       <header className="rf-bilingual-heading">
@@ -367,7 +367,7 @@ function BilingualWorkspace({
           <button
             type="button"
             title="Xuất bản dịch trang này ra Markdown (.md)"
-            disabled={!snapshot.paragraphs.length}
+            disabled={translations.busy || batchBusy || !snapshot.paragraphs.length}
             onClick={() =>
               exportBilingualMarkdown(document.title, snapshot.paragraphs, translations)
             }
@@ -377,7 +377,7 @@ function BilingualWorkspace({
           <button
             type="button"
             title="Xuất bản dịch trang này ra HTML song ngữ offline (.html)"
-            disabled={!snapshot.paragraphs.length}
+            disabled={translations.busy || batchBusy || !snapshot.paragraphs.length}
             onClick={() => exportBilingualHtml(document.title, snapshot.paragraphs, translations)}
           >
             Xuất HTML

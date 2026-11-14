@@ -17,7 +17,7 @@ export function ImageTranslationButton() {
     <div className="px-4 pb-2.5 text-xs">
       <button
         type="button"
-        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 font-medium hover:bg-muted transition-colors disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 font-medium transition-colors hover:bg-muted disabled:opacity-50"
         disabled={busy}
         onClick={async () => {
           setBusy(true)
@@ -44,14 +44,14 @@ export function ImageTranslationButton() {
       <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
         <button
           type="button"
-          className="hover:text-foreground transition-colors"
+          className="transition-colors hover:text-foreground"
           onClick={() => void sendMessage("openImageTranslation", undefined)}
         >
           Dán / mở ảnh có sẵn
         </button>
         <button
           type="button"
-          className="hover:text-foreground transition-colors"
+          className="transition-colors hover:text-foreground"
           onClick={() => void openImageShortcuts()}
         >
           Phím tắt: <kbd className="font-sans font-medium text-foreground">{shortcut}</kbd>

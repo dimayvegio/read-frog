@@ -1,5 +1,5 @@
-import type { PdfParagraph } from "./paragraphs"
 import type { BilingualTranslations } from "./bilingual-session"
+import type { PdfParagraph } from "./paragraphs"
 
 function escapeHtml(text: string) {
   return text
@@ -47,7 +47,7 @@ export function exportBilingualMarkdown(
   for (let i = 0; i < paragraphs.length; i++) {
     const p = paragraphs[i]!
     const row = translations.rows[p.id]
-    const translatedText = row?.complete || row?.output || "(Chưa có bản dịch)"
+    const translatedText = row?.complete || "(Chưa có bản dịch)"
     md += `### [Đoạn ${p.index + 1}] — Trang ${p.page}\n\n`
     md += `**Văn bản gốc:**\n`
     md += `> ${p.text.split("\n").join("\n> ")}\n\n`
@@ -77,8 +77,7 @@ export function exportBilingualHtml(
   for (let i = 0; i < paragraphs.length; i++) {
     const p = paragraphs[i]!
     const row = translations.rows[p.id]
-    const translatedText =
-      row?.complete || row?.output || '<span class="empty">Chưa có bản dịch</span>'
+    const translatedText = row?.complete || "Chưa có bản dịch"
     cardsHtml += `
     <article class="pair-card">
       <div class="card-meta">

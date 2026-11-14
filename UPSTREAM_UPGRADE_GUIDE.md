@@ -674,3 +674,7 @@ range cancellation, metadata source guards và production privacy assertions.
 PDF shortcut a.8: Alt+Q một tay; giữ Alt+Enter làm alias và các guard selection/input/tool/IME/repeat.
 
 a.9: giữ inline annotation UX, popup notes và search gọn trong [PDF_ANNOTATION_UX_A9.md](PDF_ANNOTATION_UX_A9.md); không khôi phục nút Quên vị trí hoặc Loại tài liệu.
+
+## FlowRead 1.59.3A.2 — local review fixes
+
+See [PDF_AI_REVIEW_FIXES_A2.md](PDF_AI_REVIEW_FIXES_A2.md). Preserve complete-only scoped AI cache DB2/clear epochs, explicit document-owned AI actions, canonical rotated PDF geometry, recent-file permissions/fallback and bounded lazy outline resolution. All prior published formats remain frozen; this label does not imply an upstream 1.59.3 merge.

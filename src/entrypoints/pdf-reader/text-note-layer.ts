@@ -1,5 +1,6 @@
 import type { TextNote, PdfTextNotes } from "./text-notes"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { canonicalLayer, canonicalSize, pagePoint, pageDelta, toView } from "./page-geometry"
 import { editBounds } from "./shapes"
 import { TEXT_NOTE_COLORS } from "./text-notes"
 export class PdfTextNoteLayer {
@@ -45,9 +46,10 @@ export class PdfTextNoteLayer {
     if (!page) return
     const form = document.createElement("form")
     form.className = "rf-inline-text-editor"
+    const anchor = toView(page, note)
     Object.assign(form.style, {
-      left: `${note.x * 100}%`,
-      top: `${note.y * 100}%`,
+      left: `${Math.min(0.7, anchor.x) * 100}%`,
+      top: `${Math.min(0.8, anchor.y) * 100}%`,
       width: `${Math.max(0.25, note.width) * 100}%`,
     })
     const input = document.createElement("textarea")
@@ -69,7 +71,7 @@ export class PdfTextNoteLayer {
     font.value = String(note.font)
     const paint = () => {
       input.style.color = color.value
-      input.style.fontSize = `${Number(font.value) * page.clientWidth}px`
+      input.style.fontSize = `${Number(font.value) * canonicalSize(page).width}px`
     }
     color.onchange = paint
     font.onchange = paint
@@ -139,6 +141,7 @@ export class PdfTextNoteLayer {
       page.querySelector(".rf-pdf-text-notes")?.remove()
       const layer = document.createElement("div")
       layer.className = "rf-pdf-text-notes"
+      canonicalLayer(page, layer)
       for (const note of this.store
         .getSnapshot()
         .data.notes.filter((n) => n.page === Number(page.dataset.page))) {
@@ -151,7 +154,7 @@ export class PdfTextNoteLayer {
         box.textContent = note.text
         this.position(box, note)
         box.style.color = note.color
-        box.style.fontSize = `${note.font * page.clientWidth}px`
+        box.style.fontSize = `${note.font * canonicalSize(page).width}px`
         box.classList.toggle("selected", note.id === this.selected)
         box.title = "Kéo để di chuyển; bấm đúp hoặc Enter để sửa chữ"
         box.ondblclick = () => this.edit(note)
@@ -198,9 +201,9 @@ export class PdfTextNoteLayer {
       if (mode === "textbox") {
         event.preventDefault()
         event.stopImmediatePropagation()
-        const rect = page.getBoundingClientRect(),
-          x = Math.max(0, Math.min(0.8, (event.clientX - rect.left) / rect.width)),
-          y = Math.max(0, Math.min(0.9, (event.clientY - rect.top) / rect.height))
+        const point = pagePoint(page, event.clientX, event.clientY),
+          x = Math.max(0, Math.min(0.8, point.x)),
+          y = Math.max(0, Math.min(0.9, point.y))
         this.edit({
           id: getRandomUUID(),
           page: Number(page.dataset.page),
@@ -226,7 +229,7 @@ export class PdfTextNoteLayer {
       pointer: event.pointerId,
       note,
       node: current,
-      rect: page.getBoundingClientRect(),
+      rect: new DOMRect(0, 0, canonicalSize(page).width, canonicalSize(page).height),
       x: event.clientX,
       y: event.clientY,
       box: note,
@@ -244,16 +247,11 @@ export class PdfTextNoteLayer {
     const g = this.gesture
     if (!g || g.pointer !== event.pointerId) return
     event.preventDefault()
+    const page = g.node.closest<HTMLElement>(".rf-pdf-page")!
+    const delta = pageDelta(page, event.clientX - g.x, event.clientY - g.y)
     g.box = {
       ...g.note,
-      ...editBounds(
-        g.note,
-        g.handle,
-        (event.clientX - g.x) / g.rect.width,
-        (event.clientY - g.y) / g.rect.height,
-        20 / g.rect.width,
-        20 / g.rect.height,
-      ),
+      ...editBounds(g.note, g.handle, delta.x, delta.y, 20 / g.rect.width, 20 / g.rect.height),
     }
     if (!this.frame) this.frame = requestAnimationFrame(this.paint)
   }

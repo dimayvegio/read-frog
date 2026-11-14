@@ -7,18 +7,18 @@ beforeEach(() => {
     observe() {}
     unobserve() {}
     disconnect() {}
-  } as any
+  }
 })
 
 function createMockViewport() {
   const host = document.createElement("div")
-  const changed = vi.fn()
-  const error = vi.fn()
+  const changed = vi.fn<(...args: any[]) => any>()
+  const error = vi.fn<(...args: any[]) => any>()
   const mockPdf = {
     numPages: 10,
-    getPage: vi.fn().mockResolvedValue({
+    getPage: vi.fn<(...args: any[]) => any>().mockResolvedValue({
       getViewport: () => ({ width: 600, height: 800 }),
-      cleanup: vi.fn(),
+      cleanup: vi.fn<(...args: any[]) => any>(),
     }),
   }
   const vp = new PdfViewport(host, mockPdf as any, changed, error, "f".repeat(64))
@@ -67,7 +67,7 @@ describe("Navigation History (Back / Forward)", () => {
     const { vp } = createMockViewport()
     await vp.init({ page: 1, offset: 0, zoom: "fit-width" })
 
-    const listener = vi.fn()
+    const listener = vi.fn<(...args: any[]) => any>()
     const unsub = vp.onHistoryChange(listener)
 
     vp.navigate(3, 0)

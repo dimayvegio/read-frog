@@ -2,6 +2,7 @@ import "@/utils/zod-config"
 import type { Config, UiLanguage } from "@/types/config/config"
 import { browser, defineBackground } from "#imports"
 import { OPENAI_TTS_PORT, OPENAI_TTS_FILE_PORT } from "@/types/openai-tts"
+import { clearAiCache } from "@/utils/ai-cache/db"
 import { storageAdapter } from "@/utils/atoms/storage-adapter"
 import { TRANSCRIPTION_PORT } from "@/utils/audio-transcription/schema"
 import { setBackgroundConfigReadyResolver } from "@/utils/config/readiness"
@@ -119,6 +120,7 @@ export default defineBackground({
     onMessage("clearAllTranslationRelatedCache", async () => {
       await cleanupAllTranslationCache()
       await cleanupAllSummaryCache()
+      await clearAiCache()
     })
     onMessage("clearAiSegmentationCache", async () => {
       await cleanupAllAiSegmentationCache()

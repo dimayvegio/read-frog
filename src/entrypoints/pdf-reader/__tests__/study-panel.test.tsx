@@ -11,7 +11,7 @@ describe("StudyPanel dimensions and behavior", () => {
   })
 
   it("mounts with extended height extending near the bottom of viewport", () => {
-    const onClose = vi.fn()
+    const onClose = vi.fn<(...args: any[]) => any>()
     render(
       <div className="rf-study-tools">
         <StudyPanel title="Tìm trong tài liệu" onClose={onClose}>
@@ -29,7 +29,7 @@ describe("StudyPanel dimensions and behavior", () => {
   })
 
   it("calls onClose when close button is clicked", () => {
-    const onClose = vi.fn()
+    const onClose = vi.fn<(...args: any[]) => any>()
     render(
       <StudyPanel title="Mục lục" onClose={onClose}>
         <div>Tree</div>
@@ -42,7 +42,7 @@ describe("StudyPanel dimensions and behavior", () => {
   })
 
   it("resets to default extended dimensions when reset button is clicked", () => {
-    const onClose = vi.fn()
+    const onClose = vi.fn<(...args: any[]) => any>()
     render(
       <StudyPanel title="Bookmarks" onClose={onClose}>
         <div>Bookmarks list</div>

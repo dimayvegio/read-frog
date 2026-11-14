@@ -98,7 +98,10 @@ export class PdfViewport {
     const index = Math.max(0, Math.min(this.pdf.numPages - 1, (position?.page ?? 1) - 1))
     const page = await this.pdf.getPage(index + 1)
     if (this.destroyed) return
-    const base = page.getViewport({ scale: 1, rotation: this.rotation })
+    const base = page.getViewport({
+      scale: 1,
+      rotation: ((page.rotate ?? 0) + this.rotation) % 360,
+    })
     this.sizes = Array.from({ length: this.pdf.numPages }, () => ({
       width: base.width,
       height: base.height,
@@ -143,7 +146,10 @@ export class PdfViewport {
   }
   private measure(index: number, page: PDFPageProxy) {
     if (this.measured.has(index)) return
-    const base = page.getViewport({ scale: 1, rotation: this.rotation }),
+    const base = page.getViewport({
+        scale: 1,
+        rotation: ((page.rotate ?? 0) + this.rotation) % 360,
+      }),
       previous = this.sizes[index]!
     this.measured.add(index)
     if (base.width === previous.width && base.height === previous.height) return
@@ -153,6 +159,7 @@ export class PdfViewport {
     const scale = this.pageScale(index),
       height = base.height * scale
     const element = this.elements[index]!
+    element.dataset.viewRotation = String(this.rotation)
     element.style.width = `${base.width * scale}px`
     element.style.height = `${height}px`
     element.style.setProperty("--total-scale-factor", String(scale))
@@ -182,6 +189,7 @@ export class PdfViewport {
     this.elements.forEach((element, index) => {
       const size = this.sizes[index]!
       const scale = this.pageScale(index)
+      element.dataset.viewRotation = String(this.rotation)
       element.style.width = `${size.width * scale}px`
       element.style.height = `${size.height * scale}px`
       element.style.setProperty("--total-scale-factor", String(scale))
@@ -197,18 +205,27 @@ export class PdfViewport {
     return this.rotation
   }
   rotate(delta = 90) {
+    if (!Number.isFinite(delta) || delta % 90 !== 0 || this.destroyed) return
+    const snap = this.snapshot()
     this.rotation = (((this.rotation + delta) % 360) + 360) % 360
+    const token = ++this.navigation
+    this.host.dispatchEvent(new Event("rf-pdf-view-change"))
     this.measured.clear()
     for (const lease of this.leases.values()) lease.cancel()
     this.leases.clear()
-    void this.rebuildSizes()
+    void this.rebuildSizes(snap, token).catch(() => {
+      if (!this.destroyed && token === this.navigation)
+        this.error("Không xoay được trang. Thử lại bằng nút xoay.")
+    })
   }
-  private async rebuildSizes() {
-    const snap = this.snapshot()
+  private async rebuildSizes(snap: ViewPosition, token: number) {
     const index = Math.max(0, Math.min(this.pdf.numPages - 1, snap.page - 1))
     const page = await this.pdf.getPage(index + 1)
-    if (this.destroyed) return
-    const base = page.getViewport({ scale: 1, rotation: this.rotation })
+    if (this.destroyed || token !== this.navigation) return
+    const base = page.getViewport({
+      scale: 1,
+      rotation: ((page.rotate ?? 0) + this.rotation) % 360,
+    })
     this.sizes = Array.from({ length: this.pdf.numPages }, () => ({
       width: base.width,
       height: base.height,
@@ -409,7 +426,10 @@ export class PdfViewport {
         return
       }
       this.measure(index, page)
-      const viewport = page.getViewport({ scale: this.pageScale(index), rotation: this.rotation })
+      const viewport = page.getViewport({
+        scale: this.pageScale(index),
+        rotation: ((page.rotate ?? 0) + this.rotation) % 360,
+      })
       const density = Math.min(
         devicePixelRatio || 1,
         2,

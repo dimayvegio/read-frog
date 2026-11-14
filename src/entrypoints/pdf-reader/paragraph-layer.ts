@@ -1,5 +1,6 @@
 import type { ViewPosition } from "./viewport"
 import type { PdfWorkspace } from "./workspace"
+import { canonicalLayer, canonicalSize, pageBox, pagePoint, viewBox } from "./page-geometry"
 import { paragraphSource } from "./paragraph-edits"
 import {
   extractPdfParagraphs,
@@ -65,14 +66,14 @@ export class PdfParagraphLayer {
           (record) =>
             (record.target instanceof Element &&
               record.target.closest(
-                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes,.rf-sticky-notes,.rf-sticky-editor,.rf-inline-text-editor",
+                ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes,.rf-sticky-notes,.rf-sticky-editor,.rf-inline-text-editor,.rf-shape-coordinate-layer,.rf-active-translation-layer",
               )) ||
             (record.type === "childList" &&
               [...record.addedNodes, ...record.removedNodes].every(
                 (node) =>
                   node instanceof Element &&
                   node.matches(
-                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes,.rf-sticky-notes,.rf-sticky-editor,.rf-inline-text-editor",
+                    ".rf-paragraph-overlays,.rf-study-overlay,.rf-search-overlay,.rf-shape-selection,.rf-pdf-text-notes,.rf-sticky-notes,.rf-sticky-editor,.rf-inline-text-editor,.rf-shape-coordinate-layer,.rf-active-translation-layer",
                   ),
               )),
         )
@@ -200,7 +201,14 @@ export class PdfParagraphLayer {
       this.paneUntil > performance.now()
         ? page.value.paragraphs.find((item) => item.id === this.snapshot.activeId)
         : undefined
-    const active = pinned ?? paragraphAt(column.length ? column : page.value.paragraphs, anchor)
+    const candidates = column.length ? column : page.value.paragraphs
+    const activeView = pinned
+      ? undefined
+      : paragraphAt(
+          candidates.map((p) => ({ ...p, ...viewBox(page.element, p) })),
+          anchor,
+        )
+    const active = pinned ?? page.value.paragraphs.find((p) => p.id === activeView?.id)
     this.publish({
       ...page.value,
       status: "ready",
@@ -208,7 +216,16 @@ export class PdfParagraphLayer {
       progress: pinned
         ? this.snapshot.progress
         : active
-          ? Math.round(Math.max(0, Math.min(1, (anchor - active.y) / active.height)) * 100) / 100
+          ? Math.round(
+              Math.max(
+                0,
+                Math.min(
+                  1,
+                  (anchor - viewBox(page.element, active).y) /
+                    Math.max(0.001, viewBox(page.element, active).height),
+                ),
+              ) * 100,
+            ) / 100
           : 0,
       origin: this.paneUntil > performance.now() ? "pane" : origin,
     })
@@ -228,8 +245,8 @@ export class PdfParagraphLayer {
           0,
           Math.min(
             1,
-            paragraph.y +
-              paragraph.height * progress -
+            viewBox(page.element, paragraph).y +
+              viewBox(page.element, paragraph).height * progress -
               (this.host.clientHeight * 0.15) / page.element.clientHeight,
           ),
         ),
@@ -257,9 +274,7 @@ export class PdfParagraphLayer {
     const element = event.target.closest<HTMLElement>(".rf-pdf-page"),
       page = element ? this.pages.get(Number(element.dataset.page)) : null
     if (!page) return
-    const box = page.element.getBoundingClientRect(),
-      x = (event.clientX - box.left) / box.width,
-      y = (event.clientY - box.top) / box.height
+    const { x, y } = pagePoint(page.element, event.clientX, event.clientY)
     const paragraph = page.value.paragraphs.find(
       (item) => x >= item.x && x <= item.x + item.width && y >= item.y && y <= item.y + item.height,
     )
@@ -267,7 +282,10 @@ export class PdfParagraphLayer {
   }
   private pick(paragraph: PdfParagraph) {
     if (this.position().page !== paragraph.page)
-      this.seek(paragraph.page, Math.max(0, paragraph.y - 0.05))
+      this.seek(
+        paragraph.page,
+        Math.max(0, viewBox(this.pages.get(paragraph.page)!.element, paragraph).y - 0.05),
+      )
     this.paneUntil = 0
     this.select(paragraph.id)
   }
@@ -303,24 +321,22 @@ export class PdfParagraphLayer {
       const spans = [...layer.querySelectorAll<HTMLElement>("span")].filter(
           (span) => !span.childElementCount && span.textContent?.trim(),
         ),
-        box = element.getBoundingClientRect(),
+        box = canonicalSize(element),
         items: PdfTextBox[] = []
-      let originBox = box
       if (spans.length <= MAX_PDF_TEXT_BOXES)
         for (let i = 0; i < spans.length; i++) {
           const span = spans[i]!,
-            rect = span.getBoundingClientRect()
+            rect = pageBox(element, span.getBoundingClientRect())
           items.push({
             text: span.textContent ?? "",
-            x: rect.left - originBox.left,
-            y: rect.top - originBox.top,
-            width: rect.width,
-            height: rect.height,
+            x: rect.x * box.width,
+            y: rect.y * box.height,
+            width: rect.width * box.width,
+            height: rect.height * box.height,
             dir: span.dir,
           })
           if (i && i % 250 === 0) {
             await new Promise<void>((resolve) => setTimeout(resolve, 0))
-            originBox = element.getBoundingClientRect()
           }
           if (
             token !== this.scanVersion ||
@@ -356,6 +372,7 @@ export class PdfParagraphLayer {
         }
       const overlays = document.createElement("div")
       overlays.className = "rf-paragraph-overlays"
+      canonicalLayer(element, overlays)
       for (const paragraph of value.paragraphs) {
         const highlight = document.createElement("div")
         highlight.className = "rf-paragraph-box"

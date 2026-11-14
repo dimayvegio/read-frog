@@ -160,7 +160,7 @@ try {
     await ready()
   }
   await load(file)
-  await clickText("Song ngữ theo đoạn")
+  await clickText("Paragraph bilingual")
   await ready()
   const count = await reader.$$eval(".rf-bilingual-card", (nodes) => nodes.length)
   check(
@@ -432,13 +432,13 @@ try {
       nodes.map((n) => n.dataset.translationId).join(),
     )) === ids.join(),
   )
-  await clickText("Song ngữ theo đoạn")
+  await clickText("Paragraph bilingual")
   await reader.waitForFunction(() => !document.querySelector(".rf-reader-bilingual"))
   check(
     "Closing mode removes overlays while keeping PDF text and canvases",
     (await reader.$(".textLayer span")) && !(await reader.$(".rf-paragraph-overlays")),
   )
-  await clickText("Song ngữ theo đoạn")
+  await clickText("Paragraph bilingual")
   await ready()
   await reader.waitForFunction(
     (expectedCount) => document.querySelectorAll(".rf-bilingual-output").length === expectedCount,
@@ -448,7 +448,7 @@ try {
   check("Reopening mode restores from persistent cache", (await calls()) === beforeCache)
   await reader.reload()
   await load(renamed)
-  await clickText("Song ngữ theo đoạn")
+  await clickText("Paragraph bilingual")
   await ready()
   await reader.waitForFunction(
     (expectedCount) => document.querySelectorAll(".rf-bilingual-output").length === expectedCount,

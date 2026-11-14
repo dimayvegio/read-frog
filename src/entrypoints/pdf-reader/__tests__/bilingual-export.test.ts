@@ -1,7 +1,7 @@
+import type { PdfParagraph } from "../paragraphs"
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from "vitest"
 import { exportBilingualHtml, exportBilingualMarkdown } from "../bilingual-export"
-import type { PdfParagraph } from "../paragraphs"
 
 describe("bilingual export", () => {
   it("formats markdown and html properly without errors", () => {
@@ -30,10 +30,10 @@ describe("bilingual export", () => {
       message: "",
     }
 
-    const clickSpy = vi.fn()
+    const clickSpy = vi.fn<(...args: any[]) => any>()
     vi.stubGlobal("URL", {
-      createObjectURL: vi.fn(() => "blob:mock"),
-      revokeObjectURL: vi.fn(),
+      createObjectURL: vi.fn<(...args: any[]) => any>(() => "blob:mock"),
+      revokeObjectURL: vi.fn<(...args: any[]) => any>(),
     })
     const appendSpy = vi.spyOn(document.body, "appendChild").mockImplementation((node) => {
       ;(node as HTMLAnchorElement).click = clickSpy

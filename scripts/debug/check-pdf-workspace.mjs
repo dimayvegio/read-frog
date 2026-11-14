@@ -308,6 +308,10 @@ try {
   )
   await reader.screenshot({ path: path.join(scratch, "bookmarks.png") })
   await reader.click('[aria-label="Đóng menu PDF"]')
+  await reader.waitForSelector(
+    '.rf-pdf-page[data-page="1"][data-rendered=true] .rf-study-overlay polyline',
+  )
+  await pause(250)
   await chooseBoth()
   await reader.click('[aria-label="Sao chép hình"]')
   await reader.click('[aria-label="Dán hình"]')
@@ -338,7 +342,7 @@ try {
     ) && (await db()).annotations.length === 4,
   )
   await selectTool("Chọn chữ")
-  await click("Song ngữ theo đoạn")
+  await click("Paragraph bilingual")
   await reader.waitForSelector(".rf-bilingual-original")
   await click("Chỉnh đoạn")
   const startCount = await reader.$$eval(".rf-bilingual-card", (n) => n.length)
@@ -430,7 +434,7 @@ try {
   await reader.bringToFront()
   await (await reader.waitForSelector('input[type="file"]')).uploadFile(file)
   await reader.waitForSelector('.rf-pdf-page[data-page="1"][data-rendered=true]')
-  await click("Song ngữ theo đoạn")
+  await click("Paragraph bilingual")
   await reader.waitForSelector(".rf-bilingual-card.excluded")
   check(
     "Reopening the same file restores manual layout, ignored text, styles and bookmarks",
@@ -448,7 +452,7 @@ try {
     "Reset returns to automatic paragraphs without changing original PDF text",
     await reader.$eval(".textLayer", (n) => n.textContent.includes("Footer to ignore")),
   )
-  await click("Song ngữ theo đoạn")
+  await click("Paragraph bilingual")
   await click("Bookmark")
   const bookmarkId = (await workspaceDB()).bookmarks[0].id
   await click("Sửa bookmark")

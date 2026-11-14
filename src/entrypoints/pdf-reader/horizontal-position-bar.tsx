@@ -7,20 +7,39 @@ interface HorizontalPositionBarProps {
   containerRef?: React.RefObject<HTMLElement | null>
 }
 
-export function HorizontalPositionBar({ offset, onChange, containerRef }: HorizontalPositionBarProps) {
+export function HorizontalPositionBar({
+  offset,
+  onChange,
+  containerRef,
+}: HorizontalPositionBarProps) {
   const barRef = useRef<HTMLDivElement>(null)
   const [localOffset, setLocalOffset] = useState(offset)
+  const valueRef = useRef(offset)
+  const inputRef = useRef<HTMLInputElement>(null)
   const isDragging = useRef(false)
   const rafId = useRef(0)
 
   useEffect(() => {
     if (!isDragging.current) {
       setLocalOffset(offset)
+      valueRef.current = offset
+      if (inputRef.current) inputRef.current.value = String(offset)
     }
   }, [offset])
 
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(rafId.current)
+    },
+    [],
+  )
+
   const getContainer = () => {
-    return containerRef?.current || barRef.current?.closest<HTMLElement>(".rf-reader-original-column") || null
+    return (
+      containerRef?.current ||
+      barRef.current?.closest<HTMLElement>(".rf-reader-original-column") ||
+      null
+    )
   }
 
   const setContainerPan = (val: number, panning: boolean) => {
@@ -35,7 +54,9 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
     }
   }
 
-  const handlePointerDown = () => {
+  const handlePointerDown = (event: React.PointerEvent<HTMLInputElement>) => {
+    if (!event.isPrimary || event.button !== 0) return
+    event.currentTarget.setPointerCapture(event.pointerId)
     isDragging.current = true
     const container = getContainer()
     if (container) {
@@ -50,13 +71,25 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
       if (container) {
         delete container.dataset.panning
       }
-      onChange(localOffset)
+      cancelAnimationFrame(rafId.current)
+      setLocalOffset(valueRef.current)
+      onChange(valueRef.current)
     }
+  }
+
+  const cancelPan = () => {
+    if (!isDragging.current) return
+    isDragging.current = false
+    cancelAnimationFrame(rafId.current)
+    valueRef.current = offset
+    setLocalOffset(offset)
+    if (inputRef.current) inputRef.current.value = String(offset)
+    setContainerPan(offset, false)
   }
 
   const handleInput = (e: React.FormEvent<HTMLInputElement>) => {
     const val = Number((e.target as HTMLInputElement).value)
-    setLocalOffset(val)
+    valueRef.current = val
 
     if (rafId.current) {
       cancelAnimationFrame(rafId.current)
@@ -68,6 +101,9 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = Number(e.target.value)
+    if (isDragging.current) return
+    valueRef.current = val
+    cancelAnimationFrame(rafId.current)
     isDragging.current = false
     setLocalOffset(val)
     setContainerPan(val, false)
@@ -93,7 +129,10 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
       className="rf-pdf-horizontal-bar"
       role="region"
       aria-label={i18n.t("pdfReader.horizontalBarLabel") || "Thanh kéo ngang vị trí PDF"}
-      title={i18n.t("pdfReader.horizontalBarTitle") || "Kéo thanh trượt để dời vị trí PDF sang ngang · Bấm đúp để căn giữa"}
+      title={
+        i18n.t("pdfReader.horizontalBarTitle") ||
+        "Kéo thanh trượt để dời vị trí PDF sang ngang · Bấm đúp để căn giữa"
+      }
       onDoubleClick={(e) => {
         if ((e.target as HTMLElement).tagName !== "BUTTON") {
           reset()
@@ -107,7 +146,16 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
         title={i18n.t("pdfReader.nudgeLeftTitle") || "Dời sang trái 30px"}
         onClick={() => nudge(-30)}
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <polyline points="15 18 9 12 15 6" />
         </svg>
       </button>
@@ -118,10 +166,13 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
           min={-500}
           max={600}
           step={1}
-          value={localOffset}
+          ref={inputRef}
+          defaultValue={offset}
           aria-label={i18n.t("pdfReader.horizontalBarLabel") || "Thanh kéo vị trí ngang PDF"}
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
+          onPointerCancel={cancelPan}
+          onLostPointerCapture={cancelPan}
           onInput={handleInput}
           onChange={handleChange}
         />
@@ -134,7 +185,16 @@ export function HorizontalPositionBar({ offset, onChange, containerRef }: Horizo
         title={i18n.t("pdfReader.nudgeRightTitle") || "Dời sang phải 30px"}
         onClick={() => nudge(30)}
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <polyline points="9 18 15 12 9 6" />
         </svg>
       </button>

@@ -35,9 +35,7 @@ function SaveVocabularyOperation({ capture }: { capture: VocabularyCapture }) {
             const list = snapshot.notebooks ?? []
             setNotebooks(list)
             setNotebookId((current) =>
-              list.some((n) => n.id === current)
-                ? current
-                : (snapshot.activeNotebookId ?? ""),
+              list.some((n) => n.id === current) ? current : (snapshot.activeNotebookId ?? ""),
             )
           }
         })

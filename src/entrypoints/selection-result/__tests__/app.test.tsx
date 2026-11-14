@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { browser } from "#imports"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { initI18n } from "@/utils/i18n"
-import App, { clearSessionAiCache } from "../app"
+import App from "../app"
 
 const { send, translate, speechReleased } = vi.hoisted(() => ({
   send: vi.fn<(...args: any[]) => any>(),
@@ -82,7 +82,6 @@ vi.mock("@/components/language-combobox", () => ({
 describe("native selection result window", () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    clearSessionAiCache()
     await initI18n("en")
     history.replaceState(null, "", "/selection-result.html?selectionId=pdf-channel")
     send.mockResolvedValue({

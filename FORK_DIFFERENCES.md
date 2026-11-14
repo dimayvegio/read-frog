@@ -312,3 +312,7 @@ upstream trùng số đè các snapshot đã chạy. Bước fork kế tiếp b�
 Sau mỗi nâng cấp, cập nhật mốc source/tag/version, các hàng F bị ảnh hưởng,
 ledger dữ liệu và link kết quả kiểm thử. Mẫu báo cáo nhận/điều chỉnh/bỏ qua
 upstream và điều kiện bàn giao nằm trong [UPSTREAM_UPGRADE_GUIDE.md](UPSTREAM_UPGRADE_GUIDE.md).
+
+## FlowRead 1.59.3A.2 — local review fixes
+
+See [PDF_AI_REVIEW_FIXES_A2.md](PDF_AI_REVIEW_FIXES_A2.md). Preserve complete-only scoped AI cache DB2/clear epochs, explicit document-owned AI actions, canonical rotated PDF geometry, recent-file permissions/fallback and bounded lazy outline resolution. All prior published formats remain frozen; this label does not imply an upstream 1.59.3 merge.

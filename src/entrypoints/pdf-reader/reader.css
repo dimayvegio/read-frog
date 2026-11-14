@@ -68,7 +68,6 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  transition: margin-left 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .rf-reader-original-column.rf-has-left-panel {
   margin-left: 356px;
@@ -169,7 +168,9 @@
   height: 36px;
   border-radius: 2px;
   background: #b5c7bc;
-  transition: background 0.15s, height 0.15s;
+  transition:
+    background 0.15s,
+    height 0.15s;
 }
 .rf-bilingual-splitter:hover .rf-bilingual-splitter-handle,
 .rf-resizing .rf-bilingual-splitter-handle {
@@ -347,9 +348,7 @@
   background: white;
   box-shadow: 0 2px 8px #0005;
   flex: none;
-  transform: translateX(var(--rf-pdf-pan-x, 0px));
-  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+  left: var(--rf-pdf-pan-x, 0px);
 }
 .rf-reader-original-column[data-panning="true"] .rf-pdf-page,
 .rf-pdf-scroll[data-pdf-panning="true"] .rf-pdf-page {
@@ -2313,7 +2312,10 @@
   color: #5c7064;
   border-radius: 3px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
   flex: none;
 }
 
@@ -2372,7 +2374,9 @@
   background: #8da395;
   margin-top: -1px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition:
+    background 0.15s ease,
+    transform 0.15s ease;
 }
 
 .rf-pdf-horizontal-bar input[type="range"]:hover::-webkit-slider-thumb {
@@ -2428,7 +2432,10 @@
   border-radius: 999px;
   cursor: pointer;
   flex: none;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
 }
 
 .rf-pdf-hscroll-reset:hover {
@@ -2446,7 +2453,9 @@
   color: #1e293b;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 10px 25px -5px rgba(0, 0, 0, 0.15),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
   padding: 12px 14px;
   font-family: inherit;
   font-size: 13px;
@@ -2626,8 +2635,12 @@
 }
 
 @keyframes rf-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Page Summary AI Modal */
@@ -2651,7 +2664,9 @@
   background: #ffffff;
   color: #1e293b;
   border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.25),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -2736,7 +2751,17 @@
 }
 
 @keyframes rf-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.2; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
 }
 
+.rf-shape-coordinate-layer {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+}

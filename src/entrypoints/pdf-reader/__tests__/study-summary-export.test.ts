@@ -10,9 +10,7 @@ describe("Study Summary Export (.md)", () => {
       bookmarks: [
         { page: 65, name: "Driver Type Selection", note: "Quan trọng", color: "#42a5f5" },
       ],
-      textNotes: [
-        { page: 65, text: "Chú ý cấu hình register SFDP", color: "#ffca28" },
-      ],
+      textNotes: [{ page: 65, text: "Chú ý cấu hình register SFDP", color: "#ffca28" }],
       annotations: [
         { page: 65, kind: "note", text: "Kiểm tra lại thông số DS pad", color: "#66bb6a" },
       ],

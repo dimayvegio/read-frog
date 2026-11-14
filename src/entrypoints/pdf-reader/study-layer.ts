@@ -3,6 +3,7 @@ import type { Annotation, Box, OcrPage, Point, StudyDocument } from "./study-dat
 import type { InkStyle, PdfWorkspace } from "./workspace"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { PdfAnnotationEditor } from "./annotation-editor"
+import { canonicalLayer, canonicalSize, pagePoint, pageBox, toView } from "./page-geometry"
 import { createPdfSourceMatcher, DEFAULT_PDF_SEARCH, type PdfSearchOptions } from "./search"
 import { shapePoints, type ShapeTool } from "./shapes"
 import { inkBounds } from "./shapes"
@@ -231,6 +232,15 @@ export class PdfStudyLayer {
             () => this.erase(note.id),
           ),
         )
+      canonicalLayer(page, overlay)
+      for (const marker of notes.querySelectorAll<HTMLElement>(".rf-sticky-marker")) {
+        const point = toView(page, {
+          x: parseFloat(marker.style.left) / 100,
+          y: parseFloat(marker.style.top) / 100,
+        })
+        marker.style.left = `${point.x * 100}%`
+        marker.style.top = `${point.y * 100}%`
+      }
       page.append(overlay, notes)
       page.querySelector(".rf-search-overlay")?.remove()
       if (this.query) this.search(page)
@@ -241,18 +251,20 @@ export class PdfStudyLayer {
     const layer = document.createElement("div")
     layer.className = "rf-ocr-text"
     this.ocrIdentity.set(layer, cached)
+    canonicalLayer(page, layer)
+    const size = canonicalSize(page)
     const context = document.createElement("canvas").getContext("2d")!
     for (const [index, word] of cached.words.entries()) {
       const span = document.createElement("span")
       span.textContent = word.text + pdfRunSeparator(word.text, cached.words[index + 1]?.text ?? "")
-      const height = word.height * page.clientHeight
+      const height = word.height * size.height
       context.font = `${height}px Arial`
       Object.assign(span.style, {
         left: `${word.x * 100}%`,
         top: `${word.y * 100}%`,
         fontSize: `${height}px`,
         height: `${height}px`,
-        transform: `scaleX(${(word.width * page.clientWidth) / Math.max(1, context.measureText(word.text).width)})`,
+        transform: `scaleX(${(word.width * size.width) / Math.max(1, context.measureText(word.text).width)})`,
       })
       layer.append(span)
     }
@@ -352,12 +364,7 @@ export class PdfStudyLayer {
           top = Math.max(base.top, rect.top)
         const right = Math.min(base.right, rect.right),
           bottom = Math.min(base.bottom, rect.bottom)
-        const box = {
-          x: (left - base.left) / base.width,
-          y: (top - base.top) / base.height,
-          width: (right - left) / base.width,
-          height: (bottom - top) / base.height,
-        }
+        const box = pageBox(page, { left, top, right, bottom })
         if (
           validBox(box) &&
           !boxes.some(
@@ -399,11 +406,8 @@ export class PdfStudyLayer {
     )
   }
   private point(event: PointerEvent, page: HTMLElement): Point {
-    const box = page.getBoundingClientRect()
-    return {
-      x: clamp((event.clientX - box.left) / box.width),
-      y: clamp((event.clientY - box.top) / box.height),
-    }
+    const p = pagePoint(page, event.clientX, event.clientY)
+    return { x: clamp(p.x), y: clamp(p.y) }
   }
   private noteForm?: HTMLElement
   private editNote(page: HTMLElement, note: Annotation) {
@@ -468,7 +472,7 @@ export class PdfStudyLayer {
       color: this.color,
       path,
       frame: 0,
-      rect: page.getBoundingClientRect(),
+      rect: { ...page.getBoundingClientRect().toJSON(), ...canonicalSize(page) },
       end: point,
       constrain: event.shiftKey,
     }
@@ -478,10 +482,8 @@ export class PdfStudyLayer {
     const drawing = this.drawing
     if (!drawing || drawing.pointer !== event.pointerId) return
     event.preventDefault()
-    const p = {
-        x: clamp((event.clientX - drawing.rect.left) / drawing.rect.width),
-        y: clamp((event.clientY - drawing.rect.top) / drawing.rect.height),
-      },
+    const point = pagePoint(drawing.page, event.clientX, event.clientY)
+    const p = { x: clamp(point.x), y: clamp(point.y) },
       last = drawing.points.at(-1)!
     drawing.end = p
     drawing.constrain = event.shiftKey

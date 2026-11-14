@@ -2,6 +2,7 @@ import type { PdfReadingPosition } from "./reading-position"
 import { Dexie, type Table } from "dexie"
 import { sha256 } from "js-sha256"
 import { z } from "zod"
+import { clearAiCache } from "@/utils/ai-cache/db"
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/)
 export const pdfDocumentSchema = z.strictObject({ id: hash, title: z.string().min(1).max(240) })
@@ -106,6 +107,7 @@ export async function listPdfHistory(documentId: string) {
   )
 }
 export async function clearPdfHistory(document: PdfDocument) {
+  await clearAiCache(document.id)
   await pdfHistoryDB.transaction("rw", pdfHistoryDB.tables, async () => {
     const old = await pdfHistoryDB.documents.get(document.id)
     await pdfHistoryDB.translations.where("documentId").equals(document.id).delete()

@@ -14,7 +14,7 @@ function parseAnimeContext(info: { title: string; url: string }) {
     try {
       const parsedUrl = new URL(info.url)
       const pathParts = parsedUrl.pathname.split("/").filter(Boolean)
-      const animeIndex = pathParts.indexOf("anime")
+      const animeIndex = pathParts.findIndex((part) => part === "anime" || part === "ani")
       const slug = animeIndex !== -1 ? pathParts[animeIndex + 1] : undefined
       if (slug) {
         const cleanSlug = slug.replace(/-\d+-[a-z0-9]+$/i, "").replace(/-/g, " ")
@@ -25,8 +25,10 @@ function parseAnimeContext(info: { title: string; url: string }) {
             .join(" ")
         }
       }
+      const episode = parsedUrl.searchParams.get("ep")?.match(/^e(\d+)\./iu)?.[1]
+      if (episode) ep = `Tập ${episode}`
       const epPart = pathParts.find((p) => p.startsWith("tap-") || p.startsWith("ep-"))
-      if (epPart) {
+      if (epPart && !ep) {
         const num = epPart.replace(/^(tap|ep)-/i, "")
         if (num) ep = `Tập ${num}`
       }
@@ -130,7 +132,7 @@ function ContextForm() {
       {detected.name && (
         <div className="rounded-md border border-primary/30 bg-primary/10 p-2 text-foreground">
           <div className="flex items-center justify-between gap-1">
-            <span className="font-semibold flex items-center gap-1 text-[11px]">
+            <span className="flex items-center gap-1 text-[11px] font-semibold">
               <Sparkles className="size-3 text-primary" />
               Anime: {detected.name} {detected.ep && `· ${detected.ep}`}
             </span>
