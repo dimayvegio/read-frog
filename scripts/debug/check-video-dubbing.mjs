@@ -14,6 +14,8 @@ const { default: puppeteer } = await import(
   ).href
 )
 const youtube = process.env.DUBBING_PLATFORM === "youtube"
+const sampleSeconds = Number(process.env.DUBBING_SAMPLE_SECONDS ?? 15)
+const fixtureSeconds = Math.max(20, sampleSeconds + 10)
 const fixtureUrl = youtube
   ? "https://www.youtube.com/watch?v=RFdubTest01"
   : "https://ani.pm/anime/context-fixture"
@@ -34,7 +36,7 @@ await promisify(execFile)("ffmpeg", [
   "-c:a",
   "libopus",
   "-t",
-  "20",
+  String(fixtureSeconds),
   "-c:v",
   "libvpx",
   "-deadline",
@@ -50,7 +52,7 @@ await promisify(execFile)("ffmpeg", [
   "-i",
   "sine=frequency=440:sample_rate=16000",
   "-t",
-  "20",
+  String(fixtureSeconds),
   "-ac",
   "1",
   "-b:a",
@@ -557,7 +559,11 @@ try {
     await clickText("AI phụ đề và giọng đọc")
     await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
     await frame.select('pierce/[aria-label="Cách phân tích video"]', "automatic")
+    await frame.select('pierce/[aria-label="Thời lượng audio phân tích"]', String(sampleSeconds))
     const baseline = await worker.evaluate(() => __smartCalls.length)
+    await frame.evaluate((seconds) => {
+      window.__expectedSampleSeconds = seconds
+    }, sampleSeconds)
     await frame.evaluate(async () => {
       const v = document.querySelector("video")
       v.pause()
@@ -589,7 +595,7 @@ try {
         const v = document.querySelector("video")
         return (
           !v.paused &&
-          v.currentTime >= 15 &&
+          v.currentTime >= Number(window.__expectedSampleSeconds ?? 15) &&
           v.playbackRate === 1 &&
           v.volume === 0.8 &&
           window.__autoEvents.length === 0

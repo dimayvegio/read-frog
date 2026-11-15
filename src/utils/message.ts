@@ -168,6 +168,8 @@ interface ProtocolMap {
   openSelectionTranslationFromContextMenu: (data: { selectionText: string }) => void
   getNativeSelection: (data: { selectionId: string }) => NativeSelectionRequest | null
   getNativePanelSelection: (data: { windowId: number }) => NativeSelectionRequest | null
+  routeSelectionToNativePanel: (data: { selectionText: string }) => boolean
+  updateNativePanelHighlight: (data: { selectionText: string | null }) => boolean
   openPdfReader: (data: { windowId: number }) => void
   getPdfReaderSource: (data: { channel: string }) => PdfReaderSource | null
   loadPdfReadingPosition: (data: { documentId: string }) => PdfPositionState

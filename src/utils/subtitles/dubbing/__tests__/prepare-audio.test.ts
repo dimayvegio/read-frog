@@ -110,6 +110,30 @@ it("pre-records only the selected video, encodes bounded MP3 and restores positi
   expect(s.close).toHaveBeenCalledOnce()
   expect(s.disconnect).toHaveBeenCalledTimes(3)
 })
+it("captures a bounded interval from the current position of a long video, then restores it", async () => {
+  const s = setup(),
+    c = new AbortController()
+  s.video.duration = 3600
+  const task = recordVideoAudio(
+    s.video as unknown as HTMLVideoElement,
+    c.signal,
+    () => true,
+    () => {},
+    () => true,
+    { start: 2, seconds: 15 },
+  )
+  await s.ready()
+  expect(s.video.currentTime).toBe(2)
+  // A browser may deliver our setup pause event after play() has already resumed.
+  s.video.dispatchEvent(new Event("pause"))
+  for (let i = 0; i < 15; i++) s.pulse(16000)
+  expect(await task).toMatchObject({ format: "mp3", duration: 15 })
+  expect(s.video.currentTime).toBe(2)
+  expect(s.video.paused).toBe(true)
+  expect(s.video.playbackRate).toBe(1.25)
+  expect(s.stop).toHaveBeenCalledOnce()
+  expect(s.close).toHaveBeenCalledOnce()
+})
 it("cancellation restores the owned original position even though the analysis owner is now invalid", async () => {
   const s = setup(),
     c = new AbortController()

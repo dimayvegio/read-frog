@@ -21,6 +21,7 @@ import {
   MAX_NATIVE_SELECTION_LENGTH,
   NATIVE_SELECTION_STORAGE_PREFIX,
   NATIVE_PANEL_STORAGE_PREFIX,
+  NATIVE_PANEL_VIEW_PORT,
 } from "@/types/native-selection"
 import { aiContext } from "@/utils/ai-cache/context"
 import { readAiCache, saveAiCache } from "@/utils/ai-cache/db"
@@ -62,6 +63,12 @@ export function SelectionTranslation({
   onTextOptions: (options: PdfTextOptions) => void
 }) {
   const { targetCode: targetLanguage } = useAtomValue(configFieldsAtomMap.language)
+  const web = request.source?.kind === "web" && !request.document
+  const displayTitle =
+    request.document?.title ??
+    request.sourceTitle ??
+    sourceTitle ??
+    (web ? "Văn bản trang web" : "Văn bản đã chọn")
   const initialText = typeof request.text === "string" ? request.text : ""
   const [output, setOutput] = useState("")
   const [thinking, setThinking] = useState<ThinkingSnapshot | null>(null)
@@ -179,6 +186,7 @@ export function SelectionTranslation({
           const result = await translateNativeSelection({
             text: sourceText,
             document: request.document,
+            sourceKind: request.source?.kind,
             textOptions,
             bypassCache,
             imageCache,
@@ -348,72 +356,81 @@ export function SelectionTranslation({
           </button>
         </div>
         <section className="shrink-0 border-b px-4 py-2 text-sm" data-testid="pdf-reading-controls">
-          <p className="font-medium break-words">
-            {request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn"}
-          </p>
+          <p className="font-medium break-words">{displayTitle}</p>
           {panel && !embedded && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Khung cố định: bôi đen đoạn khác rồi chọn Read Frog → Translate để cập nhật.
+              Khung cố định: bôi đen đoạn khác rồi chọn Dịch từ thanh công cụ hoặc FlowRead →
+              Translate để cập nhật.
             </p>
           )}
-          {panel && !request.document && !sourceTitle && (
+          {panel && !web && !request.document && !sourceTitle && (
             <p className="mt-1 text-xs text-muted-foreground">
-              Chưa nhận diện được tài liệu; đoạn này chưa lưu lịch sử theo file.
+              Đoạn đã chọn chưa có lịch sử theo tài liệu PDF.
             </p>
           )}
-          <details className="mt-2">
-            <summary className="cursor-pointer">
-              {sourceTitle ? "Văn bản và cách làm sạch" : "Văn bản PDF và cách làm sạch"}
-            </summary>
-            <div className="mt-2 space-y-2">
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={textOptions.clean}
-                  onChange={(event) => {
-                    setHistorical(null)
-                    setBypassCache(false)
-                    onTextOptions({ ...textOptions, clean: event.target.checked })
-                  }}
-                />
-                {request.document
-                  ? "Chuẩn hóa Unicode; giữ nguyên dòng, danh sách và ô bảng"
-                  : "Nối dòng giữa câu; giữ đoạn, danh sách và bảng"}
-              </label>
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={textOptions.joinHyphenatedWords}
-                  disabled={!textOptions.clean || !!request.document}
-                  onChange={(event) => {
-                    setHistorical(null)
-                    setBypassCache(false)
-                    onTextOptions({ ...textOptions, joinHyphenatedWords: event.target.checked })
-                  }}
-                />
-                Bỏ dấu “-” khi từ bị ngắt qua dòng
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Tùy chọn bỏ “-” có thể ghép nhầm từ như well-known. Có thể xem đoạn gốc và văn bản
-                dùng để dịch bên dưới, hoặc tắt làm sạch để giữ nguyên văn bản. Đổi tùy chọn sẽ dịch
-                lại đoạn đang xem.
-              </p>
-              <details>
-                <summary className="cursor-pointer text-xs">Đoạn gốc</summary>
-                <pre className="mt-1 max-h-28 overflow-y-auto text-xs break-words whitespace-pre-wrap">
-                  {sourceText}
-                </pre>
-              </details>
-              <details>
-                <summary className="cursor-pointer text-xs">Văn bản dùng để dịch</summary>
-                <pre className="mt-1 max-h-28 overflow-y-auto text-xs break-words whitespace-pre-wrap">
+          {!web && (
+            <details className="mt-2">
+              <summary className="cursor-pointer">
+                {sourceTitle ? "Văn bản và cách làm sạch" : "Văn bản PDF và cách làm sạch"}
+              </summary>
+              <div className="mt-2 space-y-2">
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={textOptions.clean}
+                    onChange={(event) => {
+                      setHistorical(null)
+                      setBypassCache(false)
+                      onTextOptions({ ...textOptions, clean: event.target.checked })
+                    }}
+                  />
                   {request.document
-                    ? prepareStructuredPdfText(sourceText, textOptions)
-                    : preparePdfText(sourceText, textOptions)}
-                </pre>
-              </details>
-            </div>
-          </details>
+                    ? "Chuẩn hóa Unicode; giữ nguyên dòng, danh sách và ô bảng"
+                    : "Nối dòng giữa câu; giữ đoạn, danh sách và bảng"}
+                </label>
+                <label className="flex items-start gap-2">
+                  <input
+                    type="checkbox"
+                    checked={textOptions.joinHyphenatedWords}
+                    disabled={!textOptions.clean || !!request.document}
+                    onChange={(event) => {
+                      setHistorical(null)
+                      setBypassCache(false)
+                      onTextOptions({ ...textOptions, joinHyphenatedWords: event.target.checked })
+                    }}
+                  />
+                  Bỏ dấu “-” khi từ bị ngắt qua dòng
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Tùy chọn bỏ “-” có thể ghép nhầm từ như well-known. Có thể xem đoạn gốc và văn bản
+                  dùng để dịch bên dưới, hoặc tắt làm sạch để giữ nguyên văn bản. Đổi tùy chọn sẽ
+                  dịch lại đoạn đang xem.
+                </p>
+                <details>
+                  <summary className="cursor-pointer text-xs">Đoạn gốc</summary>
+                  <pre className="mt-1 max-h-28 overflow-y-auto text-xs break-words whitespace-pre-wrap">
+                    {sourceText}
+                  </pre>
+                </details>
+                <details>
+                  <summary className="cursor-pointer text-xs">Văn bản dùng để dịch</summary>
+                  <pre className="mt-1 max-h-28 overflow-y-auto text-xs break-words whitespace-pre-wrap">
+                    {request.document
+                      ? prepareStructuredPdfText(sourceText, textOptions)
+                      : preparePdfText(sourceText, textOptions)}
+                  </pre>
+                </details>
+              </div>
+            </details>
+          )}
+          {web && (
+            <details className="mt-2">
+              <summary className="cursor-pointer">Văn bản đã chọn</summary>
+              <pre className="mt-1 max-h-28 overflow-y-auto text-xs break-words whitespace-pre-wrap">
+                {sourceText}
+              </pre>
+            </details>
+          )}
           {cacheState && (
             <p role="status" className="mt-2 text-xs text-muted-foreground">
               {cacheState}
@@ -437,7 +454,7 @@ export function SelectionTranslation({
                 setRetry((value) => value + 1)
               }}
             >
-              Về đoạn đang chọn trong PDF
+              {web ? "Về đoạn đang chọn trên trang" : "Về đoạn đang chọn trong PDF"}
             </Button>
           )}
         </section>
@@ -492,9 +509,11 @@ export function SelectionTranslation({
                 renderMarkdown={aiMode === "explain" || aiMode === "summary"}
                 vocabularySource={{
                   context: sourceText.slice(0, 1800),
-                  sourceTitle: request.document?.title ?? sourceTitle ?? "PDF / văn bản đã chọn",
+                  sourceTitle: displayTitle,
                   sourceUrl: "",
-                  source: request.source ?? { kind: imageCache ? "image" : "pdf" },
+                  source: request.source ?? {
+                    kind: imageCache ? "image" : request.document ? "pdf" : "web",
+                  },
                 }}
               />
               <SelectionToolbarErrorAlert error={error} className="-mt-3" />
@@ -525,6 +544,41 @@ export default function App({ panel = false }: { panel?: boolean }) {
   const [readAttempt, setReadAttempt] = useState(0)
   const [textOptions, setTextOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
   const selectionId = new URLSearchParams(location.search).get("selectionId") ?? ""
+  useEffect(() => {
+    if (!panel) return undefined
+    let disposed = false
+    let close = () => {}
+    const attach = () => {
+      close()
+      if (disposed || document.hidden) return
+      const port = browser.runtime.connect({ name: NATIVE_PANEL_VIEW_PORT })
+      let stopped = false
+      const heartbeat = setInterval(() => {
+        try {
+          port.postMessage({ ping: true })
+        } catch {}
+      }, 20000)
+      close = () => {
+        stopped = true
+        clearInterval(heartbeat)
+        port.disconnect()
+      }
+      void browser.windows
+        .getCurrent()
+        .then((window) => {
+          if (!disposed && !stopped && window.id !== undefined)
+            port.postMessage({ windowId: window.id })
+        })
+        .catch(() => {})
+    }
+    document.addEventListener("visibilitychange", attach)
+    attach()
+    return () => {
+      disposed = true
+      document.removeEventListener("visibilitychange", attach)
+      close()
+    }
+  }, [panel])
   useEffect(() => {
     let disposed = false
     let version = 0
@@ -575,7 +629,9 @@ export default function App({ panel = false }: { panel?: boolean }) {
   }, [selectionId, readAttempt, panel])
   return (
     <main className={panel ? "flex h-screen flex-col" : undefined}>
-      {panel && <PdfReaderButton />}
+      {panel && (!state || state.request.source?.kind === "pdf" || state.request.document) && (
+        <PdfReaderButton />
+      )}
       {state ? (
         <SelectionTranslation
           key={state.request.id}
@@ -601,7 +657,7 @@ export default function App({ panel = false }: { panel?: boolean }) {
       ) : ready ? (
         <p role="status" className="p-4 text-sm text-muted-foreground">
           {panel
-            ? "Khung dịch PDF đã sẵn sàng. Bôi đen văn bản trong PDF, chuột phải → Read Frog → Translate hoặc Dịch trong khung cố định (PDF). Bản dịch và lịch sử sẽ xuất hiện tại đây."
+            ? "Khung dịch đã sẵn sàng. Bôi đen văn bản trên trang web hoặc PDF rồi chọn Dịch trong khung cố định. Các lần dịch tiếp theo trên cùng trang sẽ cập nhật tại đây."
             : i18n.t("selectionResult.empty")}
         </p>
       ) : (

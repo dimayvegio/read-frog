@@ -399,6 +399,23 @@ vi.mock("@/utils/message", () => ({
   sendMessage: vi.fn<(...args: any[]) => any>(),
 }))
 
+it("routes an explicit toolbar translation to its mounted fixed pane without a second provider call", async () => {
+  vi.mocked(sendMessage).mockResolvedValue(true)
+  const store = createStore()
+  store.set(configAtom, cloneConfig(DEFAULT_CONFIG))
+  setSelectionState(store, { text: "Selected HTML paragraph" })
+  renderWithProviders(<TranslateButton />, store)
+  fireEvent.click(screen.getByRole("button", { name: "action.translation" }))
+  await waitFor(() =>
+    expect(sendMessage).toHaveBeenCalledWith("routeSelectionToNativePanel", {
+      selectionText: "Selected HTML paragraph",
+    }),
+  )
+  expect(streamBackgroundTextMock).not.toHaveBeenCalled()
+  cleanup()
+  vi.mocked(sendMessage).mockReset()
+})
+
 function cloneConfig(config: Config): Config {
   return JSON.parse(JSON.stringify(config)) as Config
 }

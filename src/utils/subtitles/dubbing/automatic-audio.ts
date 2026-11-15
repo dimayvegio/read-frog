@@ -1,6 +1,8 @@
 import type { PreparedAudio } from "./prepare-audio"
+import { analysisDuration } from "./analysis-duration"
 import { AUTO_SAMPLE_SECONDS } from "./automatic"
 import { MonoPcmConverter } from "./pcm"
+import { SMART_AUDIO_LIMIT } from "./smart"
 export interface AutomaticAudio extends PreparedAudio {
   start: number
   end: number
@@ -12,8 +14,10 @@ export async function sampleVideoAudio(
   signal: AbortSignal,
   valid: () => boolean,
   progress: (text: string) => void,
+  seconds = AUTO_SAMPLE_SECONDS,
 ): Promise<AutomaticAudio> {
   signal.throwIfAborted()
+  analysisDuration(seconds)
   const capture = (video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream
   if (!capture) throw new Error("Player không cho lấy audio. Có thể dùng chế độ Chuẩn bị trước.")
   const context = new AudioContext({ sampleRate: 16000 })
@@ -115,7 +119,7 @@ export async function sampleVideoAudio(
           return
         }
         try {
-          const length = Math.min(e.inputBuffer.length, AUTO_SAMPLE_SECONDS * 16000 - frames)
+          const length = Math.min(e.inputBuffer.length, seconds * 16000 - frames)
           const input = {
             length,
             numberOfChannels: e.inputBuffer.numberOfChannels,
@@ -125,11 +129,11 @@ export async function sampleVideoAudio(
           parts.push(p)
           size += p.length
           frames += length
-          if (size > 256 * 1024) {
+          if (size > SMART_AUDIO_LIMIT) {
             fail(new Error("Audio sample vượt giới hạn."))
             return
           }
-          if (frames >= AUTO_SAMPLE_SECONDS * 16000) done()
+          if (frames >= seconds * 16000) done()
         } catch {
           fail(new Error("Không xử lý được audio từ player."))
         }
@@ -137,13 +141,13 @@ export async function sampleVideoAudio(
       const began = performance.now(),
         timer = setInterval(() => {
           if (!valid()) abort()
-          else if (performance.now() - began > 600000)
+          else if (performance.now() - began > Math.max(600, seconds + 60) * 1000)
             fail(new Error("Đã dừng mẫu audio chờ quá lâu."))
           else
             progress(
               video.paused
                 ? "AI tạm chờ video phát tiếp."
-                : `AI đang nghe ${Math.floor(frames / 16000)}/${AUTO_SAMPLE_SECONDS} giây; bạn tiếp tục xem bình thường.`,
+                : `AI đang nghe ${Math.floor(frames / 16000)}/${seconds} giây; bạn tiếp tục xem bình thường.`,
             )
         }, 500)
       signal.addEventListener("abort", abort, { once: true })

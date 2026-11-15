@@ -1,5 +1,10 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung a.8: giữ [HTML fixed pane / analysis intervals](HTML_FIXED_PANE_AUDIO_A8.md),
+web/PDF metadata tách biệt, mounted source-bound routing và CSS highlight không sửa DOM.
+Giữ duration RAM-only/master OFF sau đổi, passive capture/explicit prepared ranges,
+native heard-only mapping, queued-pause guard và source/key/config cancellation.
+
 Bổ sung a.7: giữ [automatic audio/store contracts](STORE_AUTOMATIC_AUDIO_A7.md),
 master OFF, passive capture/15s, một attempt mỗi phần 10 phút, heard-only voice mapping,
 key/source cancellation và controller refresh không unlock lại. Giữ logo ngựa/privacy

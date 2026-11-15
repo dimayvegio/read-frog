@@ -1,5 +1,10 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.8 / manifest 1.59.3.8:** khung cố định dùng cho HTML, cập nhật từ
+toolbar/menu và highlight đoạn nguồn không sửa DOM; không nhầm vào PDF history.
+Chọn audio/CC phân tích 15s–10 phút cho cả lấy mẫu khi xem và thu trước từ vị trí
+hiện tại (hỗ trợ video dài). Xem [a.8](HTML_FIXED_PANE_AUDIO_A8.md).
+
 **Mới 1.59.3-a.7 / manifest 1.59.3.7:** logo ngựa/hồ sơ store; AI tự lấy mẫu
 audio đang xem, không cần file, opt-in/15 giây mỗi phần 10 phút. Giữ chuẩn bị trước,
 heard-only speaker mapping, không microphone/download/paid retry; local-only OCR,

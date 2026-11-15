@@ -1,10 +1,13 @@
 # Candidate validation — 15 November 2026
 
-Baseline compared before edits: `f7c32bbe` / 1.59.3-a.6. Candidate package 1.59.3-a.7, numeric 1.59.3.7, display 1.59.3A. No upstream merge, new permissions or published data/migration changes.
+Baseline compared before edits: `0752ee8c` / 1.59.3-a.7. Candidate package 1.59.3-a.8, numeric 1.59.3.8, display 1.59.3A. No upstream merge, new permissions or published data/migration changes.
 
 ## Passed
 
-- Full local Vitest: **4,680 passed, 1 intentionally skipped**, 486 passing files/one skipped. SKIP_FREE_API=true; external free-service test intentionally excluded. Final run ~62s. Mocked provider tests do not measure live model quality.
+- New HTML fixed-pane regression: 10 production Chrome assertions, real sidepanel/toolbar/source highlight, no PDF controls, one translation request per action, no DOM rewriting, highlight retained after native selection clears, cleanup on close and normal popover fallback.
+- Selectable 15/30/60/120/300/600s analysis for both passive and explicit prepared ranges; unit capture/restore and long-video interval checks. Queued setup pause events are ignored after playback has resumed.
+
+- Full local Vitest: **4,690 passed, 1 intentionally skipped**, 487 passing files/one skipped. SKIP_FREE_API=true; external free-service test intentionally excluded. Final run ~54s. Mocked provider tests do not measure live model quality.
 - Format, lint/type-check, production WXT edge build and root-manifest ZIP.
 - 44 production Chrome checks (22 each YouTube/ani.pm fixture), real rendered synthetic video/audio and native captions, real capture/MP3/browser playback, controlled OpenAI responses. Original/translated speech, ducking/live mix/offset, prepared two-speaker routing, passive automatic analysis, context/no source-URL payloads, no duplicate same-part analysis, navigation/key/config cancellation. No uncaught page errors.
 - Production local PDF/OCR regression: native wildcard search/results, notes/hover/date/edit/delete/undo, colored drawing, annotated PDF export/original immutability, reload/rename restore, outline, scan words and search, three-canvas bound, cancellation and phone layout. Real English/Vietnamese/Chinese/Japanese Tesseract models work with external DNS blocked. Local view/edit/OCR controls trigger no provider request.
@@ -25,6 +28,6 @@ No developer account, store-assigned IDs, legal identity attestation, private re
 
 Use scripts/debug/check-video-dubbing.mjs with DUBBING_PLATFORM=youtube (unset for ani.pm), DUBBING_CAPTURE=1, DUBBING_AUTOMATIC=1; scripts/debug/check-pdf-study.mjs; scripts/debug/capture-store.mjs; audit-runtime-network.mjs and audit-store.mjs with STORE_REQUIRE_SCREENSHOTS=true. Use an isolated profile only and do not rebuild output while a production regression is reading it.
 
-Local evidence folders: .codex/video-dubbing-youtube-1794721954092, .codex/video-dubbing-anipm-1794722321185, .codex/pdf-study-1794721830409, .codex/store-screens-1794722453860. Logs: .codex/store-final-tests.log, .codex/store-zip-build.log and installer update-report.json. Profiles/private scratch are intentionally not published.
+Local current evidence: .codex/html-fixed-pane-1794726097883 (10 checks), .codex/video-dubbing-youtube-1794725698839 (30s sample), .codex/video-dubbing-anipm-1794725773536 (15s), .codex/pdf-study-1794725698960 (32 checks). Logs: .codex/html-pane-tests.log and .codex/html-pane-zip.log plus installer update-report.json. Native OS menu classification is unit/bridge tested; production toolbar/sidepanel is driven directly. Profiles/private scratch are not published.
 
-ZIP SHA-256: `c434437adc93f5ec57ccc25175164e793d5bdf066ac4b55d89d6f21f90dd1534`.
+ZIP SHA-256: `5f6fbb7037d6db2ecbea5875a15fca9432b8ded8ea2e5f0ac339f4f05017908f`.

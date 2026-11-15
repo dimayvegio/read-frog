@@ -2,6 +2,8 @@ import type { SmartProfile } from "@/utils/subtitles/dubbing/smart"
 import { createContext, use } from "react"
 export interface SmartVideoUI {
   mode: "automatic" | "prepared"
+  analysisSeconds: number
+  setAnalysisSeconds: (seconds: number) => void
   setMode: (mode: "automatic" | "prepared") => void
   onProfileChange: (listener: () => void) => () => void
   enabled: boolean

@@ -5,6 +5,12 @@ import { configAtom } from "@/utils/atoms/config"
 import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
 import { getSourceDocumentTitle } from "@/utils/content/document-title"
 import { sendMessage } from "@/utils/message"
+import { analysisDuration } from "@/utils/subtitles/dubbing/analysis-duration"
+import {
+  fullCaptionContext,
+  heardCaptions,
+  remapHeardProfile,
+} from "@/utils/subtitles/dubbing/automatic"
 import {
   SMART_VIDEO_PORT,
   SMART_AUDIO_SECONDS,
@@ -19,6 +25,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
     id = useAtomValue(currentVideoIdAtom),
     config = useAtomValue(configAtom)
   const [mode, setMode] = useState<"automatic" | "prepared">("automatic")
+  const [analysisSeconds, setAnalysisSeconds] = useState(15)
   const listeners = useRef(new Set<() => void>())
   const onProfileChange = useCallback((listener: () => void) => {
     listeners.current.add(listener)
@@ -146,9 +153,15 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
           return key
         },
         sample: () =>
-          sampleVideoAudio(video, owner.signal, valid, (text) => {
-            if (valid()) setStatus(text)
-          }),
+          sampleVideoAudio(
+            video,
+            owner.signal,
+            valid,
+            (text) => {
+              if (valid()) setStatus(text)
+            },
+            analysisSeconds,
+          ),
         analyze: (input) =>
           createPortStreamPromise<SmartProfile>(SMART_VIDEO_PORT, input, {
             signal: owner.signal,
@@ -166,6 +179,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
         sourceUrl: route,
         title: getSourceDocumentTitle().slice(0, 300),
         target: config.language.targetCode,
+        seconds: analysisSeconds,
       })
     } catch (error) {
       if (run.current === owner)
@@ -220,7 +234,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
     setStatus("Đang lấy CC để chuẩn bị phân tích…")
     try {
       if (
-        video.duration > SMART_AUDIO_SECONDS ||
+        (file.current && video.duration > SMART_AUDIO_SECONDS) ||
         (!file.current && (!Number.isFinite(video.duration) || video.duration <= 0))
       )
         throw new Error("Chuẩn bị hỗ trợ video tối đa 10 phút. Hãy chọn video/audio phù hợp.")
@@ -230,11 +244,16 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       const cues = await ui.getSentenceStudySource(owner.signal)
       if (!cues.length)
         throw new Error("Cần CC gốc để gán người nói đúng câu. Không tự tạo CC khi thiếu.")
-      if (cues.length > 1500 || cues.reduce((n, c) => n + c.text.length, 0) > 100000)
+      if (
+        file.current &&
+        (cues.length > 1500 || cues.reduce((n, c) => n + c.text.length, 0) > 100000)
+      )
         throw new Error("CC vượt giới hạn phân tích của phiên này (1.500 câu / 100.000 ký tự).")
       const { prepareAudioFile, recordVideoAudio } =
         await import("@/utils/subtitles/dubbing/prepare-audio")
       if (!valid()) throw new DOMException("Đã đổi nguồn", "AbortError")
+      const fromFile = !!file.current
+      const rangeStart = video.currentTime
       const audio = file.current
         ? await prepareAudioFile(file.current, owner.signal)
         : await recordVideoAudio(
@@ -245,7 +264,13 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
               if (valid()) setStatus(text)
             },
             canRestore,
+            { start: rangeStart, seconds: analysisSeconds },
           )
+      const heard = fromFile
+        ? { cues, indices: cues.map((_, i) => i) }
+        : heardCaptions(cues, rangeStart * 1000, (rangeStart + audio.duration) * 1000, 1)
+      if (!heard.cues.length)
+        throw new Error("Khoảng này chưa có câu CC trọn vẹn. Chọn khoảng dài hơn hoặc vị trí khác.")
       if (!valid()) throw new DOMException("Đã đổi nguồn", "AbortError")
       const currentKey = await sendMessage("getOpenAIKeyStatus")
       if (!valid()) throw new DOMException("Đã đổi nguồn", "AbortError")
@@ -259,7 +284,8 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
         {
           ...audio,
           sourceUrl: route,
-          cues: cues.map(({ text, start, end }) => ({ text, start, end })),
+          cues: heard.cues.map(({ text, start, end }) => ({ text, start, end })),
+          contextTranscript: fullCaptionContext(cues),
           title: getSourceDocumentTitle().slice(0, 300),
           target: config.language.targetCode,
         },
@@ -271,9 +297,15 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       if (!keyStatus.configured || keyStatus.revision !== key.revision)
         throw new Error("Khóa OpenAI đã đổi. Chưa áp dụng kết quả cũ.")
       if (!valid()) throw new DOMException("Đã đổi nguồn", "AbortError")
-      if (result.trackHash !== smartTrackHash(cues)) throw new Error("Phân tích không khớp CC.")
+      const currentCues = await ui.getSentenceStudySource(owner.signal)
+      if (
+        !valid() ||
+        smartTrackHash(currentCues) !== smartTrackHash(cues) ||
+        result.trackHash !== smartTrackHash(heard.cues)
+      )
+        throw new Error("Phân tích không khớp CC hiện tại.")
       const { trackHash: _hash, ...wire } = result,
-        next = parseSmartProfile(wire, cues)
+        next = remapHeardProfile(parseSmartProfile(wire, heard.cues), heard.indices, cues)
       notifyProfile()
       ui.setSmartProfile?.(next)
       keyRevision.current = key.revision
@@ -298,6 +330,19 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
     <SmartVideoContext
       value={{
         mode,
+        analysisSeconds,
+        setAnalysisSeconds: (seconds) => {
+          const next = analysisDuration(seconds)
+          cancel()
+          enabledRef.current = false
+          setEnabled(false)
+          notifyProfile()
+          ui.setSmartProfile?.(null, false)
+          setProfile(null)
+          file.current = null
+          setAnalysisSeconds(next)
+          setStatus("Thời lượng đã đổi. Bật AI lại để dùng khoảng mới; chưa tự gửi audio.")
+        },
         onProfileChange,
         setMode: (next) => {
           cancel()

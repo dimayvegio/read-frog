@@ -1,3 +1,4 @@
+import { ANALYSIS_DURATIONS } from "@/utils/subtitles/dubbing/analysis-duration"
 import { useDubbing } from "../../dubbing-context"
 import { useSmartVideo } from "../../smart-video-context"
 export function SmartVideoView() {
@@ -21,10 +22,34 @@ export function SmartVideoView() {
           <option value="prepared">Chuẩn bị trước · audio đầy đủ hơn</option>
         </select>
       </label>
+      <label className="block space-y-1">
+        <span>Thời lượng audio phân tích</span>
+        <select
+          aria-label="Thời lượng audio phân tích"
+          value={smart.analysisSeconds}
+          disabled={smart.busy}
+          onChange={(e) => {
+            dub?.stop()
+            smart.setAnalysisSeconds(Number(e.target.value))
+          }}
+          className="w-full rounded border border-border bg-background p-2"
+        >
+          {ANALYSIS_DURATIONS.map((seconds) => (
+            <option key={seconds} value={seconds}>
+              {seconds < 60 ? `${seconds} giây` : `${seconds / 60} phút`}
+            </option>
+          ))}
+        </select>
+      </label>
       <p className="text-muted-foreground">
-        Bật chế độ tự động sẽ lấy mẫu khoảng 15 giây audio đang phát và gửi cùng ngữ cảnh CC tới
-        OpenAI; sang phần 10 phút mới lấy mẫu tiếp. Có tính phí. Không tua, dừng video hay thu
-        microphone. Câu chưa nghe/chưa rõ người nói dùng giọng mặc định.
+        Khoảng đã chọn áp dụng cho audio và CC tương ứng để gán giọng; ngữ cảnh dịch vẫn dùng CC của
+        video trong giới hạn. Khoảng dài hơn cần chờ lâu hơn và có thể tốn phí API nhiều hơn. Đổi
+        thời lượng sẽ tắt AI để bạn chủ động bật lại.
+      </p>
+      <p className="text-muted-foreground">
+        Bật chế độ tự động sẽ lấy mẫu {smart.analysisSeconds} giây audio đang phát và gửi cùng ngữ
+        cảnh CC tới OpenAI; sang phần 10 phút mới lấy mẫu tiếp. Có tính phí. Không tua, dừng video
+        hay thu microphone. Câu chưa nghe/chưa rõ người nói dùng giọng mặc định.
       </p>
       <label className="flex items-center gap-2">
         <input
@@ -46,9 +71,11 @@ export function SmartVideoView() {
       {smart.enabled && smart.mode === "prepared" && (
         <>
           <p>
-            Phân tích: gpt-audio-1.5 · có tính phí OpenAI. Chuẩn bị trước tối đa 10 phút / 8 MiB.
-            Thu từ player mất bằng thời lượng video, sẽ quay về vị trí cũ và tạm dừng khi xong. Có
-            thể chọn MP3/WAV cùng video để bỏ bước thu.
+            Phân tích: gpt-audio-1.5 · có tính phí OpenAI. Thu trước {smart.analysisSeconds} giây từ
+            vị trí hiện tại, tối đa đến hết video; video dài vẫn dùng được. Thu mất thời gian phát
+            tương ứng, quay về vị trí cũ và tạm dừng khi xong. Giọng chưa nghe vẫn dùng mặc định.
+            Tệp MP3/WAV tùy chọn phải khớp toàn video ≤10 phút / 8 MiB, không áp dụng khoảng thu ở
+            trên.
           </p>
           <input
             type="file"

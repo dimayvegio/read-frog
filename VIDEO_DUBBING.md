@@ -1,6 +1,13 @@
-# Lồng tiếng video — 1.59.3A.7
+# Lồng tiếng video — 1.59.3A.8
 
-Package `1.59.3-a.7`, manifest `1.59.3.7`, display `1.59.3A`.
+Package `1.59.3-a.8`, manifest `1.59.3.8`, display `1.59.3A`.
+
+Mới a.8: chọn **15s / 30s / 1 / 2 / 5 / 10 phút** cho cả Tự phân tích khi xem và
+Chuẩn bị trước. Thu trước bắt đầu từ vị trí hiện tại, dùng được với video dài;
+xong quay về vị trí cũ, tạm dừng. Đổi thời lượng sẽ tắt AI/chờ bật lại, không tự
+tính phí. CC toàn cảnh có giới hạn vẫn dùng cho ngữ cảnh; chỉ gán giọng cho câu
+đã nghe. Xem [a.8](HTML_FIXED_PANE_AUDIO_A8.md); 15s cố định bên dưới là hành vi
+lịch sử a.7, nay là giá trị mặc định có thể đổi.
 
 Mới: **Tự phân tích khi xem**, bật AI rồi tiếp tục phát, không cần tự chuẩn bị file.
 Lấy mẫu 15 giây mỗi phần 10 phút; chỉ gán người nói cho câu đã nghe, còn lại giọng

@@ -4,8 +4,11 @@ import path from "node:path"
 const root = path.resolve(process.argv[2] ?? ".output/edge-mv3")
 const manifest = JSON.parse(await fs.readFile(path.join(root, "manifest.json"), "utf8"))
 assert.equal(manifest.manifest_version, 3)
-assert.equal(manifest.version, "1.59.3.7")
-assert.equal(manifest.version_name, "1.59.3A")
+const pkg = JSON.parse(await fs.readFile("package.json", "utf8"))
+const version = /^(\d+)\.(\d+)\.(\d+)-a\.(\d+)$/.exec(pkg.version)
+assert.ok(version, "Fork package version must identify its A revision")
+assert.equal(manifest.version, version.slice(1).join("."))
+assert.equal(manifest.version_name, version.slice(1, 4).join(".") + "A")
 assert.equal(manifest.key, undefined, "No injected publisher/development identity")
 assert.deepEqual(
   [...manifest.permissions].toSorted((a, b) => a.localeCompare(b)),

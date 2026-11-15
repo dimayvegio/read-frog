@@ -1,6 +1,7 @@
 import type { AutomaticAudio } from "./automatic-audio"
 import type { SmartProfile, SmartVideoRequest } from "./smart"
 import type { SubtitlesFragment } from "@/utils/subtitles/types"
+import { analysisDuration } from "./analysis-duration"
 import {
   AUTO_WINDOW_SECONDS,
   fullCaptionContext,
@@ -21,6 +22,7 @@ interface Dependencies {
   sourceUrl: string
   title: string
   target: string
+  seconds?: number
 }
 function pause(signal: AbortSignal) {
   return new Promise<void>((resolve, reject) => {
@@ -38,6 +40,7 @@ function pause(signal: AbortSignal) {
 }
 /** One request per distinct ten-minute part. A failed paid request never retries itself. */
 export async function runAutomaticAnalysis(d: Dependencies) {
+  const seconds = analysisDuration(d.seconds ?? 15)
   const key = await d.key()
   d.signal.throwIfAborted()
   if (!key.configured) throw new Error("Chưa cấu hình khóa OpenAI.")
@@ -63,7 +66,7 @@ export async function runAutomaticAnalysis(d: Dependencies) {
     const window = Math.floor(d.video.currentTime / AUTO_WINDOW_SECONDS)
     const time = d.video.currentTime * 1000
     const upcoming = track.some(
-      (c) => c.end > time && c.start < time + 15000 * d.video.playbackRate,
+      (c) => c.end > time && c.start < time + seconds * 1000 * d.video.playbackRate,
     )
     if (d.video.paused || d.video.ended || attempted.has(window) || !upcoming) {
       await pause(d.signal)

@@ -33,6 +33,7 @@ export async function translateNativeSelection({
   signal,
   onChunk,
   document,
+  sourceKind,
   textOptions = DEFAULT_PDF_TEXT_OPTIONS,
   bypassCache = false,
   onCacheState,
@@ -45,6 +46,7 @@ export async function translateNativeSelection({
   signal: AbortSignal
   onChunk: (chunk: BackgroundTextStreamSnapshot) => void
   document?: PdfDocument
+  sourceKind?: "web" | "pdf" | "video" | "image"
   textOptions?: PdfTextOptions
   bypassCache?: boolean
   onCacheState?: (state: "cached" | "saved" | "not-saved", message?: string) => void
@@ -54,7 +56,7 @@ export async function translateNativeSelection({
 }) {
   const preparedText = document
     ? prepareStructuredPdfText(text, textOptions)
-    : prepareTranslationText(preparePdfText(text, textOptions))
+    : prepareTranslationText(sourceKind === "web" ? text : preparePdfText(text, textOptions))
   if (
     !preparedText.trim() ||
     text.length > MAX_NATIVE_SELECTION_LENGTH ||

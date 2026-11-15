@@ -186,9 +186,10 @@ it("rejects late analysis and clears context without starting another translatio
   expect(h.stream).toHaveBeenCalledOnce()
 })
 
-it("rejects videos beyond ten minutes before native CC loading, capture or API work", async () => {
+it("rejects whole-video files beyond ten minutes before capture or API work", async () => {
   setup()
   Object.defineProperty(h.ui.getDubbingVideoElement(), "duration", { value: 601 })
+  act(() => ui.chooseFile(new File(["audio"], "whole-video.mp3")))
   act(() => ui.setEnabled(true))
   await act(async () => {
     expect(await ui.prepare()).toBe(false)
@@ -197,6 +198,23 @@ it("rejects videos beyond ten minutes before native CC loading, capture or API w
   expect(h.audio).not.toHaveBeenCalled()
   expect(h.stream).not.toHaveBeenCalled()
   expect(ui.status).toContain("10 phút")
+})
+it("prepares the chosen interval on a long video and changing duration remains free/off", async () => {
+  setup()
+  Object.defineProperty(h.ui.getDubbingVideoElement(), "duration", { value: 3600 })
+  act(() => ui.setAnalysisSeconds(120))
+  expect(ui.analysisSeconds).toBe(120)
+  expect(ui.enabled).toBe(false)
+  expect(h.stream).not.toHaveBeenCalled()
+  act(() => ui.setEnabled(true))
+  await act(async () => {
+    expect(await ui.prepare()).toBe(true)
+  })
+  expect(h.audio.mock.calls[0]?.[5]).toEqual({ start: 0, seconds: 120 })
+  act(() => ui.setAnalysisSeconds(300))
+  expect(ui.enabled).toBe(false)
+  expect(ui.profile).toBeNull()
+  expect(h.stream).toHaveBeenCalledOnce()
 })
 
 it("does not silently reuse a previous profile after the user selects a different audio file", async () => {

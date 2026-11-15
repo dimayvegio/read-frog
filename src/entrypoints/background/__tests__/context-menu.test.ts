@@ -119,7 +119,7 @@ describe("background context menu", () => {
     expect(browser.contextMenus.removeAll).toHaveBeenCalledOnce()
     expect(browser.contextMenus.create).toHaveBeenCalledWith({
       id: MENU_ID_PDF_PANEL,
-      title: "Dịch trong khung cố định (PDF)",
+      title: "Dịch trong khung cố định",
       contexts: ["selection"],
     })
     expect(browser.contextMenus.create).toHaveBeenNthCalledWith(1, {

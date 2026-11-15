@@ -14,7 +14,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   vi.useRealTimers()
 })
-function setup(resume = async () => {}) {
+function setup(resume = async () => {}, seconds = 15) {
   const stop = vi.fn<() => void>(),
     close = vi.fn<() => Promise<void>>(async () => {}),
     disconnect = vi.fn<() => void>()
@@ -58,6 +58,7 @@ function setup(resume = async () => {}) {
     controller.signal,
     () => true,
     () => {},
+    seconds,
   )
   const result = task.catch((e: unknown) => e)
   return {
@@ -116,5 +117,14 @@ it("aborts an unresolved AudioContext resume without acquiring a stream", async 
   s.controller.abort()
   expect(await s.result).toMatchObject({ name: "AbortError" })
   expect(s.video.captureStream).not.toHaveBeenCalled()
+  expect(s.close).toHaveBeenCalledOnce()
+})
+it("honors a chosen thirty-second sample instead of completing at fifteen seconds", async () => {
+  const s = setup(undefined, 30)
+  await s.ready()
+  for (let i = 0; i < 15; i++) s.pulse()
+  expect(s.close).not.toHaveBeenCalled()
+  for (let i = 0; i < 15; i++) s.pulse()
+  expect(await s.task).toMatchObject({ duration: 30 })
   expect(s.close).toHaveBeenCalledOnce()
 })

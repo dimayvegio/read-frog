@@ -22,6 +22,7 @@ async function openResult(
   selectionText: string,
   sourceTabId?: number,
   document?: NativeSelectionRequest["document"],
+  metadata?: Pick<NativeSelectionRequest, "source" | "sourceTitle">,
 ) {
   const text = selectionText.trim()
   if (!text) return
@@ -42,6 +43,7 @@ async function openResult(
     tooLong: text.length > MAX_NATIVE_SELECTION_LENGTH,
     createdAt: Date.now(),
     ...(document ? { document } : {}),
+    ...metadata,
     sourceTabId:
       typeof sourceTabId === "number" && Number.isSafeInteger(sourceTabId) && sourceTabId >= 0
         ? sourceTabId
@@ -96,8 +98,9 @@ export function openNativeSelectionResult(
   text: string,
   sourceTabId?: number,
   document?: NativeSelectionRequest["document"],
+  metadata?: Pick<NativeSelectionRequest, "source" | "sourceTitle">,
 ): Promise<void> {
-  const task = openQueue.then(() => openResult(text, sourceTabId, document))
+  const task = openQueue.then(() => openResult(text, sourceTabId, document, metadata))
   openQueue = task.catch(() => {})
   return task
 }
@@ -120,8 +123,16 @@ export function setupNativeSelectionHandlers() {
       await browser.storage.session.remove(key)
       return null
     }
-    const { id, text, createdAt, tooLong, document } = stored
-    return { id, text, createdAt, tooLong, ...(document ? { document } : {}) }
+    const { id, text, createdAt, tooLong, document, source, sourceTitle } = stored
+    return {
+      id,
+      text,
+      createdAt,
+      tooLong,
+      ...(document ? { document } : {}),
+      ...(source ? { source } : {}),
+      ...(sourceTitle ? { sourceTitle } : {}),
+    }
   })
   browser.tabs.onRemoved.addListener((tabId) => {
     void (async () => {

@@ -12,7 +12,7 @@ import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
-import { isPdfContext, openNativePdfPanel } from "./native-panel"
+import { isPdfContext, openNativePdfPanel, updateActiveNativePanelSelection } from "./native-panel"
 import { openNativeSelectionResult } from "./native-selection"
 import { getPageTranslationEnabled, setPageTranslationEnabled } from "./page-translation-state"
 
@@ -133,7 +133,7 @@ async function updateContextMenuItems(config: Config) {
     }
     browser.contextMenus.create({
       id: MENU_ID_PDF_PANEL,
-      title: "Dịch trong khung cố định (PDF)",
+      title: "Dịch trong khung cố định",
       contexts: ["selection"],
     })
   }
@@ -264,6 +264,12 @@ async function handleSelectionTranslateClick(
   }
 
   if (isTabId(tab?.id)) {
+    if (
+      await updateActiveNativePanelSelection(selectionText, tab, undefined, info.frameId).catch(
+        () => false,
+      )
+    )
+      return
     const tabId = tab.id
     const target = typeof info.frameId === "number" ? { tabId, frameId: info.frameId } : tabId
     try {

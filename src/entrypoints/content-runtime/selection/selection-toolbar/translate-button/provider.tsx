@@ -28,9 +28,10 @@ import { configFieldsAtomMap, writeConfigAtom } from "@/utils/atoms/config"
 import { buildFeatureProviderPatch } from "@/utils/constants/feature-providers"
 import { getSourceDocumentTitle } from "@/utils/content/document-title"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
-import { onMessage } from "@/utils/message"
+import { onMessage, sendMessage } from "@/utils/message"
 import { toSelectionPromptContext } from "@/utils/prompts/selection-context"
 import { getSelectableProvidersForCapability } from "@/utils/providers/provider-registry"
+import { clearFixedPanelHighlight, showFixedPanelHighlight } from "../../fixed-panel-highlight"
 import { shadowWrapper } from "../../main"
 import {
   isSelectionToolbarOpenAtom,
@@ -192,6 +193,18 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
       }
 
       try {
+        // The mounted fixed panel owns explicit translations for its source route.
+        // No provider request has started here; a closed/unrelated pane falls through.
+        const routed = await Promise.resolve(
+          sendMessage("routeSelectionToNativePanel", { selectionText: preparedText }),
+        ).catch(() => false)
+        if (runIdRef.current !== runId) return
+        if (routed) {
+          if (activeSession) showFixedPanelHighlight(activeSession.selectionSnapshot, preparedText)
+          setIsOpen(false)
+          resetPopoverSession({ clearAnchor: true })
+          return
+        }
         setThinking({ status: "thinking", text: "" })
 
         const result = await translateSelection({
@@ -226,7 +239,14 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
         }
       }
     },
-    [resetTranslationState, selectionContext, selectionText, translateRequest],
+    [
+      resetTranslationState,
+      resetPopoverSession,
+      activeSession,
+      selectionContext,
+      selectionText,
+      translateRequest,
+    ],
   )
 
   const startTranslation = useEffectEvent((runId: number) => {
@@ -393,6 +413,21 @@ export function SelectionTranslationProvider({ children }: { children: ReactNode
       return true
     },
   )
+
+  useEffect(() => {
+    const remove = onMessage("updateNativePanelHighlight", ({ data }) => {
+      if (data.selectionText === null) {
+        clearFixedPanelHighlight()
+        return true
+      }
+      const snapshot =
+        resolveContextMenuOpenRequest()?.session.selectionSnapshot ??
+        selectionSession?.selectionSnapshot
+      return snapshot ? showFixedPanelHighlight(snapshot, data.selectionText) : false
+    })
+    return remove
+  }, [resolveContextMenuOpenRequest, selectionSession])
+  useEffect(() => () => clearFixedPanelHighlight(), [])
 
   useEffect(() => {
     return onMessage("openSelectionTranslationFromContextMenu", () => {
