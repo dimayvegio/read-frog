@@ -204,6 +204,25 @@ try {
     "Selecting an individual result highlights the matching passage",
     !!(await reader.$(".rf-search-overlay .active")),
   )
+  await reader.focus('[data-panel-handle="e"]')
+  for (let i = 0; i < 8; i++) await reader.keyboard.press("ArrowRight")
+  await reader.waitForFunction(
+    () => parseInt(document.querySelector(".rf-study-panel").style.width, 10) === 428,
+  )
+  check(
+    "resized panel reserves its actual right edge without covering the PDF",
+    await reader.evaluate(() => {
+      const panel = document.querySelector(".rf-study-panel").getBoundingClientRect()
+      const source = document.querySelector(".rf-reader-original-column").getBoundingClientRect()
+      return source.left >= panel.right + 7
+    }),
+  )
+  check(
+    "panel geometry is saved as a local view-only preference",
+    await reader.evaluate(
+      () => JSON.parse(localStorage.getItem("rf-study-panel-rect-v1")).rect.width === 428,
+    ),
+  )
   await reader.screenshot({ path: path.join(scratch, "search-desktop.png") })
   await reader.click('[aria-label="Đóng menu PDF"]')
   await pause(350)
@@ -376,6 +395,16 @@ try {
   )
   await reader.reload()
   await load(renamed)
+  await waitCount(6)
+  await reader.keyboard.down("Control")
+  await reader.keyboard.press("f")
+  await reader.keyboard.up("Control")
+  await reader.waitForSelector(".rf-study-panel")
+  check(
+    "search/outline panel sizing survives a full reader reload",
+    await reader.$eval(".rf-study-panel", (n) => n.style.width === "428px"),
+  )
+  await reader.click('[aria-label="Đóng menu PDF"]')
   await waitCount(6)
   check(
     "Renamed PDF restores notes and all three colored shapes after reload",

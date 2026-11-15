@@ -1,12 +1,12 @@
-FlowRead 1.59.3A.10 — MP3/SRT upload diagnostics
+FlowRead 1.59.3A.11 — fallback cache, Markdown tables/code and PDF panels
 
-- Package 1.59.3-a.10, numeric 1.59.3.10, display 1.59.3A. Baseline 310c785e / A.9.
-- Chuẩn bị 100% được ghi rõ là trên máy; chưa xác nhận OpenAI nhận file. Lỗi sau đó có mã AT-* để phân biệt network, HTTP/key/model/limit/format, phản hồi SRT hoặc timeout 15 phút.
-- Không hiển thị response body/key/path/exception, không tự retry/đổi model/gửi thêm audio. Giữ timestamp API hợp lệ và fixed OpenAI endpoints, không đổi permission/schema.
-- MP3 tổng hợp 18.001.772 byte truyền đủ và xuất SRT với API mock. Chưa tái hiện lỗi của file người dùng trên OpenAI thật; bản này cải thiện chẩn đoán, không tuyên bố đã sửa nguyên nhân chưa biết.
-- 4.711 unit tests đạt / 1 skip; Chrome probe với MP3 18 MB và tám trường hợp lỗi giả lập đạt.
-- Validation và giới hạn: store/VALIDATION.md. Reload entry cũ sau cập nhật, numeric 1.59.3.10.
+- Package 1.59.3-a.11, numeric 1.59.3.11, display 1.59.3A. Baseline 1216a049.
+- Chuột phải khi trang thiếu runtime: fallback xác minh MIME/frame/document trước khi đánh dấu HTML để dùng cache A.9. PDF/guest/nguồn chưa xác định giữ đường cũ; không đoán tất cả là web.
+- Bảng GFM và code có nền/monospace/cuộn ngang; giữ số thứ tự danh sách. Không thực thi raw HTML hay tải ảnh từ model. Parser/giấy phép đóng gói local.
+- Panel PDF nhớ vị trí/kích thước local có version và giới hạn viewport; không ghi trong preview/cancel. Khoảng trống tài liệu theo mép panel sau thả chuột, cleanup khi đóng; mobile vẫn overlay. Không gọi provider từ view/layout.
+- 4.725 tests đạt / một intentional skip. Production Chrome HTML 18 + PDF/OCR 35 assertions; API giả lập, OCR local thật. Chưa đo OpenAI live, full 120-minute soak hay OS RAM.
+- Không đổi Node/CI, quyền, provider/model hoặc published data formats. ZIP copy manifest cuối vào thư mục cũ, giữ dữ liệu. Reload entry cũ, numeric 1.59.3.11.
 
-[Chi tiết](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.10/AUDIO_UPLOAD_DIAGNOSTICS_A10.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.10/PRIVACY_POLICY.md).
+[Chi tiết](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.11/WEB_MARKDOWN_PDF_PANELS_A11.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.11/PRIVACY_POLICY.md).
 
-SHA-256 ZIP: `319a8b339165361c3f780dc323ff3e55650314b6e9ee1e34c4a46cf613430eee`.
+SHA-256 ZIP: `33e1ed05e43fa08be81ecd332e75d07e8c672cb59a89331c585c373d20afc754`.

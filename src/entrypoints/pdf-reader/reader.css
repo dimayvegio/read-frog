@@ -70,7 +70,7 @@
   flex-direction: column;
 }
 .rf-reader-original-column.rf-has-left-panel {
-  margin-left: 356px;
+  margin-left: var(--rf-study-panel-space, 356px);
 }
 @media (max-width: 900px) {
   .rf-reader-original-column.rf-has-left-panel {

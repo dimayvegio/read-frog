@@ -8,6 +8,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve A.11 [HTML fallback/Markdown/PDF panels](WEB_MARKDOWN_PDF_PANELS_A11.md): exact-frame bounded read-only MIME classification before web cache metadata; unknown/guest/PDF sources stay conservative. Keep bundled GFM safe tables/code without image/raw-HTML execution, versioned local-only panel preferences saved on commit, and committed geometry-based PDF space with mobile overlay and owned cleanup. No provider work from layout or new published schemas/permissions.
+
 - Preserve A.10 [audio upload diagnostics](AUDIO_UPLOAD_DIAGNOSTICS_A10.md): local preparation 100% never claims OpenAI acceptance; expose only app-owned AT-* status/network/timing/timeout messages, never provider bodies or exception details. Keep fixed endpoints/models, timestamp validation, cancellation, bounds and no automatic paid retry. No schema/permission changes.
 
 - Preserve a.9 [HTML_SELECTION_CACHE_A9.md](HTML_SELECTION_CACHE_A9.md): repeated HTML fixed-pane Translate/mode switches/reselections reuse complete local translations from existing bounded AI DB2. Key effective text/prompt/glossary terms/output settings/credential revision; invalidate pending work on config/key/cache changes, never persist partial/aborted output or retry automatically. Explicit regenerate alone bypasses a matching cache. No PDF/image/schema/permission changes.

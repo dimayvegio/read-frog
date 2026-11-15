@@ -280,6 +280,120 @@ describe("background context menu", () => {
     expect(openNativeSelectionMock).not.toHaveBeenCalled()
   })
 
+  it("enables completed web caching only after an exact-frame HTML fallback probe", async () => {
+    sendMessageMock.mockRejectedValue(new Error("No receiver"))
+    const url = "https://example.com/article"
+    browser.webNavigation.getFrame = vi
+      .fn<(...args: any[]) => any>()
+      .mockResolvedValue({ url, documentId: "doc-1" })
+    browser.scripting.executeScript = vi
+      .fn<(...args: any[]) => any>()
+      .mockResolvedValue([
+        { frameId: 7, documentId: "doc-1", result: { url, contentType: "text/html" } },
+      ])
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!(
+      {
+        menuItemId: MENU_ID_SELECTION_TRANSLATE,
+        selectionText: "HTML fallback",
+        frameId: 7,
+        frameUrl: url,
+      },
+      { id: 8, url, title: "Article" },
+    )
+    expect(browser.scripting.executeScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 8, frameIds: [7] } }),
+    )
+    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("HTML fallback", 8, undefined, {
+      source: { kind: "web" },
+      sourceTitle: "Article",
+    })
+  })
+  it("retains strict URL checks for legacy browsers without document IDs", async () => {
+    sendMessageMock.mockRejectedValue(new Error("No receiver"))
+    const url = "file:///article.html"
+    browser.webNavigation.getFrame = vi.fn<(...args: any[]) => any>().mockResolvedValue({ url })
+    browser.scripting.executeScript = vi
+      .fn<(...args: any[]) => any>()
+      .mockResolvedValue([{ frameId: 0, result: { url, contentType: "application/xhtml+xml" } }])
+    registerContextMenuListeners()
+    await contextMenuClickListeners[0]!(
+      { menuItemId: MENU_ID_SELECTION_TRANSLATE, selectionText: "Local HTML", pageUrl: url },
+      { id: 8, url },
+    )
+    expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("Local HTML", 8, undefined, {
+      source: { kind: "web" },
+      sourceTitle: undefined,
+    })
+  })
+  it("bounds a stalled read-only classifier and keeps an unclassified selection usable", async () => {
+    vi.useFakeTimers()
+    try {
+      sendMessageMock.mockRejectedValue(new Error("No receiver"))
+      browser.webNavigation.getFrame = vi
+        .fn<(...args: any[]) => any>()
+        .mockReturnValue(new Promise(() => {}))
+      registerContextMenuListeners()
+      const pending = contextMenuClickListeners[0]!(
+        {
+          menuItemId: MENU_ID_SELECTION_TRANSLATE,
+          selectionText: "Pending source",
+          pageUrl: "https://example.com/article",
+        },
+        { id: 8, url: "https://example.com/article" },
+      )
+      await vi.advanceTimersByTimeAsync(2000)
+      await pending
+      expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("Pending source", 8)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+  it.each(["pdf", "route", "document", "missing-id", "denied"])(
+    "does not guess web metadata for a %s fallback",
+    async (kind) => {
+      sendMessageMock.mockRejectedValue(new Error("No receiver"))
+      const url = "https://example.com/opaque-viewer"
+      browser.webNavigation.getFrame = vi
+        .fn<(...args: any[]) => any>()
+        .mockResolvedValue({ url, documentId: "doc-1" })
+      browser.scripting.executeScript = vi.fn<(...args: any[]) => any>().mockResolvedValue([
+        {
+          frameId: 0,
+          documentId: "doc-1",
+          result: { url, contentType: kind === "pdf" ? "application/pdf" : "text/html" },
+        },
+      ])
+      if (kind === "route")
+        vi.mocked(browser.webNavigation.getFrame).mockResolvedValue({
+          url: url + "/new",
+          documentId: "doc-1",
+        } as any)
+      if (kind === "document")
+        vi.mocked(browser.webNavigation.getFrame)
+          .mockResolvedValueOnce({ url, documentId: "doc-1" } as any)
+          .mockResolvedValueOnce({ url, documentId: "doc-2" } as any)
+      if (kind === "missing-id")
+        vi.mocked(browser.scripting.executeScript).mockResolvedValue([
+          { frameId: 0, result: { url, contentType: "text/html" } },
+        ] as any)
+      if (kind === "denied")
+        vi.mocked(browser.scripting.executeScript).mockRejectedValue(
+          new Error("Cannot access page"),
+        )
+      registerContextMenuListeners()
+      await contextMenuClickListeners[0]!(
+        {
+          menuItemId: MENU_ID_SELECTION_TRANSLATE,
+          selectionText: "Unknown fallback",
+          pageUrl: url,
+        },
+        { id: 8, url },
+      )
+      expect(openNativeSelectionMock).toHaveBeenCalledExactlyOnceWith("Unknown fallback", 8)
+    },
+  )
+
   it("resolves a native PDF guest tab without sending its frame to another content script", async () => {
     browser.tabs.query = vi.fn<(...args: any[]) => any>().mockResolvedValue([{ id: 8 }])
     registerContextMenuListeners()

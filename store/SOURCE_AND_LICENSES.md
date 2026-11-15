@@ -1,6 +1,6 @@
 # Corresponding source and licenses
 
-GPL-3.0 derivative of Read Frog: retain LICENSE, upstream copyright and third-party notices. Corresponding source is the complete repository at tag **v1.59.3A.10**, including lockfile, build scripts, local public assets and horse master/provenance. GitHub supplies source archives for the exact tag. Verify public source/tag access before distributing binaries. Minified ZIP alone is not corresponding source.
+GPL-3.0 derivative of Read Frog: retain LICENSE, upstream copyright and third-party notices. Corresponding source is the complete repository at tag **v1.59.3A.11**, including lockfile, build scripts, local public assets and horse master/provenance. GitHub supplies source archives for the exact tag. Verify public source/tag access before distributing binaries. Minified ZIP alone is not corresponding source.
 
 Rebuild on Node 26 and the packageManager pnpm version:
 
@@ -19,3 +19,5 @@ PowerShell: set `$env:SKIP_FREE_API='true'` and `$env:NX_DAEMON='false'` first. 
 PDF.js/Tesseract notices ship in pdf-assets/ocr-assets; PDF_OCR_NOTICES.md documents Apache-2.0 changes. Worker v7 fingerprint is pinned: remote defaults fail closed, only packaged OCR assets load, dynamic Function global detection replaced with globalThis. Upgrades must pass fingerprint checks and real offline OCR tests. LameJS MP3 and other bundled notices remain. Horse provenance: assets/brand/PROVENANCE.md; resizing: scripts/build-store-assets.mjs.
 
 No ownership of upstream/site trademarks, video content or creator voices is claimed. No DRM removal, media-download bypass or voice clone. API output is never evaluated code. Store availability does not replace GPL obligations.
+
+Bundled remark-gfm 4.0.1 and newly bundled parser helpers use MIT notices reproduced in public/licenses/remark-gfm-notices.txt (included in the extension ZIP). No runtime remote code or image loading is added.

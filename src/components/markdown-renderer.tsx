@@ -1,4 +1,5 @@
 import ReactMarkdown, { type Components } from "react-markdown"
+import remarkGfm from "remark-gfm"
 
 interface MarkdownRendererProps {
   content: string
@@ -37,13 +38,61 @@ const MARKDOWN_COMPONENTS: Components = {
       {children}
     </p>
   ),
-  ul: ({ children }) => <ul className="mt-3 mb-3 space-y-2 first:mt-0">{children}</ul>,
-  ol: ({ children }) => <ol className="mt-3 mb-3 space-y-2 first:mt-0">{children}</ol>,
+  ul: ({ children }) => <ul className="my-3 list-disc space-y-2 pl-5 first:mt-0">{children}</ul>,
+  ol: ({ children, start }) => (
+    <ol start={start} className="my-3 list-decimal space-y-2 pl-5 first:mt-0">
+      {children}
+    </ol>
+  ),
   li: ({ children }) => (
-    <li className="flex items-start text-sm text-slate-700 dark:text-slate-300">
-      <span className="mt-2 mr-3 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-slate-400 dark:bg-slate-500"></span>
-      <span className="flex-1">{children}</span>
-    </li>
+    <li className="pl-1 text-sm text-slate-700 dark:text-slate-300">{children}</li>
+  ),
+  pre: ({ children }) => (
+    <pre
+      tabIndex={0}
+      aria-label="Code block"
+      className="my-3 max-w-full overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-3 text-sm leading-relaxed dark:border-slate-700 dark:bg-slate-900 [&>code]:bg-transparent [&>code]:p-0 [&>code]:whitespace-pre"
+    >
+      {children}
+    </pre>
+  ),
+  code: ({ children, className }) => (
+    <code
+      className={`rounded bg-slate-100 px-1 py-0.5 font-mono text-[0.9em] text-slate-800 dark:bg-slate-800 dark:text-slate-100 ${className ?? ""}`}
+    >
+      {children}
+    </code>
+  ),
+  table: ({ children }) => (
+    <div
+      tabIndex={0}
+      role="region"
+      aria-label="Table"
+      className="my-3 max-w-full overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700"
+    >
+      <table className="w-full border-collapse text-left text-sm">{children}</table>
+    </div>
+  ),
+  thead: ({ children }) => (
+    <thead className="bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100">
+      {children}
+    </thead>
+  ),
+  th: ({ children, style }) => (
+    <th
+      style={style}
+      className="border-b border-slate-200 px-3 py-2 font-semibold dark:border-slate-700"
+    >
+      {children}
+    </th>
+  ),
+  td: ({ children, style }) => (
+    <td
+      style={style}
+      className="border-b border-slate-200 px-3 py-2 align-top dark:border-slate-700"
+    >
+      {children}
+    </td>
   ),
   strong: ({ children }) => (
     <strong className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-200">
@@ -64,8 +113,10 @@ const MARKDOWN_COMPONENTS: Components = {
 
 export function MarkdownRenderer({ content, className = "" }: MarkdownRendererProps) {
   return (
-    <div className={`markdown-content ${className}`}>
-      <ReactMarkdown components={MARKDOWN_COMPONENTS}>{content}</ReactMarkdown>
+    <div className={`markdown-content max-w-full min-w-0 ${className}`}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MARKDOWN_COMPONENTS}>
+        {content}
+      </ReactMarkdown>
     </div>
   )
 }

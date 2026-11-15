@@ -2,6 +2,28 @@ import { GripVertical, RotateCcw, X } from "lucide-react"
 import { useLayoutEffect, useRef } from "react"
 
 type Rect = { left: number; top: number; width: number; height: number }
+const STORAGE_KEY = "rf-study-panel-rect-v1"
+function savedRect(): Rect | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (!raw || raw.length > 1024) return null
+    const value = JSON.parse(raw)
+    const r = value?.rect
+    if (
+      value?.version !== 1 ||
+      !r ||
+      ![r.left, r.top, r.width, r.height].every(
+        (n) => typeof n === "number" && Number.isFinite(n) && Math.abs(n) <= 100000,
+      ) ||
+      r.width <= 0 ||
+      r.height <= 0
+    )
+      return null
+    return { left: r.left, top: r.top, width: r.width, height: r.height }
+  } catch {
+    return null
+  }
+}
 
 let lastStudyPanelRect: Rect | null = null
 
@@ -21,6 +43,21 @@ export function StudyPanel({
   const host = useRef<HTMLElement>(null)
   useLayoutEffect(() => {
     const element = host.current!
+    const reader = element.closest<HTMLElement>(".rf-reader")
+    const reserve = () =>
+      reader?.style.setProperty(
+        "--rf-study-panel-space",
+        `${Math.ceil(current.left + current.width + 8)}px`,
+      )
+    const commit = () => {
+      lastStudyPanelRect = { ...current }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, rect: current }))
+      } catch {
+        /* Optional view preference; storage may be unavailable. */
+      }
+      reserve()
+    }
     let frame = 0,
       active: { id: number; handle: string; x: number; y: number; from: Rect } | undefined
     const clamp = (r: Rect): Rect => {
@@ -55,13 +92,16 @@ export function StudyPanel({
       })
     }
     const reset = () => {
+      cancel()
       current = computeDefault()
-      lastStudyPanelRect = current
       paint()
+      commit()
     }
-    current = lastStudyPanelRect ? clamp(lastStudyPanelRect) : computeDefault()
+    const previousRect = savedRect() ?? lastStudyPanelRect
+    current = previousRect ? clamp(previousRect) : computeDefault()
     lastStudyPanelRect = current
     paint()
+    reserve()
     const down = (event: PointerEvent) => {
       const handle = (event.target as Element).closest<HTMLElement>("[data-panel-handle]")?.dataset
         .panelHandle
@@ -116,7 +156,7 @@ export function StudyPanel({
       move(event)
       cancelAnimationFrame(frame)
       paint()
-      lastStudyPanelRect = current
+      commit()
       release()
     }
     const cancel = () => {
@@ -144,13 +184,14 @@ export function StudyPanel({
         event.key === "ArrowLeft" ? -10 : event.key === "ArrowRight" ? 10 : 0,
         event.key === "ArrowUp" ? -10 : event.key === "ArrowDown" ? 10 : 0,
       )
-      lastStudyPanelRect = current
+      commit()
     }
     const resize = () => {
       cancel()
       current = clamp(current)
       lastStudyPanelRect = current
       paint()
+      reserve()
     }
     element.addEventListener("pointerdown", down)
     element.addEventListener("pointermove", move)
@@ -171,6 +212,7 @@ export function StudyPanel({
       element.removeEventListener("lostpointercapture", cancel)
       element.removeEventListener("keydown", key)
       element.removeEventListener("rf-panel-reset", reset)
+      reader?.style.removeProperty("--rf-study-panel-space")
     }
   }, [])
   return (

@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.11 / manifest 1.59.3.11:** cache cho fallback HTML đã xác minh MIME/frame, bảng GFM/code cuộn ngang, panel PDF nhớ geometry và khoảng trống theo mép thực khi thả chuột. [A.11](WEB_MARKDOWN_PDF_PANELS_A11.md).
+
 **Mới 1.59.3-a.10 / manifest 1.59.3.10:** chẩn đoán lỗi MP3/SRT sau chuẩn bị 100%: network, HTTP, mốc phụ đề và timeout; giữ private payload/no retry. [Chi tiết A.10](AUDIO_UPLOAD_DIAGNOSTICS_A10.md).
 
 **Mới 1.59.3-a.9 / manifest 1.59.3.9:** cache bản dịch HTML hoàn tất; chuyển tab hoặc chọn lại cùng đoạn không gọi API thừa. Tạo lại vẫn chủ động bypass. Xem [a.9](HTML_SELECTION_CACHE_A9.md).

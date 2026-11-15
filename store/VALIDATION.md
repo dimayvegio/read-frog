@@ -1,3 +1,19 @@
+# Candidate A.11 validation — 15 November 2026
+
+Baseline 1216a049. Package 1.59.3-a.11 / manifest 1.59.3.11 / display 1.59.3A. No schema/permission/model/endpoint or Node/CI changes.
+
+## Current A.11
+
+- **4,725 tests passed / one intentional free-service skip**, 489 passing files / one skipped, SKIP_FREE_API=true. Log `.codex/three-fixes-full-tests.log`.
+- Chrome production HTML: **18 checks**, `.codex/html-fixed-pane-1794743322810`; cache/mode/reselection/DOM/highlight plus GFM table and long code horizontal scrolling/image suppression. Mocked OpenAI.
+- Chrome production PDF study: **35 checks**, `.codex/pdf-study-1794743037653`; real four-language offline OCR and existing search/drawing/notes/export/cancellation. New committed panel sizing, correct reserved PDF space and reload persistence; zero provider calls from controls. No runtime page errors.
+- Native OS context menu is not CDP-driven: unit tests exercise fallback MIME/route/document ID/legacy/denial/timeout paths; existing real selection cache UI tests exercise the reusable result path.
+- Type-aware lint, formatting, production ZIP build and static runtime/store audits passed: 471 packaged files, 201 JS, nine locales; no known forbidden endpoints. GFM/parser MIT notices included, vocabulary review HTML hash unchanged. Final HTML rerun evidence `.codex/html-fixed-pane-1794743322810` includes technical-markdown.png.
+- SHA-256 ZIP: `33e1ed05e43fa08be81ecd332e75d07e8c672cb59a89331c585c373d20afc754`.
+- Unverified: live provider quality/cost, new real-site account/Edge UI run, mixed-use 120-minute soak, OS RAM benchmark. Earlier evidence below is historical, not an A.11 rerun.
+
+## Historical A.10 evidence
+
 # Candidate A.10 validation — 15 November 2026
 
 Baseline 310c785e / A.9, package 1.59.3-a.10, manifest 1.59.3.10, display 1.59.3A. No schema/permission/model/endpoint changes.

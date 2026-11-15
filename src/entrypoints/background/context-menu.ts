@@ -294,9 +294,57 @@ async function handleSelectionTranslateClick(
   }
 
   try {
-    await openNativeSelectionResult(selectionText, sourceTabId)
+    const metadata = isTabId(tab?.id) ? await fallbackHtmlSource(info, tab) : undefined
+    if (metadata) await openNativeSelectionResult(selectionText, sourceTabId, undefined, metadata)
+    else await openNativeSelectionResult(selectionText, sourceTabId)
   } catch {
     logger.warn("Unable to open the selection translation window")
+  }
+}
+
+/** Read-only, exact-frame MIME probe: an absent receiver is not proof of HTML. */
+async function fallbackHtmlSource(info: Browser.contextMenus.OnClickData, tab: Browser.tabs.Tab) {
+  const url = info.frameUrl ?? info.pageUrl ?? tab.url
+  if (!isTabId(tab.id) || !url || !/^(https?|file):/.test(url) || isPdfContext(info, tab))
+    return undefined
+  const tabId = tab.id,
+    frameId = info.frameId ?? 0
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([
+      (async () => {
+        const before = await browser.webNavigation.getFrame({ tabId, frameId })
+        if (before?.url !== url) return undefined
+        const [probe] = await browser.scripting.executeScript({
+          target: { tabId, frameIds: [frameId] },
+          func: () => ({ contentType: document.contentType, url: location.href }),
+        })
+        const after = await browser.webNavigation.getFrame({ tabId, frameId })
+        if (
+          probe?.frameId !== frameId ||
+          probe.result?.url !== url ||
+          after?.url !== url ||
+          !["text/html", "application/xhtml+xml"].includes(probe.result.contentType)
+        )
+          return undefined
+        if (before.documentId || after.documentId || probe.documentId) {
+          if (
+            !before.documentId ||
+            !after.documentId ||
+            !probe.documentId ||
+            before.documentId !== after.documentId ||
+            after.documentId !== probe.documentId
+          )
+            return undefined
+        }
+        return { source: { kind: "web" as const }, sourceTitle: tab.title?.slice(0, 240) }
+      })().catch(() => undefined),
+      new Promise<undefined>((resolve) => {
+        timer = setTimeout(() => resolve(undefined), 2000)
+      }),
+    ])
+  } finally {
+    clearTimeout(timer)
   }
 }
 

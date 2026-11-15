@@ -183,6 +183,12 @@ try {
   await clickMode("translate")
   await clickMode("translate")
   check("repeated active Translate clicks do not call the provider", (await calls()) === count)
+  await worker.evaluate(() => {
+    globalThis.__pdfTextOutput = () =>
+      '| Register | Bits |\n| --- | --- |\n| CTRL | `a[31:0]` |\n\n```verilog\nassign wide = "' +
+      "x".repeat(240) +
+      '";\n```\n\n![tracker](https://example.com/forbidden-image.png)'
+  })
   await clickMode("explain")
   await panel.waitForFunction(
     () =>
@@ -194,6 +200,41 @@ try {
   for (let i = 0; i < 50 && (await calls()) === count; i++)
     await new Promise((r) => setTimeout(r, 100))
   await panel.waitForSelector('[data-testid="native-selection-output"][aria-busy="false"]')
+  await panel.waitForSelector("table td")
+  check(
+    "technical explanation renders a GFM table",
+    await panel.$eval(
+      "table",
+      (n) => n.textContent.includes("CTRL") && n.querySelectorAll("td").length === 2,
+    ),
+  )
+  evidence.markdown = await panel.evaluate(() => {
+    const pre = document.querySelector(".markdown-content pre"),
+      code = pre?.querySelector("code")
+    return {
+      width: innerWidth,
+      pre: pre?.getBoundingClientRect().toJSON(),
+      scroll: pre?.scrollWidth,
+      client: pre?.clientWidth,
+      overflow: pre && getComputedStyle(pre).overflowX,
+      whiteSpace: code && getComputedStyle(code).whiteSpace,
+      text: code?.textContent,
+      image: !!document.querySelector('img[src*="forbidden-image"]'),
+    }
+  })
+  check(
+    "long code scrolls inside its own block and model images remain inert",
+    await panel.evaluate(() => {
+      const pre = document.querySelector(".markdown-content pre")
+      return (
+        pre &&
+        pre.scrollWidth > pre.clientWidth &&
+        getComputedStyle(pre).overflowX === "auto" &&
+        !document.querySelector('img[src*="forbidden-image"]')
+      )
+    }),
+  )
+  await panel.screenshot({ path: path.join(scratch, "technical-markdown.png") })
   const afterExplain = await calls()
   check("first explanation is an explicit separate request", afterExplain === count + 1)
   await clickMode("translate")
@@ -208,6 +249,9 @@ try {
   for (let i = 0; i < 50 && (await calls()) === afterExplain; i++)
     await new Promise((r) => setTimeout(r, 100))
   await panel.waitForSelector('[data-testid="native-selection-output"][aria-busy="false"]')
+  await worker.evaluate(() => {
+    globalThis.__pdfTextOutput = undefined
+  })
   const afterSummary = await calls()
   check("first summary is an explicit separate request", afterSummary === afterExplain + 1)
   await clickMode("translate")

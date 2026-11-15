@@ -1,6 +1,6 @@
 # FlowRead store preparation
 
-Candidate 1.59.3-a.10 / manifest 1.59.3.10 / display 1.59.3A. Start at [store/README.md](store/README.md) for listings, media, privacy, permissions, reviewer steps and source/license. Contact admin@4dv.top; horse brand. Nothing submitted or approved.
+Candidate 1.59.3-a.11 / manifest 1.59.3.11 / display 1.59.3A. Start at [store/README.md](store/README.md) for listings, media, privacy, permissions, reviewer steps and source/license. Contact admin@4dv.top; horse brand. Nothing submitted or approved.
 
 Processing is OpenAI-only. Microsoft TTS, hosted services, telemetry, remote rules, online Iconify and executable OCR CDN fallbacks are disabled/removed. PDF binaries never upload. Native caption/source GETs and opt-in Edge config sync remain documented.
 
