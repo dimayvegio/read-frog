@@ -4,6 +4,9 @@ export class VolumeDucker {
   private written: number
   private gain = 1
   private target = 1
+  private from = 1
+  private startedAt = 0
+  private duration = 100
   private timer: ReturnType<typeof setInterval> | undefined
   constructor(
     private video: HTMLVideoElement,
@@ -23,20 +26,25 @@ export class VolumeDucker {
     }
   }
   private step() {
-    if (Math.abs(this.target - this.gain) < 0.001) {
-      clearInterval(this.timer)
-      this.timer = undefined
-      return
-    }
-    this.gain += (this.target - this.gain) * 0.3
-    if (Math.abs(this.target - this.gain) < 0.001) this.gain = this.target
+    const t = Math.min(1, Math.max(0, (performance.now() - this.startedAt) / this.duration))
+    const eased = t * t * (3 - 2 * t)
+    this.gain = this.from + (this.target - this.from) * eased
     this.written = Math.max(0, Math.min(1, this.baseline * this.gain))
     this.video.volume = this.written
+    if (t === 1) {
+      clearInterval(this.timer)
+      this.timer = undefined
+    }
   }
   speaking(value: boolean) {
-    this.target = value ? this.ratio : 1
-    if (!this.timer && Math.abs(this.target - this.gain) >= 0.001)
-      this.timer = setInterval(() => this.step(), 20)
+    const next = value ? this.ratio : 1
+    if (next === this.target) return
+    this.target = next
+    this.from = this.gain
+    this.startedAt = performance.now()
+    this.duration = value ? 100 : 600
+    clearInterval(this.timer)
+    this.timer = setInterval(() => this.step(), 20)
   }
   destroy() {
     clearInterval(this.timer)

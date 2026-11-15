@@ -37,6 +37,7 @@ const pending = () => {
 function setup(
   generator?: (text: string, signal: AbortSignal) => Promise<DubbingAudio>,
   paused = false,
+  duck = 0.2,
 ) {
   const video = new Video()
   video.paused = paused
@@ -63,7 +64,7 @@ function setup(
     valid: () => valid,
     generate,
     state,
-    duck: 0.2,
+    duck,
   })
   return {
     video,
@@ -79,6 +80,11 @@ function setup(
 }
 const flush = async () => {
   for (let i = 0; i < 30; i++) await Promise.resolve()
+}
+const ready = async () => {
+  await flush()
+  await vi.advanceTimersByTimeAsync(120)
+  await flush()
 }
 beforeEach(() => vi.useFakeTimers())
 afterEach(() => {
@@ -96,21 +102,21 @@ describe("source-owned video voice", () => {
     expect(s.generate).toHaveBeenCalledTimes(2)
     expect(s.video.paused).toBe(true)
     jobs[0]!.resolve(audio)
-    await flush()
+    await ready()
     expect(s.player.play).toHaveBeenCalledOnce()
     expect(s.video.play).toHaveBeenCalledOnce()
     s.controller.stop()
   })
   it("never resumes an initially paused video", async () => {
     const s = setup(undefined, true)
-    await flush()
+    await ready()
     expect(s.video.play).not.toHaveBeenCalled()
     expect(s.player.play).not.toHaveBeenCalled()
     s.controller.stop()
   })
   it("finishes the final utterance without restarting an ended video", async () => {
     const s = setup()
-    await flush()
+    await ready()
     s.video.paused = true
     s.video.dispatchEvent(new Event("ended"))
     expect(s.player.destroy).not.toHaveBeenCalled()
@@ -131,13 +137,13 @@ describe("source-owned video voice", () => {
     s.video.dispatchEvent(new Event("seeking"))
     expect(signals.every((x) => x.aborted)).toBe(true)
     jobs[0]!.resolve(audio)
-    await flush()
+    await ready()
     expect(s.player.play).not.toHaveBeenCalled()
     s.controller.stop()
   })
   it("synchronizes manual pause, rate and long utterance without overlapping another voice", async () => {
     const s = setup()
-    await flush()
+    await ready()
     s.video.pause()
     expect(s.player.pause).toHaveBeenCalled()
     await s.video.play()
@@ -149,13 +155,13 @@ describe("source-owned video voice", () => {
     expect(s.video.paused).toBe(true)
     expect(s.player.play).toHaveBeenCalledOnce()
     s.end()
-    await flush()
+    await ready()
     expect(s.video.paused).toBe(false)
     s.controller.stop()
   })
   it("does not fight a user playing through a long-voice hold", async () => {
     const s = setup()
-    await flush()
+    await ready()
     s.video.currentTime = 2.6
     s.controller.tick()
     await s.video.play()
@@ -165,7 +171,7 @@ describe("source-owned video voice", () => {
   })
   it("stops on route/ad/config/key invalidation and restores source volume", async () => {
     const s = setup()
-    await flush()
+    await ready()
     await vi.advanceTimersByTimeAsync(200)
     expect(s.video.volume).toBeLessThan(0.8)
     s.invalidate()
@@ -177,13 +183,13 @@ describe("source-owned video voice", () => {
   it("does not regenerate future audio when the byte budget is full", async () => {
     const large = { bytes: new Uint8Array(8 * 1024 * 1024), duration: 2 }
     const s = setup(async () => large)
-    await flush()
+    await ready()
     await vi.advanceTimersByTimeAsync(500)
     expect(s.generate).toHaveBeenCalledTimes(2)
     s.video.currentTime = 3
     s.end()
     s.controller.tick()
-    await flush()
+    await ready()
     expect(s.generate.mock.calls.length).toBeLessThanOrEqual(3)
     s.controller.stop()
   })
@@ -191,7 +197,7 @@ describe("source-owned video voice", () => {
     const s = setup(async () => {
       throw new Error("provider failed")
     })
-    await flush()
+    await ready()
     const count = s.generate.mock.calls.length
     await vi.advanceTimersByTimeAsync(10000)
     expect(s.generate).toHaveBeenCalledTimes(count)
@@ -205,12 +211,90 @@ describe("source-owned video voice", () => {
   it("cleans audio failure and preserves mute with relative volume", async () => {
     const s = setup()
     s.video.muted = true
-    await flush()
+    await ready()
     await vi.advanceTimersByTimeAsync(200)
     expect(s.video.muted).toBe(true)
     s.end(true)
     expect(s.player.destroy).toHaveBeenCalledOnce()
     expect(s.video.volume).toBe(0.8)
+  })
+  it("lowers source to five percent before the first voice starts", async () => {
+    const s = setup(undefined, false, 0.05)
+    await flush()
+    await vi.advanceTimersByTimeAsync(99)
+    expect(s.player.play).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(s.player.play).toHaveBeenCalledOnce()
+    expect(s.video.volume).toBeCloseTo(0.04, 5)
+    s.controller.stop()
+  })
+  it("holds low after short TTS until the source CC ends, then releases smoothly", async () => {
+    const s = setup(undefined, false, 0.05)
+    await ready()
+    s.video.currentTime = 0.5
+    s.end()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(s.video.volume).toBeCloseTo(0.04, 5)
+    s.video.currentTime = 2.5
+    s.controller.tick()
+    await vi.advanceTimersByTimeAsync(399)
+    expect(s.video.volume).toBeCloseTo(0.04, 5)
+    await vi.advanceTimersByTimeAsync(201)
+    expect(s.video.volume).toBeGreaterThan(0.04)
+    expect(s.video.volume).toBeLessThan(0.8)
+    await vi.advanceTimersByTimeAsync(500)
+    expect(s.video.volume).toBeCloseTo(0.8, 5)
+    s.controller.stop()
+  })
+  it("keeps low when TTS outlasts CC and bridges a nearby next sentence", async () => {
+    const s = setup(undefined, false, 0.05)
+    await ready()
+    s.video.currentTime = 2.6
+    s.controller.tick()
+    await vi.advanceTimersByTimeAsync(500)
+    expect(s.video.volume).toBeCloseTo(0.04, 5)
+    s.end()
+    s.video.currentTime = 3
+    s.controller.tick()
+    await vi.advanceTimersByTimeAsync(120)
+    expect(s.player.play).toHaveBeenCalledTimes(2)
+    expect(s.video.volume).toBeCloseTo(0.04, 5)
+    s.controller.stop()
+  })
+  it("cancels a pending pre-duck start on pause, seek and stop", async () => {
+    for (const action of ["pause", "seek", "stop"]) {
+      const s = setup()
+      await flush()
+      await vi.advanceTimersByTimeAsync(50)
+      if (action === "pause") s.video.pause()
+      else if (action === "seek") {
+        s.video.paused = true
+        s.video.currentTime = 30
+        s.video.dispatchEvent(new Event("seeking"))
+      } else s.controller.stop()
+      await vi.advanceTimersByTimeAsync(700)
+      expect(s.player.play).not.toHaveBeenCalled()
+      expect(s.video.volume).toBeCloseTo(0.8, 5)
+      s.controller.stop()
+    }
+  })
+  it("does not start the same cue again while native audio play is pending", async () => {
+    const s = setup()
+    s.player.play = vi.fn<VoicePlayer["play"]>(() => new Promise(() => {}))
+    await ready()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(s.player.play).toHaveBeenCalledOnce()
+    s.controller.stop()
+  })
+  it("does not re-duck after manual pause while waiting for the original sentence end", async () => {
+    const s = setup(undefined, false, 0.05)
+    await ready()
+    s.end()
+    s.video.pause()
+    await vi.advanceTimersByTimeAsync(700)
+    expect(s.video.volume).toBeCloseTo(0.8, 5)
+    expect(s.video.play).toHaveBeenCalledTimes(1)
+    s.controller.stop()
   })
   it("respects the user's volume change while ducked", async () => {
     const video = new Video()

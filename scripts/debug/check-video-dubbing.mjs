@@ -164,7 +164,7 @@ try {
           events: [
             {
               tStartMs: 0,
-              dDurationMs: 60000,
+              dDurationMs: 4000,
               segs: [{ utf8: "Captain Luffy will protect his crew." }],
             },
           ],
@@ -209,8 +209,8 @@ try {
     await ready
     const track = video.addTextTrack("subtitles", "English", "en")
     track.addCue(new VTTCue(0, 4, "Captain Luffy will protect his crew."))
-    track.addCue(new VTTCue(5, 9, "We will sail together."))
-    track.addCue(new VTTCue(10, 14, "Friendship matters."))
+    track.addCue(new VTTCue(7, 11, "We will sail together."))
+    track.addCue(new VTTCue(14, 18, "Friendship matters."))
     video.volume = 0.8
     track.mode = "showing"
   }, media.toString("base64"))
@@ -242,6 +242,13 @@ try {
     "opening dubbing controls performs zero synthesis/translation requests",
     await worker.evaluate(() => __dubbingCalls.length === 0 && __pdfCalls.length === 0),
   )
+  check(
+    "original audio defaults to five percent",
+    await frame.$eval(
+      'pierce/[aria-label="Âm lượng gốc khi lồng tiếng"]',
+      (n) => Number(n.value) === 5,
+    ),
+  )
   await frame.select('pierce/[aria-label="Lời lồng tiếng"]', "original")
   await frame.click("pierce/[data-dubbing-toggle]")
   const status = () => frame.$eval("pierce/[data-dubbing-status]", (n) => n.textContent)
@@ -266,12 +273,27 @@ try {
     "real browser audio plays while video is ducked",
     await frame.evaluate(() => !document.querySelector("video").paused),
   )
+  await frame.waitForFunction(() => document.querySelector("video").currentTime >= 1.8)
+  check(
+    "short generated speech does not restore source before its CC sentence ends",
+    await frame.evaluate(() => Math.abs(document.querySelector("video").volume - 0.04) < 0.005),
+  )
   await frame.evaluate(() => document.querySelector("video").pause())
   await frame.waitForFunction(() => document.querySelector("video").volume > 0.79)
   check(
     "manual pause releases ducking without auto-resuming video",
     await frame.evaluate(() => document.querySelector("video").paused),
   )
+  await frame.evaluate(() => document.querySelector("video").play())
+  await frame.waitForFunction(() => document.querySelector("video").currentTime >= 5.3)
+  check(
+    "source returns smoothly after the original sentence and hold interval",
+    await frame.evaluate(() => Math.abs(document.querySelector("video").volume - 0.8) < 0.005),
+  )
+  await frame.evaluate(() => {
+    document.querySelector("video").pause()
+    document.querySelector("video").currentTime = 0
+  })
   await frame.click("pierce/[data-dubbing-toggle]")
   check(
     "Stop restores original player volume",

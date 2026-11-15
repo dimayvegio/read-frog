@@ -1,14 +1,15 @@
-# Lồng tiếng video — 1.59.3A.3
+# Lồng tiếng video — 1.59.3A.4
 
-Package `1.59.3-a.3`, manifest `1.59.3.3`, display `1.59.3A`.
-Baseline trước sửa: `ca992148d83ee2f0ca9fcfdebf7920433758d612` (a.2).
+Package `1.59.3-a.4`, manifest `1.59.3.4`, display `1.59.3A`.
+Baseline a.4: `e6f57e56aec271d181832ec89a225c35b6718d55` (a.3).
+Bản a.4 thêm giảm âm thông minh; bản a.3 thêm lồng tiếng.
 Không merge upstream trong bản này.
 
 ## Dùng thế nào
 
 Trên YouTube hoặc ani.pm, mở logo extension trong player → **Lồng tiếng OpenAI**.
 Chọn **Lời gốc** hoặc **Lời dịch**, chọn phần trăm âm gốc, bấm **Bắt đầu lồng tiếng**.
-Mặc định đọc lời dịch và giữ 20% âm gốc lúc đang đọc. Đổi lựa chọn sẽ dừng;
+Mặc định đọc lời dịch và giữ 5% âm gốc lúc có lời thoại. Đổi lựa chọn sẽ dừng;
 người dùng bấm Bắt đầu lại. Đóng menu vẫn tiếp tục đọc; nút Tắt kết thúc phiên.
 Giọng/model/tốc độ/chỉ dẫn lấy từ cấu hình OpenAI TTS hiện tại, kể cả khi lựa
 chọn TTS cũ là Microsoft. Đổi giọng trong Cài đặt → Text to Speech.
@@ -37,9 +38,16 @@ bị tắt, đổi server, OCR, ASR, thu âm, nhân bản giọng hay xuất vid
   video để chờ. Chỉ phát lại nếu extension sở hữu lần pause đó; pause của người
   dùng không bị tự mở. Nếu người dùng phát tiếp lúc giữ đuôi câu, bỏ đuôi cũ.
   Câu cuối được đọc hết mà không tự phát lại video từ đầu.
-- Âm lượng giảm/tăng theo ramp ngắn, so với mức của người dùng; giữ muted và
-  thay đổi âm lượng của người dùng. Ramp chỉ có timer khi đang chuyển mức.
-  Pause/seek/stop/end trả âm gốc; không giữ âm gốc nhỏ sau khi tắt.
+- Ưu tiên thuyết minh (a.4): hạ âm gốc trong 100 ms trước khi phát câu TTS.
+  Giữ thấp đến hết cả giọng đọc và khoảng CC gốc, kể cả khi TTS kết thúc sớm.
+  Sau đó giữ thêm 400 ms theo đồng hồ thực để nối các câu gần nhau, rồi phục
+  hồi trong 600 ms. Đây là giảm toàn bộ âm gốc, không phải tách riêng lời thoại.
+  Pause/network waiting trả âm qua ramp; resume tiếp tục ưu tiên câu còn lại.
+  Seek hủy giữ âm câu cũ và phục hồi qua ramp nếu chưa bắt đầu câu mới.
+  Stop/ad/source change/end hủy timer cũ, trả mức gốc ngay; muted và thay
+  đổi âm lượng người dùng vẫn được giữ. Chỉ chạy ramp timer khi đổi mức.
+  Pre-duck thuộc đúng cue/epoch, có guard pause/seek/stop/late play; không gọi
+  provider thêm, không phát lại câu chỉ để điều chỉnh âm lượng.
 - WAV qua private `openai-tts-file` port hiện có, không dùng global speaker hay
   cancellation của MP3/vocabulary. Unlock cùng media element ngay trong click.
   Lỗi provider/audio dừng phiên, không tự retry tính phí. Không hứa thời gian
@@ -74,10 +82,12 @@ Nghiên cứu ý tưởng, triển khai độc lập; không chép source hay th
 
 ## Kiểm thử
 
-27 test mới cho dubbing; hai profile production YouTube/ani.pm có 18 kiểm tra,
-11 kiểm tra MP3/TTS/PDF selection cũ cũng đạt (mock OpenAI, file MP3 thật
-và decoder độc lập). Lint/type-check/format và audit 201 script runtime đạt.
-Kết quả full suite cuối ghi trong release notes. Test logic bao gồm giới hạn job/cache,
+4.636 test pass, 1 skip có chủ đích; 34 test cho dubbing, gồm 7 test thêm ở a.4
+cho mặc định 5%, pre-duck, giữ hết câu, nối câu, phục hồi, hủy timer và không
+khởi chạy trùng khi play còn chờ. Hai profile production YouTube/ani.pm có
+24 kiểm tra đạt, gồm mức 5%, giữ thấp sau TTS và phục hồi sau hết câu CC.
+Provider được giả lập; video tổng hợp, audio phát thật. Lint/type-check/format
+và audit 201 script runtime đạt. Test logic bao gồm giới hạn job/cache,
 key/source/config/ad invalidation, late completion, pause/seek/rate/end/volume,
 native grouping và không dịch thêm. `scripts/debug/check-video-dubbing.mjs`
 dùng Chrome profile tạm, video tổng hợp và mock OpenAI; chạy mặc định ani.pm,

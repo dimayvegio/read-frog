@@ -39,7 +39,7 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
     loading = useAtomValue(videoLoadingAtom)
   const visible = useAtomValue(subtitlesVisibleAtom)
   const [mode, setMode] = useState<DubbingMode>("translated"),
-    [duck, setDuck] = useState(0.2)
+    [duck, setDuck] = useState(0.05)
   const [state, setState] = useState<DubbingState>({
     active: false,
     message: "Chọn lời gốc hoặc lời dịch rồi bấm Bắt đầu.",

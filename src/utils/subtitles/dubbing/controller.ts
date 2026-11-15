@@ -16,6 +16,13 @@ export interface DubbingDependencies {
   state: (state: DubbingState) => void
   duck: number
 }
+interface ActiveVoice {
+  cue: DubbingCue
+  audio: DubbingAudio
+  started: boolean
+  starting: boolean
+  offset: number
+}
 /** One source-owned session. No global speaker, disk audio, retries or translation queue. */
 export class DubbingController {
   private stopped = false
@@ -24,7 +31,11 @@ export class DubbingController {
   private cache = new Map<string, DubbingAudio>()
   private pending = new Map<string, AbortController>()
   private played = new Set<string>()
-  private current: { cue: DubbingCue; audio: DubbingAudio; started: boolean } | null = null
+  private current: ActiveVoice | null = null
+  private voiceStartTimer: ReturnType<typeof setTimeout> | undefined
+  private duckCue: DubbingCue | null = null
+  private releaseAt: number | null = null
+  private mediaWaiting = false
   private hold: "buffer" | "tail" | null = null
   private timer: ReturnType<typeof setInterval>
   private ducker: VolumeDucker
@@ -52,21 +63,25 @@ export class DubbingController {
     this.stop("Video đã kết thúc.")
   }
   private onMedia = (event: Event) => {
+    if (event.type === "playing" || event.type === "play") this.mediaWaiting = false
     if (event.type === "play") {
       this.ending = false
       if (this.hold === "tail") {
         this.d.player.stop()
         this.current = null
-        this.ducker.speaking(false)
+        this.resetDucking()
       }
       this.hold = null
     }
     if (event.type === "waiting") {
+      this.mediaWaiting = true
+      this.cancelVoiceStart()
       this.d.player.pause()
       this.ducker.speaking(false)
       return
     }
     if (this.d.video.paused && this.hold !== "tail") {
+      this.cancelVoiceStart()
       this.d.player.pause()
       this.ducker.speaking(false)
     } else if (this.current?.started) {
@@ -81,6 +96,9 @@ export class DubbingController {
   }
   private onSeek = () => {
     this.ending = false
+    this.mediaWaiting = false
+    this.cancelVoiceStart()
+    this.resetDucking()
     this.epoch++
     this.cancelPending()
     this.d.player.stop()
@@ -89,6 +107,102 @@ export class DubbingController {
     this.played.clear()
     // A seek expresses user intent: never resume a pause owned by the old position.
     this.hold = null
+  }
+  private cancelVoiceStart() {
+    clearTimeout(this.voiceStartTimer)
+    this.voiceStartTimer = undefined
+  }
+  private resetDucking() {
+    this.duckCue = null
+    this.releaseAt = null
+    this.ducker.speaking(false)
+  }
+  /** Hold through both CC and generated speech, then bridge short inter-sentence gaps. */
+  private updateDucking(time: number) {
+    const paused = this.d.video.paused && this.hold !== "tail"
+    if (paused || this.mediaWaiting) {
+      this.releaseAt = null
+      this.ducker.speaking(false)
+      return
+    }
+    if (this.duckCue && !this.d.cues().some((c) => c.id === this.duckCue!.id)) this.resetDucking()
+    if (this.current || (this.duckCue && time < this.duckCue.end)) {
+      this.releaseAt = null
+      this.ducker.speaking(true)
+      return
+    }
+    if (this.duckCue) {
+      this.releaseAt ??= performance.now() + 400
+      if (performance.now() < this.releaseAt) {
+        this.ducker.speaking(true)
+        return
+      }
+      this.duckCue = null
+      this.releaseAt = null
+    }
+    this.ducker.speaking(false)
+  }
+  private prepareVoice(current: ActiveVoice) {
+    if (
+      current.starting ||
+      this.voiceStartTimer !== undefined ||
+      this.mediaWaiting ||
+      this.d.video.paused
+    )
+      return
+    this.duckCue = current.cue
+    this.releaseAt = null
+    this.ducker.speaking(true)
+    const epoch = this.epoch
+    // Lower the original first; this timer is owned by this exact cue/session.
+    this.voiceStartTimer = setTimeout(() => {
+      this.voiceStartTimer = undefined
+      if (this.stopped || this.current !== current || epoch !== this.epoch) return
+      if (!this.d.valid()) {
+        this.stop("Nguồn video hoặc cấu hình đã đổi. Bấm Bắt đầu lại.")
+        return
+      }
+      if (this.mediaWaiting || this.d.video.paused) return
+      const { cue, audio, offset } = current,
+        v = this.d.video
+      const rate = Math.max(
+        0.5,
+        Math.min(
+          1.75,
+          Math.max(
+            v.playbackRate,
+            (audio.duration - offset) / Math.max(0.1, (cue.end - v.currentTime * 1000) / 1000),
+          ),
+        ),
+      )
+      current.starting = true
+      void this.d.player
+        .play(audio, offset, rate, (error) => {
+          if (this.stopped || this.current !== current || epoch !== this.epoch) return
+          if (this.ending) {
+            this.stop("Video đã kết thúc.")
+            return
+          }
+          if (error) {
+            this.stop("Không phát được âm thanh. Bấm Bắt đầu lại.")
+            return
+          }
+          this.current = null
+          this.release()
+          this.tick()
+        })
+        .then(() => {
+          if (this.stopped || this.current !== current || epoch !== this.epoch) return
+          current.starting = false
+          current.started = true
+          if ((v.paused && this.hold !== "tail") || this.mediaWaiting) this.d.player.pause()
+          this.updateDucking(v.currentTime * 1000)
+        })
+        .catch(() => {
+          if (!this.stopped && this.current === current)
+            this.stop("Bấm Bắt đầu để cho phép phát giọng đọc.")
+        })
+    }, 100)
   }
   private cancelPending() {
     for (const c of this.pending.values()) c.abort()
@@ -181,6 +295,11 @@ export class DubbingController {
         this.stop("Phụ đề đã đổi. Bấm Bắt đầu lại.")
         return
       }
+      if (!this.current.started) {
+        this.prepareVoice(this.current)
+        this.updateDucking(time)
+        return
+      }
       const left = Math.max(0.1, (cue.end - time) / 1000),
         remaining = Math.max(0, audio.duration - this.d.player.position())
       this.d.player.setRate(
@@ -189,18 +308,17 @@ export class DubbingController {
       if (time >= cue.end) this.pauseFor("tail")
       if (v.paused && this.hold !== "tail") {
         this.d.player.pause()
-        this.ducker.speaking(false)
         this.report("Tạm dừng cùng video.")
       } else if (this.current.started) {
-        this.ducker.speaking(true)
         this.report("Đang lồng tiếng · Giọng AI OpenAI")
       }
+      this.updateDucking(time)
       return
     }
     const cue = window.find((c) => c.start <= time + 80 && c.end > time && !this.played.has(c.id))
     if (!cue) {
       this.release()
-      this.ducker.speaking(false)
+      this.updateDucking(time)
       this.report("Đang chờ câu phụ đề tiếp theo.")
       return
     }
@@ -211,59 +329,30 @@ export class DubbingController {
       return
     }
     if (v.paused && !this.hold) {
+      this.updateDucking(time)
       this.report("Sẵn sàng. Bấm phát video để nghe.")
       return
     }
-    const current = { cue, audio, started: false },
-      epoch = this.epoch
+    const offset =
+      Math.max(0, Math.min(0.9, (time - cue.start) / (cue.end - cue.start))) * audio.duration
+    const current: ActiveVoice = { cue, audio, started: false, starting: false, offset }
     this.current = current
+    this.duckCue = cue
+    this.releaseAt = null
     this.release()
     this.played.add(cue.id)
     if (this.played.size > 100) this.played.delete(this.played.values().next().value!)
-    const offset =
-      Math.max(0, Math.min(0.9, (time - cue.start) / (cue.end - cue.start))) * audio.duration
-    const rate = Math.max(
-      0.5,
-      Math.min(
-        1.75,
-        Math.max(
-          v.playbackRate,
-          (audio.duration - offset) / Math.max(0.1, (cue.end - time) / 1000),
-        ),
-      ),
-    )
-    void this.d.player
-      .play(audio, offset, rate, (error) => {
-        if (this.stopped || this.current !== current || epoch !== this.epoch) return
-        if (this.ending) {
-          this.stop("Video đã kết thúc.")
-          return
-        }
-        if (error) {
-          this.stop("Không phát được âm thanh. Bấm Bắt đầu lại.")
-          return
-        }
-        this.current = null
-        this.ducker.speaking(false)
-        this.release()
-        this.tick()
-      })
-      .then(() => {
-        if (this.stopped || this.current !== current || epoch !== this.epoch) return
-        current.started = true
-        if (v.paused && this.hold !== "tail") this.d.player.pause()
-        else this.ducker.speaking(true)
-      })
-      .catch(() => {
-        if (!this.stopped && this.current === current)
-          this.stop("Bấm Bắt đầu để cho phép phát giọng đọc.")
-      })
+    this.prepareVoice(current)
   }
+
   stop(message = "Đã tắt lồng tiếng.", resume = false) {
     if (this.stopped) return
     const shouldResume = resume && this.hold !== null && this.d.valid()
     this.hold = null
     this.stopped = true
+    this.cancelVoiceStart()
+    this.duckCue = null
+    this.releaseAt = null
     this.epoch++
     clearInterval(this.timer)
     this.cancelPending()

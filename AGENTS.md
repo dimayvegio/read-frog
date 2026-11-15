@@ -8,6 +8,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve a.4 smart ducking in [VIDEO_DUBBING.md](VIDEO_DUBBING.md): default 5% source gain, 100ms pre-duck before first speech, hold through max(native cue end, TTS completion), 400ms inter-cue hold and 600ms release. Keep cue/epoch-owned cancelable timers, manual pause/network-wait recovery, original volume/mute ownership and no duplicate playback while play is pending. No extra provider work or schema/permission change.
+
 - Preserve explicit YouTube/ani.pm OpenAI dubbing in [VIDEO_DUBBING.md](VIDEO_DUBBING.md): source/translated mode only after Start, native CC or committed translations with no second translator/AI segmentation/ASR fallback; RAM-only 30-second/six-cue window, two synthesis jobs, six/16MiB completed audio. Keep exact route/video/config/credential/ad guards, seek/late-output cancellation, relative duck/restore/mute/user-volume ownership, extension-owned buffer/tail pauses and manual-pause intent, final utterance without replay, media unlock in the Start gesture and private TTS file-port isolation from MP3/vocabulary/global speaker. No new endpoint, permission, config/DB/ZIP schema or automatic paid retry.
 
 - Preserve [PDF_AI_REVIEW_FIXES_A2.md](PDF_AI_REVIEW_FIXES_A2.md): document-owned explicit AI tasks, original translation cache ownership, completed-only bounded AI cache DB2 with scoped clear epochs, canonical PDF view rotation/annotation geometry and portal shape controls, recent-file permission/fallback, lazy bounded outline and cancel-safe rAF splitters. Never promote partial output to a cache hit or inherit an AI task on file open. Earlier published schemas remain frozen.

@@ -1,5 +1,10 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.4 / manifest 1.59.3.4 (display 1.59.3A):** giảm âm thông minh,
+mặc định 5%, pre-duck 100 ms, giữ đến hết CC và giọng đọc, nối khoảng nghỉ
+400 ms rồi phục hồi 600 ms. Hủy timer khi pause/seek/stop/đổi nguồn; không
+thêm provider/model/schema/permission. Xem [VIDEO_DUBBING.md](VIDEO_DUBBING.md).
+
 **Mới 1.59.3-a.3 / manifest 1.59.3.3 (display 1.59.3A):** lồng tiếng OpenAI
 lời gốc/lời dịch trên YouTube và ani.pm, đệm 30 giây/6 câu/2 job, duck âm gốc,
 pause ownership và hủy theo nguồn/key/config. Chỉ RAM; không thêm schema/quyền.

@@ -101,6 +101,11 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 describe("explicit dubbing ownership", () => {
+  it("defaults to five percent without changing persisted TTS configuration", () => {
+    setup()
+    expect(ui.duck).toBe(0.05)
+    expect(subtitlesStore.get(configAtom)).toEqual(DEFAULT_CONFIG)
+  })
   it("does not construct a player or contact OpenAI when opened or settings change", () => {
     setup()
     act(() => {

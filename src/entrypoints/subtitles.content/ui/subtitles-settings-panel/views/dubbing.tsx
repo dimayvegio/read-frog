@@ -20,7 +20,7 @@ export function DubbingView() {
         </select>
       </label>
       <label className="block space-y-1">
-        <span>Âm lượng gốc khi đọc: {Math.round(dub.duck * 100)}%</span>
+        <span>Âm gốc khi có lời thoại: {Math.round(dub.duck * 100)}%</span>
         <input
           aria-label="Âm lượng gốc khi lồng tiếng"
           className="w-full"
@@ -32,6 +32,10 @@ export function DubbingView() {
           onChange={(e) => dub.changeDuck(Number(e.target.value) / 100)}
         />
       </label>
+      <p className="text-muted-foreground">
+        Ưu tiên thuyết minh: giữ âm gốc thấp đến hết cả câu CC và giọng đọc, rồi tăng lại từ từ.
+        Khoảng nghỉ ngắn giữa câu vẫn giữ thấp.
+      </p>
       <p className="text-muted-foreground">
         Giọng AI OpenAI · {dub.model} · {dub.voice}
       </p>
