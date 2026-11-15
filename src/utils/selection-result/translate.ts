@@ -1,6 +1,7 @@
 import type { BackgroundTextStreamSnapshot } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
+import type { ImageStructure } from "@/utils/image-translation/structure"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { aiContext } from "@/utils/ai-cache/context"
 import { readAiCache, saveAiCache } from "@/utils/ai-cache/db"
@@ -9,6 +10,7 @@ import { createGlossaryMatcher } from "@/utils/glossary/matcher"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { imageCacheKey, readImageCache, saveImageCache } from "@/utils/image-translation/cache"
 import { imageTranslationContext } from "@/utils/image-translation/context"
+import { translateStructuredImage } from "@/utils/image-translation/structured"
 import { sendMessage } from "@/utils/message"
 import { getNativeTranslatePrompt } from "@/utils/prompts/native-translate"
 import { getOpenAIOutputIdentity } from "@/utils/providers/openai-profile"
@@ -43,6 +45,7 @@ export async function translateNativeSelection({
   pretranslated,
   cacheOnly = false,
   onInvalidate,
+  imageStructure,
 }: {
   text: string
   config: Config
@@ -57,7 +60,19 @@ export async function translateNativeSelection({
   pretranslated?: ImagePretranslation
   cacheOnly?: boolean
   onInvalidate?: () => void
+  imageStructure?: ImageStructure
 }) {
+  if (imageCache && imageStructure)
+    return translateStructuredImage({
+      structure: imageStructure,
+      text,
+      config,
+      signal,
+      bypassCache,
+      cacheOnly,
+      onChunk,
+      onCacheState,
+    })
   const preparedText = document
     ? prepareStructuredPdfText(text, textOptions)
     : prepareTranslationText(sourceKind === "web" ? text : preparePdfText(text, textOptions))

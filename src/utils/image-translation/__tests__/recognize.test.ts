@@ -12,6 +12,8 @@ import {
   readImageCache,
 } from "../cache"
 import { recognizeImage } from "../recognize"
+import { imageStructureEnvelope, renderImageStructure, type ImageStructure } from "../structure"
+vi.mock("@/utils/config/storage", () => ({ getLocalConfig: async () => structuredClone(config) }))
 await vi.hoisted(async () => {
   const fake = await import("fake-indexeddb")
   Object.assign(globalThis, { indexedDB: fake.indexedDB, IDBKeyRange: fake.IDBKeyRange })
@@ -32,7 +34,10 @@ const image = "data:image/png;base64,iVBORw0KGgoAAA=="
 let config = structuredClone(DEFAULT_CONFIG),
   revision = 1,
   terms: any[] = []
-const recognize = (mode: "fast" | "two-step" = "fast", extra: Record<string, unknown> = {}) =>
+const recognize = (
+  mode: "fast" | "two-step" | "structure" = "fast",
+  extra: Record<string, unknown> = {},
+) =>
   recognizeImage({
     image,
     mode,
@@ -233,3 +238,174 @@ it("does not revive cached results cleared while a request was in flight", async
   await recognize()
   expect(await imageCacheDB.entries.count()).toBe(0)
 })
+
+const structuredSource: ImageStructure = {
+  blocks: [
+    { type: "heading", level: 2, text: "Register map" },
+    {
+      type: "table",
+      header: true,
+      rows: [
+        ["Name", "Value"],
+        ["rst_n", "1'b0"],
+        ["reserved", ""],
+      ],
+    },
+    { type: "list", ordered: true, start: 8, items: ["First", "Second"] },
+    { type: "code", language: "sv", text: "module test;\n  assign rst_n = 1'b0;\nendmodule" },
+  ],
+}
+const structuredOutput = (doc = structuredSource) =>
+  JSON.stringify({
+    cells: imageStructureEnvelope(doc).cells.map((c) => ({ id: c.id, text: `VI ${c.text}` })),
+  })
+it("reads/translates a structured crop in two requests, then reuses both caches after reselecting", async () => {
+  config.language.targetCode = "vi"
+  ocr.mockResolvedValue({ output: JSON.stringify(structuredSource) })
+  text.mockResolvedValue({ output: structuredOutput(), thinking: { status: "complete", text: "" } })
+  const first = await recognize("structure")
+  const output = await translate(first.original, { imageStructure: first.structure })
+  expect(output.output).toContain("| VI rst\\_n | VI 1'b0 |")
+  expect(output.output).toContain("  assign rst_n = 1'b0;")
+  expect(text.mock.calls[0]![0].prompt).not.toContain("module test;")
+  const second = await recognize("structure")
+  await translate(second.original, { imageStructure: second.structure })
+  expect(ocr).toHaveBeenCalledTimes(1)
+  expect(text).toHaveBeenCalledTimes(1)
+  expect(fast).not.toHaveBeenCalled()
+  expect(text.mock.calls[0]![0].instructions).toContain("Vietnamese (vi)")
+  expect(ocr.mock.calls[0]![0].instructions).toContain("reading order")
+  const rows = await imageCacheDB.entries.toArray()
+  expect(rows).toHaveLength(2)
+  expect(JSON.stringify(rows)).not.toMatch(/data:image|base64|apiKey|file:\/\//u)
+})
+it("keeps legacy plain caches separate and applies custom prompts/glossaries to structured cells", async () => {
+  config.language.targetCode = "vi"
+  await recognize("two-step")
+  await translate("Hello world")
+  config.pageTranslation.customPromptsConfig = {
+    promptId: "custom",
+    patterns: [
+      {
+        id: "custom",
+        name: "Tech",
+        systemPrompt: "Keep code. Translate into Chinese.",
+        prompt: "{{input}}",
+      },
+    ],
+  }
+  config.glossary.enabled = true
+  terms = [{ source: "Register", target: "Thanh ghi" }]
+  ocr.mockResolvedValue({ output: JSON.stringify(structuredSource) })
+  text.mockResolvedValue({ output: structuredOutput(), thinking: { status: "complete", text: "" } })
+  const result = await recognize("structure")
+  await translate(result.original, { imageStructure: result.structure })
+  expect(text.mock.calls.at(-1)![0].instructions).toContain("Vietnamese (vi)")
+  expect(JSON.stringify(text.mock.calls.at(-1)![0])).toContain("Thanh ghi")
+  expect(ocr).toHaveBeenCalledTimes(2)
+  expect(text).toHaveBeenCalledTimes(2)
+})
+it("changing target reuses structure OCR but invalidates its translated cells", async () => {
+  config.language.targetCode = "vi"
+  ocr.mockResolvedValue({ output: JSON.stringify(structuredSource) })
+  text.mockResolvedValue({ output: structuredOutput(), thinking: { status: "complete", text: "" } })
+  const first = await recognize("structure")
+  await translate(first.original, { imageStructure: first.structure })
+  config.language.targetCode = "en"
+  const second = await recognize("structure")
+  await translate(second.original, { imageStructure: second.structure })
+  expect(ocr).toHaveBeenCalledTimes(1)
+  expect(text).toHaveBeenCalledTimes(2)
+})
+it("editing/removing cells invalidates translation only and never includes removed text in the request", async () => {
+  const changed: ImageStructure = { blocks: [{ type: "paragraph", text: "Only remaining source" }] }
+  text.mockResolvedValue({
+    output: structuredOutput(changed),
+    thinking: { status: "complete", text: "" },
+  })
+  await translate(renderImageStructure(changed), { imageStructure: changed })
+  expect(text.mock.calls[0]![0].prompt).toContain("Only remaining source")
+  expect(text.mock.calls[0]![0].prompt).not.toContain("Register map")
+  expect(ocr).not.toHaveBeenCalled()
+})
+it("does not call a provider when viewing code-only structure or a cache-only miss", async () => {
+  const doc: ImageStructure = {
+    blocks: [{ type: "code", language: "sv", text: "module test;\nendmodule" }],
+  }
+  const source = renderImageStructure(doc)
+  expect((await translate(source, { imageStructure: doc })).output).toBe(source)
+  expect(
+    (
+      await translate(renderImageStructure(structuredSource), {
+        imageStructure: structuredSource,
+        cacheOnly: true,
+      })
+    ).output,
+  ).toBe("")
+  expect(text).not.toHaveBeenCalled()
+})
+it("rejects an oversized rendered source and an already-aborted code-only read before provider work", async () => {
+  const oversized: ImageStructure = { blocks: [{ type: "paragraph", text: "*".repeat(11000) }] }
+  await expect(
+    translate(renderImageStructure(oversized), { imageStructure: oversized }),
+  ).rejects.toThrow(/Nguồn cấu trúc/u)
+  const doc: ImageStructure = { blocks: [{ type: "code", language: "", text: "literal" }] }
+  const controller = new AbortController()
+  controller.abort()
+  await expect(
+    translate(renderImageStructure(doc), { imageStructure: doc, signal: controller.signal }),
+  ).rejects.toThrow(/abort/iu)
+  expect(text).not.toHaveBeenCalled()
+})
+it("does not cache invalid structured translations or automatically retry them", async () => {
+  const chunk = vi.fn<(...args: any[]) => void>()
+  text.mockResolvedValue({ output: '{"cells":[]}' })
+  await expect(
+    translate(renderImageStructure(structuredSource), {
+      imageStructure: structuredSource,
+      onChunk: chunk,
+    }),
+  ).rejects.toThrow(/./u)
+  expect(await imageCacheDB.entries.count()).toBe(0)
+  expect(chunk).not.toHaveBeenCalled()
+  expect(text).toHaveBeenCalledOnce()
+})
+it.each(["key", "config", "clear", "abort"])(
+  "rejects late structured OCR after %s changes",
+  async (change) => {
+    const abort = new AbortController()
+    ocr.mockImplementationOnce(async () => {
+      if (change === "key") revision++
+      if (change === "config") config.language.targetCode = "en"
+      if (change === "clear") await clearImageCache()
+      if (change === "abort") abort.abort()
+      return { output: JSON.stringify(structuredSource) }
+    })
+    await expect(recognize("structure", { signal: abort.signal })).rejects.toThrow(/./u)
+    expect(await imageCacheDB.entries.count()).toBe(0)
+    expect(ocr).toHaveBeenCalledOnce()
+    expect(text).not.toHaveBeenCalled()
+  },
+)
+it.each(["key", "clear", "abort"])(
+  "rejects late structured translation after %s changes",
+  async (change) => {
+    const abort = new AbortController(),
+      chunk = vi.fn<(...args: any[]) => void>()
+    text.mockImplementationOnce(async () => {
+      if (change === "key") revision++
+      if (change === "clear") await clearImageCache()
+      if (change === "abort") abort.abort()
+      return { output: structuredOutput(), thinking: { status: "complete", text: "" } }
+    })
+    await expect(
+      translate(renderImageStructure(structuredSource), {
+        imageStructure: structuredSource,
+        signal: abort.signal,
+        onChunk: chunk,
+      }),
+    ).rejects.toThrow(/./u)
+    expect(chunk).not.toHaveBeenCalled()
+    expect(await imageCacheDB.entries.count()).toBe(0)
+  },
+)

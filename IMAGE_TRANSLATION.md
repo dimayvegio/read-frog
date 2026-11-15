@@ -1,5 +1,9 @@
 # Chụp vùng và dịch ảnh
 
+## A.12 — Giữ cấu trúc ảnh
+
+Chọn **Giữ cấu trúc — bảng, danh sách, code** tại trang Dịch ảnh. Có thể sửa từng khối/ô, gộp/tách đoạn và bỏ khối trước khi dịch lại. Cold dùng hai lượt, cùng kết quả có cache; không tự retry. Chỉ giữ cấu trúc nội dung, chưa font/màu/tọa độ chính xác. Xem [hợp đồng, giới hạn và kiểm chứng A.12](IMAGE_STRUCTURE_A12.md). Các phần bên dưới là lịch sử và đường plain cũ.
+
 ## Sửa ngôn ngữ đích — 1.58.0-a.17 / manifest 1.58.0.18
 
 Ngôn ngữ được chọn trong khung dịch ảnh/PDF luôn là đích của phần văn bản dịch,

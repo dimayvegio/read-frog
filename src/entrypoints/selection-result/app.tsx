@@ -3,6 +3,7 @@ import type { ThinkingSnapshot } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
 import type { NativeSelectionRequest } from "@/types/native-selection"
+import type { ImageStructure } from "@/utils/image-translation/structure"
 import type { PdfHistoryRecord } from "@/utils/selection-result/pdf-history"
 import { resolveLanguage } from "@read-frog/definitions"
 import { IconLoader2, IconPlayerStop, IconSettings } from "@tabler/icons-react"
@@ -51,6 +52,7 @@ export function SelectionTranslation({
   pretranslated,
   textOptions,
   onTextOptions,
+  imageStructure,
 }: {
   request: NativeSelectionRequest
   config: Config
@@ -61,6 +63,7 @@ export function SelectionTranslation({
   pretranslated?: ImagePretranslation
   textOptions: PdfTextOptions
   onTextOptions: (options: PdfTextOptions) => void
+  imageStructure?: ImageStructure
 }) {
   const { targetCode: targetLanguage } = useAtomValue(configFieldsAtomMap.language)
   const web = request.source?.kind === "web" && !request.document
@@ -191,6 +194,7 @@ export function SelectionTranslation({
             bypassCache,
             imageCache,
             pretranslated,
+            imageStructure,
             onInvalidate: () => {
               controller.abort()
               setOutput("")
@@ -257,6 +261,7 @@ export function SelectionTranslation({
     imageCache,
     pretranslated,
     aiMode,
+    imageStructure,
   ])
 
   const rerun = () => {
@@ -375,7 +380,7 @@ export function SelectionTranslation({
               Đoạn đã chọn chưa có lịch sử theo tài liệu PDF.
             </p>
           )}
-          {!web && (
+          {!web && !imageStructure && (
             <details className="mt-2">
               <summary className="cursor-pointer">
                 {sourceTitle ? "Văn bản và cách làm sạch" : "Văn bản PDF và cách làm sạch"}

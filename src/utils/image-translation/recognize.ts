@@ -1,3 +1,4 @@
+import type { ImageStructure } from "./structure"
 import type { Config } from "@/types/config/config"
 import type { PdfTextOptions } from "@/utils/selection-result/pdf-text"
 import { sha256 } from "js-sha256"
@@ -13,6 +14,7 @@ import {
 import { sendMessage } from "@/utils/message"
 import { imageCacheKey, readImageCache, saveImageCache } from "./cache"
 import { imageTranslationContext, OCR_INSTRUCTIONS } from "./context"
+import { recognizeStructuredImage } from "./structured"
 export async function recognizeImage({
   image,
   mode,
@@ -24,15 +26,17 @@ export async function recognizeImage({
   onChunk,
 }: {
   image: string
-  mode: "fast" | "two-step"
+  mode: "fast" | "two-step" | "structure"
   config: Config
   options: PdfTextOptions
   signal: AbortSignal
   bypass?: boolean
   onStatus: (text: string) => void
   onChunk: (original: string, translation: string) => void
-}): Promise<{ original: string; pretranslated?: ImagePretranslation }> {
+}): Promise<{ original: string; pretranslated?: ImagePretranslation; structure?: ImageStructure }> {
   imageDataURLSchema.parse(image)
+  if (mode === "structure")
+    return recognizeStructuredImage({ image, config, signal, bypass, onStatus })
   const context = await imageTranslationContext(config, options)
   signal.throwIfAborted()
   const fast = mode === "fast" && !context.reason

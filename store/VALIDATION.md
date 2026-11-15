@@ -1,3 +1,17 @@
+# Candidate A.12 validation — 15 November 2026
+
+Baseline 1da3aa02. Package 1.59.3-a.12 / manifest 1.59.3.12 / display 1.59.3A. No new permission, dependency, model, endpoint or published config/DB/ZIP schema. New versioned image structure payload in existing text cache columns is documented in IMAGE_STRUCTURE_A12.md.
+
+- **4,764 unit tests passed / one intentional free-service skip**, 491 passing files / one skipped; SKIP_FREE_API=true. Fresh full run 54.6s, log `.codex/image-structure-tests.log`.
+- Production Chrome 157, final edge-mv3 build: **22 structured-image checks**, `.codex/image-structure-1794751061975`. Typed block/table/code rendering, original numbering, two cold calls, zero warm/reload calls, force OCR only, edit one text call/no image, local merge/split/delete, invalid result rejection/no automatic retry/cache, excluded source absent from request, actual in-flight stop, phone viewport/reading height, zero uncaught errors. API mocked; no live OCR quality claim.
+- Production Chrome regression: **83 PDF/old image/fast cache checks**, `.codex/pdf-reading-1794751067697`; existing native-reader/sidepanel/crop/cancellation/target/prompt/warm-cache paths. OS context menu/snipping shortcut not driven. Separate Edge launch failed with TargetCloseError before test startup; not an Edge UI pass.
+- Production Chrome HTML pane: **18 checks**, see `.codex/image-structure-html.log` for exact evidence directory. No duplicate calls or source DOM mutation; existing GFM rendering and pane controls.
+- Type-aware lint, formatter, production ZIP, runtime/store static audits pass. 471 files /201 JS /9 locales. Static endpoint scan is complemented by the mock runtime request/payload checks; not a universal network proof.
+- ZIP 22,084,544 bytes, SHA-256 `eb5ab74f6587230a0580ce817088b984cb9ecdaac1c4a076ab022f83e4680d05`. +5,411 bytes versus A.11. Vocabulary review HTML unchanged: `a640c20d7aa510642dbda1dd59411e41c0660670ae2a97594d3654ab56aedb64`.
+- No paid API, OS RAM benchmark, live site-account/quality test or 120-minute mixed soak. Local install is filesystem-only using a validated staging ZIP, asset-first/manifest-last, same key and permissions, no profile/DB edits. User Reload remains required.
+
+## Historical A.11 evidence
+
 # Candidate A.11 validation — 15 November 2026
 
 Baseline 1216a049. Package 1.59.3-a.11 / manifest 1.59.3.11 / display 1.59.3A. No schema/permission/model/endpoint or Node/CI changes.

@@ -9,10 +9,16 @@ import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { clearImageCache } from "@/utils/image-translation/cache"
 import { recognizeImage } from "@/utils/image-translation/recognize"
 import { imageShortcutLabel, openImageShortcuts } from "@/utils/image-translation/shortcut"
+import {
+  imageStructureSchema,
+  renderImageStructure,
+  type ImageStructure,
+} from "@/utils/image-translation/structure"
 import { sendMessage } from "@/utils/message"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
 import { cropBetween, decodeImage, encodeCrop, type Point, type Crop } from "./image"
+import { ImageStructureEditor } from "./structure-editor"
 
 const FULL: Crop = { x: 0, y: 0, width: 1, height: 1 }
 export function ImageTranslation({ config }: { config: Config }) {
@@ -32,7 +38,8 @@ export function ImageTranslation({ config }: { config: Config }) {
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
   const [pretranslated, setPretranslated] = useState<ImagePretranslation>()
   const [fastOutput, setFastOutput] = useState("")
-  const [mode, setMode] = useState<"fast" | "two-step">("fast")
+  const [mode, setMode] = useState<"fast" | "two-step" | "structure">("fast")
+  const [structure, setStructure] = useState<ImageStructure>()
   const modeChanged = useRef(false)
   const [shortcut, setShortcut] = useState("")
   const [options, setOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
@@ -44,6 +51,7 @@ export function ImageTranslation({ config }: { config: Config }) {
     setRequest(null)
     setPretranslated(undefined)
     setFastOutput("")
+    setStructure(undefined)
     setStatus("")
     setError("")
   }
@@ -94,7 +102,9 @@ export function ImageTranslation({ config }: { config: Config }) {
     void browser.storage.local.get("imageTranslationMode").then((value) => {
       if (
         !modeChanged.current &&
-        (value.imageTranslationMode === "fast" || value.imageTranslationMode === "two-step")
+        (value.imageTranslationMode === "fast" ||
+          value.imageTranslationMode === "two-step" ||
+          value.imageTranslationMode === "structure")
       )
         setMode(value.imageTranslationMode)
     })
@@ -192,6 +202,7 @@ export function ImageTranslation({ config }: { config: Config }) {
       if (token !== version.current) return
       setText(result.original)
       setPretranslated(result.pretranslated)
+      setStructure(result.structure)
       setFastOutput("")
       translateText(result.original)
     } catch (cause) {
@@ -214,7 +225,7 @@ export function ImageTranslation({ config }: { config: Config }) {
       }}
     >
       <header className="rf-image-toolbar">
-        <strong>Read Frog · Dịch ảnh</strong>
+        <strong>FlowRead · Dịch ảnh</strong>
         <label>
           Chế độ{" "}
           <select
@@ -223,7 +234,12 @@ export function ImageTranslation({ config }: { config: Config }) {
             disabled={busy || loadingImage}
             onChange={(event) => {
               if (loadingImage) return
-              const value = event.target.value === "fast" ? "fast" : "two-step"
+              const value =
+                event.target.value === "structure"
+                  ? "structure"
+                  : event.target.value === "fast"
+                    ? "fast"
+                    : "two-step"
               modeChanged.current = true
               resetRun()
               setText("")
@@ -233,6 +249,7 @@ export function ImageTranslation({ config }: { config: Config }) {
           >
             <option value="fast">Nhanh — một lượt</option>
             <option value="two-step">Đọc chữ trước — hai bước</option>
+            <option value="structure">Giữ cấu trúc — bảng, danh sách, code</option>
           </select>
         </label>
         <button type="button" onClick={() => input.current?.click()}>
@@ -332,6 +349,12 @@ export function ImageTranslation({ config }: { config: Config }) {
         Chụp từ popup extension, hoặc Win+Shift+S rồi dán Ctrl+V tại đây. Chỉ vùng bạn chọn được gửi
         tới OpenAI sau khi bấm đọc và dịch.
       </p>
+      {mode === "structure" && (
+        <p className="rf-image-help">
+          Giữ cấu trúc: đọc ảnh rồi dịch theo từng khối / ô. Hai lượt khi chưa có cache; không phục
+          dựng chính xác font, màu hoặc vị trí.
+        </p>
+      )}
       <p role="status" className="rf-image-status">
         {status}
       </p>
@@ -397,7 +420,45 @@ export function ImageTranslation({ config }: { config: Config }) {
               <img src={preview} alt="Vùng ảnh gửi để đọc chữ" />
             </details>
           )}
-          {text && (
+          {structure && (
+            <>
+              <ImageStructureEditor
+                value={structure}
+                disabled={busy || loadingImage}
+                onChange={(next) => {
+                  try {
+                    const value = imageStructureSchema.parse(next)
+                    const rendered = renderImageStructure(value)
+                    if (rendered.length > MAX_NATIVE_SELECTION_LENGTH)
+                      throw new Error("Cấu trúc quá dài; hãy giảm nội dung.")
+                    setRequest(null)
+                    setPretranslated(undefined)
+                    setStructure(value)
+                    setText(rendered)
+                    setError("")
+                    setStatus(
+                      "Đã sửa cấu trúc trên máy. Bấm Dịch lại cấu trúc để cập nhật bản dịch.",
+                    )
+                    return true
+                  } catch {
+                    setError(
+                      "Chưa lưu được: tối đa 128 khối / 20.000 ký tự, bảng phải cùng số cột; hãy giảm nội dung.",
+                    )
+                    return false
+                  }
+                }}
+              />
+              <button
+                className="rf-structure-translate"
+                type="button"
+                disabled={busy || loadingImage}
+                onClick={() => translateText(text)}
+              >
+                Dịch lại cấu trúc
+              </button>
+            </>
+          )}
+          {text && !structure && (
             <section className="rf-image-text">
               <label htmlFor="image-ocr-text">
                 Văn bản đọc từ ảnh — có thể sửa trước khi dịch lại
@@ -451,6 +512,7 @@ export function ImageTranslation({ config }: { config: Config }) {
               sourceTitle="Ảnh chụp"
               imageCache
               pretranslated={pretranslated}
+              imageStructure={structure}
               textOptions={options}
               onTextOptions={setOptions}
             />

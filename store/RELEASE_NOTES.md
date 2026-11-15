@@ -1,12 +1,14 @@
-FlowRead 1.59.3A.11 — fallback cache, Markdown tables/code and PDF panels
+FlowRead 1.59.3A.12 — OCR ảnh giữ cấu trúc
 
-- Package 1.59.3-a.11, numeric 1.59.3.11, display 1.59.3A. Baseline 1216a049.
-- Chuột phải khi trang thiếu runtime: fallback xác minh MIME/frame/document trước khi đánh dấu HTML để dùng cache A.9. PDF/guest/nguồn chưa xác định giữ đường cũ; không đoán tất cả là web.
-- Bảng GFM và code có nền/monospace/cuộn ngang; giữ số thứ tự danh sách. Không thực thi raw HTML hay tải ảnh từ model. Parser/giấy phép đóng gói local.
-- Panel PDF nhớ vị trí/kích thước local có version và giới hạn viewport; không ghi trong preview/cancel. Khoảng trống tài liệu theo mép panel sau thả chuột, cleanup khi đóng; mobile vẫn overlay. Không gọi provider từ view/layout.
-- 4.725 tests đạt / một intentional skip. Production Chrome HTML 18 + PDF/OCR 35 assertions; API giả lập, OCR local thật. Chưa đo OpenAI live, full 120-minute soak hay OS RAM.
-- Không đổi Node/CI, quyền, provider/model hoặc published data formats. ZIP copy manifest cuối vào thư mục cũ, giữ dữ liệu. Reload entry cũ, numeric 1.59.3.11.
+- Package 1.59.3-a.12, numeric 1.59.3.12, display 1.59.3A. Baseline 1da3aa02.
+- Trang Dịch ảnh có chế độ Giữ cấu trúc: tiêu đề, đoạn văn, bảng từng hàng/cột/ô, danh sách và code nguyên văn. Hai chế độ plain cũ vẫn hoạt động.
+- Sửa nội dung/từng ô; gộp đoạn liền nhau, tách tại dòng trống, bỏ khối rồi chủ động dịch lại. Các thao tác sửa chỉ local, không gọi AI.
+- Chưa có cache: một vision OCR + một text translation. Cùng crop/kết quả dùng lại cache; đổi target dùng lại OCR. Sửa nguồn chỉ gửi text. Code/ô rỗng giữ local; không tự paid retry khi thiếu/trùng cells hoặc sai JSON.
+- Đây là giữ cấu trúc nội dung, chưa pixel-perfect font/màu/geometry, rowspan/colspan hoặc danh sách lồng. Cần xem/sửa OCR khi ảnh khó; crop không đi qua server OCR khác.
+- 4.764 unit tests đạt / một intentional skip; Chrome production: 22 kiểm tra ảnh cấu trúc + 83 PDF/ảnh/cache cũ + 18 HTML. API giả lập; chưa đánh giá chất lượng OpenAI live. Edge launch riêng gặp TargetCloseError trước test, không tính là pass.
+- Giữ private OpenAI endpoints, config/DB/sync/ZIP formats cũ, quyền, model, extension ID và standalone review HTML. ZIP chỉ tăng 5.411 byte so với A.11, không thêm model/package OCR.
+- Đã copy vào thư mục cũ theo workflow; Reload entry hiện tại để dùng numeric 1.59.3.12.
 
-[Chi tiết](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.11/WEB_MARKDOWN_PDF_PANELS_A11.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.11/PRIVACY_POLICY.md).
+[Chi tiết và nguồn tham khảo](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.12/IMAGE_STRUCTURE_A12.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.12/PRIVACY_POLICY.md).
 
-SHA-256 ZIP: `33e1ed05e43fa08be81ecd332e75d07e8c672cb59a89331c585c373d20afc754`.
+SHA-256 ZIP: `eb5ab74f6587230a0580ce817088b984cb9ecdaac1c4a076ab022f83e4680d05`.
