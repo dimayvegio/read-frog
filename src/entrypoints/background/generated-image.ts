@@ -171,10 +171,8 @@ const handler = createStreamPortHandler(
 )
 export function handleImageEditPort(port: Browser.runtime.Port) {
   if (
-    !isTrustedOptionsSender(
-      port.sender,
-      browser.runtime.id,
-      browser.runtime.getURL("/image-translate.html"),
+    !(["/image-translate.html", "/pdf-reader.html"] as const).some((page) =>
+      isTrustedOptionsSender(port.sender, browser.runtime.id, browser.runtime.getURL(page)),
     )
   ) {
     port.disconnect()

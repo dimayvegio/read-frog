@@ -22,6 +22,7 @@ import { PdfBilingualPane, type PdfBilingualHandle } from "./bilingual-pane"
 import { PdfDocumentActions } from "./document-actions"
 import { mergeHighlightBoxes } from "./highlight-boxes"
 import { HorizontalPositionBar } from "./horizontal-position-bar"
+import { PdfImageTranslation } from "./image-translation"
 import { canonicalLayer, pageBox } from "./page-geometry"
 import { PdfPageSummaryModal } from "./page-summary"
 import { QuickDictionaryPopover, type QuickWordTarget } from "./quick-dictionary"
@@ -613,6 +614,13 @@ export function PdfReader({ config }: { config: Config }) {
             <button type="button" disabled={shotBusy} onClick={() => void captureImage()}>
               <ScanLine size={17} /> {shotBusy ? "Đang chụp…" : "Chụp vùng & dịch ảnh"}
             </button>
+            <PdfImageTranslation
+              key={`image-${documentInfo.id}`}
+              id={documentInfo.id}
+              pdf={documentInfo.pdf}
+              viewport={documentInfo.viewport}
+              isCurrent={() => current.current?.viewport === documentInfo.viewport}
+            />
 
             <PdfReaderNavigation
               key={documentInfo.id}

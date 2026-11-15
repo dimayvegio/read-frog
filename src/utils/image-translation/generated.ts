@@ -15,23 +15,8 @@ export function clearGeneratedImages() {
   ++clearEpoch
   cache.clear()
 }
-export async function generateTranslatedImage({
-  image,
-  config,
-  model,
-  quality,
-  signal,
-  bypass = false,
-  onStatus,
-}: {
-  image: string
-  config: Config
-  model: ImageEditRequest["model"]
-  quality: ImageEditRequest["quality"]
-  signal: AbortSignal
-  bypass?: boolean
-  onStatus: (message: string) => void
-}) {
+/** Shared scope for explicit multi-page image jobs; never starts a provider. */
+export async function imageEditScope(config: Config, signal: AbortSignal) {
   const credential = await sendMessage("getOpenAIKeyStatus", undefined)
   const epoch = (await imageCacheDB.meta.get("state"))?.epoch ?? 0
   const localEpoch = clearEpoch
@@ -53,17 +38,34 @@ export async function generateTranslatedImage({
       throw new DOMException("Ngôn ngữ, khóa hoặc cache đã đổi; bỏ kết quả cũ.", "AbortError")
   }
   await current()
+  return {
+    revision: credential.revision,
+    identity: JSON.stringify([IMAGE_EDIT_ID, target, credential.revision, epoch, localEpoch]),
+    current,
+  }
+}
+export async function generateTranslatedImage({
+  image,
+  config,
+  model,
+  quality,
+  signal,
+  bypass = false,
+  onStatus,
+}: {
+  image: string
+  config: Config
+  model: ImageEditRequest["model"]
+  quality: ImageEditRequest["quality"]
+  signal: AbortSignal
+  bypass?: boolean
+  onStatus: (message: string) => void
+}) {
+  const scope = await imageEditScope(config, signal)
+  const target = config.language.targetCode
+  const { current } = scope
   const key = sha256(
-    JSON.stringify([
-      IMAGE_EDIT_ID,
-      sha256(image),
-      model,
-      quality,
-      target,
-      credential.revision,
-      epoch,
-      localEpoch,
-    ]),
+    JSON.stringify([IMAGE_EDIT_ID, sha256(image), model, quality, target, scope.identity]),
   )
   for (const [id, item] of cache) if (item.expires <= Date.now()) cache.delete(id)
   const cached = cache.get(key)
@@ -76,7 +78,7 @@ export async function generateTranslatedImage({
   onStatus("OpenAI đang đọc, dịch và tạo ảnh… Có tính phí tạo ảnh; không tự gửi lại.")
   const wire = await createPortStreamPromise<GeneratedImage>(
     IMAGE_EDIT_PORT,
-    { image, model, quality, target, revision: credential.revision },
+    { image, model, quality, target, revision: scope.revision },
     { signal },
   )
   await current()
