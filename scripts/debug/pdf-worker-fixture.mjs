@@ -60,7 +60,7 @@ export const preparePdfWorker = async () => {
           : typeof globalThis.__pdfTextOutput === "function"
             ? globalThis.__pdfTextOutput(body)
             : `Bản dịch PDF số ${__pdfCalls.length}. Đây là văn bản tiếng Việt có dấu.`,
-      delay = __pdfDelay
+      delay = typeof __pdfDelay === "function" ? __pdfDelay(body) : __pdfDelay
     if (!imageInput && JSON.stringify(body).includes("pdf-layout-cells-v1")) {
       // Extract source text from SDK Responses input, then parse the indexed JSON object.
       const visit = (value) =>
@@ -113,6 +113,9 @@ export const preparePdfWorker = async () => {
       },
     }
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay))
+    if (typeof globalThis.__onFetchComplete === "function") {
+      globalThis.__onFetchComplete(body)
+    }
     if (!body.stream)
       return new Response(JSON.stringify(response), {
         headers: { "content-type": "application/json" },

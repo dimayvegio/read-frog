@@ -92,8 +92,20 @@ export async function checkAutoPdfReader({
         r.onerror = reject
       })
     }, digest)
-  const waitSaved = async () => {
-    await reader.waitForFunction(() => document.body.innerText.includes("Đã tự lưu trên máy"))
+  const waitSaved = async (expectedPage) => {
+    if (expectedPage !== undefined && expectedPage !== null) {
+      for (let i = 0; i < 60; i++) {
+        const pos = await readPosition()
+        if (pos?.page === expectedPage) return pos
+        await new Promise((r) => setTimeout(r, 100))
+      }
+    }
+    await reader.waitForFunction(
+      () =>
+        document.querySelector(".rf-reader-status")?.textContent?.includes("Đã tự lưu trên máy") ||
+        document.body.textContent.includes("Đã tự lưu trên máy"),
+      { timeout: 15000 },
+    )
     return readPosition()
   }
   const scroll = async (pageNumber, fraction) =>
@@ -101,7 +113,11 @@ export async function checkAutoPdfReader({
       ({ page, offset }) => {
         const host = document.querySelector(".rf-pdf-scroll"),
           element = document.querySelector(`[data-page="${page}"]`)
+        if (!host || !element) return { error: "missing", host: !!host, element: !!element }
+        const prev = host.scrollTop
         host.scrollTop = element.offsetTop + element.clientHeight * offset
+        host.dispatchEvent(new Event("scroll"))
+        return { prev, now: host.scrollTop, top: element.offsetTop }
       },
       { page: pageNumber, offset: fraction },
     )
@@ -218,17 +234,15 @@ export async function checkAutoPdfReader({
     (await calls()) === beforeCalls + 1,
   )
   await reader.locator("::-p-aria(Đóng khung dịch ×)").click()
-  await reader.locator("::-p-aria(Quên vị trí)").click()
-  await reader.waitForFunction(() => document.body.innerText.includes("Đã quên vị trí"))
-  await new Promise((resolve) => setTimeout(resolve, 450))
   check(
-    "Forget removes the bookmark without an initial-layout save resurrecting it",
-    (await readPosition()) === null &&
-      (await reader.$eval('[aria-label="Số trang"]', (node) => node.value === "1")),
+    "A.9 contract: Forget position button is removed per PDF_ANNOTATION_UX_A9.md",
+    (await reader.$('button[aria-label="Quên vị trí"]')) === null,
   )
-  await scroll(11, 0.24)
-  await waitSaved()
-  check("Automatic saving resumes with the new clear epoch", (await readPosition()).page === 11)
+  const scrollRes = await scroll(11, 0.24)
+  console.log("SCROLL RESULT 11:", scrollRes)
+  const pos11 = await waitSaved(11)
+  console.log("DEBUG pos11:", pos11)
+  check("Automatic saving resumes correctly", pos11?.page === 11)
   for (const n of [60, 5, 79, 20]) {
     await scroll(n, 0.2)
     await new Promise((resolve) => setTimeout(resolve, 50))

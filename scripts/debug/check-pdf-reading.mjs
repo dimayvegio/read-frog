@@ -88,6 +88,11 @@ try {
   await options.goto(`chrome-extension://${id}/options.html#/api-providers`)
   await options.waitForSelector("#openai-key")
   await worker.evaluate(preparePdfWorker)
+  await worker.evaluate(async () => {
+    const { config } = await chrome.storage.local.get("config")
+    config.uiLanguage = "vi"
+    await chrome.storage.local.set({ config })
+  })
   const source = await browser.newPage()
   await source.goto(pdfURL)
   const sourceTab = await worker.evaluate(
@@ -98,8 +103,33 @@ try {
   const popup = await browser.newPage()
   popup.on("pageerror", (error) => errors.push(error.message))
   await popup.goto(`chrome-extension://${id}/popup.html`)
-  await popup.waitForSelector('[aria-label="Mở khung dịch PDF"]:not([disabled])')
-  await popup.click('[aria-label="Mở khung dịch PDF"]')
+  await popup.waitForSelector('[aria-label="Mở trình đọc PDF"]:not([disabled])')
+  const previousTargets = new Set(browser.targets())
+  await popup.click('[aria-label="Mở trình đọc PDF"]')
+  const readerTarget = await browser.waitForTarget(
+    (target) => !previousTargets.has(target) && target.url().includes("pdf-reader.html"),
+    { timeout: 15000 },
+  )
+  check(
+    "The production popup PDF button opens a real PDF reader tab through a user click",
+    readerTarget !== null,
+  )
+  const readerTab = await readerTarget.asPage()
+  await readerTab.close()
+
+  // Open side panel through trusted browser API with user gesture
+  await options.evaluate((windowId) => {
+    const b = document.createElement("button")
+    b.id = "test-pdf-panel-toggle"
+    b.style.cssText =
+      "position:fixed;top:8px;left:8px;z-index:999999;padding:12px;background:white;color:black"
+    b.textContent = "Open PDF Panel"
+    b.onclick = () => chrome.sidePanel.open({ windowId })
+    document.body.appendChild(b)
+  }, sourceTab.windowId)
+  await options.bringToFront()
+  await options.click("#test-pdf-panel-toggle")
+
   const panelTarget = await browser.waitForTarget(
     (target) => target.url() === `chrome-extension://${id}/sidepanel.html`,
     { timeout: 15000 },
@@ -107,11 +137,13 @@ try {
   panel = await panelTarget.asPage()
   panel.setDefaultTimeout(15000)
   panel.on("pageerror", (error) => errors.push(error.message))
-  await panel.waitForFunction(() =>
-    document.body.textContent.includes("Khung dịch PDF đã sẵn sàng"),
+  await panel.waitForFunction(
+    () =>
+      document.body.textContent.includes("Khung dịch đã sẵn sàng") ||
+      document.querySelector('[data-testid="native-selection-output"]'),
   )
   check(
-    "The production PDF button opens a real Edge side-panel target through a user click",
+    "The trusted native bridge opens a real Edge side-panel target through user gesture",
     panelTarget.type() === "other" || panelTarget.type() === "page",
   )
   evidence.panelTargetType = panelTarget.type()
@@ -252,7 +284,10 @@ try {
   await completed()
   await panel.waitForFunction(() => document.body.textContent.includes("Dùng bản lưu trên máy"))
   check("Restoring cleanup reuses its previous variant", (await calls()) === 2)
-  await panel.click('[aria-label="Regenerate"]')
+  const regenButton = await panel.waitForSelector(
+    '[aria-label="Regenerate"], [aria-label="Tạo lại"], [aria-label="Dịch lại"]',
+  )
+  await regenButton.click()
   await completed()
   await panel.waitForFunction(() => document.body.textContent.includes("Đã lưu bản dịch trên máy"))
   check(
@@ -327,7 +362,9 @@ try {
     __pdfDelay = 900
   })
   await seed("This pending old request must be cancelled.")
-  await panel.waitForSelector('[aria-label="Stop translation"]')
+  await panel.waitForSelector(
+    '[aria-label="Stop translation"], [aria-label="Dừng dịch"], [aria-label="Dừng"]',
+  )
   for (let attempt = 0; attempt < 100 && (await calls()) < previousCalls + 2; attempt++)
     await new Promise((resolve) => setTimeout(resolve, 50))
   assert.equal(

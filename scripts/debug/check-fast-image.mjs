@@ -144,7 +144,10 @@ export async function checkFastImage({ browser, id, worker, scratch, check, call
     await readButton(page, "Đọc lại ảnh")
     check("Force-read bypasses a warm image cache", (await calls()) === forced + 1)
     const regenerated = await calls()
-    await page.locator("::-p-aria(Regenerate)").click()
+    const regenBtn = await page.waitForSelector(
+      '[aria-label="Regenerate"], [aria-label="Tạo lại"], [aria-label="Dịch lại"]',
+    )
+    await regenBtn.click()
     await page.waitForFunction(
       () =>
         document
