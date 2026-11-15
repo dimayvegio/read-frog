@@ -1,13 +1,19 @@
 import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
 import type { NativeSelectionRequest } from "@/types/native-selection"
+import type { GeneratedImage, ImageEditRequest } from "@/utils/image-translation/generated-schema"
 import type { OverlayImage } from "@/utils/image-translation/overlay-model"
+import { useAtomValue } from "jotai"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
+import { TargetLanguageSelector } from "@/entrypoints/content-runtime/selection/selection-toolbar/translate-button/target-language-selector"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
+import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { getLocalConfig } from "@/utils/config/storage"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { clearImageCache } from "@/utils/image-translation/cache"
+import { clearGeneratedImages, generateTranslatedImage } from "@/utils/image-translation/generated"
+import { imageEditModel, imageEditQuality } from "@/utils/image-translation/generated-schema"
 import { detectOverlayRegions } from "@/utils/image-translation/overlay-ocr"
 import { recognizeImage } from "@/utils/image-translation/recognize"
 import { imageShortcutLabel, openImageShortcuts } from "@/utils/image-translation/shortcut"
@@ -19,6 +25,7 @@ import {
 import { sendMessage } from "@/utils/message"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
+import { GeneratedImageView } from "./generated-view"
 import { cropBetween, decodeImage, encodeCrop, type Point, type Crop } from "./image"
 import { ImageOverlayEditor } from "./overlay-editor"
 import { ImageStructureEditor } from "./structure-editor"
@@ -41,7 +48,14 @@ export function ImageTranslation({ config }: { config: Config }) {
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
   const [pretranslated, setPretranslated] = useState<ImagePretranslation>()
   const [fastOutput, setFastOutput] = useState("")
-  const [mode, setMode] = useState<"fast" | "two-step" | "structure" | "overlay">("fast")
+  const [mode, setMode] = useState<"generate" | "fast" | "two-step" | "structure" | "overlay">(
+    "generate",
+  )
+  const [generated, setGenerated] = useState<GeneratedImage>()
+  const [model, setModel] = useState<ImageEditRequest["model"]>("gpt-image-2.6-sunburst")
+  const [quality, setQuality] = useState<ImageEditRequest["quality"]>("high")
+  const { targetCode } = useAtomValue(configFieldsAtomMap.language)
+  const previousTarget = useRef(targetCode)
   const activeMode = useRef(mode)
   useEffect(() => {
     activeMode.current = mode
@@ -50,21 +64,33 @@ export function ImageTranslation({ config }: { config: Config }) {
   const [overlay, setOverlay] = useState<OverlayImage>()
   const [ocrLanguage, setOcrLanguage] = useState("eng")
   const modeChanged = useRef(false)
+  const running = useRef(false)
   const [shortcut, setShortcut] = useState("")
   const [options, setOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
   const resetRun = () => {
     ++version.current
     start.current = null
     controller.current?.abort()
+    running.current = false
     setBusy(false)
     setRequest(null)
     setPretranslated(undefined)
     setFastOutput("")
     setStructure(undefined)
     setOverlay(undefined)
+    setGenerated(undefined)
     setStatus("")
     setError("")
   }
+  useEffect(() => {
+    if (previousTarget.current === targetCode) return
+    previousTarget.current = targetCode
+    if (activeMode.current === "generate") {
+      resetRun()
+      setStatus("Đã đổi ngôn ngữ. Bấm Tạo ảnh dịch khi sẵn sàng; chưa gọi API.")
+    }
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- resetRun only invalidates owned work; depend on the selected target.
+  }, [targetCode])
   const load = async (file: Blob) => {
     resetRun()
     setLoadingImage(true)
@@ -81,7 +107,7 @@ export function ImageTranslation({ config }: { config: Config }) {
         return
       }
       if (
-        activeMode.current === "overlay" &&
+        (activeMode.current === "overlay" || activeMode.current === "generate") &&
         (image.width * image.height > 12_000_000 || Math.max(image.width, image.height) > 6000)
       ) {
         image.close()
@@ -118,16 +144,24 @@ export function ImageTranslation({ config }: { config: Config }) {
     void imageShortcutLabel()
       .then(setShortcut)
       .catch(() => setShortcut("Chưa gán"))
-    void browser.storage.local.get("imageTranslationMode").then((value) => {
-      if (
-        !modeChanged.current &&
-        (value.imageTranslationMode === "fast" ||
-          value.imageTranslationMode === "two-step" ||
-          value.imageTranslationMode === "structure" ||
-          value.imageTranslationMode === "overlay")
-      )
-        setMode(value.imageTranslationMode)
-    })
+    void browser.storage.local
+      .get(["imageTranslationMode", "imageGenerationPreferredV1"])
+      .then((value) => {
+        if (
+          !modeChanged.current &&
+          value.imageGenerationPreferredV1 === true &&
+          (value.imageTranslationMode === "fast" ||
+            value.imageTranslationMode === "generate" ||
+            value.imageTranslationMode === "two-step" ||
+            value.imageTranslationMode === "structure" ||
+            value.imageTranslationMode === "overlay")
+        )
+          setMode(value.imageTranslationMode)
+        if (!value.imageGenerationPreferredV1 && !modeChanged.current)
+          void browser.storage.local
+            .set({ imageGenerationPreferredV1: true, imageTranslationMode: "generate" })
+            .catch(() => {})
+      })
     if (new URLSearchParams(location.search).has("captureError"))
       setError("Chưa chụp được tab này. Hãy thử lại hoặc dùng Win+Shift+S rồi dán Ctrl+V tại đây.")
     const token = version.current,
@@ -183,8 +217,9 @@ export function ImageTranslation({ config }: { config: Config }) {
       tooLong: value.length > MAX_NATIVE_SELECTION_LENGTH,
     })
   const recognize = async (bypass = false) => {
-    if (!crop || !canvas.current || !hasImage) return
+    if (running.current || !crop || !canvas.current || !hasImage) return
     resetRun()
+    running.current = true
     const token = version.current,
       abort = new AbortController()
     controller.current = abort
@@ -196,11 +231,27 @@ export function ImageTranslation({ config }: { config: Config }) {
         canvas.current.width,
         canvas.current.height,
         crop,
-        mode === "overlay",
+        mode === "overlay" || mode === "generate",
       )
       setPreview(image)
       const current = await getLocalConfig()
       abort.signal.throwIfAborted()
+      if (mode === "generate") {
+        const result = await generateTranslatedImage({
+          image,
+          config: current,
+          model,
+          quality,
+          signal: abort.signal,
+          bypass,
+          onStatus: (message) => {
+            if (token === version.current && !abort.signal.aborted) setStatus(message)
+          },
+        })
+        abort.signal.throwIfAborted()
+        if (token === version.current) setGenerated(result)
+        return
+      }
       if (mode === "overlay") {
         const geometry = await detectOverlayRegions(image, ocrLanguage, abort.signal, (message) => {
           if (token === version.current && !abort.signal.aborted) setStatus(message)
@@ -253,7 +304,10 @@ export function ImageTranslation({ config }: { config: Config }) {
         setStatus("")
       }
     } finally {
-      if (token === version.current) setBusy(false)
+      if (token === version.current) {
+        running.current = false
+        setBusy(false)
+      }
     }
   }
   return (
@@ -277,26 +331,68 @@ export function ImageTranslation({ config }: { config: Config }) {
             onChange={(event) => {
               if (loadingImage) return
               const value =
-                event.target.value === "overlay"
-                  ? "overlay"
-                  : event.target.value === "structure"
-                    ? "structure"
-                    : event.target.value === "fast"
-                      ? "fast"
-                      : "two-step"
+                event.target.value === "generate"
+                  ? "generate"
+                  : event.target.value === "overlay"
+                    ? "overlay"
+                    : event.target.value === "structure"
+                      ? "structure"
+                      : event.target.value === "fast"
+                        ? "fast"
+                        : "two-step"
               modeChanged.current = true
               resetRun()
               setText("")
               setMode(value)
-              void browser.storage.local.set({ imageTranslationMode: value }).catch(() => {})
+              void browser.storage.local
+                .set({ imageTranslationMode: value, imageGenerationPreferredV1: true })
+                .catch(() => {})
             }}
           >
+            <option value="generate">OpenAI tạo ảnh dịch</option>
             <option value="fast">Nhanh — một lượt</option>
             <option value="two-step">Đọc chữ trước — hai bước</option>
             <option value="structure">Giữ cấu trúc — bảng, danh sách, code</option>
-            <option value="overlay">Dịch trên ảnh gốc — thay chữ</option>
+            <option value="overlay">Thay chữ trên máy — chỉnh vùng thủ công</option>
           </select>
         </label>
+        {mode === "generate" && (
+          <>
+            <TargetLanguageSelector />
+            <label>
+              Model{" "}
+              <select
+                aria-label="Model tạo ảnh"
+                value={model}
+                disabled={busy || loadingImage}
+                onChange={(e) => {
+                  resetRun()
+                  setModel(imageEditModel.parse(e.target.value))
+                }}
+              >
+                <option value="gpt-image-2.6-sunburst">GPT Image 2.6 Sunburst</option>
+                <option value="gpt-image-2.6-flare">GPT Image 2.6 Flare</option>
+                <option value="gpt-image-2.5-sunburst">GPT Image 2.5 Sunburst</option>
+              </select>
+            </label>
+            <label>
+              Chất lượng{" "}
+              <select
+                aria-label="Chất lượng ảnh"
+                value={quality}
+                disabled={busy || loadingImage}
+                onChange={(e) => {
+                  resetRun()
+                  setQuality(imageEditQuality.parse(e.target.value))
+                }}
+              >
+                <option value="high">Cao</option>
+                <option value="medium">Vừa</option>
+                <option value="low">Thấp</option>
+              </select>
+            </label>
+          </>
+        )}
         {mode === "overlay" && (
           <label>
             OCR vị trí{" "}
@@ -361,14 +457,22 @@ export function ImageTranslation({ config }: { config: Config }) {
           disabled={!crop || busy || loadingImage}
           onClick={() => void recognize(false)}
         >
-          {mode === "overlay" ? "Đo vùng chữ" : "Đọc chữ và dịch"}
+          {mode === "generate"
+            ? "Tạo ảnh dịch"
+            : mode === "overlay"
+              ? "Đo vùng chữ"
+              : "Đọc chữ và dịch"}
         </button>
         <button
           type="button"
           disabled={!crop || busy || loadingImage}
           onClick={() => void recognize(true)}
         >
-          {mode === "overlay" ? "Đo lại vùng" : "Đọc lại ảnh"}
+          {mode === "generate"
+            ? "Tạo ảnh mới (có phí)"
+            : mode === "overlay"
+              ? "Đo lại vùng"
+              : "Đọc lại ảnh"}
         </button>
         <button
           type="button"
@@ -379,6 +483,7 @@ export function ImageTranslation({ config }: { config: Config }) {
             const token = version.current
             try {
               await clearImageCache()
+              clearGeneratedImages()
               if (token === version.current)
                 setStatus("Đã xóa cache nhận dạng và bản dịch ảnh trên máy.")
             } catch {
@@ -396,7 +501,11 @@ export function ImageTranslation({ config }: { config: Config }) {
             type="button"
             onClick={() => {
               resetRun()
-              setStatus("Đã dừng đọc ảnh.")
+              setStatus(
+                mode === "generate"
+                  ? "Đã dừng chờ ảnh. OpenAI có thể đã nhận/tính phí; không tự gửi lại."
+                  : "Đã dừng đọc ảnh.",
+              )
             }}
           >
             Dừng
@@ -413,6 +522,13 @@ export function ImageTranslation({ config }: { config: Config }) {
         Chụp từ popup extension, hoặc Win+Shift+S rồi dán Ctrl+V tại đây. Chỉ vùng bạn chọn được gửi
         tới OpenAI sau khi bấm đọc và dịch.
       </p>
+      {mode === "generate" && (
+        <p className="rf-image-help">
+          Gửi vùng ảnh trực tiếp để OpenAI dịch chữ và tạo ảnh, giữ bố cục tối đa. Hiển thị/tải
+          nguyên PNG trả về; có phí tạo ảnh riêng. Font, chữ nhỏ và bố cục có thể chưa giống tuyệt
+          đối. Không áp dụng prompt/glossary của chế độ dịch văn bản.
+        </p>
+      )}
       {mode === "structure" && (
         <p className="rf-image-help">
           Giữ cấu trúc: đọc ảnh rồi dịch theo từng khối / ô. Hai lượt khi chưa có cache; không phục
@@ -434,7 +550,11 @@ export function ImageTranslation({ config }: { config: Config }) {
         </p>
       )}
       <div className="rf-image-body">
-        <section className="rf-image-editor" aria-label="Chọn vùng ảnh" hidden={!!overlay}>
+        <section
+          className="rf-image-editor"
+          aria-label="Chọn vùng ảnh"
+          hidden={!!overlay || !!generated}
+        >
           {!hasImage && (
             <div className="rf-image-empty">
               Dán ảnh bằng <strong>Ctrl+V</strong>, kéo thả ảnh hoặc bấm <strong>Mở ảnh</strong>.
@@ -555,6 +675,7 @@ export function ImageTranslation({ config }: { config: Config }) {
           )}
         </section>
         {overlay && <ImageOverlayEditor value={overlay} />}
+        {generated && <GeneratedImageView value={generated} source={preview} />}
         {busy && fastOutput && (
           <aside className="rf-image-result">
             <p className="p-4 text-sm" role="status">

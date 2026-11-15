@@ -1,8 +1,12 @@
 # Chụp vùng và dịch ảnh
 
+## A.15 — OpenAI tạo ảnh dịch trực tiếp (mặc định mới)
+
+Chọn **OpenAI tạo ảnh dịch**, crop → chọn ngôn ngữ/model/chất lượng → **Tạo ảnh dịch**. OpenAI tự đọc/dịch/tạo ảnh; extension hiển thị và tải nguyên PNG nhận về, không OCR/vẽ chữ local. Bấm lại dùng RAM cache trong tab; **Tạo ảnh mới (có phí)** mới bypass. Không bảo đảm font/bố cục chính xác tuyệt đối. [Chi tiết](OPENAI_IMAGE_EDIT_A15.md).
+
 ## A.14 — Dịch trên ảnh gốc
 
-Chọn **Dịch trên ảnh gốc — thay chữ**, crop rồi **Đo vùng chữ** (local, chưa tốn API). Kiểm tra/bỏ vùng sai hoặc thêm vùng thủ công; bấm **Dịch vùng đang bật** để OpenAI đọc/dịch và vẽ chữ vào ảnh. Có chỉnh font/màu/vị trí, zoom và tải PNG. Giữ nền/bố cục ngoài vùng thay chữ, không hứa giống tuyệt đối với font hiếm/nền hoa văn. [Chi tiết A.14](IMAGE_OVERLAY_A14.md).
+Chọn **Thay chữ trên máy — chỉnh vùng thủ công**, crop rồi **Đo vùng chữ** (local, chưa tốn API). Kiểm tra/bỏ vùng sai hoặc thêm vùng thủ công; bấm **Dịch vùng đang bật** để OpenAI đọc/dịch, extension vẽ chữ vào ảnh. Có chỉnh font/màu/vị trí, zoom và tải PNG. Giữ nền/bố cục ngoài vùng thay chữ, không hứa giống tuyệt đối với font hiếm/nền hoa văn. [Chi tiết A.14](IMAGE_OVERLAY_A14.md).
 
 ## A.12 — Giữ cấu trúc ảnh
 

@@ -8,6 +8,7 @@ import { TRANSCRIPTION_PORT } from "@/utils/audio-transcription/schema"
 import { setBackgroundConfigReadyResolver } from "@/utils/config/readiness"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
 import { initI18n, setUiLanguage } from "@/utils/i18n"
+import { IMAGE_EDIT_PORT } from "@/utils/image-translation/generated-schema"
 import { logger } from "@/utils/logger"
 import { onMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
@@ -30,6 +31,7 @@ import {
   setUpDatabaseCleanup,
 } from "./db-cleanup"
 import { setupEdgeTTSMessageHandlers } from "./edge-tts"
+import { handleImageEditPort } from "./generated-image"
 import { setupGlossaryMessageHandlers } from "./glossary"
 import { setupIframeInjection } from "./iframe-injection"
 import { setupImageTranslationHandlers } from "./image-translation"
@@ -87,6 +89,10 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === IMAGE_EDIT_PORT) {
+        handleImageEditPort(port)
+        return
+      }
       if (port.name === SMART_VIDEO_PORT) {
         if (trustedSmartVideoSender(port.sender)) handleSmartVideoPort(port)
         else port.disconnect()
