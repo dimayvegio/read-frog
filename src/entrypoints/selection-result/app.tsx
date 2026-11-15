@@ -518,7 +518,7 @@ export function SelectionTranslation({
                 }
                 isTranslating={loading}
                 thinking={thinking}
-                renderMarkdown={aiMode === "explain" || aiMode === "summary"}
+                renderMarkdown={!!imageStructure || aiMode === "explain" || aiMode === "summary"}
                 vocabularySource={{
                   context: sourceText.slice(0, 1800),
                   sourceTitle: displayTitle,

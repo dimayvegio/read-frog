@@ -1,6 +1,6 @@
 {
   "name": "@read-frog/extension",
-  "version": "1.59.3-a.12",
+  "version": "1.59.3-a.13",
   "private": true,
   "description": "FlowRead browser extension for language learning",
   "type": "module",

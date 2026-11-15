@@ -8,7 +8,7 @@
 
 ## Local Fork Upgrades
 
-- Preserve A.12 [image OCR structure](IMAGE_STRUCTURE_A12.md): opt-in typed source blocks, exact indexed translation cells, safe local rendering and edit/merge/split/exclude before explicit retranslation. Keep code/empty cells local, rectangular table/list boundaries, legacy plain modes, bounded separate cache namespaces in frozen image DB1, configuration/key/epoch guards and no paid retries. This is content structure, not exact fonts/geometry; no new service/permission or PDF binary upload.
+- Preserve A.12 [image OCR structure](IMAGE_STRUCTURE_A12.md): opt-in typed source blocks, exact indexed translation cells, safe local rendering and edit/merge/split/exclude before explicit retranslation. Keep code/empty cells local, rectangular table/list boundaries, legacy plain modes, bounded separate cache namespaces in frozen image DB1, configuration/key/epoch guards and no paid retries. A.13 always enables structured Markdown rendering even for table-only/code-only images, independently of generic heading/list heuristics. This is content structure, not exact fonts/geometry; no new service/permission or PDF binary upload.
 
 - Preserve A.11 [HTML fallback/Markdown/PDF panels](WEB_MARKDOWN_PDF_PANELS_A11.md): exact-frame bounded read-only MIME classification before web cache metadata; unknown/guest/PDF sources stay conservative. Keep bundled GFM safe tables/code without image/raw-HTML execution, versioned local-only panel preferences saved on commit, and committed geometry-based PDF space with mobile overlay and owned cleanup. No provider work from layout or new published schemas/permissions.
 

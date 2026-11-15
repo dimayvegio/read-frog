@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { browser } from "#imports"
 import { DEFAULT_CONFIG } from "@/utils/constants/config"
 import { initI18n } from "@/utils/i18n"
-import App from "../app"
+import { renderImageStructure, type ImageStructure } from "@/utils/image-translation/structure"
+import App, { SelectionTranslation } from "../app"
 
 const { send, translate, speechReleased } = vi.hoisted(() => ({
   send: vi.fn<(...args: any[]) => any>(),
@@ -110,6 +111,50 @@ describe("native selection result window", () => {
     expect(output.textContent).toContain("<script>plain PDF translation</script>")
     expect(output.querySelector("script")).toBeNull()
   })
+
+  it.each(["table", "code"] as const)(
+    "renders a structured image containing only %s without relying on heading detection",
+    async (type) => {
+      const imageStructure: ImageStructure = {
+        blocks:
+          type === "table"
+            ? [
+                {
+                  type: "table",
+                  header: true,
+                  rows: [
+                    ["Name", "Value"],
+                    ["rst_n", "0"],
+                  ],
+                },
+              ]
+            : [{ type: "code", language: "sv", text: "module test;\n  assign a = b;\nendmodule" }],
+      }
+      const source = renderImageStructure(imageStructure)
+      translate.mockResolvedValue({ output: source, thinking: null })
+      render(
+        <SelectionTranslation
+          request={{ id: "image", text: source, tooLong: false, createdAt: 1 }}
+          config={DEFAULT_CONFIG}
+          panel
+          embedded
+          sourceTitle="Ảnh chụp"
+          imageCache
+          imageStructure={imageStructure}
+          textOptions={{ clean: true, joinHyphenatedWords: false }}
+          onTextOptions={() => {}}
+        />,
+      )
+      await waitFor(() =>
+        expect(
+          screen
+            .getByTestId("native-selection-output")
+            .querySelector(type === "table" ? "table" : "pre code"),
+        ).not.toBeNull(),
+      )
+      expect(translate).toHaveBeenCalledOnce()
+    },
+  )
 
   it("aborts the previous stream when another passage is selected", async () => {
     render(<App />)

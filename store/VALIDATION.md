@@ -1,3 +1,16 @@
+# Candidate A.13 validation — 15 November 2026
+
+Baseline 6860ae91 / A.12. Package 1.59.3-a.13, numeric 1.59.3.13, display 1.59.3A.
+
+- Actual screenshot scenario found a production bug: table/code-only structure rendered literal Markdown because the generic heuristic recognized only headings/lists. Baseline artifact `.codex/image-examples-1794751490460` records tables=0 and failed assertion. Fix: pass explicit Markdown rendering for the already validated `imageStructure` path, leaving ordinary selection translations unchanged.
+- Two new real React DOM regressions assert table-only and code-only rendering without a heading/list; focused app suite 10 passed. Full suite **4,766 passed / one intentional skip**, 491 passing files / one skipped, SKIP_FREE_API=true, 58.6s. Log `.codex/image-examples-tests.log`.
+- Packaged Chrome UI rerun **22 structured image checks**, `.codex/image-structure-1794751604106`, zero page errors; no redundant cache calls, source editing/local no provider and cancellation unchanged. Production demonstrations `.codex/image-examples-1794751567890`: two raw screenshots, actual bitmap upload/structured OCR/text pipelines and DOM assertions; synthetic OpenAI output and Vietnamese examples, no live API cost or OCR quality claim. Screenshots inspected directly, not composited or retouched.
+- Type-aware lint/formatter, ZIP and static runtime/store audits pass: 471 files, 201 JS, nine locales, known-forbidden-endpoint scan empty. No new dependency, permissions, endpoints, model, request/cache/prompt or published data schema.
+- ZIP **22,084,529 bytes**, SHA-256 `12b8fb35e243c4d584668ec6a07941577a8a2552138d0a31c7552981251ca463`. Same fixed installation path, staged asset-first/manifest-last copy, all file hashes/key/permissions verified through filesystem, no browser-profile data touched; user Reload required. Vocabulary review HTML unchanged.
+- Older A.12 PDF/HTML evidence below remains historical, not an A.13 rerun. No live paid API, main Edge UI control, OS RAM benchmark or 120-minute soak.
+
+## Historical A.12 evidence
+
 # Candidate A.12 validation — 15 November 2026
 
 Baseline 1da3aa02. Package 1.59.3-a.12 / manifest 1.59.3.12 / display 1.59.3A. No new permission, dependency, model, endpoint or published config/DB/ZIP schema. New versioned image structure payload in existing text cache columns is documented in IMAGE_STRUCTURE_A12.md.

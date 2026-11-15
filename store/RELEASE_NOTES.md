@@ -1,14 +1,11 @@
-FlowRead 1.59.3A.12 — OCR ảnh giữ cấu trúc
+FlowRead 1.59.3A.13 — sửa hiển thị OCR ảnh chỉ có bảng hoặc code
 
-- Package 1.59.3-a.12, numeric 1.59.3.12, display 1.59.3A. Baseline 1da3aa02.
-- Trang Dịch ảnh có chế độ Giữ cấu trúc: tiêu đề, đoạn văn, bảng từng hàng/cột/ô, danh sách và code nguyên văn. Hai chế độ plain cũ vẫn hoạt động.
-- Sửa nội dung/từng ô; gộp đoạn liền nhau, tách tại dòng trống, bỏ khối rồi chủ động dịch lại. Các thao tác sửa chỉ local, không gọi AI.
-- Chưa có cache: một vision OCR + một text translation. Cùng crop/kết quả dùng lại cache; đổi target dùng lại OCR. Sửa nguồn chỉ gửi text. Code/ô rỗng giữ local; không tự paid retry khi thiếu/trùng cells hoặc sai JSON.
-- Đây là giữ cấu trúc nội dung, chưa pixel-perfect font/màu/geometry, rowspan/colspan hoặc danh sách lồng. Cần xem/sửa OCR khi ảnh khó; crop không đi qua server OCR khác.
-- 4.764 unit tests đạt / một intentional skip; Chrome production: 22 kiểm tra ảnh cấu trúc + 83 PDF/ảnh/cache cũ + 18 HTML. API giả lập; chưa đánh giá chất lượng OpenAI live. Edge launch riêng gặp TargetCloseError trước test, không tính là pass.
-- Giữ private OpenAI endpoints, config/DB/sync/ZIP formats cũ, quyền, model, extension ID và standalone review HTML. ZIP chỉ tăng 5.411 byte so với A.11, không thêm model/package OCR.
-- Đã copy vào thư mục cũ theo workflow; Reload entry hiện tại để dùng numeric 1.59.3.12.
+- Package 1.59.3-a.13, numeric 1.59.3.13, display 1.59.3A. Baseline 6860ae91 / A.12.
+- Khi chụp ví dụ, phát hiện ảnh chỉ có bảng hoặc code chưa được heuristic Markdown chung nhận biết. Khung giữ cấu trúc nay luôn dùng renderer an toàn; không yêu cầu heading/list để hiện đúng bảng/code.
+- Giữ plain translation cũ, request/cache/prompt, OpenAI-only privacy và mọi feature/data contracts. Không thêm dependency, quyền hoặc model.
+- Hai UI regression table-only/code-only; production screenshot examples có bảng/code và heading/list. Ảnh raw UI thật, OCR/dịch giả lập để minh họa, không phải benchmark chất lượng OpenAI live.
+- ZIP được staging, copy asset trước/manifest cuối vào thư mục cũ; Reload entry hiện tại để dùng numeric 1.59.3.13.
 
-[Chi tiết và nguồn tham khảo](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.12/IMAGE_STRUCTURE_A12.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.12/PRIVACY_POLICY.md).
+[Chi tiết](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.13/IMAGE_STRUCTURE_A12.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.13/PRIVACY_POLICY.md).
 
-SHA-256 ZIP: `eb5ab74f6587230a0580ce817088b984cb9ecdaac1c4a076ab022f83e4680d05`.
+SHA-256 ZIP: `12b8fb35e243c4d584668ec6a07941577a8a2552138d0a31c7552981251ca463`.

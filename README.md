@@ -1,6 +1,6 @@
 # FlowRead
 
-Independent GPL-3.0 fork of Read Frog for bilingual web/PDF/video reading and language learning. Current local release: **1.59.3A** (numeric 1.59.3.12). Support: **admin@4dv.top**.
+Independent GPL-3.0 fork of Read Frog for bilingual web/PDF/video reading and language learning. Current local release: **1.59.3A** (numeric 1.59.3.13). Support: **admin@4dv.top**.
 
 Image OCR: choose **Giữ cấu trúc — bảng, danh sách, code** for editable structured source and validated cell-by-cell translation. [A.12 details and limits](IMAGE_STRUCTURE_A12.md).
 

@@ -2,6 +2,10 @@
 
 Baseline `1da3aa02` / A.11. Package `1.59.3-a.12`, manifest `1.59.3.12`, display `1.59.3A`.
 
+## A.13 — chỉ có bảng/code vẫn hiển thị đúng
+
+Bản `1.59.3-a.13` / numeric `1.59.3.13` sửa lỗi phát hiện khi chụp ví dụ: heuristic Markdown chung không nhận biết output chỉ có bảng hoặc code. Với `imageStructure`, khung kết quả luôn dùng renderer cấu trúc an toàn, không cần có heading/list để kích hoạt. Không thay plain translation, request/cache/prompt hoặc dữ liệu. Thêm hai UI regressions table-only/code-only; hai ảnh chụp raw có source bitmap và bản dịch Việt giả lập, không phát sinh API thật. Chi tiết lần kiểm chứng trong store/VALIDATION.md.
+
 ## Cách dùng
 
 Tại trang Dịch ảnh, chọn **Giữ cấu trúc — bảng, danh sách, code**, chọn vùng và bấm **Đọc chữ và dịch**. Nhớ mode riêng trong `imageTranslationMode`; mở trang/chọn mode/crop chưa gọi API. Hai chế độ plain cũ giữ đường cũ.
