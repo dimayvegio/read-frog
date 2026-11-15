@@ -191,6 +191,13 @@ export function SelectionTranslation({
             bypassCache,
             imageCache,
             pretranslated,
+            onInvalidate: () => {
+              controller.abort()
+              setOutput("")
+              setThinking(null)
+              setLoading(false)
+              setCacheState("Cấu hình, khóa hoặc cache đã đổi. Bấm dịch lại khi cần.")
+            },
             config: { ...current, language: { ...current.language, targetCode: targetLanguage } },
             signal: controller.signal,
             onCacheState: (state, message) => {

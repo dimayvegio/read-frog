@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung a.9: giữ [cache dịch HTML hoàn tất](HTML_SELECTION_CACHE_A9.md); regression phải kiểm số lần gọi provider khi đổi tab/chọn lại, invalidation và explicit regenerate. Không đổi schema hay đường dịch PDF/ảnh.
+
 Bổ sung a.8: giữ [HTML fixed pane / analysis intervals](HTML_FIXED_PANE_AUDIO_A8.md),
 web/PDF metadata tách biệt, mounted source-bound routing và CSS highlight không sửa DOM.
 Giữ duration RAM-only/master OFF sau đổi, passive capture/explicit prepared ranges,

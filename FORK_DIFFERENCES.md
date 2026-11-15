@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.9 / manifest 1.59.3.9:** cache bản dịch HTML hoàn tất; chuyển tab hoặc chọn lại cùng đoạn không gọi API thừa. Tạo lại vẫn chủ động bypass. Xem [a.9](HTML_SELECTION_CACHE_A9.md).
+
 **Mới 1.59.3-a.8 / manifest 1.59.3.8:** khung cố định dùng cho HTML, cập nhật từ
 toolbar/menu và highlight đoạn nguồn không sửa DOM; không nhầm vào PDF history.
 Chọn audio/CC phân tích 15s–10 phút cho cả lấy mẫu khi xem và thu trước từ vị trí

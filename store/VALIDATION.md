@@ -1,8 +1,17 @@
 # Candidate validation — 15 November 2026
 
-Baseline compared before edits: `0752ee8c` / 1.59.3-a.7. Candidate package 1.59.3-a.8, numeric 1.59.3.8, display 1.59.3A. No upstream merge, new permissions or published data/migration changes.
+Baseline `901a488e` / 1.59.3-a.8. Candidate 1.59.3-a.9, numeric 1.59.3.9, display 1.59.3A. No upstream merge, permission or published schema changes.
 
-## Passed
+## Current a.9 validation
+
+- 35 focused selection tests passed; 11 new completed-cache tests including explicit regenerate, identity invalidation, aborted partials and late-output races.
+- 16 production Chrome assertions, actual built extension + real sidepanel/toolbar/native highlights. Repeated active Translate, Explain/Summary-to-Translate and same-passage reselection measured no extra provider call on cache hits. First Explain/Summary remain explicit separate calls. No page errors.
+- Evidence: `.codex/html-fixed-pane-1794732226874/evidence.json`. OpenAI mocked; no live paid request. Native OS menu is covered by existing unit/bridge tests, not driven directly.
+- Full Vitest suite: **4,701 passed / one intentional free-service skip**, 488 passing test files / one skipped (SKIP_FREE_API=true); result in `.codex/html-cache-full-tests-static.log`, 58.16s. Format, lint/type-check, edge ZIP build, runtime and store audits passed: 201 JS / 470 packaged files / nine manifest locales.
+- SHA-256 ZIP: `87fb8c738a1380c5dde0612f001803e6137ec5e930cbbde558050c4918c3341f`. Corresponding source at v1.59.3A.9.
+- User Edge UI not controlled; same fixed installation receives manifest-last verified file copy, Reload required. Edge runtime/live API not newly verified. Historical video/PDF checks below are clearly distinguished.
+
+## Historical a.8 evidence (not rerun for the narrow a.9 cache fix)
 
 - New HTML fixed-pane regression: 10 production Chrome assertions, real sidepanel/toolbar/source highlight, no PDF controls, one translation request per action, no DOM rewriting, highlight retained after native selection clears, cleanup on close and normal popover fallback.
 - Selectable 15/30/60/120/300/600s analysis for both passive and explicit prepared ranges; unit capture/restore and long-video interval checks. Queued setup pause events are ignored after playback has resumed.
@@ -30,4 +39,4 @@ Use scripts/debug/check-video-dubbing.mjs with DUBBING_PLATFORM=youtube (unset f
 
 Local current evidence: .codex/html-fixed-pane-1794726097883 (10 checks), .codex/video-dubbing-youtube-1794725698839 (30s sample), .codex/video-dubbing-anipm-1794725773536 (15s), .codex/pdf-study-1794725698960 (32 checks). Logs: .codex/html-pane-tests.log and .codex/html-pane-zip.log plus installer update-report.json. Native OS menu classification is unit/bridge tested; production toolbar/sidepanel is driven directly. Profiles/private scratch are not published.
 
-ZIP SHA-256: `5f6fbb7037d6db2ecbea5875a15fca9432b8ded8ea2e5f0ac339f4f05017908f`.
+Historical a.8 ZIP SHA-256: `5f6fbb7037d6db2ecbea5875a15fca9432b8ded8ea2e5f0ac339f4f05017908f`.

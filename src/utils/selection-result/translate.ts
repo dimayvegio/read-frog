@@ -2,6 +2,8 @@ import type { BackgroundTextStreamSnapshot } from "@/types/background-stream"
 import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
+import { aiContext } from "@/utils/ai-cache/context"
+import { readAiCache, saveAiCache } from "@/utils/ai-cache/db"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
 import { createGlossaryMatcher } from "@/utils/glossary/matcher"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
@@ -40,6 +42,7 @@ export async function translateNativeSelection({
   imageCache = false,
   pretranslated,
   cacheOnly = false,
+  onInvalidate,
 }: {
   text: string
   config: Config
@@ -53,6 +56,7 @@ export async function translateNativeSelection({
   imageCache?: boolean
   pretranslated?: ImagePretranslation
   cacheOnly?: boolean
+  onInvalidate?: () => void
 }) {
   const preparedText = document
     ? prepareStructuredPdfText(text, textOptions)
@@ -114,6 +118,30 @@ export async function translateNativeSelection({
     prompt,
     usageTask: imageCache ? "image" : document ? "pdf" : "selection",
   } as const
+  // HTML is not a PDF document. Reuse the existing bounded complete-only AI
+  // cache, keyed by effective prompt/terms/output settings and credential revision.
+  let webCache: Awaited<ReturnType<typeof aiContext>> | undefined
+  if (sourceKind === "web" && !document && !imageCache) {
+    const promptConfig = JSON.stringify(config.pageTranslation)
+    webCache = await aiContext(
+      config,
+      "translate",
+      ["selection-web-translate-v1", preparedText, payload.instructions, payload.prompt],
+      signal,
+      undefined,
+      onInvalidate,
+      (next) => JSON.stringify(next.pageTranslation) === promptConfig,
+    )
+    const cached = bypassCache ? null : await readAiCache(webCache.key)
+    await webCache.current()
+    if (cached) {
+      const snapshot = { output: cached, thinking: { status: "complete" as const, text: "" } }
+      onChunk(snapshot)
+      onCacheState?.("cached", "Dùng bản dịch trang web đã lưu trên máy — không gọi API.")
+      void sendMessage("recordLocalCacheHit", { task: "selection" }).catch(() => {})
+      return snapshot
+    }
+  }
   let cacheId: string | undefined,
     epoch = 0
   let imageTextKey: string | undefined,
@@ -199,6 +227,27 @@ export async function translateNativeSelection({
       ? { ...rawResult, output: structure.decode(rawResult.output) }
       : rawResult
   signal.throwIfAborted()
+  if (webCache) {
+    await webCache.current()
+    if (result.output.trim()) {
+      await saveAiCache(
+        webCache.key,
+        "translate",
+        preparedText,
+        result.output,
+        webCache.epoch,
+        signal,
+      )
+      const saved = await readAiCache(webCache.key)
+      await webCache.current()
+      onCacheState?.(
+        saved === result.output ? "saved" : "not-saved",
+        saved === result.output
+          ? "Đã lưu bản dịch trang web trên máy. Chọn lại sẽ dùng cache."
+          : "Đã dịch nhưng chưa lưu được cache; chọn lại có thể gọi API.",
+      )
+    }
+  }
   if (imageTextKey && imageEpoch !== null && result.output.trim()) {
     try {
       const saved = await saveImageCache(

@@ -23,6 +23,7 @@ export async function aiContext(
   signal: AbortSignal,
   documentId?: string,
   invalidate?: () => void,
+  matchesConfig?: (next: Config) => boolean,
 ) {
   const provider = resolveProviderRefForCapability(
     "selectionTranslation",
@@ -60,7 +61,8 @@ export async function aiContext(
       identity !== configIdentity(next) ||
       status.revision !== key.revision ||
       epoch !== nextEpoch ||
-      documentEpoch !== nextDocumentEpoch
+      documentEpoch !== nextDocumentEpoch ||
+      (matchesConfig && !matchesConfig(next))
     )
       throw new DOMException("Configuration or cache changed; run again explicitly.", "AbortError")
   }

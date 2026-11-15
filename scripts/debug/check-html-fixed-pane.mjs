@@ -164,6 +164,63 @@ try {
       __pdfCalls.every((c) => !JSON.stringify(c.body).includes("pdf-layout-cells-v1")),
     ),
   )
+  const clickMode = async (mode) => {
+    await panel.evaluate((value) => {
+      const labels = {
+        translate: /^(Dịch|Translate|Translation)$/i,
+        explain: /^(Giải thích kỹ thuật|Technical explanation)$/i,
+        summary: /^(Tóm tắt đoạn|Section summary)$/i,
+      }
+      const button = [...document.querySelectorAll("button")].find((n) =>
+        labels[value].test(n.textContent.trim()),
+      )
+      if (!button) throw new Error("Missing mode " + value)
+      button.click()
+    }, mode)
+    await panel.waitForSelector('[data-testid="native-selection-output"][aria-busy="false"]')
+  }
+  count = await calls()
+  await clickMode("translate")
+  await clickMode("translate")
+  check("repeated active Translate clicks do not call the provider", (await calls()) === count)
+  await clickMode("explain")
+  await panel.waitForFunction(
+    () =>
+      !document
+        .querySelector('[data-testid="native-selection-output"]')
+        ?.getAttribute("aria-busy")
+        ?.includes("true"),
+  )
+  for (let i = 0; i < 50 && (await calls()) === count; i++)
+    await new Promise((r) => setTimeout(r, 100))
+  await panel.waitForSelector('[data-testid="native-selection-output"][aria-busy="false"]')
+  const afterExplain = await calls()
+  check("first explanation is an explicit separate request", afterExplain === count + 1)
+  await clickMode("translate")
+  await panel.waitForFunction(() =>
+    document.body.textContent.includes("Dùng bản dịch trang web đã lưu"),
+  )
+  check(
+    "returning from Explain to Translate reuses the completed web cache",
+    (await calls()) === afterExplain,
+  )
+  await clickMode("summary")
+  for (let i = 0; i < 50 && (await calls()) === afterExplain; i++)
+    await new Promise((r) => setTimeout(r, 100))
+  await panel.waitForSelector('[data-testid="native-selection-output"][aria-busy="false"]')
+  const afterSummary = await calls()
+  check("first summary is an explicit separate request", afterSummary === afterExplain + 1)
+  await clickMode("translate")
+  await panel.waitForFunction(() =>
+    document.body.textContent.includes("Dùng bản dịch trang web đã lưu"),
+  )
+  check("returning from Summary to Translate also reuses cache", (await calls()) === afterSummary)
+  await select("#second")
+  await expectPanel("Regular practice")
+  check(
+    "selecting the same completed passage again uses cache across request IDs",
+    (await calls()) === afterSummary,
+  )
   await source.evaluate(() => getSelection().removeAllRanges())
   check(
     "source highlight remains after native selection loses focus",
