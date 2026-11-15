@@ -4,6 +4,7 @@ import {
   SUBTITLES_SOURCE,
   TRANSLATE_BUTTON_CONTAINER_ID,
 } from "@/utils/constants/subtitles"
+import { parseSmartProfile } from "@/utils/subtitles/dubbing/smart"
 import {
   NoSubtitlesError,
   OverlaySubtitlesError,
@@ -146,6 +147,50 @@ describe("universalVideoAdapter", () => {
     subtitlesStore.set(subtitlesSettingsPanelViewAtom, "main")
     vi.unstubAllGlobals()
     vi.useRealTimers()
+  })
+
+  it("applies audio context to the existing engine and clears a stale profile without automatic paid restart", () => {
+    vi.stubGlobal("location", { href: "https://www.youtube.com/watch?v=one" })
+    const raw = [{ text: "Hello.", start: 0, end: 1000 }]
+    const { adapter } = createAdapter(raw)
+    ;(adapter as any).sourceSubtitles = raw
+    const p = parseSmartProfile(
+      {
+        audioMatchesTranscript: true,
+        summary: "Hello",
+        context: "Ocean context",
+        speakers: [
+          {
+            id: "s1",
+            voice: "marin",
+            presentation: "unclear",
+            description: "Calm",
+            speed: 1,
+            instructions: "Calm",
+          },
+        ],
+        assignments: [{ from: 0, to: 0, speaker: "s1", confidence: 1 }],
+      },
+      raw,
+    )
+    attachScheduler(adapter, true)
+    const start = vi.spyOn(adapter as any, "startTranslation").mockResolvedValue(true)
+    const stop = vi.fn<() => void>()
+    ;(adapter as any).translationCoordinator = { stop }
+    subtitlesStore.set(subtitlesVisibleAtom, true)
+    adapter.setSmartProfile(p)
+    expect(adapter.getSmartProfile()).toBe(p)
+    expect((adapter as any).getTranslationViewerContext()).toContain("Ocean context")
+    expect(subtitlesStore.get(sourceTrackAtom)).toEqual(raw)
+    expect(start).toHaveBeenCalledOnce()
+    ;(adapter as any).sourceSubtitles = [{ text: "Other CC", start: 0, end: 1000 }]
+    expect(adapter.getSmartProfile()).toBeNull()
+    ;(adapter as any).translationCoordinator = { stop }
+    adapter.setSmartProfile(null, false)
+    expect((adapter as any).smartProfile).toBeNull()
+    expect(stop).toHaveBeenCalledTimes(2)
+    expect(start).toHaveBeenCalledOnce()
+    subtitlesStore.set(subtitlesVisibleAtom, false)
   })
 
   it("keeps manual anime context scoped to the current source and applies only on the user's action", () => {

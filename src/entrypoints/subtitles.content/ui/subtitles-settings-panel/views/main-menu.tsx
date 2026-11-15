@@ -42,6 +42,13 @@ export function MainMenu({ onNavigate }: { onNavigate: NavigateToSubpage }) {
         )}
         {supportsDubbing && (
           <SubpageLink
+            id="smart-video"
+            icon={<IconSettings className="size-3.5" />}
+            onNavigate={onNavigate}
+          />
+        )}
+        {supportsDubbing && (
+          <SubpageLink
             id="dubbing"
             icon={<IconVolume className="size-3.5" />}
             onNavigate={onNavigate}

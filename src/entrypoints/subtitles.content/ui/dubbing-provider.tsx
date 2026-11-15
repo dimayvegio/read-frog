@@ -11,6 +11,7 @@ import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { sendMessage } from "@/utils/message"
 import { buildDubbingCues } from "@/utils/subtitles/dubbing/cues"
 import { HtmlVoicePlayer, decodeDubbingAudio } from "@/utils/subtitles/dubbing/player"
+import { speakerForCue } from "@/utils/subtitles/dubbing/smart"
 import { NoSubtitlesError } from "@/utils/subtitles/errors"
 import {
   adPlayingAtom,
@@ -23,6 +24,7 @@ import {
   videoLoadingAtom,
 } from "../atoms"
 import { DubbingContext } from "./dubbing-context"
+import { useSmartVideo } from "./smart-video-context"
 import { useSubtitlesUI } from "./subtitles-ui-context"
 interface DubbingSession {
   boundary: string
@@ -32,6 +34,7 @@ interface DubbingSession {
   timer?: ReturnType<typeof setInterval>
 }
 export function DubbingProvider({ children }: { children: React.ReactNode }) {
+  const smart = useSmartVideo()
   const ui = useSubtitlesUI(),
     config = useAtomValue(configAtom),
     id = useAtomValue(currentVideoIdAtom),
@@ -39,7 +42,10 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
     loading = useAtomValue(videoLoadingAtom)
   const visible = useAtomValue(subtitlesVisibleAtom)
   const [mode, setMode] = useState<DubbingMode>("translated"),
-    [duck, setDuck] = useState(0.05)
+    [duck, setDuck] = useState(0.05),
+    [volume, setVolume] = useState(1),
+    [offsetMs, setOffset] = useState(0)
+  const live = useRef({ duck, volume, offsetMs })
   const [state, setState] = useState<DubbingState>({
     active: false,
     message: "Chọn lời gốc hoặc lời dịch rồi bấm Bắt đầu.",
@@ -50,8 +56,9 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
       subtitlesStore.get(currentVideoIdAtom),
       subtitlesStore.get(configAtom),
       ui.getViewerContext?.(),
+      ui.getSmartProfile?.(),
     ])
-  const identity = JSON.stringify([id, config, ui.getViewerContext?.()])
+  const identity = JSON.stringify([id, config, ui.getViewerContext?.(), ui.getSmartProfile?.()])
   const boundary = JSON.stringify([identity, ad, loading])
   const stop = useCallback((message = "Đã tắt lồng tiếng.", resume = false) => {
     const old = run.current
@@ -83,6 +90,11 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
   }, [boundary, stop])
   const start = async () => {
     if (run.current || !ui.supportsDubbing) return
+    if (smart?.enabled && (!smart.profile || ui.getSmartProfile?.() !== smart.profile)) {
+      setState({ active: false, message: "Chuẩn bị AI trước; xong hãy bấm Bắt đầu lồng tiếng." })
+      await smart.prepare()
+      return
+    }
     const video = ui.getDubbingVideoElement?.()
     if (!video || ad || loading) {
       setState({ active: false, message: "Hãy đợi video chính sẵn sàng rồi bấm lại." })
@@ -112,6 +124,7 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
       if (!key.configured) throw new Error("Chưa cấu hình khóa OpenAI.")
       await ui.ensureSourceTrackPublished()
       signal.throwIfAborted()
+      const profile = ui.getSmartProfile?.() ?? null
       let sourceSnapshot: unknown,
         translationSnapshot: unknown,
         cueSnapshot: ReturnType<typeof buildDubbingCues> = []
@@ -122,7 +135,14 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
         if (source !== sourceSnapshot || translation !== translationSnapshot) {
           sourceSnapshot = source
           translationSnapshot = translation
-          cueSnapshot = buildDubbingCues(source, mode, translation)
+          cueSnapshot = buildDubbingCues(
+            source,
+            mode,
+            translation,
+            profile
+              ? (cue) => speakerForCue(profile, source, cue)?.id ?? `unknown:${cue.start}`
+              : undefined,
+          )
         }
         return cueSnapshot
       }
@@ -159,7 +179,9 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
         player: owner.player,
         cues: readCues,
         valid,
-        duck,
+        duck: live.current.duck,
+        volume: live.current.volume,
+        offsetMs: live.current.offsetMs,
         state: (next) => {
           if (run.current !== owner) return
           setState(next)
@@ -169,13 +191,23 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
             run.current = null
           }
         },
-        generate: async (text, jobSignal) => {
+        generate: async (text, jobSignal, cue) => {
           await checkKey()
           jobSignal.throwIfAborted()
           if (!valid()) throw new DOMException("Source changed", "AbortError")
+          const source = subtitlesStore.get(studySourceTrackAtom)
+          const speaker = cue ? speakerForCue(profile, source, cue) : undefined
+          const tts = speaker
+            ? {
+                ...config.tts.openai,
+                voice: speaker.voice,
+                speed: speaker.speed,
+                instructions: speaker.instructions,
+              }
+            : { ...config.tts.openai }
           const audio = await createPortStreamPromise<TTSAudioChunk>(
             OPENAI_TTS_FILE_PORT,
-            { requestId: getRandomUUID(), text, config: { ...config.tts.openai } },
+            { requestId: getRandomUUID(), text, config: tts },
             { signal: jobSignal },
           )
           await checkKey()
@@ -214,6 +246,8 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
         state,
         mode,
         duck,
+        volume,
+        offsetMs,
         model: config.tts.openai.model,
         voice: config.tts.openai.voice,
         changeMode: (next) => {
@@ -221,8 +255,25 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
           setMode(next)
         },
         changeDuck: (next) => {
-          stop()
+          if (!Number.isFinite(next)) return
+          next = Math.max(0, Math.min(1, next))
+          live.current.duck = next
+          run.current?.controller?.setDuck(next)
           setDuck(next)
+        },
+        changeVolume: (next) => {
+          if (!Number.isFinite(next)) return
+          next = Math.max(0, Math.min(1.5, next))
+          live.current.volume = next
+          run.current?.player?.setVolume(next)
+          setVolume(next)
+        },
+        changeOffset: (next) => {
+          if (!Number.isFinite(next)) return
+          next = Math.max(-5000, Math.min(5000, Math.round(next / 100) * 100))
+          live.current.offsetMs = next
+          run.current?.controller?.setOffset(next)
+          setOffset(next)
         },
         start: () => void start(),
         stop: () => stop("Đã tắt lồng tiếng.", true),

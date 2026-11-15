@@ -1,6 +1,7 @@
 import type { ControlsConfig } from "@/entrypoints/subtitles.content/platforms"
 import type { SubtitlesProvidersAdapter } from "@/entrypoints/subtitles.content/universal-adapter"
 import type { Config } from "@/types/config/config"
+import type { SmartProfile } from "@/utils/subtitles/dubbing/smart"
 import type { SubtitlesFragment } from "@/utils/subtitles/types"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { Provider as JotaiProvider } from "jotai"
@@ -9,6 +10,7 @@ import { TooltipProvider } from "@/components/ui/base-ui/tooltip"
 import { queryClient } from "@/utils/tanstack-query"
 import { subtitlesStore } from "../atoms"
 import { DubbingProvider } from "./dubbing-provider"
+import { SmartVideoProvider } from "./smart-video-provider"
 
 interface SubtitlesUIContextValue {
   toggleSubtitles: (enabled: boolean) => void
@@ -26,6 +28,8 @@ interface SubtitlesUIContextValue {
   getVideoPageUrl: () => string | null
   downloadSourceSubtitles: () => Promise<void>
   downloadTranslatedSubtitles: () => Promise<void>
+  getSmartProfile?: () => SmartProfile | null
+  setSmartProfile?: (profile: SmartProfile | null, restart?: boolean) => void
   getViewerContext?: () => string | undefined
   setViewerContext?: (text: string) => void
   controlsConfig?: ControlsConfig
@@ -70,6 +74,8 @@ export function SubtitlesProviders({
       getVideoPageUrl: adapter.getVideoPageUrl,
       downloadSourceSubtitles: adapter.downloadSourceSubtitles,
       downloadTranslatedSubtitles: adapter.downloadTranslatedSubtitles,
+      getSmartProfile: adapter.getSmartProfile,
+      setSmartProfile: adapter.setSmartProfile,
       getViewerContext: adapter.getViewerContext,
       setViewerContext: adapter.setViewerContext,
       controlsConfig: adapter.getControlsConfig(),
@@ -85,9 +91,11 @@ export function SubtitlesProviders({
       <QueryClientProvider client={queryClient}>
         <SubtitlesUIContext value={contextValue}>
           {contextValue.supportsDubbing ? (
-            <DubbingProvider>
-              <TooltipProvider>{children}</TooltipProvider>
-            </DubbingProvider>
+            <SmartVideoProvider>
+              <DubbingProvider>
+                <TooltipProvider>{children}</TooltipProvider>
+              </DubbingProvider>
+            </SmartVideoProvider>
           ) : (
             <TooltipProvider>{children}</TooltipProvider>
           )}

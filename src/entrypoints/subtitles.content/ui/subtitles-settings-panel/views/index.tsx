@@ -4,9 +4,17 @@ import { AnimeContextView } from "./anime-context"
 import { DownloadView } from "./download"
 import { DubbingView } from "./dubbing"
 import { SettingsView } from "./settings"
+import { SmartVideoView } from "./smart-video"
 import { StyleView } from "./style"
 
-export type ViewId = "main" | "download" | "settings" | "style" | "anime-context" | "dubbing"
+export type ViewId =
+  | "main"
+  | "download"
+  | "settings"
+  | "style"
+  | "anime-context"
+  | "dubbing"
+  | "smart-video"
 export type SubpageId = Exclude<ViewId, "main">
 export const ROOT_VIEW = "main" satisfies ViewId
 
@@ -22,6 +30,11 @@ export interface SubpageConfig {
 }
 
 export const SUBPAGES: Record<SubpageId, SubpageConfig> = {
+  "smart-video": {
+    parent: ROOT_VIEW,
+    title: () => "AI phụ đề và giọng đọc",
+    component: SmartVideoView,
+  },
   dubbing: { parent: ROOT_VIEW, title: () => "Lồng tiếng OpenAI", component: DubbingView },
   "anime-context": {
     parent: ROOT_VIEW,

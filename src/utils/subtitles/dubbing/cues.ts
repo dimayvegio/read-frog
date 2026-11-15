@@ -14,6 +14,7 @@ export function buildDubbingCues(
   track: SubtitlesFragment[],
   mode: DubbingMode,
   translated: SubtitlesFragment[] = [],
+  speakerKey?: (fragment: SubtitlesFragment) => string,
 ): DubbingCue[] {
   const groups: SubtitlesFragment[][] = []
   let count = 0,
@@ -41,6 +42,7 @@ export function buildDubbingCues(
       mode === "original" &&
       g &&
       previous &&
+      (!speakerKey || speakerKey(f) === speakerKey(previous)) &&
       f.start - previous.end >= -20 &&
       f.start - previous.end <= 350 &&
       f.end - g[0]!.start <= 8000 &&

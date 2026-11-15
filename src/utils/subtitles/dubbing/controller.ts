@@ -12,9 +12,11 @@ export interface DubbingDependencies {
   player: VoicePlayer
   cues: () => DubbingCue[]
   valid: () => boolean
-  generate: (text: string, signal: AbortSignal) => Promise<DubbingAudio>
+  generate: (text: string, signal: AbortSignal, cue?: DubbingCue) => Promise<DubbingAudio>
   state: (state: DubbingState) => void
   duck: number
+  volume?: number
+  offsetMs?: number
 }
 interface ActiveVoice {
   cue: DubbingCue
@@ -22,9 +24,12 @@ interface ActiveVoice {
   started: boolean
   starting: boolean
   offset: number
+  delayed?: boolean
+  correction?: boolean
 }
 /** One source-owned session. No global speaker, disk audio, retries or translation queue. */
 export class DubbingController {
+  private offsetMs = 0
   private stopped = false
   private ending = false
   private epoch = 0
@@ -42,12 +47,56 @@ export class DubbingController {
   private message = ""
   constructor(private d: DubbingDependencies) {
     this.ducker = new VolumeDucker(d.video, d.duck)
+    this.offsetMs = d.offsetMs ?? 0
+    d.player.setVolume(d.volume ?? 1)
     for (const name of ["play", "pause", "waiting", "playing", "ratechange"] as const)
       d.video.addEventListener(name, this.onMedia)
     d.video.addEventListener("seeking", this.onSeek)
     d.video.addEventListener("ended", this.onEnded)
     this.timer = setInterval(() => this.tick(), 100)
     this.tick()
+  }
+  setDuck(value: number) {
+    if (!this.stopped) this.ducker.setRatio(value)
+  }
+  setVolume(value: number) {
+    if (!this.stopped) this.d.player.setVolume(value)
+  }
+  setOffset(value: number) {
+    if (this.stopped || !Number.isFinite(value) || !this.d.valid()) return
+    const next = Math.max(-5000, Math.min(5000, Math.round(value / 100) * 100))
+    if (next === this.offsetMs) return
+    this.offsetMs = next
+    this.cancelVoiceStart()
+    const time = this.d.video.currentTime * 1000 - next,
+      current = this.current
+    if (current) {
+      const ratio = (time - current.cue.start) / (current.cue.end - current.cue.start)
+      current.offset = Math.max(0, Math.min(0.99, ratio)) * current.audio.duration
+      if (this.hold === "tail" && ratio < 1 && !this.ending) this.release()
+      if (ratio >= 1) {
+        this.d.player.stop()
+        this.current = null
+        this.release()
+      } else if (current.starting) {
+        current.correction = true
+      } else if (current.started) {
+        this.d.player.seek(current.offset)
+        current.delayed = ratio < 0
+        if (current.delayed || this.d.video.paused || this.mediaWaiting) this.d.player.pause()
+        else
+          void this.d.player.resume().catch(() => {
+            if (this.current === current) this.stop("Chưa điều chỉnh được giọng đọc.")
+          })
+      }
+    } else {
+      const cached = dubbingWindow(this.d.cues(), time).find(
+        (c) => c.start <= time + 80 && c.end > time && this.cache.has(c.id),
+      )
+      if (cached) this.played.delete(cached.id)
+    }
+    // Local timing correction cannot enqueue/cancel synthesis or change the native video clock.
+    this.update(false)
   }
   private report(message: string) {
     if (this.message === message) return
@@ -84,7 +133,7 @@ export class DubbingController {
       this.cancelVoiceStart()
       this.d.player.pause()
       this.ducker.speaking(false)
-    } else if (this.current?.started) {
+    } else if (this.current?.started && !this.current.delayed) {
       const current = this.current,
         epoch = this.epoch
       void this.d.player.resume().catch(() => {
@@ -147,7 +196,8 @@ export class DubbingController {
       current.starting ||
       this.voiceStartTimer !== undefined ||
       this.mediaWaiting ||
-      this.d.video.paused
+      this.d.video.paused ||
+      this.d.video.currentTime * 1000 - this.offsetMs + 80 < current.cue.start
     )
       return
     this.duckCue = current.cue
@@ -171,7 +221,8 @@ export class DubbingController {
           1.75,
           Math.max(
             v.playbackRate,
-            (audio.duration - offset) / Math.max(0.1, (cue.end - v.currentTime * 1000) / 1000),
+            (audio.duration - offset) /
+              Math.max(0.1, (cue.end - (v.currentTime * 1000 - this.offsetMs)) / 1000),
           ),
         ),
       )
@@ -195,7 +246,13 @@ export class DubbingController {
           if (this.stopped || this.current !== current || epoch !== this.epoch) return
           current.starting = false
           current.started = true
-          if ((v.paused && this.hold !== "tail") || this.mediaWaiting) this.d.player.pause()
+          if (current.correction) {
+            current.correction = false
+            this.d.player.seek(current.offset)
+            current.delayed = v.currentTime * 1000 - this.offsetMs < current.cue.start
+          }
+          if (current.delayed || (v.paused && this.hold !== "tail") || this.mediaWaiting)
+            this.d.player.pause()
           this.updateDucking(v.currentTime * 1000)
         })
         .catch(() => {
@@ -224,8 +281,8 @@ export class DubbingController {
           this.stop("Video đang tạm dừng. Bấm phát rồi Bắt đầu lại.")
       })
   }
-  private pump(window: DubbingCue[]) {
-    const allowed = new Set(window.map((c) => c.id))
+  private pump(window: DubbingCue[], retained: DubbingCue[] = window) {
+    const allowed = new Set(retained.map((c) => c.id))
     for (const id of this.cache.keys()) if (!allowed.has(id)) this.cache.delete(id)
     for (const [id, c] of this.pending)
       if (!allowed.has(id)) {
@@ -245,7 +302,7 @@ export class DubbingController {
         epoch = this.epoch
       this.pending.set(cue.id, abort)
       void this.d
-        .generate(cue.text, abort.signal)
+        .generate(cue.text, abort.signal, cue)
         .then((audio) => {
           if (this.stopped || abort.signal.aborted || epoch !== this.epoch || !this.d.valid())
             return
@@ -277,7 +334,7 @@ export class DubbingController {
       this.stop("Track phụ đề không hợp lệ. Bấm Bắt đầu lại sau khi đổi CC.")
     }
   }
-  private update() {
+  private update(allowGenerate = true) {
     if (this.stopped) return
     if (!this.d.valid()) {
       this.stop("Nguồn video hoặc cấu hình đã đổi. Bấm Bắt đầu lại.")
@@ -285,10 +342,19 @@ export class DubbingController {
     }
     const v = this.d.video
     if (v.seeking) return
-    const time = v.currentTime * 1000,
+    const nativeTime = v.currentTime * 1000,
+      time = nativeTime - this.offsetMs,
       window = dubbingWindow(this.d.cues(), time)
     // Manual pause does not consume the rest of a video in the background.
-    if (!this.ending) this.pump(v.paused && !this.hold ? window.slice(0, 1) : window)
+    if (allowGenerate && !this.ending) {
+      const nativeWindow = dubbingWindow(this.d.cues(), nativeTime)
+      const retained = [...new Map([...window, ...nativeWindow].map((c) => [c.id, c])).values()]
+        .sort((a, b) => a.start - b.start)
+        .slice(0, 6)
+      const allowed = new Set(retained.map((c) => c.id))
+      const generationWindow = nativeWindow.filter((c) => allowed.has(c.id))
+      this.pump(v.paused && !this.hold ? generationWindow.slice(0, 1) : generationWindow, retained)
+    }
     if (this.current) {
       const { cue, audio } = this.current
       if (!this.d.cues().some((c) => c.id === cue.id)) {
@@ -297,8 +363,19 @@ export class DubbingController {
       }
       if (!this.current.started) {
         this.prepareVoice(this.current)
-        this.updateDucking(time)
+        this.updateDucking(nativeTime)
         return
+      }
+      if (this.current.delayed) {
+        if (time < this.current.cue.start || v.paused || this.mediaWaiting) {
+          this.updateDucking(nativeTime)
+          return
+        }
+        this.current.delayed = false
+        const current = this.current
+        void this.d.player.resume().catch(() => {
+          if (this.current === current) this.stop("Chưa điều chỉnh được giọng đọc.")
+        })
       }
       const left = Math.max(0.1, (cue.end - time) / 1000),
         remaining = Math.max(0, audio.duration - this.d.player.position())
@@ -312,24 +389,24 @@ export class DubbingController {
       } else if (this.current.started) {
         this.report("Đang lồng tiếng · Giọng AI OpenAI")
       }
-      this.updateDucking(time)
+      this.updateDucking(nativeTime)
       return
     }
     const cue = window.find((c) => c.start <= time + 80 && c.end > time && !this.played.has(c.id))
     if (!cue) {
       this.release()
-      this.updateDucking(time)
+      this.updateDucking(nativeTime)
       this.report("Đang chờ câu phụ đề tiếp theo.")
       return
     }
     const audio = this.cache.get(cue.id)
     if (!audio) {
-      this.pauseFor("buffer")
+      if (this.offsetMs === 0) this.pauseFor("buffer")
       this.report("Đang đệm giọng đọc OpenAI…")
       return
     }
     if (v.paused && !this.hold) {
-      this.updateDucking(time)
+      this.updateDucking(nativeTime)
       this.report("Sẵn sàng. Bấm phát video để nghe.")
       return
     }

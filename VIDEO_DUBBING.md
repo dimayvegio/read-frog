@@ -1,7 +1,9 @@
-# Lồng tiếng video — 1.59.3A.4
+# Lồng tiếng video — 1.59.3A.5
 
-Package `1.59.3-a.4`, manifest `1.59.3.4`, display `1.59.3A`.
+Package `1.59.3-a.5`, manifest `1.59.3.5`, display `1.59.3A`.
+Baseline a.5: `4bb30179` (a.4).
 Baseline a.4: `e6f57e56aec271d181832ec89a225c35b6718d55` (a.3).
+Bản a.5 thêm mix/offset trực tiếp và phân tích audio nhiều người nói opt-in.
 Bản a.4 thêm giảm âm thông minh; bản a.3 thêm lồng tiếng.
 Không merge upstream trong bản này.
 
@@ -9,7 +11,7 @@ Không merge upstream trong bản này.
 
 Trên YouTube hoặc ani.pm, mở logo extension trong player → **Lồng tiếng OpenAI**.
 Chọn **Lời gốc** hoặc **Lời dịch**, chọn phần trăm âm gốc, bấm **Bắt đầu lồng tiếng**.
-Mặc định đọc lời dịch và giữ 5% âm gốc lúc có lời thoại. Đổi lựa chọn sẽ dừng;
+Mặc định đọc lời dịch và giữ 5% âm gốc lúc có lời thoại. Đổi lời gốc/lời dịch sẽ dừng;
 người dùng bấm Bắt đầu lại. Đóng menu vẫn tiếp tục đọc; nút Tắt kết thúc phiên.
 Giọng/model/tốc độ/chỉ dẫn lấy từ cấu hình OpenAI TTS hiện tại, kể cả khi lựa
 chọn TTS cũ là Microsoft. Đổi giọng trong Cài đặt → Text to Speech.
@@ -18,7 +20,68 @@ Lời gốc tải CC native theo thao tác này, không bật dịch. Lời dị
 phụ đề dịch của extension trước và chỉ đọc các kết quả đã commit vào track dịch.
 Không gọi translator thứ hai, không tự bật Learning hay AI chia câu.
 ani.pm cần SOFT + CC English; HARD không tạo ra dữ liệu CC. Không tự bật track
-bị tắt, đổi server, OCR, ASR, thu âm, nhân bản giọng hay xuất video lồng tiếng.
+bị tắt, đổi server, OCR, ASR, nhân bản giọng hay xuất video lồng tiếng. Thu trước audio
+chỉ chạy qua bước Chuẩn bị explicit bên dưới.
+
+## Mix và lệch giọng trực tiếp (a.5)
+
+- Âm thuyết minh riêng 0–150%, mặc định 100%. Một Web Audio gain node của phiên
+  hiện tại; không đổi cấu hình TTS, không tạo lại audio. WAV PCM được đo peak;
+  gain bị chặn để riêng giọng đọc không vượt 0,98 peak. Audio lớn có thể không
+  tăng đủ 150%; không tuyên bố đây là loudness normalization hay tách lời.
+- Âm gốc 0–100% vẫn tương đối với volume player, đổi ngay trong lúc đang đọc,
+  giữ ownership/mute/ramp cũ. Trên 100% ở slider chỉ áp dụng cho giọng AI.
+- Lệch −5 đến +5 giây, bước 0,1 giây: âm đi trước khi âm, đi sau khi dương.
+  Sửa vị trí phát trong audio đã đệm, không tua video hoặc tự synthesize lại.
+  Prefetch vẫn theo đồng hồ video. Cache giữ cả cue đang chờ phát trễ, tối đa
+  sáu mục; phần quá khứ đã rơi khỏi cache không tự được tạo lại khi chỉnh offset.
+  Có thể cần đợi câu có audio tiếp theo. Không phải forced alignment theo từ.
+- Không resume pause của người dùng, không mở player mới; sửa trong lúc play()
+  còn pending được áp dụng khi đúng promise đó hoàn tất. Giữ đuôi do extension
+  sở hữu được nhả khi offset mới đưa câu về tương lai; không replay video kết thúc.
+
+## AI phụ đề và giọng đọc — chuẩn bị trước (a.5, mặc định tắt)
+
+Logo player → **AI phụ đề và giọng đọc** → bật → tùy chọn MP3/WAV cùng video →
+**Chuẩn bị và phân tích audio**. Nếu không chọn file, extension dùng captureStream
+của chính video để thu từ đầu ở 1×, encode MP3 mono 16 kHz/32 kbps cục bộ.
+Việc này mất bằng thời lượng video, có thể chuyển tab. Player có thể không cho
+lấy audio (CORS/DRM/khả năng trình duyệt); khi đó chọn MP3/WAV tương ứng, không
+có fallback tải từ dịch vụ khác. Không thu microphone. Thu xong quay về vị trí,
+tốc độ cũ và để pause; hủy cùng nguồn cũng khôi phục, còn tua/đổi nguồn của người
+dùng không bị ghi đè. Ngừng và dọn stream/node/timer/context khi hủy, đổi nguồn,
+lỗi, hết thời gian hoặc đóng. Audio và kết quả chỉ ở RAM, không sync/export.
+
+Giới hạn một phiên: MP3/WAV ≤8 MiB, ≤30 phút, CC ≤1.500 mẩu/100.000 ký tự;
+tối đa hai phân tích toàn extension và một phân tích/tab. Chỉ gửi audio đã chọn
+hoặc đã thu cùng title và CC đánh số trực tiếp tới fixed OpenAI Chat Completions,
+model **gpt-audio-1.5**; không gửi URL/path/file name/khóa vào prompt. Có tính phí;
+usage numeric ghi token thực API, chi phí mixed audio/text chưa biết chính xác.
+Không tự thử lại kết quả hỏng/thiếu chắc chắn hoặc tự tạo CC khi thiếu.
+
+AI nghe audio thật, tóm tắt chủ đề/thuật ngữ, phân biệt tối đa tám người nói và
+chọn preset voice riêng, tốc độ 0,8–1,2×, chỉ dẫn thể hiện. Không đoán từ giới tính
+nhân vật/tên, không xác định danh tính hay clone giọng; mô tả nam tính/nữ tính chỉ
+là cảm nhận âm thanh. AI trả chỉ số CC, không tự tạo timestamps. App xác thực
+range tăng, không trùng, nằm trong track và preset khác nhau. Chỉ gán câu có
+confidence ≥0,75, một người nói và phủ ≥60% thời gian cue; đây là ngưỡng bảo thủ
+của ứng dụng, không phải xác suất đã hiệu chuẩn. Mẩu trộn/nhiều người/thiếu vùng
+phủ dùng giọng mặc định. Không ghép lời gốc qua ranh giới người nói đã gán.
+
+Ngữ cảnh AI đi vào viewerContext hiện có (quoted as data, cache identity có context)
+của engine dịch, không tạo translator/queue thứ hai. Áp dụng phân tích explicit
+hủy kết quả cũ và có thể dịch lại khi phụ đề đang bật. Trong mode này dùng nguyên
+ranh giới native CC, tạm bỏ display AI segmentation để giữ speaker-index mapping;
+Learning chia câu vẫn độc lập. Tắt mode trở về xử lý CC thường. Mô hình tạo giọng
+vẫn là cấu hình OpenAI TTS của người dùng: **gpt-realtime-2.1-mini** hoặc
+**gpt-4o-mini-tts**. Không thay đổi lựa chọn model đã lưu.
+
+Xong phân tích, bật phụ đề hoặc bấm **Bắt đầu lồng tiếng**. Khi Bắt đầu cần chuẩn
+bị AI trước, thao tác đầu chỉ chuẩn bị; bấm lại sau khi xong để unlock playback
+trong user gesture. Đổi config/key/native CC/video/URL hủy/loại kết quả cũ;
+không tự trả tiền để phục hồi. Background recheck frame/document IDs và top route
+trước/sau API và khi đang chạy, strict legacy fallback; hủy/disconnect abort fetch.
+Không thêm permission, published config/migration/DB/ZIP schema hay cloud backend.
 
 ## Đồng bộ và giới hạn
 
@@ -55,9 +118,9 @@ bị tắt, đổi server, OCR, ASR, thu âm, nhân bản giọng hay xuất vid
 
 ## Quyền riêng tư, lưu trữ và nâng cấp
 
-Chỉ văn bản của câu phụ đề được chọn gửi trực tiếp tới fixed OpenAI endpoints
+Lồng tiếng thường chỉ gửi văn bản của câu phụ đề được chọn tới fixed OpenAI endpoints
 qua private background runtime đã có. Không gửi file/video/audio/tab URL vào
-TTS payload, không lộ key cho content script, không thêm permission hoặc dịch vụ.
+TTS payload. Mode chuẩn bị AI explicit gửi audio như mô tả ở trên; không lộ key cho content script, không thêm permission hoặc dịch vụ.
 Chỉ synthesize sau Bắt đầu; xem menu/đổi lựa chọn/di chuyển video khi đã tắt không
 phát sinh request tạo giọng. Phần trăm/mode/phiên/cache chỉ RAM, không đổi config,
 DB, migration, sync, vocabulary ZIP/report hay các định dạng đã phát hành.
@@ -81,6 +144,28 @@ Nghiên cứu ý tưởng, triển khai độc lập; không chép source hay th
   ghi rõ giọng AI; giữ đúng transport/model mà private runtime hiện tại hỗ trợ.
 
 ## Kiểm thử
+
+Bản a.5 thêm kiểm tra mix/offset, PCM peak, capture cleanup/restore, speaker-index
+validation/fallback, key/document guards và provider opt-in/cancel. Bằng chứng
+release cuối nằm trong báo cáo dưới đây; API được giả lập, chưa đánh giá chất
+lượng phân biệt người nói/giọng trên OpenAI thật.
+
+Kết quả release a.5: **4.659 test pass, 1 skip chủ đích**, full suite với
+`SKIP_FREE_API=true` và `--maxWorkers=4`. Production Chrome: 17 kiểm tra YouTube
+và 19 ani.pm (36 tổng), gồm upload audio, context trong engine dịch, hai preset
+khác nhau, mix/offset, và **captureStream thật + MP3 encode thật từ video tổng hợp
+20 giây**, phục hồi 7 giây/1,25×/pause sau khi thu. Model/API được giả lập; không
+đo chất lượng diarization hay độ trễ OpenAI thật. Audit 201 script không có endpoint
+bị cấm; lint/type-check/format đạt. ZIP 22,12 MB (decimal), giữ nguyên key/quyền.
+
+Một lượt full mặc định khi chạy cùng build/browser có lỗi ở test Learning
+`sentence-study` (chưa cập nhật currentTime sau bấm Next); chạy riêng và các lượt
+full giới hạn bốn worker đều đạt. Không sửa code Learning trong bản này.
+Bằng chứng local: `.codex/dubbing-a5-tests.log`, `.codex/dubbing-a5-build.log`,
+`.codex/video-dubbing-youtube-1794709560129/evidence.json`,
+`.codex/video-dubbing-anipm-1794709729452/evidence.json`.
+
+Kết quả a.4 trước đây:
 
 4.636 test pass, 1 skip có chủ đích; 34 test cho dubbing, gồm 7 test thêm ở a.4
 cho mặc định 5%, pre-duck, giữ hết câu, nối câu, phục hồi, hủy timer và không

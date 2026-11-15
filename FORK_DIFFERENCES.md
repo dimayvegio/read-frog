@@ -1,5 +1,10 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.5 / manifest 1.59.3.5 (display 1.59.3A):** volume thuyết minh riêng,
+mix trực tiếp và lệch giọng 0,1 giây; phân tích audio trước opt-in cho YouTube/ani.pm
+để tóm tắt, dịch theo ngữ cảnh và gán preset riêng từng người nói. Chỉ RAM, CC native,
+OpenAI cố định; không tự thu/gửi/repair khi tắt. Xem [VIDEO_DUBBING.md](VIDEO_DUBBING.md).
+
 **Mới 1.59.3-a.4 / manifest 1.59.3.4 (display 1.59.3A):** giảm âm thông minh,
 mặc định 5%, pre-duck 100 ms, giữ đến hết CC và giọng đọc, nối khoảng nghỉ
 400 ms rồi phục hồi 600 ms. Hủy timer khi pause/seek/stop/đổi nguồn; không

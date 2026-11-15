@@ -51,6 +51,8 @@ function setup(
     resume: vi.fn<VoicePlayer["resume"]>(async () => {}),
     position: () => 0,
     setRate: vi.fn<VoicePlayer["setRate"]>(),
+    setVolume: vi.fn<VoicePlayer["setVolume"]>(),
+    seek: vi.fn<VoicePlayer["seek"]>(),
     stop: vi.fn<VoicePlayer["stop"]>(),
     destroy: vi.fn<VoicePlayer["destroy"]>(),
   }
@@ -306,4 +308,58 @@ describe("source-owned video voice", () => {
     duck.destroy()
     expect(video.volume).toBeCloseTo(0.5, 1)
   })
+})
+
+it("changes live mix and offsets in 100ms steps without new synthesis, video seeks or a new player", async () => {
+  const s = setup()
+  await ready()
+  s.video.currentTime = 1
+  const before = s.generate.mock.calls.length,
+    played = vi.mocked(s.player.play).mock.calls.length
+  s.controller.setVolume(1.25)
+  s.controller.setDuck(0.05)
+  s.controller.setOffset(240)
+  expect(s.player.setVolume).toHaveBeenLastCalledWith(1.25)
+  expect(s.player.seek).toHaveBeenLastCalledWith(0.64)
+  expect(s.video.currentTime).toBe(1)
+  expect(s.generate).toHaveBeenCalledTimes(before)
+  expect(s.player.play).toHaveBeenCalledTimes(played)
+  s.video.pause()
+  const resumes = s.video.play.mock.calls.length
+  s.controller.setOffset(500)
+  expect(s.video.paused).toBe(true)
+  expect(s.video.play).toHaveBeenCalledTimes(resumes)
+  s.controller.setOffset(2000)
+  expect(s.player.pause).toHaveBeenCalled()
+  s.controller.stop()
+})
+it("applies offset corrections after an unresolved play promise without replaying", async () => {
+  const s = setup(),
+    wait = pending()
+  vi.mocked(s.player.play).mockImplementationOnce(() => wait.promise.then(() => {}))
+  await ready()
+  expect(s.player.play).toHaveBeenCalledOnce()
+  s.video.currentTime = 0.5
+  s.controller.setOffset(1000)
+  wait.resolve(audio)
+  await flush()
+  expect(s.player.seek).toHaveBeenLastCalledWith(0)
+  expect(s.player.pause).toHaveBeenCalled()
+  expect(s.player.play).toHaveBeenCalledOnce()
+  s.controller.stop()
+})
+
+it("retains delayed cached cues past their native end without paying to regenerate", async () => {
+  const s = setup()
+  s.controller.setOffset(3000)
+  await flush()
+  for (let i = 0; i < 34; i++) {
+    s.video.currentTime = i / 10
+    await vi.advanceTimersByTimeAsync(100)
+    await flush()
+  }
+  expect(s.player.play).toHaveBeenCalled()
+  expect(vi.mocked(s.player.play).mock.calls[0]?.[0]).toBe(audio)
+  expect(s.generate.mock.calls.filter((c) => c[0] === cues[0]!.text)).toHaveLength(1)
+  s.controller.stop()
 })

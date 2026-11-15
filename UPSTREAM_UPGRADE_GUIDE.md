@@ -1,5 +1,10 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung a.5: giữ mix/offset trực tiếp không regenerate và phân tích audio nhiều
+người nói mặc định OFF trong [VIDEO_DUBBING.md](VIDEO_DUBBING.md). Không gộp
+qua speaker-index boundary, không tự ASR/paid retry; giữ RAM bounds, frame/document
+ownership và context cache identity. Không đưa vào config/sync/DB đã phát hành.
+
 Bổ sung local a.3: giữ [lồng tiếng video](VIDEO_DUBBING.md), private TTS file
 transport, giới hạn RAM/job và hủy theo nguồn; lời dịch chỉ đọc track đã commit,
 không tạo translator/queue/AI segmentation riêng. Đừng đổi native caption/ASR

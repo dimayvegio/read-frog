@@ -14,6 +14,7 @@ import { openOptionsPage } from "@/utils/navigation"
 import { PRONUNCIATION_PORT } from "@/utils/pronunciation/schema"
 import { READING_LAB_PORT } from "@/utils/reading-library/schema"
 import { ensureRemoteSiteRulesLoaded } from "@/utils/site-rules/active"
+import { SMART_VIDEO_PORT } from "@/utils/subtitles/dubbing/smart"
 import { SENTENCE_STUDY_PORT } from "@/utils/subtitles/study-segmentation"
 import { runAiSegmentSubtitles } from "./ai-segmentation"
 import { handleTranscriptionPort, setupTranscriptionHandlers } from "./audio-transcription"
@@ -44,6 +45,7 @@ import { handleReadingLabPort, setupReadingLabHandlers } from "./reading-lab"
 import { handleSentenceStudyPort } from "./sentence-study"
 import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
+import { handleSmartVideoPort, trustedSmartVideoSender } from "./smart-video"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
 import { setupTabAudioHandlers } from "./tab-audio"
 import { translationMessage } from "./translation-signal"
@@ -85,6 +87,11 @@ export default defineBackground({
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))
     browser.runtime.onConnect.addListener((port) => {
+      if (port.name === SMART_VIDEO_PORT) {
+        if (trustedSmartVideoSender(port.sender)) handleSmartVideoPort(port)
+        else port.disconnect()
+        return
+      }
       if (port.name === TRANSCRIPTION_PORT) {
         handleTranscriptionPort(port)
         return

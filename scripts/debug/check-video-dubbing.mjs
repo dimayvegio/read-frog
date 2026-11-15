@@ -27,13 +27,35 @@ await promisify(execFile)("ffmpeg", [
   "lavfi",
   "-i",
   "color=c=0x193d35:s=640x360:r=10",
+  "-f",
+  "lavfi",
+  "-i",
+  "sine=frequency=440:sample_rate=16000",
+  "-c:a",
+  "libopus",
   "-t",
-  "90",
+  "20",
   "-c:v",
   "libvpx",
   "-deadline",
   "realtime",
   mediaPath,
+])
+const audioPath = path.join(scratch, "matching.mp3")
+await promisify(execFile)("ffmpeg", [
+  "-loglevel",
+  "error",
+  "-f",
+  "lavfi",
+  "-i",
+  "sine=frequency=440:sample_rate=16000",
+  "-t",
+  "20",
+  "-ac",
+  "1",
+  "-b:a",
+  "32k",
+  audioPath,
 ])
 const media = await fs.readFile(mediaPath)
 const evidence = {
@@ -70,7 +92,7 @@ try {
     )
   ).worker()
   const waitWorker = async (fn, ...args) => {
-    for (let i = 0; i < 150; i++) {
+    for (let i = 0; i < 400; i++) {
       if (await worker.evaluate(fn, ...args)) return
       await new Promise((resolve) => setTimeout(resolve, 100))
     }
@@ -94,13 +116,64 @@ try {
     globalThis.__pdfTextOutput = () => "Thuyền trưởng Luffy sẽ bảo vệ đồng đội."
   })
   await worker.evaluate(() => {
+    globalThis.__smartCalls = []
+    globalThis.__dubbingConfigs = []
     globalThis.__dubbingCalls = []
     globalThis.__dubbingDelay = 100
     const previous = globalThis.fetch
     globalThis.fetch = async (input, init) => {
       const r = new Request(input, init)
-      if (r.url === "https://api.openai.com/v1/realtime/client_secrets")
+      if (r.url === "https://api.openai.com/v1/chat/completions") {
+        const b = await r.clone().json()
+        if (b.model === "gpt-audio-1.5") {
+          __smartCalls.push(b)
+          const captions = JSON.parse(b.messages[1].content[0].text).captions
+          return new Response(
+            JSON.stringify({
+              choices: [
+                {
+                  finish_reason: "stop",
+                  message: {
+                    content: JSON.stringify({
+                      audioMatchesTranscript: true,
+                      summary: "Hai người nói về Luffy và đồng đội.",
+                      context: "Bối cảnh hàng hải, tình đồng đội.",
+                      speakers: [
+                        {
+                          id: "s1",
+                          presentation: "masculine",
+                          description: "Giọng trầm",
+                          voice: "cedar",
+                          speed: 0.9,
+                          instructions: "Calm.",
+                        },
+                        {
+                          id: "s2",
+                          presentation: "feminine",
+                          description: "Giọng sáng",
+                          voice: "coral",
+                          speed: 1.1,
+                          instructions: "Warm.",
+                        },
+                      ],
+                      assignments: captions.map((c, i) => ({
+                        from: i,
+                        to: i,
+                        speaker: i % 2 ? "s2" : "s1",
+                        confidence: 0.95,
+                      })),
+                    }),
+                  },
+                },
+              ],
+            }),
+          )
+        }
+      }
+      if (r.url === "https://api.openai.com/v1/realtime/client_secrets") {
+        __dubbingConfigs.push(await r.clone().json())
         return new Response(JSON.stringify({ value: "dubbing-fixture-only" }))
+      }
       return previous(r)
     }
     const pcm = new Uint8Array(48000),
@@ -167,6 +240,8 @@ try {
               dDurationMs: 4000,
               segs: [{ utf8: "Captain Luffy will protect his crew." }],
             },
+            { tStartMs: 7000, dDurationMs: 4000, segs: [{ utf8: "We will sail together." }] },
+            { tStartMs: 14000, dDurationMs: 4000, segs: [{ utf8: "Friendship matters." }] },
           ],
         }),
       })
@@ -273,6 +348,37 @@ try {
     "real browser audio plays while video is ducked",
     await frame.evaluate(() => !document.querySelector("video").paused),
   )
+  for (const [label, value] of [
+    ["Âm lượng thuyết minh", "125"],
+    ["Âm lượng gốc khi lồng tiếng", "15"],
+    ["Độ lệch giọng đọc", "300"],
+  ]) {
+    const slider = await frame.$(`pierce/[aria-label="${label}"]`)
+    await slider.evaluate((input, setting) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, setting)
+      input.dispatchEvent(new Event("input", { bubbles: true }))
+      input.dispatchEvent(new Event("change", { bubbles: true }))
+    }, value)
+  }
+  check(
+    "live mix and 0.1s offset controls keep the active session and reuse buffered audio",
+    (await worker.evaluate(
+      () =>
+        __dubbingCalls.length <= 3 &&
+        new Set(__dubbingCalls.map((c) => JSON.stringify(c))).size === __dubbingCalls.length,
+    )) && (await status()).includes("Đang"),
+  )
+  for (const [label, value] of [
+    ["Âm lượng gốc khi lồng tiếng", "5"],
+    ["Độ lệch giọng đọc", "0"],
+  ]) {
+    const slider = await frame.$(`pierce/[aria-label="${label}"]`)
+    await slider.evaluate((input, setting) => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, setting)
+      input.dispatchEvent(new Event("input", { bubbles: true }))
+      input.dispatchEvent(new Event("change", { bubbles: true }))
+    }, value)
+  }
   await frame.waitForFunction(() => document.querySelector("video").currentTime >= 1.8)
   check(
     "short generated speech does not restore source before its CC sentence ends",
@@ -351,8 +457,98 @@ try {
   await worker.evaluate(() => {
     __dubbingDelay = 100
   })
+  await frame.click('pierce/[aria-label="Back to subtitles menu"]')
+  await clickText("AI phụ đề và giọng đọc")
+  check(
+    "smart analysis defaults off with no audio upload",
+    (await worker.evaluate(() => __smartCalls.length === 0)) &&
+      !(await frame.$eval(
+        'pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]',
+        (n) => n.checked,
+      )),
+  )
+  await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
+  const picker = await frame.$('pierce/[aria-label="Audio cùng video để phân tích"]')
+  await picker.uploadFile(audioPath)
+  await frame.click("pierce/[data-smart-prepare]")
+  await frame.waitForFunction(() => {
+    for (const n of document.querySelectorAll("*"))
+      if (
+        n.shadowRoot
+          ?.querySelector("[data-smart-status]")
+          ?.textContent.includes("Đã chuẩn bị 2 giọng")
+      )
+        return true
+    return false
+  })
+  check(
+    "one explicit audio analysis returns two voices without sending source URL or credentials",
+    await worker.evaluate(
+      () =>
+        __smartCalls.length === 1 &&
+        !JSON.stringify(__smartCalls).includes("https://ani.pm") &&
+        !JSON.stringify(__smartCalls).includes("https://www.youtube.com") &&
+        __smartCalls[0].messages[1].content[1].type === "input_audio",
+    ),
+  )
+  await waitWorker(() => __pdfCalls.some((c) => JSON.stringify(c).includes("Bối cảnh hàng hải")))
+  check("subtitle translation reuses analyzed context through the existing engine", true)
+  await frame.click('pierce/[aria-label="Back to subtitles menu"]')
+  await clickText("Lồng tiếng OpenAI")
+  await frame.select('pierce/[aria-label="Lời lồng tiếng"]', "original")
+  const beforeSmart = await worker.evaluate(() => __dubbingCalls.length)
   await frame.click("pierce/[data-dubbing-toggle]")
-  await waitWorker((n) => __dubbingCalls.length > n, afterCancel)
+  await waitWorker((n) => __dubbingCalls.length > n, beforeSmart)
+  await waitWorker(() => __dubbingConfigs.some((c) => c.session.audio.output.voice === "cedar"))
+  // Advance to the second native speaker, preserving one prepared analysis.
+  await frame.evaluate(() => {
+    document.querySelector("video").currentTime = 7
+  })
+  await waitWorker(() => __dubbingConfigs.some((c) => c.session.audio.output.voice === "coral"))
+  check(
+    "native caption indices select different voices for different speakers",
+    await worker.evaluate(() => __smartCalls.length === 1),
+  )
+  if (process.env.DUBBING_CAPTURE === "1") {
+    await frame.click('pierce/[aria-label="Back to subtitles menu"]')
+    await clickText("AI phụ đề và giọng đọc")
+    await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
+    await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
+    await frame.evaluate(() => {
+      const v = document.querySelector("video")
+      v.pause()
+      v.currentTime = 7
+      v.playbackRate = 1.25
+    })
+    await frame.click("pierce/[data-smart-prepare]")
+    await waitWorker(() => __smartCalls.length === 2)
+    await frame.waitForFunction(() => {
+      for (const n of document.querySelectorAll("*"))
+        if (
+          n.shadowRoot
+            ?.querySelector("[data-smart-status]")
+            ?.textContent.includes("Đã chuẩn bị 2 giọng")
+        )
+          return true
+      return false
+    })
+    check(
+      "actual player audio is locally encoded and explicitly analyzed without microphone capture",
+      await worker.evaluate(
+        () => __smartCalls[1].messages[1].content[1].input_audio.format === "mp3",
+      ),
+    )
+    check(
+      "completed pre-recording restores the previous position and rate while leaving video paused",
+      await frame.evaluate(() => {
+        const v = document.querySelector("video")
+        return v.paused && Math.abs(v.currentTime - 7) < 0.1 && v.playbackRate === 1.25
+      }),
+    )
+    await frame.click('pierce/[aria-label="Back to subtitles menu"]')
+    await clickText("Lồng tiếng OpenAI")
+    await frame.click("pierce/[data-dubbing-toggle]")
+  }
   await frame.evaluate(() => {
     history.pushState({}, "", "/embed/v2")
     document.querySelector("video").currentTime = 10
@@ -372,6 +568,12 @@ try {
     try {
       evidence.status = await fixtureFrame.$eval(
         "pierce/[data-dubbing-status]",
+        (n) => n.textContent,
+      )
+    } catch {}
+    try {
+      evidence.smartStatus = await fixtureFrame.$eval(
+        "pierce/[data-smart-status]",
         (n) => n.textContent,
       )
     } catch {}
