@@ -6,6 +6,7 @@ import {
   imageEditPrompt,
   imageEditPng,
   MAX_IMAGE_EDIT_BASE64,
+  requestedImageSize,
   type ImageEditRequest,
 } from "@/utils/image-translation/generated-schema"
 import {
@@ -24,6 +25,18 @@ export async function executeImageEdit(
   options: { signal?: AbortSignal } = {},
 ) {
   const value = imageEditRequest.parse(input)
+  let size = "auto"
+  if (value.outputSize && value.outputSize !== "auto") {
+    try {
+      if (!value.image.startsWith("data:image/png;base64,")) throw new Error()
+      const source = imageEditPng(value.image.slice("data:image/png;base64,".length))
+      size = requestedImageSize(value.outputSize, source.width, source.height)
+    } catch {
+      throw fail(
+        "IE-SIZE: Không xác định được kích thước phù hợp. Chọn Tự động, nguồn PNG hoặc vùng ảnh có tỷ lệ trong 1:3–3:1; chưa gửi OpenAI.",
+      )
+    }
+  }
   options.signal?.throwIfAborted()
   if (active >= 2)
     throw fail("IE-BUSY: Đang tạo ảnh khác; chờ hoàn tất hoặc dừng trước khi tạo tiếp.")
@@ -54,9 +67,9 @@ export async function executeImageEdit(
         body: JSON.stringify({
           model: value.model,
           images: [{ image_url: value.image }],
-          prompt: imageEditPrompt(value.target),
+          prompt: imageEditPrompt(value.target, value.extraInstructions),
           n: 1,
-          size: "auto",
+          size,
           quality: value.quality,
           output_format: "png",
           // Receive headers early for long-running MV3 requests. Never display

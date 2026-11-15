@@ -13,7 +13,11 @@ import { getLocalConfig } from "@/utils/config/storage"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { clearImageCache } from "@/utils/image-translation/cache"
 import { clearGeneratedImages, generateTranslatedImage } from "@/utils/image-translation/generated"
-import { imageEditModel, imageEditQuality } from "@/utils/image-translation/generated-schema"
+import {
+  imageEditModel,
+  imageEditQuality,
+  imageEditOutputSize,
+} from "@/utils/image-translation/generated-schema"
 import { detectOverlayRegions } from "@/utils/image-translation/overlay-ocr"
 import { recognizeImage } from "@/utils/image-translation/recognize"
 import { imageShortcutLabel, openImageShortcuts } from "@/utils/image-translation/shortcut"
@@ -54,6 +58,7 @@ export function ImageTranslation({ config }: { config: Config }) {
   const [generated, setGenerated] = useState<GeneratedImage>()
   const [model, setModel] = useState<ImageEditRequest["model"]>("gpt-image-2.6-sunburst")
   const [quality, setQuality] = useState<ImageEditRequest["quality"]>("high")
+  const [outputSize, setOutputSize] = useState<NonNullable<ImageEditRequest["outputSize"]>>("auto")
   const { targetCode } = useAtomValue(configFieldsAtomMap.language)
   const previousTarget = useRef(targetCode)
   const activeMode = useRef(mode)
@@ -242,6 +247,7 @@ export function ImageTranslation({ config }: { config: Config }) {
           config: current,
           model,
           quality,
+          outputSize,
           signal: abort.signal,
           bypass,
           onStatus: (message) => {
@@ -387,8 +393,27 @@ export function ImageTranslation({ config }: { config: Config }) {
                 }}
               >
                 <option value="high">Cao</option>
+                <option value="xhigh">Rất cao</option>
+                <option value="max">Tối đa</option>
                 <option value="medium">Vừa</option>
                 <option value="low">Thấp</option>
+              </select>
+            </label>
+            <label>
+              Ảnh đầu ra{" "}
+              <select
+                aria-label="Kích thước ảnh OpenAI"
+                value={outputSize}
+                disabled={busy || loadingImage}
+                onChange={(e) => {
+                  resetRun()
+                  setOutputSize(imageEditOutputSize.parse(e.target.value))
+                }}
+              >
+                <option value="auto">Tự động</option>
+                <option value="1k">1K — khoảng 1 MP</option>
+                <option value="2k">2K — khoảng 4 MP</option>
+                <option value="4k">4K — tối đa 8 MP (thử nghiệm)</option>
               </select>
             </label>
           </>

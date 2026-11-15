@@ -4,6 +4,7 @@ import {
   imageEditRequest,
   imageEditPng,
   imageEditPrompt,
+  requestedImageSize,
 } from "@/utils/image-translation/generated-schema"
 import { executeImageEdit, handleImageEditPort } from "../generated-image"
 const { key, config, finish } = vi.hoisted(() => ({
@@ -69,6 +70,57 @@ it.each([401, 403, 404, 429, 500])(
     await expect(executeImageEdit(input)).rejects.not.toThrow("raw-provider-body")
   },
 )
+it("appends explicit user editing requirements while retaining the selected target and image-only output", async () => {
+  const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async () => reply())
+  await executeImageEdit({
+    ...input,
+    extraInstructions: "  Keep RTL and STA unchanged.\nUse concise labels.  ",
+  })
+  const body = JSON.parse(fetcher.mock.calls[0]![1]!.body as string)
+  expect(body.prompt).toContain("Keep RTL and STA unchanged.\nUse concise labels.")
+  expect(body.prompt).toContain("selected translation language is Vietnamese (vi)")
+  expect(body.prompt).toMatch(/return the edited image only\.$/u)
+  expect(fetcher).toHaveBeenCalledOnce()
+})
+it("bounds optional instructions before executing and preserves blank/default prompt equivalence", async () => {
+  const fetcher = vi.spyOn(globalThis, "fetch")
+  await expect(executeImageEdit({ ...input, extraInstructions: "x".repeat(4001) })).rejects.toThrow(
+    "4000",
+  )
+  expect(fetcher).not.toHaveBeenCalled()
+  expect(imageEditPrompt("vi", " \n ")).toBe(imageEditPrompt("vi"))
+  expect(imageEditRequest.safeParse(input).success).toBe(true)
+})
+it("requests explicit output resolution and maximum rendering quality without locally replacing returned pixels", async () => {
+  const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async () => reply())
+  const result = await executeImageEdit({ ...input, quality: "max", outputSize: "4k" })
+  expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toMatchObject({
+    quality: "max",
+    size: "2880x2880",
+    output_format: "png",
+  })
+  expect(result.image).toBe(input.image)
+  expect(result.width).toBe(1)
+})
+it("bounds requested aspect, pixels, edge lengths and 16-pixel alignment instead of blindly stretching a page", () => {
+  for (const preset of ["1k", "2k", "4k"] as const)
+    for (const [w, h] of [
+      [612, 792],
+      [792, 612],
+      [1, 1],
+      [3, 1],
+      [1, 3],
+    ]) {
+      const [width, height] = requestedImageSize(preset, w!, h!).split("x").map(Number)
+      expect(width! % 16).toBe(0)
+      expect(height! % 16).toBe(0)
+      expect(width! * height!).toBeGreaterThanOrEqual(655360)
+      expect(width! * height!).toBeLessThanOrEqual(8294400)
+      expect(Math.max(width!, height!)).toBeLessThanOrEqual(3840)
+      expect(Math.max(width! / height!, height! / width!)).toBeLessThanOrEqual(3)
+    }
+  expect(() => requestedImageSize("4k", 100, 1000)).toThrow("IE-SIZE")
+})
 it("rejects stale credentials and language before a paid request", async () => {
   const fetcher = vi.spyOn(globalThis, "fetch")
   key.revision++

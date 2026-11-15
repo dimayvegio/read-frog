@@ -5,7 +5,12 @@ import { getLocalConfig } from "@/utils/config/storage"
 import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
 import { sendMessage } from "@/utils/message"
 import { imageCacheDB } from "./cache"
-import { IMAGE_EDIT_ID, IMAGE_EDIT_PORT, imageEditPng } from "./generated-schema"
+import {
+  IMAGE_EDIT_ID,
+  IMAGE_EDIT_PORT,
+  imageEditPng,
+  imageEditInstructions,
+} from "./generated-schema"
 
 // Encoded images remain in this page's RAM only, never image DB1/settings/sync.
 const cache = new Map<string, { result: GeneratedImage; expires: number }>()
@@ -51,6 +56,8 @@ export async function generateTranslatedImage({
   quality,
   signal,
   bypass = false,
+  extraInstructions = "",
+  outputSize = "auto",
   onStatus,
 }: {
   image: string
@@ -59,13 +66,25 @@ export async function generateTranslatedImage({
   quality: ImageEditRequest["quality"]
   signal: AbortSignal
   bypass?: boolean
+  extraInstructions?: string
+  outputSize?: ImageEditRequest["outputSize"]
   onStatus: (message: string) => void
 }) {
+  const extra = imageEditInstructions.parse(extraInstructions)
   const scope = await imageEditScope(config, signal)
   const target = config.language.targetCode
   const { current } = scope
   const key = sha256(
-    JSON.stringify([IMAGE_EDIT_ID, sha256(image), model, quality, target, scope.identity]),
+    JSON.stringify([
+      IMAGE_EDIT_ID,
+      sha256(image),
+      model,
+      quality,
+      target,
+      scope.identity,
+      sha256(extra),
+      outputSize,
+    ]),
   )
   for (const [id, item] of cache) if (item.expires <= Date.now()) cache.delete(id)
   const cached = cache.get(key)
@@ -78,7 +97,15 @@ export async function generateTranslatedImage({
   onStatus("OpenAI đang đọc, dịch và tạo ảnh… Có tính phí tạo ảnh; không tự gửi lại.")
   const wire = await createPortStreamPromise<GeneratedImage>(
     IMAGE_EDIT_PORT,
-    { image, model, quality, target, revision: scope.revision },
+    {
+      image,
+      model,
+      quality,
+      target,
+      revision: scope.revision,
+      ...(extra ? { extraInstructions: extra } : {}),
+      ...(outputSize !== "auto" ? { outputSize } : {}),
+    },
     { signal },
   )
   await current()

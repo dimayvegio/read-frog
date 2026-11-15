@@ -26,6 +26,8 @@ OpenAI handles received data under its own terms and account/endpoint retention 
 
 ## Other network access
 
+Optional PDF image-edit instructions are sent directly to OpenAI with each selected page only when you start generation. They stay in the current document tab's memory, outside settings, sync, exports and usage logs. Local cost estimates read page geometry and use a bundled pricing snapshot; they do not upload content or call a pricing service. Estimates cover image output only and exclude unknown image/text input fees, taxes and future price changes; they are not actual billed usage.
+
 Native caption requests go to the watched website and its caption hosts. Opening a remote PDF requires a source GET to its URL; this is not uploading the document. Site access enables translation interfaces on chosen sites and supported local files when file access is granted. Scripts, WASM, OCR models, fonts, icons and site rules ship in the package, without remote rule updates or executable CDN fallbacks.
 
 Optional **Edge account settings sync** uses browser-native storage.sync. It transfers supported small configuration values, not keys, glossary rows, vocabulary/audio/progress, PDF/image history or pronunciation records. Delivery depends on browser/account settings and Microsoft services. FlowRead has no independent cloud account. Support/source links open external websites. Emailing support or posting an issue shares what you send with those services/the maintainer; remove keys and private content first.

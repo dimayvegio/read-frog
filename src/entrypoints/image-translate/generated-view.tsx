@@ -22,7 +22,7 @@ export function GeneratedImageView({ value, source }: { value: GeneratedImage; s
             onChange={(e) => setZoom(e.target.value)}
           >
             <option value="fit">Vừa khung</option>
-            <option value="100">100%</option>
+            <option value="100">100% — pixel gốc</option>
             <option value="150">150%</option>
             <option value="200">200%</option>
           </select>

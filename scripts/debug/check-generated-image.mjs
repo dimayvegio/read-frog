@@ -74,6 +74,7 @@ try {
       __editCalls.push({
         model: body.model,
         quality: body.quality,
+        size: body.size,
         n: body.n,
         output: body.output_format,
         targetVi: body.prompt.includes("Vietnamese"),
@@ -261,6 +262,26 @@ try {
   check(
     "No local OCR asset requests or uncaught UI errors in direct mode",
     ocrRequests.length === 0 && report.errors.length === 0,
+  )
+  await page.select('select[aria-label="Kích thước ảnh OpenAI"]', "4k")
+  await page.select('select[aria-label="Chất lượng ảnh"]', "max")
+  check(
+    "Selecting 4K and maximum quality on the image page is free of API calls",
+    (await calls()) === 8,
+  )
+  await click("Tạo ảnh dịch")
+  await waitImage()
+  check(
+    "Standalone image page forwards 4K/max and keeps the returned PNG unchanged",
+    (await calls()) === 9 &&
+      (await worker.evaluate(
+        () => __editCalls.at(-1).size !== "auto" && __editCalls.at(-1).quality === "max",
+      )) &&
+      (await page.$eval(
+        ".rf-generated img",
+        (el, png) => el.src === "data:image/png;base64," + png,
+        output,
+      )),
   )
 } finally {
   await fs.writeFile(path.join(dir, "report.json"), JSON.stringify(report, null, 2))

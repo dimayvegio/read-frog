@@ -70,6 +70,34 @@ it("cache clearing rejects a pending result and cannot repopulate RAM", async ()
   await run()
   expect(port).toHaveBeenCalledTimes(2)
 })
+it("keys the completed image by normalized additional instructions and forwards them without another AI step", async () => {
+  await run({ extraInstructions: "  Keep STA unchanged.\nUse short labels.  " })
+  expect(port.mock.calls[0]![1]).toMatchObject({
+    extraInstructions: "Keep STA unchanged.\nUse short labels.",
+  })
+  await run({ extraInstructions: "Keep STA unchanged.\nUse short labels." })
+  expect(port).toHaveBeenCalledOnce()
+  await run({ extraInstructions: "Use larger text." })
+  expect(port).toHaveBeenCalledTimes(2)
+})
+it("rejects oversized custom instructions before any image request", async () => {
+  await expect(run({ extraInstructions: "x".repeat(4001) })).rejects.toThrow("4000")
+  expect(port).not.toHaveBeenCalled()
+})
+it("separates resolution and extended quality cache entries without resizing the raw reply", async () => {
+  await run({ outputSize: "2k" })
+  await run({ outputSize: "2k" })
+  expect(port).toHaveBeenCalledOnce()
+  expect(port.mock.calls[0]![1]).toMatchObject({ outputSize: "2k" })
+  await run({ outputSize: "4k", quality: "max" })
+  expect(port).toHaveBeenCalledTimes(2)
+  expect(await run({ outputSize: "4k", quality: "max" })).toMatchObject({
+    image,
+    width: 1,
+    height: 1,
+  })
+  expect(port).toHaveBeenCalledTimes(2)
+})
 it("DB clear epochs reject late results", async () => {
   port.mockImplementation(async () => {
     await clearImageCache()

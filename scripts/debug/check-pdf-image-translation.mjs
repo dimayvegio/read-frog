@@ -117,6 +117,10 @@ try {
           !JSON.stringify(body).includes("source-private-name") &&
           !JSON.stringify(body).includes("C:\\"),
         targetVi: body.prompt.includes("Vietnamese"),
+        customA: body.prompt.includes("QA_KEEP_STA"),
+        customB: body.prompt.includes("QA_BIG_LABELS"),
+        size: body.size,
+        quality: body.quality,
       })
       const index = __imageCalls.length
       __imageActive++
@@ -165,6 +169,15 @@ try {
       () =>
         document.querySelectorAll('.rf-pdf-image-pages button[data-status="done"]').length === 4,
     )
+  const setPrompt = (value) =>
+    page.$eval(
+      '[aria-label="Yêu cầu bổ sung PDF ảnh dịch"]',
+      (el, next) => {
+        Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(el, next)
+        el.dispatchEvent(new Event("input", { bubbles: true }))
+      },
+      value,
+    )
   await page.click('button[aria-label="Tạo PDF ảnh dịch"]')
   await page.waitForSelector("dialog[open]")
   check(
@@ -178,6 +191,20 @@ try {
       (el) => el.options[0].value === "en" && el.options[1].value === "vi" && el.value === "vi",
     ),
   )
+  check(
+    "PDF defaults request a sharper 2K output at 200 DPI",
+    (await page.$eval('[aria-label="DPI PDF ảnh dịch"]', (el) => el.value === "200")) &&
+      (await page.$eval('[aria-label="Kích thước PDF ảnh dịch"]', (el) => el.value === "2k")),
+  )
+  await setPrompt("QA_KEEP_STA\nKeep technical terms unchanged.")
+  check(
+    "Typing bounded optional requirements does not call OpenAI",
+    (await calls()) === 0 &&
+      (await page.$eval(
+        '[aria-label="Yêu cầu bổ sung PDF ảnh dịch"]',
+        (el) => el.maxLength === 4000,
+      )),
+  )
   await field("PDF ảnh dịch từ trang", "1")
   await field("PDF ảnh dịch đến trang", "5")
   await click("Tạo ảnh dịch các trang")
@@ -186,6 +213,20 @@ try {
   )
   check("Invalid ranges are rejected before provider work", (await calls()) === 0)
   await field("PDF ảnh dịch đến trang", "4")
+  await page.waitForFunction(() =>
+    document.querySelector(".rf-pdf-image-cost")?.textContent.includes("Tạo mới 4 trang"),
+  )
+  const initialQuote = await page.$eval(".rf-pdf-image-cost > div:last-of-type b", (el) =>
+    Number(el.textContent.replace(/[^0-9.]/gu, "")),
+  )
+  check(
+    "Cost estimate covers the selected range and discloses excluded input fees without API calls",
+    initialQuote > 0 &&
+      (await calls()) === 0 &&
+      (await page.$eval(".rf-pdf-image-cost", (el) =>
+        el.textContent.includes("Chưa cộng ảnh đầu vào và prompt"),
+      )),
+  )
   await click("Tạo ảnh dịch các trang")
   await allDone()
   const payloads = await worker.evaluate(() => __imageCalls)
@@ -199,11 +240,15 @@ try {
     "Full-page raster sizes honor rotation and configured DPI",
     JSON.stringify(payloads.map((p) => [p.width, p.height])) ===
       JSON.stringify([
-        [1224, 1584],
-        [1584, 1224],
-        [1584, 1224],
-        [960, 960],
+        [1700, 2200],
+        [2200, 1700],
+        [2200, 1700],
+        [1333, 1333],
       ]),
+  )
+  check(
+    "Each page receives the same custom requirements and an explicit output size",
+    payloads.every((p) => p.customA && !p.customB && p.size !== "auto"),
   )
   check(
     "Image edits are sequential with only one in-flight job",
@@ -291,6 +336,31 @@ try {
     "Closing/reopening dialog retains completed images without provider work",
     (await calls()) === 4,
   )
+  check(
+    "Requirements stay in the current PDF session when reopening",
+    await page.$eval('[aria-label="Yêu cầu bổ sung PDF ảnh dịch"]', (el) =>
+      el.value.includes("QA_KEEP_STA"),
+    ),
+  )
+  await setPrompt("  QA_KEEP_STA\nKeep technical terms unchanged.  ")
+  await allDone()
+  await click("Tạo / tiếp tục trang còn thiếu")
+  await page.waitForFunction(() => !document.querySelector(".rf-pdf-image-primary").disabled)
+  check("Outer whitespace edits preserve the matching four-page cache", (await calls()) === 4)
+  await setPrompt("QA_BIG_LABELS\nUse larger labels without changing numbers.")
+  check(
+    "Changing requirements clears stale results without a request",
+    (await calls()) === 4 &&
+      (await page.$eval(".rf-pdf-image-pages", (el) => el.children.length === 0)),
+  )
+  await click("Tạo ảnh dịch các trang")
+  await allDone()
+  await page.waitForFunction(() => !document.querySelector(".rf-pdf-image-primary").disabled)
+  check(
+    "Only explicit Create generates four new pages for changed instructions",
+    (await calls()) === 8 &&
+      (await worker.evaluate(() => __imageCalls.slice(4).every((p) => p.customB && !p.customA))),
+  )
   await page.screenshot({ path: path.join(dir, "pdf-image-desktop.png") })
   await page.setViewport({ width: 390, height: 844 })
   await page.screenshot({ path: path.join(dir, "pdf-image-phone.png") })
@@ -299,18 +369,38 @@ try {
     await page.$eval("dialog", (el) => el.scrollWidth <= el.clientWidth + 1),
   )
   await page.setViewport({ width: 1500, height: 1050 })
-  await page.select('[aria-label="Chất lượng PDF ảnh dịch"]', "medium")
+  await click("Chi tiết cao")
+  check(
+    "High-detail preset selects source 300 DPI, 4K and maximum quality without calling AI",
+    (await calls()) === 8 &&
+      (await page.$eval('[aria-label="DPI PDF ảnh dịch"]', (el) => el.value === "300")) &&
+      (await page.$eval('[aria-label="Kích thước PDF ảnh dịch"]', (el) => el.value === "4k")) &&
+      (await page.$eval('[aria-label="Chất lượng PDF ảnh dịch"]', (el) => el.value === "max")),
+  )
+  await page.waitForFunction(
+    (before) => {
+      const b = document.querySelector(".rf-pdf-image-cost > div:last-of-type b")
+      return b && Number(b.textContent.replace(/[^0-9.]/gu, "")) > before
+    },
+    {},
+    initialQuote,
+  )
+  check("High-detail estimate increases locally before any new request", (await calls()) === 8)
   await worker.evaluate(() => {
-    __imageDelayAt = 6
+    __imageDelayAt = 10
   })
   await click("Tạo ảnh dịch các trang")
-  for (let i = 0; i < 100 && (await calls()) < 6; i++) await pause(25)
-  assert.equal(await calls(), 6)
+  for (let i = 0; i < 100 && (await calls()) < 10; i++) await pause(25)
+  assert.equal(await calls(), 10)
+  check(
+    "Requirements are locked during the active paid batch",
+    await page.$eval('[aria-label="Yêu cầu bổ sung PDF ảnh dịch"]', (el) => el.disabled),
+  )
   await click("Dừng")
   await pause(1400)
   check(
     "Stop keeps page 1, drops late page 2 and never starts page 3",
-    (await calls()) === 6 &&
+    (await calls()) === 10 &&
       (await page.$eval(
         ".rf-pdf-image-pages",
         (el) => el.querySelectorAll('[data-status="done"]').length === 1,
@@ -320,7 +410,20 @@ try {
   await allDone()
   check(
     "Explicit resume skips completed page and sends only three missing pages",
-    (await calls()) === 9,
+    (await calls()) === 13,
+  )
+  check(
+    "High-detail sends maximum quality and bounded 4K dimensions without enlarging the returned bitmap",
+    (await worker.evaluate(() =>
+      __imageCalls.slice(8).every((p) => {
+        const [w, h] = p.size.split("x").map(Number)
+        return p.quality === "max" && w * h > 4194304 && w * h <= 8294400 && Math.max(w, h) <= 3840
+      }),
+    )) &&
+      (await page.$eval(
+        ".rf-pdf-image-preview img",
+        (el) => el.naturalWidth === 800 && el.naturalHeight === 1000,
+      )),
   )
   await page.select('[aria-label="Ngôn ngữ PDF ảnh dịch"]', "en")
   await page.waitForFunction(
@@ -328,21 +431,33 @@ try {
   )
   check(
     "Changing target invalidates displayed results without a paid request",
-    (await calls()) === 9,
+    (await calls()) === 13,
   )
   await page.select('[aria-label="Chất lượng PDF ảnh dịch"]', "low")
   await worker.evaluate(() => {
-    __imageDelayAt = 10
+    __imageDelayAt = 14
   })
   await click("Tạo ảnh dịch các trang")
-  for (let i = 0; i < 100 && (await calls()) < 10; i++) await pause(25)
-  assert.equal(await calls(), 10)
+  for (let i = 0; i < 100 && (await calls()) < 14; i++) await pause(25)
+  assert.equal(await calls(), 14)
   await (await page.$('input[aria-label="Chọn PDF"]')).uploadFile(file)
   await page.waitForFunction(() => !document.querySelector("dialog[open]"))
   await pause(1400)
   check(
     "Reopening source PDF cancels old owner and cannot render or continue late images",
-    (await calls()) === 10 && !(await page.$(".rf-pdf-image-pages")),
+    (await calls()) === 14 && !(await page.$(".rf-pdf-image-pages")),
+  )
+  await page.click('button[aria-label="Tạo PDF ảnh dịch"]')
+  check(
+    "New PDF owner does not inherit the previous private requirements",
+    (await page.$eval('[aria-label="Yêu cầu bổ sung PDF ảnh dịch"]', (el) => el.value === "")) &&
+      (await calls()) === 14,
+  )
+  await page.select('[aria-label="Kích thước PDF ảnh dịch"]', "auto")
+  check(
+    "Automatic output size is labeled as unknown cost rather than zero",
+    (await page.$eval(".rf-pdf-image-cost", (el) => el.textContent.includes("chưa xác định"))) &&
+      (await calls()) === 14,
   )
   check(
     "Direct PDF image translation never invokes OCR assets and has no uncaught errors",

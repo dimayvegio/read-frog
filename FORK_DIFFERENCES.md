@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**Mới A.17 / manifest1.59.3.17:** ô yêu cầu bổ sung cho PDF ảnh dịch, preset độ nét/DPI/1K–4K/quality tối đa và dự toán phí ảnh đầu ra local theo trang/dải. [Hợp đồng/giới hạn](PDF_IMAGE_PROMPT_A17.md).
+
 **Mới A.16 / manifest 1.59.3.16:** chọn dải trang PDF → tạo PNG toàn trang trên máy → OpenAI tạo ảnh dịch tuần tự → xem/tải PNG, ZIP hoặc PDF ảnh ghép local. Giữ kết quả từng trang để tiếp tục không gọi thừa. [Hợp đồng/giới hạn](PDF_IMAGE_TRANSLATION_A16.md).
 
 **Mới A.15 / manifest 1.59.3.15:** gửi crop trực tiếp OpenAI Images Edits để tạo ảnh dịch, hiển thị/tải nguyên PNG, cache RAM và không qua OCR/vẽ chữ local. [Hợp đồng/giới hạn](OPENAI_IMAGE_EDIT_A15.md).

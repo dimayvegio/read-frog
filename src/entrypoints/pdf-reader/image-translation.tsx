@@ -4,6 +4,7 @@ import type { Config } from "@/types/config/config"
 import type { ImageEditRequest } from "@/utils/image-translation/generated-schema"
 import { languageTagSchema } from "@read-frog/definitions"
 import { useAtom } from "jotai"
+import { sha256 } from "js-sha256"
 import { FileImage, X, Download, Images, FileDown, Check, Loader2 } from "lucide-react"
 import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { getTargetLanguageItems } from "@/components/language-combobox-options"
@@ -14,7 +15,14 @@ import {
   generateTranslatedImage,
   imageEditScope,
 } from "@/utils/image-translation/generated"
-import { imageEditModel, imageEditQuality } from "@/utils/image-translation/generated-schema"
+import {
+  imageEditModel,
+  imageEditQuality,
+  imageEditOutputSize,
+  imageEditInstructions,
+  MAX_IMAGE_EDIT_INSTRUCTIONS,
+} from "@/utils/image-translation/generated-schema"
+import { PdfImageCost } from "./image-cost"
 import { archiveImagePages, assembleImagePdf, renderImagePage } from "./image-pages"
 import { MAX_PDF_IMAGE_PAGES, PdfImageSession } from "./image-session"
 import { PdfPageRange, readPageRange } from "./page-range"
@@ -37,7 +45,9 @@ export function PdfImageTranslation({
     [to, setTo] = useState("")
   const [model, setModel] = useState<ImageEditRequest["model"]>("gpt-image-2.6-sunburst")
   const [quality, setQuality] = useState<ImageEditRequest["quality"]>("high")
-  const [dpi, setDpi] = useState(144),
+  const [instructions, setInstructions] = useState("")
+  const [outputSize, setOutputSize] = useState<NonNullable<ImageEditRequest["outputSize"]>>("2k")
+  const [dpi, setDpi] = useState(200),
     [selected, setSelected] = useState(0),
     [zoom, setZoom] = useState("fit")
   const [exporting, setExporting] = useState(false),
@@ -128,6 +138,7 @@ export function PdfImageTranslation({
       const pages = Array.from({ length: range.last - range.first + 1 }, (_, i) => range.first + i)
       setSelected(pages[0]!)
       const rotation = viewport.getRotation()
+      const extraInstructions = imageEditInstructions.parse(instructions)
       let capturedConfig: Config | undefined
       await session.run(pages, {
         scope: async (signal) => {
@@ -135,7 +146,16 @@ export function PdfImageTranslation({
           capturedConfig = config
           const owner = await imageEditScope(config, signal)
           return {
-            identity: JSON.stringify([id, rotation, dpi, model, quality, owner.identity]),
+            identity: JSON.stringify([
+              id,
+              rotation,
+              dpi,
+              model,
+              quality,
+              outputSize,
+              owner.identity,
+              sha256(extraInstructions),
+            ]),
             current: async () => {
               if (!isCurrent())
                 throw new DOMException("Tài liệu đã đổi; đã dừng tạo ảnh.", "AbortError")
@@ -154,6 +174,8 @@ export function PdfImageTranslation({
             config: capturedConfig,
             model,
             quality,
+            extraInstructions,
+            outputSize,
             signal,
             onStatus: () => {},
           })
@@ -241,6 +263,39 @@ export function PdfImageTranslation({
           </header>
           <div className="rf-pdf-image-layout">
             <aside className="rf-pdf-image-settings">
+              <h3>Độ nét nhanh</h3>
+              <div className="rf-pdf-image-presets">
+                {(
+                  [
+                    { label: "Nhanh", dpi: 144, size: "1k", quality: "medium" },
+                    { label: "Rõ nét", dpi: 200, size: "2k", quality: "high" },
+                    { label: "Chi tiết cao", dpi: 300, size: "4k", quality: "max" },
+                  ] as const
+                ).map((preset) => (
+                  <button
+                    type="button"
+                    key={preset.label}
+                    disabled={busy}
+                    aria-pressed={
+                      dpi === preset.dpi && outputSize === preset.size && quality === preset.quality
+                    }
+                    onClick={() => {
+                      if (
+                        dpi !== preset.dpi ||
+                        outputSize !== preset.size ||
+                        quality !== preset.quality
+                      ) {
+                        clear()
+                        setDpi(preset.dpi)
+                        setOutputSize(preset.size)
+                        setQuality(preset.quality)
+                      }
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
               <h3>Trang cần dịch</h3>
               <PdfPageRange
                 from={from}
@@ -297,6 +352,8 @@ export function PdfImageTranslation({
                     }}
                   >
                     <option value="high">Cao</option>
+                    <option value="xhigh">Rất cao</option>
+                    <option value="max">Tối đa</option>
                     <option value="medium">Vừa</option>
                     <option value="low">Thấp</option>
                   </select>
@@ -315,9 +372,72 @@ export function PdfImageTranslation({
                     <option value={96}>96 DPI</option>
                     <option value={144}>144 DPI</option>
                     <option value={200}>200 DPI</option>
+                    <option value={300}>300 DPI</option>
                   </select>
                 </label>
               </div>
+              <label>
+                Kích thước ảnh đầu ra{" "}
+                <select
+                  aria-label="Kích thước PDF ảnh dịch"
+                  value={outputSize}
+                  disabled={busy}
+                  onChange={(e) => {
+                    clear()
+                    setOutputSize(imageEditOutputSize.parse(e.target.value))
+                  }}
+                >
+                  <option value="auto">Tự động</option>
+                  <option value="1k">1K — khoảng 1 MP</option>
+                  <option value="2k">2K — khoảng 4 MP</option>
+                  <option value="4k">4K — tối đa 8 MP (thử nghiệm)</option>
+                </select>
+              </label>
+              <p>
+                Kích thước lớn tăng số pixel; chất lượng cao tăng chi tiết và có thể tăng phí/thời
+                gian. Mức 2K/4K có thể còn thử nghiệm theo API, tối đa cạnh 3.840 px; không phóng
+                lớn ảnh trả về để giả tăng độ nét.
+              </p>
+              <PdfImageCost
+                pdf={pdf}
+                from={from}
+                to={to}
+                fallback={viewport.snapshot().page}
+                rotation={viewport.getRotation()}
+                dpi={dpi}
+                model={model}
+                quality={quality}
+                outputSize={outputSize}
+              />
+              <label>
+                <span className="rf-pdf-image-prompt-caption">
+                  Yêu cầu bổ sung{" "}
+                  <small>
+                    {instructions.length}/{MAX_IMAGE_EDIT_INSTRUCTIONS}
+                  </small>
+                </span>
+                <textarea
+                  aria-label="Yêu cầu bổ sung PDF ảnh dịch"
+                  value={instructions}
+                  maxLength={MAX_IMAGE_EDIT_INSTRUCTIONS}
+                  disabled={busy}
+                  spellCheck={false}
+                  placeholder="Ví dụ: Giữ nguyên thuật ngữ RTL, STA, clock tree. Dịch ngắn gọn; giữ nguyên công thức và số liệu."
+                  onChange={(e) => {
+                    const value = e.target.value
+                    if (
+                      imageEditInstructions.parse(value) !==
+                      imageEditInstructions.parse(instructions)
+                    )
+                      clear()
+                    setInstructions(value)
+                  }}
+                />
+              </label>
+              <p>
+                Không bắt buộc · gửi cùng mỗi trang khi bấm Tạo. Sửa yêu cầu sẽ xóa ảnh kết quả đang
+                giữ; chưa gọi API. Nội dung chỉ nhớ trong tài liệu đang mở.
+              </p>
               <p>
                 Ảnh nguồn tự giới hạn 8 MP / cạnh 4.096 px. Chữ nhỏ có thể bị sai; OpenAI có thể đổi
                 font hoặc chi tiết.
@@ -397,7 +517,7 @@ export function PdfImageTranslation({
                   onChange={(e) => setZoom(e.target.value)}
                 >
                   <option value="fit">Vừa khung</option>
-                  <option value="100">100%</option>
+                  <option value="100">100% — pixel gốc</option>
                   <option value="150">150%</option>
                 </select>
                 {active && (

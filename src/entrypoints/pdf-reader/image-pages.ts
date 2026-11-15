@@ -13,6 +13,29 @@ export interface TranslatedImagePage {
   height: number
   result: GeneratedImage
 }
+export function imagePageRasterSize(width: number, height: number, dpi: number) {
+  if (
+    !(
+      width > 0 &&
+      height > 0 &&
+      Number.isFinite(width * height) &&
+      Number.isFinite(dpi) &&
+      dpi > 0 &&
+      dpi <= 300
+    )
+  )
+    throw new Error("Trang PDF hoặc độ phân giải không hợp lệ.")
+  const scale = Math.min(
+    dpi / 72,
+    Math.sqrt(8_000_000 / (width * height)),
+    4096 / Math.max(width, height),
+  )
+  return {
+    scale,
+    width: Math.max(1, Math.floor(width * scale)),
+    height: Math.max(1, Math.floor(height * scale)),
+  }
+}
 /** One temporary render canvas, independent of the three reading canvas leases. */
 export async function renderImagePage(
   pdf: PDFDocumentProxy,
@@ -25,23 +48,11 @@ export async function renderImagePage(
   const page = await pdf.getPage(number)
   signal.throwIfAborted()
   const original = page.getViewport({ scale: 1, rotation: ((page.rotate ?? 0) + rotation) % 360 })
-  if (
-    !(
-      original.width > 0 &&
-      original.height > 0 &&
-      Number.isFinite(original.width * original.height)
-    )
-  )
-    throw new Error("Trang PDF không có kích thước hợp lệ.")
-  const scale = Math.min(
-    dpi / 72,
-    Math.sqrt(8_000_000 / (original.width * original.height)),
-    4096 / Math.max(original.width, original.height),
-  )
-  const viewport = page.getViewport({ scale, rotation: original.rotation })
+  const raster = imagePageRasterSize(original.width, original.height, dpi)
+  const viewport = page.getViewport({ scale: raster.scale, rotation: original.rotation })
   const canvas = document.createElement("canvas")
-  canvas.width = Math.max(1, Math.floor(viewport.width))
-  canvas.height = Math.max(1, Math.floor(viewport.height))
+  canvas.width = raster.width
+  canvas.height = raster.height
   let task: RenderTask | undefined
   const abort = () => task?.cancel()
   signal.addEventListener("abort", abort, { once: true })

@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung A.17: giữ [prompt riêng/độ nét/dự toán PDF ảnh dịch](PDF_IMAGE_PROMPT_A17.md), prompt bounded/RAM-only, snapshot và cache hash; output-size validation/quality/không upscale output. Dự toán chỉ phần output, Auto/input unknown, không giả thành invoice hay thêm remote price API; giữ rounding/date/source.
+
 Bổ sung A.16: giữ [PDF ảnh dịch theo dải trang](PDF_IMAGE_TRANSLATION_A16.md), local bounded raster/sequential image edits, completed-page RAM reuse/resume, nguyên PNG và export PDF/ZIP local; exact trusted PDF reader port và ownership/cancel guards. Không thay bằng upload PDF/auto OCR/paid retries hay làm mất native reading leases.
 
 Bổ sung A.15: giữ [OpenAI image editing trực tiếp](OPENAI_IMAGE_EDIT_A15.md), trusted private port/fixed endpoint, final-only bounded PNG, raw view/download và RAM cache. Không ghép thêm local OCR/text calls hay persist bitmap; giữ mode ảnh cũ.
