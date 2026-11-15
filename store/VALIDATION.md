@@ -4,7 +4,7 @@ Baseline compared before edits: `f7c32bbe` / 1.59.3-a.6. Candidate package 1.59.
 
 ## Passed
 
-- Full local Vitest: **4,678 passed, 1 intentionally skipped**, 486 passing files/one skipped. SKIP_FREE_API=true; external free-service test intentionally excluded. Final run ~62s. Mocked provider tests do not measure live model quality.
+- Full local Vitest: **4,680 passed, 1 intentionally skipped**, 486 passing files/one skipped. SKIP_FREE_API=true; external free-service test intentionally excluded. Final run ~62s. Mocked provider tests do not measure live model quality.
 - Format, lint/type-check, production WXT edge build and root-manifest ZIP.
 - 44 production Chrome checks (22 each YouTube/ani.pm fixture), real rendered synthetic video/audio and native captions, real capture/MP3/browser playback, controlled OpenAI responses. Original/translated speech, ducking/live mix/offset, prepared two-speaker routing, passive automatic analysis, context/no source-URL payloads, no duplicate same-part analysis, navigation/key/config cancellation. No uncaught page errors.
 - Production local PDF/OCR regression: native wildcard search/results, notes/hover/date/edit/delete/undo, colored drawing, annotated PDF export/original immutability, reload/rename restore, outline, scan words and search, three-canvas bound, cancellation and phone layout. Real English/Vietnamese/Chinese/Japanese Tesseract models work with external DNS blocked. Local view/edit/OCR controls trigger no provider request.
@@ -27,4 +27,4 @@ Use scripts/debug/check-video-dubbing.mjs with DUBBING_PLATFORM=youtube (unset f
 
 Local evidence folders: .codex/video-dubbing-youtube-1794721954092, .codex/video-dubbing-anipm-1794722321185, .codex/pdf-study-1794721830409, .codex/store-screens-1794722453860. Logs: .codex/store-final-tests.log, .codex/store-zip-build.log and installer update-report.json. Profiles/private scratch are intentionally not published.
 
-ZIP SHA-256: `4ad23573f10c9f2a1f8c54202957d167a8ca1feac1ac71056e0424b2d626ca1d`.
+ZIP SHA-256: `c434437adc93f5ec57ccc25175164e793d5bdf066ac4b55d89d6f21f90dd1534`.

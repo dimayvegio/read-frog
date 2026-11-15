@@ -45,13 +45,19 @@ export async function runAutomaticAnalysis(d: Dependencies) {
   d.signal.throwIfAborted()
   if (!track.length) throw new Error("Cần CC gốc để tự phân tích ngữ cảnh.")
   const contextTranscript = fullCaptionContext(track),
+    trackHash = smartTrackHash(track),
     attempted = new Set<number>()
   const assertCurrent = async () => {
     if (!d.valid()) throw new DOMException("Nguồn đã đổi", "AbortError")
     const now = await d.key()
     d.signal.throwIfAborted()
+    if (!d.valid()) throw new DOMException("Nguồn đã đổi", "AbortError")
     if (!now.configured || now.revision !== key.revision)
       throw new Error("Khóa OpenAI đã đổi. Bật AI lại khi sẵn sàng.")
+    const current = await d.source()
+    d.signal.throwIfAborted()
+    if (!d.valid() || smartTrackHash(current) !== trackHash)
+      throw new DOMException("CC hoặc nguồn đã đổi", "AbortError")
   }
   while (!d.signal.aborted && d.valid()) {
     const window = Math.floor(d.video.currentTime / AUTO_WINDOW_SECONDS)

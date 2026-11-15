@@ -131,3 +131,39 @@ it("does not automatically retry a failed paid analysis", async () => {
   ).rejects.toThrow(/API failed/)
   expect(analyze).toHaveBeenCalledOnce()
 })
+it.each(["route", "captions"])(
+  "rejects %s changes during asynchronous pre-upload checks",
+  async (change) => {
+    let valid = true,
+      reads = 0,
+      keys = 0
+    const analyze = vi.fn<(...args: any[]) => any>()
+    await expect(
+      runAutomaticAnalysis({
+        video: { currentTime: 2, playbackRate: 1, paused: false } as HTMLVideoElement,
+        signal: new AbortController().signal,
+        valid: () => valid,
+        source: async () => (++reads > 1 && change === "captions" ? track.slice(1) : track),
+        key: async () => {
+          if (++keys > 1 && change === "route") valid = false
+          return { configured: true, revision: 1 }
+        },
+        sample: async () => ({
+          audio: "a",
+          format: "mp3",
+          duration: 6.5,
+          start: 1500,
+          end: 8000,
+          rate: 1,
+        }),
+        analyze,
+        apply: () => {},
+        status: () => {},
+        sourceUrl: "https://ani.pm/ani/test",
+        title: "t",
+        target: "vi",
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" })
+    expect(analyze).not.toHaveBeenCalled()
+  },
+)
