@@ -29,6 +29,20 @@ interface ActiveVoice {
 }
 /** One source-owned session. No global speaker, disk audio, retries or translation queue. */
 export class DubbingController {
+  private track: DubbingCue[] | null = null
+  private cueIds = new Set<string>()
+  private readCues() {
+    const cues = this.d.cues()
+    if (cues !== this.track) {
+      this.track = cues
+      this.cueIds = new Set(cues.map((c) => c.id))
+    }
+    return cues
+  }
+  private hasCue(id: string) {
+    this.readCues()
+    return this.cueIds.has(id)
+  }
   private offsetMs = 0
   private stopped = false
   private ending = false
@@ -90,7 +104,7 @@ export class DubbingController {
           })
       }
     } else {
-      const cached = dubbingWindow(this.d.cues(), time).find(
+      const cached = dubbingWindow(this.readCues(), time).find(
         (c) => c.start <= time + 80 && c.end > time && this.cache.has(c.id),
       )
       if (cached) this.played.delete(cached.id)
@@ -174,7 +188,7 @@ export class DubbingController {
       this.ducker.speaking(false)
       return
     }
-    if (this.duckCue && !this.d.cues().some((c) => c.id === this.duckCue!.id)) this.resetDucking()
+    if (this.duckCue && !this.hasCue(this.duckCue.id)) this.resetDucking()
     if (this.current || (this.duckCue && time < this.duckCue.end)) {
       this.releaseAt = null
       this.ducker.speaking(true)
@@ -344,10 +358,10 @@ export class DubbingController {
     if (v.seeking) return
     const nativeTime = v.currentTime * 1000,
       time = nativeTime - this.offsetMs,
-      window = dubbingWindow(this.d.cues(), time)
+      window = dubbingWindow(this.readCues(), time)
     // Manual pause does not consume the rest of a video in the background.
     if (allowGenerate && !this.ending) {
-      const nativeWindow = dubbingWindow(this.d.cues(), nativeTime)
+      const nativeWindow = dubbingWindow(this.readCues(), nativeTime)
       const retained = [...new Map([...window, ...nativeWindow].map((c) => [c.id, c])).values()]
         .sort((a, b) => a.start - b.start)
         .slice(0, 6)
@@ -357,7 +371,7 @@ export class DubbingController {
     }
     if (this.current) {
       const { cue, audio } = this.current
-      if (!this.d.cues().some((c) => c.id === cue.id)) {
+      if (!this.hasCue(cue.id)) {
         this.stop("Phụ đề đã đổi. Bấm Bắt đầu lại.")
         return
       }
@@ -437,6 +451,8 @@ export class DubbingController {
     this.ducker.destroy()
     this.current = null
     this.cache.clear()
+    this.track = null
+    this.cueIds.clear()
     this.played.clear()
     for (const name of ["play", "pause", "waiting", "playing", "ratechange"] as const)
       this.d.video.removeEventListener(name, this.onMedia)

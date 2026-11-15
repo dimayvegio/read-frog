@@ -8,6 +8,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve a.6 [DUBBING_PERFORMANCE_A6.md](DUBBING_PERFORMANCE_A6.md): 600-second preparation cap in UI/file/private schema plus captured-sample bounds, immutable config/profile scope comparisons without tick JSON, per-track cue membership, original-mode cue snapshot reuse, reusable/channel-hoisted PCM, bounded base64 envelope header checks and owned early pause/encoder-error cleanup. No automatic long-video chunking, paid retries, quality/model changes or published schemas; benchmark kernel/allocation claims separately from OS RAM and real API latency.
+
 - Preserve a.5 in [VIDEO_DUBBING.md](VIDEO_DUBBING.md): live original/dub gain and 100ms offset without restarting/synthesizing, peak-bounded per-session Web Audio and delayed-cue retention; opt-in OFF-by-default actual-audio preparation for YouTube/ani.pm, fixed OpenAI gpt-audio-1.5 analysis, bounded RAM-only MP3/WAV capture/file, native-index conservative distinct speaker presets and shared existing translation context. Keep source/document/key/config cancellation, exact current frame/top-route rechecks, owned capture restore and no microphone/automatic retry/ASR fallback. No new permissions or published config/DB/ZIP formats.
 
 - Preserve a.4 smart ducking in [VIDEO_DUBBING.md](VIDEO_DUBBING.md): default 5% source gain, 100ms pre-duck before first speech, hold through max(native cue end, TTS completion), 400ms inter-cue hold and 600ms release. Keep cue/epoch-owned cancelable timers, manual pause/network-wait recovery, original volume/mute ownership and no duplicate playback while play is pending. No extra provider work or schema/permission change.

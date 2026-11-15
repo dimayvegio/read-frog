@@ -26,7 +26,7 @@ export function SmartVideoView() {
       {smart.enabled && (
         <>
           <p>
-            Phân tích: gpt-audio-1.5 · có tính phí OpenAI. Chuẩn bị trước tối đa 30 phút / 8 MiB.
+            Phân tích: gpt-audio-1.5 · có tính phí OpenAI. Chuẩn bị trước tối đa 10 phút / 8 MiB.
             Thu từ player mất bằng thời lượng video, sẽ quay về vị trí cũ và tạm dừng khi xong. Có
             thể chọn MP3/WAV cùng video để bỏ bước thu.
           </p>

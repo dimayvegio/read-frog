@@ -74,6 +74,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   subtitlesStore.set(configAtom, structuredClone(DEFAULT_CONFIG))
   const video = document.createElement("video")
+  Object.defineProperty(video, "duration", { value: 1, configurable: true })
   document.body.append(video)
   let applied: any = null
   h.ui = {
@@ -180,4 +181,32 @@ it("rejects late analysis and clears context without starting another translatio
   expect(ui.enabled).toBe(false)
   expect(h.ui.setSmartProfile).toHaveBeenCalledWith(null, false)
   expect(h.stream).toHaveBeenCalledOnce()
+})
+
+it("rejects videos beyond ten minutes before native CC loading, capture or API work", async () => {
+  setup()
+  Object.defineProperty(h.ui.getDubbingVideoElement(), "duration", { value: 601 })
+  act(() => ui.setEnabled(true))
+  await act(async () => {
+    expect(await ui.prepare()).toBe(false)
+  })
+  expect(h.send).not.toHaveBeenCalled()
+  expect(h.audio).not.toHaveBeenCalled()
+  expect(h.stream).not.toHaveBeenCalled()
+  expect(ui.status).toContain("10 phút")
+})
+
+it("does not silently reuse a previous profile after the user selects a different audio file", async () => {
+  setup()
+  act(() => ui.setEnabled(true))
+  await act(async () => {
+    expect(await ui.prepare()).toBe(true)
+  })
+  expect(h.stream).toHaveBeenCalledOnce()
+  act(() => ui.chooseFile(new File(["audio"], "different.mp3")))
+  expect(h.stream).toHaveBeenCalledOnce()
+  await act(async () => {
+    expect(await ui.prepare()).toBe(true)
+  })
+  expect(h.stream).toHaveBeenCalledTimes(2)
 })

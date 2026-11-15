@@ -514,11 +514,12 @@ try {
     await clickText("AI phụ đề và giọng đọc")
     await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
     await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
-    await frame.evaluate(() => {
+    await frame.evaluate(async () => {
       const v = document.querySelector("video")
       v.pause()
       v.currentTime = 7
       v.playbackRate = 1.25
+      await v.play()
     })
     await frame.click("pierce/[data-smart-prepare]")
     await waitWorker(() => __smartCalls.length === 2)
@@ -542,7 +543,7 @@ try {
       "completed pre-recording restores the previous position and rate while leaving video paused",
       await frame.evaluate(() => {
         const v = document.querySelector("video")
-        return v.paused && Math.abs(v.currentTime - 7) < 0.1 && v.playbackRate === 1.25
+        return v.paused && Math.abs(v.currentTime - 7) < 1 && v.playbackRate === 1.25
       }),
     )
     await frame.click('pierce/[aria-label="Back to subtitles menu"]')

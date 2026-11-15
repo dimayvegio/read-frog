@@ -1,5 +1,9 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung a.6: giữ trần smart preparation 600 giây và các ownership/PCM/envelope
+optimizations trong [DUBBING_PERFORMANCE_A6.md](DUBBING_PERFORMANCE_A6.md); đây
+là giới hạn preparation, không giới hạn native CC hay lồng tiếng thường.
+
 Bổ sung a.5: giữ mix/offset trực tiếp không regenerate và phân tích audio nhiều
 người nói mặc định OFF trong [VIDEO_DUBBING.md](VIDEO_DUBBING.md). Không gộp
 qua speaker-index boundary, không tự ASR/paid retry; giữ RAM bounds, frame/document

@@ -1,17 +1,20 @@
 import { afterEach, expect, it, vi } from "vitest"
-import { recordVideoAudio } from "../prepare-audio"
+import { prepareAudioFile, recordVideoAudio } from "../prepare-audio"
+const h = vi.hoisted(() => ({ badFlush: false }))
 vi.mock("@breezystack/lamejs", () => ({
   Mp3Encoder: class {
     encodeBuffer() {
       return new Uint8Array([255, 251, 0])
     }
     flush() {
+      if (h.badFlush) throw new Error("encoder failure")
       return new Uint8Array([0, 0])
     }
   },
 }))
 afterEach(() => vi.unstubAllGlobals())
 function setup() {
+  h.badFlush = false
   let process: any
   const stop = vi.fn<() => void>(),
     close = vi.fn<() => Promise<void>>(async () => {}),
@@ -31,6 +34,7 @@ function setup() {
   vi.stubGlobal(
     "AudioContext",
     class {
+      sampleRate = 16000
       destination = {}
       resume = async () => {}
       close = close
@@ -66,12 +70,12 @@ function setup() {
     }
   }
   const video = new Video()
-  const pulse = () =>
+  const pulse = (length = 32) =>
     processor.onaudioprocess?.({
       inputBuffer: {
         numberOfChannels: 1,
-        length: 32,
-        getChannelData: () => new Float32Array(32).fill(0.2),
+        length,
+        getChannelData: () => new Float32Array(length).fill(0.2),
       },
     })
   return {
@@ -142,4 +146,101 @@ it("does not seek a changed source or override a user's seek", async () => {
   expect(s.video.currentTime).toBe(3)
   expect(s.close).toHaveBeenCalledOnce()
   expect(s.stop).toHaveBeenCalledOnce()
+})
+
+it("pauses a normally playing video before asynchronous encoder/context setup", async () => {
+  const s = setup(),
+    c = new AbortController()
+  s.video.paused = false
+  const task = recordVideoAudio(
+    s.video as unknown as HTMLVideoElement,
+    c.signal,
+    () => true,
+    () => {},
+  )
+  expect(s.video.paused).toBe(true)
+  await s.ready()
+  s.pulse()
+  s.video.ended = true
+  s.video.dispatchEvent(new Event("ended"))
+  await task
+  expect(s.video.currentTime).toBe(2)
+})
+
+it("rejects a failed encoder flush and still releases capture and AudioContext", async () => {
+  const s = setup(),
+    c = new AbortController()
+  const task = recordVideoAudio(
+    s.video as unknown as HTMLVideoElement,
+    c.signal,
+    () => true,
+    () => {},
+  )
+  const error = task.catch((e: unknown) => e)
+  await s.ready()
+  s.pulse()
+  h.badFlush = true
+  s.video.ended = true
+  s.video.dispatchEvent(new Event("ended"))
+  expect(await error).toMatchObject({ message: expect.stringMatching(/Không hoàn tất/) })
+  expect(s.close).toHaveBeenCalledOnce()
+  expect(s.stop).toHaveBeenCalledOnce()
+})
+
+it("caps actual captured samples even if a player keeps producing audio past its declared duration", async () => {
+  const s = setup(),
+    c = new AbortController()
+  const task = recordVideoAudio(
+    s.video as unknown as HTMLVideoElement,
+    c.signal,
+    () => true,
+    () => {},
+  )
+  const error = task.catch((e: unknown) => e)
+  await s.ready()
+  for (let i = 0; i < 590; i++) s.pulse(16384)
+  expect(await error).toMatchObject({ message: expect.stringMatching(/vượt giới hạn 10 phút/) })
+  expect(s.close).toHaveBeenCalledOnce()
+  expect(s.stop).toHaveBeenCalledOnce()
+})
+
+it("rejects a file over ten minutes from metadata before reading/encoding its bytes", async () => {
+  const revoke = vi.fn<(s: string) => void>()
+  vi.stubGlobal("URL", { createObjectURL: () => "blob:test", revokeObjectURL: revoke })
+  vi.stubGlobal(
+    "Audio",
+    class {
+      duration = 601
+      onloadedmetadata: (() => void) | null = null
+      onerror: (() => void) | null = null
+      set src(_url: string) {
+        queueMicrotask(() => this.onloadedmetadata?.())
+      }
+      pause() {}
+      removeAttribute() {}
+      load() {}
+    },
+  )
+  const file = new File([new Uint8Array(16)], "same-video.mp3"),
+    read = vi.spyOn(file, "arrayBuffer")
+  await expect(prepareAudioFile(file, new AbortController().signal)).rejects.toThrow(/10 phút/)
+  expect(read).not.toHaveBeenCalled()
+  expect(revoke).toHaveBeenCalledWith("blob:test")
+})
+it("keeps a user's seek made during async setup, including cancellation before setup completes", async () => {
+  const s = setup(),
+    c = new AbortController()
+  const task = recordVideoAudio(
+    s.video as unknown as HTMLVideoElement,
+    c.signal,
+    () => true,
+    () => {},
+  )
+  const error = task.catch((e: unknown) => e)
+  s.video.currentTime = 3
+  s.video.dispatchEvent(new Event("seeking"))
+  c.abort()
+  expect(await error).toMatchObject({ name: "AbortError" })
+  expect(s.video.currentTime).toBe(3)
+  expect(s.close).toHaveBeenCalledOnce()
 })

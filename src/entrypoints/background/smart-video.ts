@@ -2,6 +2,7 @@ import type { Browser } from "wxt/browser"
 import { z } from "zod"
 import { browser } from "#imports"
 import { OPENAI_TTS_VOICES } from "@/types/openai-tts"
+import { validSmartAudio } from "@/utils/subtitles/dubbing/audio-envelope"
 import {
   smartRequestSchema,
   parseSmartProfile,
@@ -109,21 +110,7 @@ export async function executeSmartVideo(
   await ensureInitializedConfig()
   const credential = await readOpenAIExecutionCredential()
   if (!credential.apiKey) throw fail("Chưa có khóa OpenAI.")
-  let binary: string
-  try {
-    binary = atob(r.audio)
-  } catch {
-    throw fail("Audio không hợp lệ.")
-  }
-  if (
-    binary.length > SMART_AUDIO_LIMIT ||
-    !(
-      (r.format === "wav" && binary.startsWith("RIFF") && binary.slice(8, 12) === "WAVE") ||
-      (r.format === "mp3" &&
-        (binary.startsWith("ID3") ||
-          (binary.charCodeAt(0) === 255 && (binary.charCodeAt(1) & 224) === 224)))
-    )
-  )
+  if (!validSmartAudio(r.audio, r.format, SMART_AUDIO_LIMIT))
     throw fail("Chỉ nhận audio MP3/WAV hợp lệ.")
   signal.throwIfAborted()
   await check()

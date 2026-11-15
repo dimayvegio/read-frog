@@ -5,6 +5,7 @@ import { z } from "zod"
 import { OPENAI_TTS_VOICES } from "@/types/openai-tts"
 export const SMART_VIDEO_PORT = "smart-video-analysis-v1"
 export const SMART_VIDEO_MODEL = "gpt-audio-1.5"
+export const SMART_AUDIO_SECONDS = 10 * 60
 export const SMART_AUDIO_LIMIT = 8 * 1024 * 1024
 export const smartCueSchema = z
   .strictObject({
@@ -20,7 +21,7 @@ export const smartRequestSchema = z
       .min(16)
       .max(Math.ceil((SMART_AUDIO_LIMIT * 4) / 3) + 4),
     format: z.enum(["mp3", "wav"]),
-    duration: z.number().positive().max(1800),
+    duration: z.number().positive().max(SMART_AUDIO_SECONDS),
     sourceUrl: z.string().url().max(8192),
     title: z.string().max(300),
     target: z.string().max(80),

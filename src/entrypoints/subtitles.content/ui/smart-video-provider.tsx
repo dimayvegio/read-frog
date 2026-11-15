@@ -7,6 +7,7 @@ import { getSourceDocumentTitle } from "@/utils/content/document-title"
 import { sendMessage } from "@/utils/message"
 import {
   SMART_VIDEO_PORT,
+  SMART_AUDIO_SECONDS,
   parseSmartProfile,
   smartTrackHash,
 } from "@/utils/subtitles/dubbing/smart"
@@ -25,16 +26,15 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
     file = useRef<File | null>(null),
     enabledRef = useRef(false),
     keyRevision = useRef<number | null>(null)
-  const scope = JSON.stringify([id, config]),
-    scopeRef = useRef(scope)
+  const scopeRef = useRef({ id, config })
   const cancel = () => {
     run.current?.abort()
     run.current = null
     setBusy(false)
   }
   useEffect(() => {
-    if (scopeRef.current !== scope) {
-      scopeRef.current = scope
+    if (scopeRef.current.id !== id || scopeRef.current.config !== config) {
+      scopeRef.current = { id, config }
       run.current?.abort()
       run.current = null
       file.current = null
@@ -45,7 +45,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       setStatus("Nguồn hoặc cấu hình đã đổi. Phân tích cũ đã xóa.")
       ui.setSmartProfile?.(null, false)
     }
-  }, [scope, ui])
+  }, [id, config, ui])
   useEffect(() => {
     const close = () => {
       run.current?.abort()
@@ -94,7 +94,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
   const prepare = async () => {
     if (run.current) return false
     if (!enabledRef.current) return true
-    if (profile && ui.getSmartProfile?.() === profile) return true
+    if (!file.current && profile && ui.getSmartProfile?.() === profile) return true
     const video = ui.getDubbingVideoElement?.()
     if (!video || subtitlesStore.get(adPlayingAtom)) {
       setStatus("Hãy đợi video chính sẵn sàng.")
@@ -104,7 +104,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       route = location.href,
       src = video.currentSrc,
       videoId = subtitlesStore.get(currentVideoIdAtom),
-      configKey = JSON.stringify(subtitlesStore.get(configAtom))
+      configSnapshot = subtitlesStore.get(configAtom)
     const canRestore = () =>
       location.href === route &&
       video.isConnected &&
@@ -117,11 +117,16 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       !owner.signal.aborted &&
       enabledRef.current &&
       canRestore() &&
-      JSON.stringify(subtitlesStore.get(configAtom)) === configKey
+      subtitlesStore.get(configAtom) === configSnapshot
     run.current = owner
     setBusy(true)
     setStatus("Đang lấy CC để chuẩn bị phân tích…")
     try {
+      if (
+        video.duration > SMART_AUDIO_SECONDS ||
+        (!file.current && (!Number.isFinite(video.duration) || video.duration <= 0))
+      )
+        throw new Error("Chuẩn bị hỗ trợ video tối đa 10 phút. Hãy chọn video/audio phù hợp.")
       const key = await sendMessage("getOpenAIKeyStatus")
       owner.signal.throwIfAborted()
       if (!key.configured) throw new Error("Chưa có khóa OpenAI.")

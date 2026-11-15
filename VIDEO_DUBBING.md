@@ -1,8 +1,11 @@
-# Lồng tiếng video — 1.59.3A.5
+# Lồng tiếng video — 1.59.3A.6
 
-Package `1.59.3-a.5`, manifest `1.59.3.5`, display `1.59.3A`.
+Package `1.59.3-a.6`, manifest `1.59.3.6`, display `1.59.3A`.
+Baseline a.6: `6fd9206d` (a.5).
+Review/tối ưu: [DUBBING_PERFORMANCE_A6.md](DUBBING_PERFORMANCE_A6.md).
 Baseline a.5: `4bb30179` (a.4).
 Baseline a.4: `e6f57e56aec271d181832ec89a225c35b6718d55` (a.3).
+Bản a.6 tối ưu và giảm trần chuẩn bị còn 10 phút (không tự chia video dài).
 Bản a.5 thêm mix/offset trực tiếp và phân tích audio nhiều người nói opt-in.
 Bản a.4 thêm giảm âm thông minh; bản a.3 thêm lồng tiếng.
 Không merge upstream trong bản này.
@@ -52,7 +55,7 @@ tốc độ cũ và để pause; hủy cùng nguồn cũng khôi phục, còn tu
 dùng không bị ghi đè. Ngừng và dọn stream/node/timer/context khi hủy, đổi nguồn,
 lỗi, hết thời gian hoặc đóng. Audio và kết quả chỉ ở RAM, không sync/export.
 
-Giới hạn một phiên: MP3/WAV ≤8 MiB, ≤30 phút, CC ≤1.500 mẩu/100.000 ký tự;
+Giới hạn một phiên: MP3/WAV ≤8 MiB, ≤10 phút, CC ≤1.500 mẩu/100.000 ký tự;
 tối đa hai phân tích toàn extension và một phân tích/tab. Chỉ gửi audio đã chọn
 hoặc đã thu cùng title và CC đánh số trực tiếp tới fixed OpenAI Chat Completions,
 model **gpt-audio-1.5**; không gửi URL/path/file name/khóa vào prompt. Có tính phí;

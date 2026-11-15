@@ -280,3 +280,17 @@ it("selects each verified speaker voice for source and committed translated cues
   expect(h.stream.mock.calls.at(-1)?.[1].config.voice).toBe("cedar")
   expect(h.stream.mock.calls.at(-1)?.[1].text).toContain("Dịch")
 })
+
+it("keeps original cue snapshots when only translated captions arrive", async () => {
+  setup()
+  act(() => ui.changeMode("original"))
+  act(() => ui.start())
+  await waitFor(() => expect(h.deps).toHaveLength(1))
+  const cues = h.deps[0]!.cues()
+  act(() =>
+    subtitlesStore.set(translatedTrackAtom, [
+      { text: "Native words.", translation: "Lời dịch mới", start: 0, end: 2000 },
+    ]),
+  )
+  expect(h.deps[0]!.cues()).toBe(cues)
+})

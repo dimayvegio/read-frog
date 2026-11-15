@@ -1,4 +1,5 @@
-import { SMART_AUDIO_LIMIT } from "./smart"
+import { MonoPcmConverter } from "./pcm"
+import { SMART_AUDIO_LIMIT, SMART_AUDIO_SECONDS } from "./smart"
 export interface PreparedAudio {
   audio: string
   format: "mp3" | "wav"
@@ -40,8 +41,8 @@ export async function prepareAudioFile(file: File, signal: AbortSignal): Promise
       if (signal.aborted) abort()
     })
     signal.throwIfAborted()
-    if (!Number.isFinite(duration) || duration <= 0 || duration > 1800)
-      throw new Error("Audio chuẩn bị tối đa 30 phút.")
+    if (!Number.isFinite(duration) || duration <= 0 || duration > SMART_AUDIO_SECONDS)
+      throw new Error("Audio chuẩn bị tối đa 10 phút.")
     const bytes = new Uint8Array(await file.arrayBuffer())
     signal.throwIfAborted()
     return { audio: base64(bytes), format, duration }
@@ -61,24 +62,49 @@ export async function recordVideoAudio(
   canRestore: () => boolean = valid,
 ): Promise<PreparedAudio> {
   signal.throwIfAborted()
-  if (!Number.isFinite(video.duration) || video.duration <= 0 || video.duration > 1800)
-    throw new Error("Thu trước hỗ trợ video tối đa 30 phút. Có thể chọn audio MP3/WAV tương ứng.")
+  if (
+    !Number.isFinite(video.duration) ||
+    video.duration <= 0 ||
+    video.duration > SMART_AUDIO_SECONDS
+  )
+    throw new Error("Thu trước hỗ trợ video tối đa 10 phút. Có thể chọn audio MP3/WAV tương ứng.")
   const capture = (video as HTMLVideoElement & { captureStream?: () => MediaStream }).captureStream
   if (!capture)
     throw new Error("Player không cho thu audio trực tiếp. Chọn file MP3/WAV cùng video.")
   const context = new AudioContext({ sampleRate: 16000 }),
     resumed = context.resume()
   void resumed.catch(() => {})
-  const initialTime = video.currentTime,
-    initialRate = video.playbackRate,
+  const duration = video.duration
+  let initialTime = video.currentTime
+  const initialRate = video.playbackRate,
     initialSrc = video.currentSrc
   let stream: MediaStream | null = null,
     source: MediaStreamAudioSourceNode | null = null,
     processor: ScriptProcessorNode | null = null,
     silent: GainNode | null = null,
     externalIntent = false,
-    touched = false
+    touched = false,
+    settingUp = true
+  let expectedTime = initialTime,
+    expectedRate = initialRate
+  const setupIntent = (event: Event) => {
+    if (
+      (event.type === "play" && !video.paused) ||
+      (event.type === "seeking" && video.currentTime !== expectedTime) ||
+      (event.type === "ratechange" && video.playbackRate !== expectedRate)
+    )
+      externalIntent = true
+  }
+  const removeSetupIntent = () => {
+    for (const name of ["play", "seeking", "ratechange"])
+      video.removeEventListener(name, setupIntent)
+  }
+  for (const name of ["play", "seeking", "ratechange"]) video.addEventListener(name, setupIntent)
   try {
+    touched = true
+    video.pause()
+    initialTime = video.currentTime
+    expectedTime = initialTime
     const { Mp3Encoder } = await import("@breezystack/lamejs")
     await new Promise<void>((resolve, reject) => {
       const finish = (error?: unknown) => {
@@ -98,12 +124,20 @@ export async function recordVideoAudio(
     })
     signal.throwIfAborted()
     if (!valid()) throw new DOMException("Nguồn đã đổi", "AbortError")
-    if (video.currentTime !== initialTime || video.playbackRate !== initialRate)
+    if (
+      externalIntent ||
+      video.currentTime !== initialTime ||
+      video.playbackRate !== initialRate ||
+      !video.paused
+    ) {
+      externalIntent = true
       throw new Error("Video đã được điều chỉnh. Bấm chuẩn bị lại.")
-    touched = true
-    video.pause()
+    }
+    settingUp = false
+    expectedRate = 1
     video.playbackRate = 1
     if (video.currentTime > 0.02) {
+      expectedTime = 0
       video.currentTime = 0
       await new Promise<void>((resolve, reject) => {
         const timer = setTimeout(() => {
@@ -128,6 +162,16 @@ export async function recordVideoAudio(
         if (signal.aborted) abort()
       })
     }
+    if (
+      externalIntent ||
+      Math.abs(video.currentTime) > 0.05 ||
+      video.playbackRate !== 1 ||
+      !video.paused
+    ) {
+      externalIntent = true
+      throw new Error("Video đã được điều chỉnh. Bấm chuẩn bị lại.")
+    }
+    removeSetupIntent()
     stream = capture.call(video)
     for (const track of stream.getVideoTracks()) track.stop()
     if (!stream.getAudioTracks().length)
@@ -135,7 +179,9 @@ export async function recordVideoAudio(
     const encoder = new Mp3Encoder(1, 16000, 32),
       parts: Uint8Array[] = []
     let size = 0,
-      peak = 0
+      recordedFrames = 0
+    const maxFrames = Math.ceil(SMART_AUDIO_SECONDS * context.sampleRate) + 4096
+    const converter = new MonoPcmConverter()
     source = context.createMediaStreamSource(new MediaStream(stream.getAudioTracks()))
     processor = context.createScriptProcessor(4096, 2, 1)
     silent = context.createGain()
@@ -181,38 +227,43 @@ export async function recordVideoAudio(
         if (closed) return
         closed = true
         clean()
-        const tail = encoder.flush()
-        size += tail.length
-        if (size > SMART_AUDIO_LIMIT) {
-          reject(new Error("Audio vượt 8 MiB."))
-          return
+        try {
+          const tail = encoder.flush()
+          size += tail.length
+          if (size > SMART_AUDIO_LIMIT) {
+            reject(new Error("Audio vượt 8 MiB."))
+            return
+          }
+          parts.push(Uint8Array.from(tail))
+          if (converter.peak < 0.0001) {
+            reject(new Error("Không thu được tiếng. Chọn file audio tương ứng."))
+            return
+          }
+          const result = new Uint8Array(size)
+          let at = 0
+          for (const part of parts) {
+            result.set(part, at)
+            at += part.length
+          }
+          resolve(result)
+        } catch {
+          reject(new Error("Không hoàn tất được audio. Hãy chọn MP3/WAV tương ứng."))
         }
-        parts.push(Uint8Array.from(tail))
-        if (peak < 0.0001) {
-          reject(new Error("Không thu được tiếng. Chọn file audio tương ứng."))
-          return
-        }
-        const result = new Uint8Array(size)
-        let at = 0
-        for (const part of parts) {
-          result.set(part, at)
-          at += part.length
-        }
-        resolve(result)
       }
       processor!.onaudioprocess = (event) => {
         if (closed) return
-        const count = event.inputBuffer.numberOfChannels,
-          length = event.inputBuffer.length,
-          pcm = new Int16Array(length)
-        for (let i = 0; i < length; i++) {
-          let value = 0
-          for (let ch = 0; ch < count; ch++) value += event.inputBuffer.getChannelData(ch)[i]!
-          value /= Math.max(1, count)
-          peak = Math.max(peak, Math.abs(value))
-          pcm[i] = Math.round(Math.max(-1, Math.min(1, value)) * 32767)
+        recordedFrames += event.inputBuffer.length
+        if (recordedFrames > maxFrames) {
+          fail(new Error("Audio thu vượt giới hạn 10 phút."))
+          return
         }
-        const part = encoder.encodeBuffer(pcm)
+        let part: Uint8Array
+        try {
+          part = encoder.encodeBuffer(converter.convert(event.inputBuffer))
+        } catch {
+          fail(new Error("Không xử lý được audio. Hãy chọn MP3/WAV tương ứng."))
+          return
+        }
         size += part.length
         if (size > SMART_AUDIO_LIMIT) {
           fail(new Error("Audio vượt 8 MiB."))
@@ -224,11 +275,11 @@ export async function recordVideoAudio(
         timer = setInterval(() => {
           if (!valid() || video.currentSrc !== initialSrc)
             fail(new DOMException("Nguồn đã đổi", "AbortError"))
-          else if (performance.now() - started > (video.duration + 60) * 1000)
+          else if (performance.now() - started > (duration + 60) * 1000)
             fail(new Error("Thu trước quá thời gian. Hãy chọn file audio."))
           else
             progress(
-              `Đang thu trước ${Math.floor(video.currentTime)} / ${Math.ceil(video.duration)} giây; có thể chuyển sang tab khác.`,
+              `Đang thu trước ${Math.floor(video.currentTime)} / ${Math.ceil(duration)} giây; có thể chuyển sang tab khác.`,
             )
         }, 500)
       signal.addEventListener("abort", abort, { once: true })
@@ -243,8 +294,9 @@ export async function recordVideoAudio(
       void video.play().catch(() => fail(new Error("Hãy cho phép phát video rồi thử lại.")))
     })
     signal.throwIfAborted()
-    return { audio: base64(bytes), format: "mp3", duration: video.duration }
+    return { audio: base64(bytes), format: "mp3", duration }
   } finally {
+    removeSetupIntent()
     processor?.disconnect()
     source?.disconnect()
     silent?.disconnect()
@@ -255,7 +307,9 @@ export async function recordVideoAudio(
       canRestore() &&
       video.isConnected &&
       video.currentSrc === initialSrc &&
-      !externalIntent
+      !externalIntent &&
+      (!settingUp ||
+        (video.paused && video.currentTime === initialTime && video.playbackRate === initialRate))
     ) {
       video.pause()
       video.currentTime = initialTime

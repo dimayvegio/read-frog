@@ -89,8 +89,9 @@ describe("conservative audio speaker mapping", () => {
       cues,
     }
     expect(smartRequestSchema.safeParse(input).success).toBe(true)
+    expect(smartRequestSchema.safeParse({ ...input, duration: 600 }).success).toBe(true)
     for (const patch of [
-      { duration: 1801 },
+      { duration: 601 },
       { cues: [...cues].reverse() },
       { duration: 0.1 },
       { audio: "" },

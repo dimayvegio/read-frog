@@ -2,6 +2,7 @@ import type { TTSAudioChunk } from "@/types/openai-tts"
 import type { DubbingController, DubbingState } from "@/utils/subtitles/dubbing/controller"
 import type { DubbingMode } from "@/utils/subtitles/dubbing/cues"
 import type { VoicePlayer } from "@/utils/subtitles/dubbing/player"
+import type { DubbingScope } from "@/utils/subtitles/dubbing/scope"
 import { useAtomValue } from "jotai"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { OPENAI_TTS_FILE_PORT } from "@/types/openai-tts"
@@ -11,6 +12,7 @@ import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { sendMessage } from "@/utils/message"
 import { buildDubbingCues } from "@/utils/subtitles/dubbing/cues"
 import { HtmlVoicePlayer, decodeDubbingAudio } from "@/utils/subtitles/dubbing/player"
+import { sameDubbingScope } from "@/utils/subtitles/dubbing/scope"
 import { speakerForCue } from "@/utils/subtitles/dubbing/smart"
 import { NoSubtitlesError } from "@/utils/subtitles/errors"
 import {
@@ -27,7 +29,7 @@ import { DubbingContext } from "./dubbing-context"
 import { useSmartVideo } from "./smart-video-context"
 import { useSubtitlesUI } from "./subtitles-ui-context"
 interface DubbingSession {
-  boundary: string
+  boundary: DubbingScope & { ad: boolean; loading: boolean }
   abort: AbortController
   controller?: DubbingController
   player?: VoicePlayer
@@ -51,15 +53,14 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
     message: "Chọn lời gốc hoặc lời dịch rồi bấm Bắt đầu.",
   })
   const run = useRef<DubbingSession | null>(null)
-  const readIdentity = () =>
-    JSON.stringify([
-      subtitlesStore.get(currentVideoIdAtom),
-      subtitlesStore.get(configAtom),
-      ui.getViewerContext?.(),
-      ui.getSmartProfile?.(),
-    ])
-  const identity = JSON.stringify([id, config, ui.getViewerContext?.(), ui.getSmartProfile?.()])
-  const boundary = JSON.stringify([identity, ad, loading])
+  const readIdentity = (): DubbingScope => ({
+    id: subtitlesStore.get(currentVideoIdAtom),
+    config: subtitlesStore.get(configAtom),
+    context: ui.getViewerContext?.(),
+    profile: ui.getSmartProfile?.() ?? null,
+  })
+  const context = ui.getViewerContext?.(),
+    profileIdentity = ui.getSmartProfile?.() ?? null
   const stop = useCallback((message = "Đã tắt lồng tiếng.", resume = false) => {
     const old = run.current
     if (old) {
@@ -85,9 +86,15 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
     }
   }, [stop])
   useEffect(() => {
-    if (run.current && run.current.boundary !== boundary)
+    const owner = run.current
+    if (
+      owner &&
+      (!sameDubbingScope(owner.boundary, { id, config, context, profile: profileIdentity }) ||
+        owner.boundary.ad !== ad ||
+        owner.boundary.loading !== loading)
+    )
       stop("Video, ngữ cảnh hoặc cấu hình đã đổi. Bấm Bắt đầu lại.")
-  }, [boundary, stop])
+  }, [id, config, context, profileIdentity, ad, loading, stop])
   const start = async () => {
     if (run.current || !ui.supportsDubbing) return
     if (smart?.enabled && (!smart.profile || ui.getSmartProfile?.() !== smart.profile)) {
@@ -107,10 +114,13 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
       })
       return
     }
-    const owner: DubbingSession = { abort: new AbortController(), boundary },
+    const scope = readIdentity()
+    const owner: DubbingSession = {
+        abort: new AbortController(),
+        boundary: { ...scope, ad, loading },
+      },
       route = location.href,
-      initialSrc = video.currentSrc,
-      scope = readIdentity()
+      initialSrc = video.currentSrc
     const { signal } = owner.abort
     run.current = owner
     setState({ active: true, message: "Đang chuẩn bị giọng đọc…" })
@@ -132,7 +142,10 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
         const raw = subtitlesStore.get(studySourceTrackAtom),
           source = raw.length ? raw : subtitlesStore.get(sourceTrackAtom),
           translation = subtitlesStore.get(translatedTrackAtom)
-        if (source !== sourceSnapshot || translation !== translationSnapshot) {
+        if (
+          source !== sourceSnapshot ||
+          (mode === "translated" && translation !== translationSnapshot)
+        ) {
           sourceSnapshot = source
           translationSnapshot = translation
           cueSnapshot = buildDubbingCues(
@@ -154,7 +167,7 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
         video.isConnected &&
         ui.getDubbingVideoElement?.() === video &&
         video.currentSrc === initialSrc &&
-        readIdentity() === scope &&
+        sameDubbingScope(readIdentity(), scope) &&
         !subtitlesStore.get(adPlayingAtom) &&
         !subtitlesStore.get(videoLoadingAtom) &&
         (mode !== "translated" || subtitlesStore.get(subtitlesVisibleAtom))

@@ -1,5 +1,10 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.6 / manifest 1.59.3.6:** review/tối ưu lồng tiếng: trần chuẩn bị
+10 phút, snapshot identity không JSON mỗi tick, PCM buffer dùng lại/channel lookup
+mỗi block, cue membership/cache, kiểm audio envelope và sửa startup/flush cleanup.
+Xem [DUBBING_PERFORMANCE_A6.md](DUBBING_PERFORMANCE_A6.md) với số đo và giới hạn.
+
 **Mới 1.59.3-a.5 / manifest 1.59.3.5 (display 1.59.3A):** volume thuyết minh riêng,
 mix trực tiếp và lệch giọng 0,1 giây; phân tích audio trước opt-in cho YouTube/ani.pm
 để tóm tắt, dịch theo ngữ cảnh và gán preset riêng từng người nói. Chỉ RAM, CC native,
