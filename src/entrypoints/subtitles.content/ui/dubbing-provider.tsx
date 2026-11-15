@@ -37,6 +37,7 @@ interface DubbingSession {
 }
 export function DubbingProvider({ children }: { children: React.ReactNode }) {
   const smart = useSmartVideo()
+  const automatic = smart?.mode === "automatic"
   const ui = useSubtitlesUI(),
     config = useAtomValue(configAtom),
     id = useAtomValue(currentVideoIdAtom),
@@ -57,10 +58,10 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
     id: subtitlesStore.get(currentVideoIdAtom),
     config: subtitlesStore.get(configAtom),
     context: ui.getViewerContext?.(),
-    profile: ui.getSmartProfile?.() ?? null,
+    profile: automatic ? null : (ui.getSmartProfile?.() ?? null),
   })
   const context = ui.getViewerContext?.(),
-    profileIdentity = ui.getSmartProfile?.() ?? null
+    profileIdentity = automatic ? null : (ui.getSmartProfile?.() ?? null)
   const stop = useCallback((message = "Đã tắt lồng tiếng.", resume = false) => {
     const old = run.current
     if (old) {
@@ -95,9 +96,28 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
     )
       stop("Video, ngữ cảnh hoặc cấu hình đã đổi. Bấm Bắt đầu lại.")
   }, [id, config, context, profileIdentity, ad, loading, stop])
+  const registerProfileChange = smart?.onProfileChange
+  const priorAutomatic = useRef(automatic)
+  useEffect(
+    () =>
+      registerProfileChange?.(() => {
+        if (automatic) run.current?.controller?.refreshProfile()
+      }),
+    [registerProfileChange, automatic],
+  )
+  useEffect(() => {
+    if (priorAutomatic.current !== automatic) {
+      priorAutomatic.current = automatic
+      if (run.current) stop("Chế độ AI đã đổi. Bấm Bắt đầu lại.")
+    }
+  }, [automatic, stop])
   const start = async () => {
     if (run.current || !ui.supportsDubbing) return
-    if (smart?.enabled && (!smart.profile || ui.getSmartProfile?.() !== smart.profile)) {
+    if (
+      !automatic &&
+      smart?.enabled &&
+      (!smart.profile || ui.getSmartProfile?.() !== smart.profile)
+    ) {
       setState({ active: false, message: "Chuẩn bị AI trước; xong hãy bấm Bắt đầu lồng tiếng." })
       await smart.prepare()
       return
@@ -134,7 +154,7 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
       if (!key.configured) throw new Error("Chưa cấu hình khóa OpenAI.")
       await ui.ensureSourceTrackPublished()
       signal.throwIfAborted()
-      const profile = ui.getSmartProfile?.() ?? null
+      let profileSnapshot: unknown
       let sourceSnapshot: unknown,
         translationSnapshot: unknown,
         cueSnapshot: ReturnType<typeof buildDubbingCues> = []
@@ -142,10 +162,13 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
         const raw = subtitlesStore.get(studySourceTrackAtom),
           source = raw.length ? raw : subtitlesStore.get(sourceTrackAtom),
           translation = subtitlesStore.get(translatedTrackAtom)
+        const profile = ui.getSmartProfile?.() ?? null
         if (
           source !== sourceSnapshot ||
+          profile !== profileSnapshot ||
           (mode === "translated" && translation !== translationSnapshot)
         ) {
+          profileSnapshot = profile
           sourceSnapshot = source
           translationSnapshot = translation
           cueSnapshot = buildDubbingCues(
@@ -208,6 +231,7 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
           await checkKey()
           jobSignal.throwIfAborted()
           if (!valid()) throw new DOMException("Source changed", "AbortError")
+          const profile = ui.getSmartProfile?.() ?? null
           const source = subtitlesStore.get(studySourceTrackAtom)
           const speaker = cue ? speakerForCue(profile, source, cue) : undefined
           const tts = speaker
@@ -226,6 +250,8 @@ export function DubbingProvider({ children }: { children: React.ReactNode }) {
           await checkKey()
           jobSignal.throwIfAborted()
           if (!valid()) throw new DOMException("Source changed", "AbortError")
+          if ((ui.getSmartProfile?.() ?? null) !== profile)
+            throw new DOMException("Profile changed", "AbortError")
           return decodeDubbingAudio(audio)
         },
       })

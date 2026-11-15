@@ -1,65 +1,43 @@
-name: Submit to Stores
+name: Prepare Store Package
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to submit (e.g., v1.20.0)"
+        description: Existing FlowRead release tag to prepare (no store submission)
         required: true
         type: string
-      dryRun:
-        description: Dry run (skip actual submission)
-        required: false
-        default: false
-        type: boolean
+
+permissions:
+  contents: read
 
 env:
-  WXT_GOOGLE_CLIENT_ID: ${{ secrets.WXT_GOOGLE_CLIENT_ID || vars.WXT_GOOGLE_CLIENT_ID }}
-  WXT_POSTHOG_API_KEY: ${{ secrets.WXT_POSTHOG_API_KEY || vars.WXT_POSTHOG_API_KEY }}
-  WXT_POSTHOG_HOST: ${{ secrets.WXT_POSTHOG_HOST || vars.WXT_POSTHOG_HOST }}
-  WXT_ANALYTICS_DAILY_FEATURE_CACHE_ENABLED: "true"
+  SKIP_FREE_API: "true"
+  NX_DAEMON: "false"
 
 jobs:
-  submit:
-    name: Submit to Stores
+  prepare:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Release Tag
-        uses: actions/checkout@v7
+      - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.tag }}
-
-      - name: Setup pnpm and Node.js
-        uses: pnpm/setup@v3
+      - uses: actions/setup-node@v6
         with:
-          cache: true
-          install: false
-
-      - name: Install Dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run Tests
-        run: pnpm test --exclude="**/free-api.test.ts"
-
-      - name: Build and Zip Extension
-        run: pnpm zip
-
-      - name: Upload Extension Zip to Release
-        run: gh release upload "${{ inputs.tag }}" .output/*-chrome.zip --clobber
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      - name: Submit to Chrome & Edge Stores
-        run: |
-          pnpm wxt submit \
-            --chrome-zip .output/*-chrome.zip \
-            --edge-zip .output/*-chrome.zip
-        env:
-          DRY_RUN: ${{ inputs.dryRun }}
-          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
-          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
-          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
-          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
-          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
-          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
-          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          node-version: 26
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm fmt:check && pnpm lint && pnpm test
+      - run: pnpm zip:edge
+      - run: node scripts/debug/audit-runtime-network.mjs && node scripts/debug/audit-store.mjs
+      - uses: actions/upload-artifact@v6
+        with:
+          name: FlowRead-store-package
+          path: |
+            .output/*-edge.zip
+            store/
+            PRIVACY_POLICY.md
+            LICENSE
+# Deliberately no submission credentials, upstream IDs or publish step.

@@ -1,5 +1,10 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.7 / manifest 1.59.3.7:** logo ngựa/hồ sơ store; AI tự lấy mẫu
+audio đang xem, không cần file, opt-in/15 giây mỗi phần 10 phút. Giữ chuẩn bị trước,
+heard-only speaker mapping, không microphone/download/paid retry; local-only OCR,
+privacy/support riêng. Không đổi schema/quyền. Xem [a.7](STORE_AUTOMATIC_AUDIO_A7.md).
+
 **Mới 1.59.3-a.6 / manifest 1.59.3.6:** review/tối ưu lồng tiếng: trần chuẩn bị
 10 phút, snapshot identity không JSON mỗi tick, PCM buffer dùng lại/channel lookup
 mỗi block, cue membership/cache, kiểm audio envelope và sửa startup/flush cleanup.

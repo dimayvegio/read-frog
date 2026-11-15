@@ -6,9 +6,12 @@ export async function imageShortcutLabel() {
 }
 export function openImageShortcuts() {
   return browser.tabs.create({
-    url:
-      import.meta.env.BROWSER === "edge"
-        ? "edge://extensions/shortcuts"
-        : "chrome://extensions/shortcuts",
+    url: (
+      typeof navigator !== "undefined"
+        ? navigator.userAgent.includes("Edg/")
+        : import.meta.env.BROWSER === "edge"
+    )
+      ? "edge://extensions/shortcuts"
+      : "chrome://extensions/shortcuts",
   })
 }

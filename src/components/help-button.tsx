@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react"
 import { Icon } from "@/components/local-icon"
+import { FLOWREAD_SUPPORT_URL } from "@/utils/constants/flowread"
 import { cn } from "@/utils/styles/utils"
 
 type Corner = "bottom-right" | "top-right"
@@ -58,10 +59,7 @@ export function HelpButton() {
         setCorner(newCorner)
         localStorage.setItem(STORAGE_KEY, newCorner)
       } else {
-        window.open(
-          "https://github.com/mengxi-ream/read-frog/issues?q=sort%3Aupdated-desc+is%3Aissue+is%3Aopen",
-          "_blank",
-        )
+        window.open(FLOWREAD_SUPPORT_URL, "_blank", "noopener,noreferrer")
       }
       hasDraggedRef.current = false
       setDragging(false)

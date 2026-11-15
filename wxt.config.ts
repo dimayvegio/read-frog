@@ -5,6 +5,7 @@ import { defineConfig } from "wxt"
 import { z } from "zod"
 import { buildPdfAssets } from "./scripts/build-pdf-assets"
 import { escapeNoncharactersPlugin } from "./scripts/escape-noncharacters"
+import { localOnlyOcrDefaults } from "./scripts/store-ocr"
 import {
   createExtensionClientEnvSchema,
   isLocalPackagesEnabled,
@@ -38,7 +39,7 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.59.3.6",
+    version: "1.59.3.7",
     version_name: "1.59.3A",
     commands: {
       "capture-and-translate": {
@@ -48,6 +49,7 @@ export default defineConfig({
     },
     description: "__MSG_extDescription__",
     default_locale: "en",
+    homepage_url: "https://github.com/dimayvegio/read-frog",
     // Fixed extension ID for development
     ...(mode === "development" &&
       (browser === "chrome" || browser === "edge") && {
@@ -126,6 +128,15 @@ export default defineConfig({
     ],
   },
   hooks: {
+    ready(wxt) {
+      // Keep runtime Azerbaijani translations; Chromium has no az manifest locale.
+      // Register after i18n's asset generator, before WXT copies assets.
+      wxt.hooks.hook("build:publicAssets", (_, files) => {
+        for (let i = files.length - 1; i >= 0; i--)
+          if (files[i]!.relativeDest.replaceAll("\\", "/").startsWith("_locales/az/"))
+            files.splice(i, 1)
+      })
+    },
     "build:before": buildPdfAssets,
     // With local packages the bundle holds @read-frog/layout-engine's readable
     // source, which must never leave this machine.
@@ -197,6 +208,17 @@ export default defineConfig({
       ],
     },
     plugins: [
+      {
+        name: "flowread-local-only-ocr",
+        enforce: "pre",
+        transform(code, id) {
+          if (
+            id.replaceAll("\\", "/").endsWith("/tesseract.js/src/worker/browser/defaultOptions.js")
+          )
+            return { code: localOnlyOcrDefaults(code), map: null }
+          return undefined
+        },
+      },
       // Lets the runtime i18next facade (src/utils/i18n) `import` the `src/locales/*.yml`
       // files as JS objects so i18next can bundle them for runtime language switching.
       //

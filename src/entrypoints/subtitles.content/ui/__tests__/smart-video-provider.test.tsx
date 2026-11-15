@@ -60,14 +60,17 @@ function Read() {
   }, [value])
   return <span>{value.status}</span>
 }
-const setup = () =>
-  render(
+function setup() {
+  const view = render(
     <Provider store={subtitlesStore}>
       <SmartVideoProvider>
         <Read />
       </SmartVideoProvider>
     </Provider>,
   )
+  act(() => ui.setMode("prepared"))
+  return view
+}
 beforeEach(() => {
   vi.stubGlobal("TextEncoder", TextEncoder)
   vi.stubGlobal("TextDecoder", TextDecoder)

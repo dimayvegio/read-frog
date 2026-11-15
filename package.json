@@ -1,11 +1,11 @@
 {
   "name": "@read-frog/extension",
-  "version": "1.59.3-a.6",
+  "version": "1.59.3-a.7",
   "private": true,
   "description": "FlowRead browser extension for language learning",
   "type": "module",
   "scripts": {
-    "build:review": "node scripts/build-vocabulary-review.mjs",
+    "build:review": "node scripts/build-privacy-page.mjs && node scripts/build-vocabulary-review.mjs",
     "build": "pnpm build:review && wxt build",
     "build:edge": "pnpm build:review && wxt build -b edge",
     "build:firefox": "pnpm build:review && wxt build -b firefox --mv3",

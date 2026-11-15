@@ -70,6 +70,21 @@ export class DubbingController {
     this.timer = setInterval(() => this.tick(), 100)
     this.tick()
   }
+  refreshProfile() {
+    if (this.stopped) return
+    this.epoch++
+    this.cancelVoiceStart()
+    this.cancelPending()
+    this.d.player.stop()
+    this.current = null
+    this.cache.clear()
+    this.played.clear()
+    this.track = null
+    this.cueIds.clear()
+    this.resetDucking()
+    this.release()
+    this.report("Đang cập nhật ngữ cảnh/giọng AI; phiên lồng tiếng vẫn bật.")
+  }
   setDuck(value: number) {
     if (!this.stopped) this.ducker.setRatio(value)
   }

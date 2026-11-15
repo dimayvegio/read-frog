@@ -1,0 +1,30 @@
+{
+  "es": {
+    "name": "FlowRead",
+    "description": "FlowRead ayuda a leer, escuchar y aprender idiomas: traducción de páginas y texto seleccionado, lector PDF local bilingüe, subtítulos nativos compatibles y cuadernos de vocabulario. La IA necesita su propia clave de OpenAI y tiene cargos API separados de ChatGPT. El contenido necesario se envía directamente a OpenAI; el PDF original no se sube. Incluye OCR local y análisis de audio opcional. Sin anuncios ni telemetría. Fork independiente GPL-3.0 de Read Frog. Soporte/privacidad: admin@4dv.top."
+  },
+  "ja": {
+    "name": "FlowRead",
+    "description": "FlowRead はウェブ翻訳、本機 PDF 対訳、対応する既存字幕、単語帳で読む・聞く・学ぶ作業を支援します。PDF の検索、拡大、目次、メモ、描画と内蔵 OCR は端末内で動作し、元の PDF をアップロードしません。AI 翻訳、音声生成、文字起こし、任意の動画音声分析には自分の OpenAI API キーと別途 API 料金が必要です。ChatGPT 契約に API クレジットは含まれません。必要な文章・選択画像・音声は OpenAI に直接送信します。広告、テレメトリー、FlowRead コンテンツ中継サーバーはありません。字幕と音声取得はサイトに依存し、音声複製や DRM 回避はしません。Read Frog の独立 GPL-3.0 フォークです。連絡先: admin@4dv.top。"
+  },
+  "ko": {
+    "name": "FlowRead",
+    "description": "FlowRead는 웹 번역, 로컬 PDF 이중 언어 읽기, 기존 자막과 단어장으로 학습을 돕습니다. PDF 검색, 확대, 목차, 메모, 그리기와 내장 OCR은 기기에서 처리하며 원본 PDF를 업로드하지 않습니다. AI 번역, 음성, 전사와 선택적 영상 분석에는 본인의 OpenAI API 키가 필요하고 API 요금이 별도입니다. ChatGPT 구독에는 API 크레딧이 포함되지 않습니다. 필요한 텍스트, 선택 이미지와 오디오는 OpenAI에 직접 전송됩니다. 광고나 원격 측정, FlowRead 콘텐츠 중계 서버는 없습니다. 자막과 오디오 접근은 사이트에 따라 제한되며 음성 복제나 DRM 우회는 하지 않습니다. Read Frog의 독립 GPL-3.0 포크입니다. 지원/개인정보: admin@4dv.top."
+  },
+  "ru": {
+    "name": "FlowRead",
+    "description": "FlowRead помогает читать, слушать и изучать языки: перевод страниц и выделенного текста, локальный двуязычный PDF, исходные субтитры и словари. ИИ требует собственного ключа OpenAI и отдельной оплаты API; ChatGPT не включает API-кредиты. Нужное содержимое передаётся напрямую OpenAI. Исходный PDF не загружается. Поиск, заметки и локальный OCR работают на устройстве. Анализ аудио включается отдельно, без клонирования голоса/обхода DRM. Без рекламы и телеметрии. Независимый GPL-3.0 форк Read Frog. Контакт: admin@4dv.top."
+  },
+  "tr": {
+    "name": "FlowRead",
+    "description": "FlowRead; web çevirisi, yerel çift dilli PDF, özgün video altyazıları ve kelime defterleri sunar. Arama, yakınlaştırma, not ve yerel OCR cihazda çalışır; özgün PDF yüklenmez. Yapay zekâ kendi OpenAI API anahtarınızı gerektirir ve API ayrıca ücretlendirilir; ChatGPT aboneliği API kredisi içermez. Gerekli metin, seçili görüntü ve ses doğrudan OpenAI'a gönderilir. Reklam/telemetri yoktur. Ses analizi isteğe bağlıdır; ses klonlama/DRM aşma yoktur. Bağımsız GPL-3.0 Read Frog çatallaması. İletişim: admin@4dv.top."
+  },
+  "zh_CN": {
+    "name": "FlowRead",
+    "description": "FlowRead 帮助跨语言阅读、聆听与学习：网页及选中文本翻译、本地 PDF 双语阅读、受支持的原生字幕与生词本。PDF 支持搜索、缩放、目录、书签、批注、绘图与阅读位置恢复。原始 PDF 不上传；内置本地 OCR，OpenAI 区域 OCR 可选。视频可朗读原文/译文并调音量与偏移；智能分析采样正在播放的音频和字幕语境，不克隆声音、不绕过 DRM。AI 需要自己的 OpenAI API 密钥，API 单独计费；ChatGPT 订阅不含 API 额度。必要文字、图片与音频直发 OpenAI，没有 FlowRead 内容代理、广告或遥测。Edge 可选同步不含密钥、词本和音频。字幕受网站限制，AI 可能出错。Read Frog 独立 GPL-3.0 分支。支持/隐私：admin@4dv.top。"
+  },
+  "zh_TW": {
+    "name": "FlowRead",
+    "description": "FlowRead 協助跨語言閱讀、聆聽與學習：網頁及選取文字翻譯、本機 PDF 雙語閱讀、支援的原生字幕與生字簿。PDF 支援搜尋、縮放、目錄、書籤、註記、繪圖與閱讀位置恢復。原始 PDF 不上傳；內建本機 OCR，OpenAI 區域 OCR 為選用。影片可朗讀原文/譯文並調整音量與偏移；智慧分析擷取播放中的音訊與字幕語境，不複製聲音、不繞過 DRM。AI 需要自己的 OpenAI API 金鑰，API 另外計費；ChatGPT 訂閱不含 API 額度。必要文字、圖片與音訊直送 OpenAI，沒有 FlowRead 內容代理、廣告或遙測。Edge 選用同步不含金鑰、生字簿和音訊。字幕受網站限制，AI 可能出錯。Read Frog 獨立 GPL-3.0 分支。支援/隱私：admin@4dv.top。"
+  }
+}

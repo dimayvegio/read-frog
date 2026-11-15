@@ -138,6 +138,7 @@ export async function executeSmartVideo(
               {
                 type: "text",
                 text: JSON.stringify({
+                  contextTranscript: r.contextTranscript,
                   title: r.title,
                   target: r.target,
                   allowedVoices: OPENAI_TTS_VOICES,

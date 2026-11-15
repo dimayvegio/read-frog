@@ -1,6 +1,6 @@
 import type { SmartProfile } from "@/utils/subtitles/dubbing/smart"
 import { useAtomValue } from "jotai"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { configAtom } from "@/utils/atoms/config"
 import { createPortStreamPromise } from "@/utils/content-script/port-streaming"
 import { getSourceDocumentTitle } from "@/utils/content/document-title"
@@ -18,10 +18,21 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
   const ui = useSubtitlesUI(),
     id = useAtomValue(currentVideoIdAtom),
     config = useAtomValue(configAtom)
+  const [mode, setMode] = useState<"automatic" | "prepared">("automatic")
+  const listeners = useRef(new Set<() => void>())
+  const onProfileChange = useCallback((listener: () => void) => {
+    listeners.current.add(listener)
+    return () => {
+      listeners.current.delete(listener)
+    }
+  }, [])
+  const notifyProfile = useCallback(() => {
+    for (const listener of listeners.current) listener()
+  }, [])
   const [enabled, setEnabled] = useState(false),
     [busy, setBusy] = useState(false),
     [profile, setProfile] = useState<SmartProfile | null>(null),
-    [status, setStatus] = useState("AI mặc định tắt. Chuẩn bị audio trước để phân biệt người nói.")
+    [status, setStatus] = useState("AI mặc định tắt. Bật để phân tích audio và ngữ cảnh CC.")
   const run = useRef<AbortController | null>(null),
     file = useRef<File | null>(null),
     enabledRef = useRef(false),
@@ -77,6 +88,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
             file.current = null
             setProfile(null)
             setBusy(false)
+            notifyProfile()
             ui.setSmartProfile?.(null, false)
             setStatus("CC hoặc khóa OpenAI đã đổi. Phân tích cũ đã xóa; bấm chuẩn bị lại.")
           }
@@ -90,8 +102,93 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       closed = true
       clearInterval(timer)
     }
-  }, [profile, ui])
+  }, [profile, ui, notifyProfile])
+  const automatic = async () => {
+    if (run.current || !enabledRef.current) return false
+    const video = ui.getDubbingVideoElement?.()
+    if (!video) {
+      setStatus("Hãy mở video có CC trước.")
+      return false
+    }
+    const owner = new AbortController(),
+      route = location.href,
+      src = video.currentSrc,
+      videoId = subtitlesStore.get(currentVideoIdAtom),
+      snapshot = subtitlesStore.get(configAtom)
+    const valid = () =>
+      run.current === owner &&
+      !owner.signal.aborted &&
+      enabledRef.current &&
+      location.href === route &&
+      video.isConnected &&
+      ui.getDubbingVideoElement?.() === video &&
+      video.currentSrc === src &&
+      subtitlesStore.get(currentVideoIdAtom) === videoId &&
+      subtitlesStore.get(configAtom) === snapshot &&
+      !subtitlesStore.get(adPlayingAtom)
+    keyRevision.current = null
+    run.current = owner
+    setBusy(true)
+    setStatus("Tự phân tích đã bật. AI nghe mẫu khi video đang phát; không cần file.")
+    try {
+      const [{ runAutomaticAnalysis }, { sampleVideoAudio }] = await Promise.all([
+        import("@/utils/subtitles/dubbing/automatic-run"),
+        import("@/utils/subtitles/dubbing/automatic-audio"),
+      ])
+      await runAutomaticAnalysis({
+        video,
+        signal: owner.signal,
+        valid,
+        source: () => ui.getSentenceStudySource(owner.signal),
+        key: async () => {
+          const key = await sendMessage("getOpenAIKeyStatus")
+          if (keyRevision.current === null) keyRevision.current = key.revision
+          return key
+        },
+        sample: () =>
+          sampleVideoAudio(video, owner.signal, valid, (text) => {
+            if (valid()) setStatus(text)
+          }),
+        analyze: (input) =>
+          createPortStreamPromise<SmartProfile>(SMART_VIDEO_PORT, input, {
+            signal: owner.signal,
+            keepAliveIntervalMs: 10000,
+          }),
+        apply: (next) => {
+          if (!valid()) throw new DOMException("Đã đổi nguồn", "AbortError")
+          notifyProfile()
+          ui.setSmartProfile?.(next)
+          setProfile(next)
+        },
+        status: (text) => {
+          if (valid()) setStatus(text)
+        },
+        sourceUrl: route,
+        title: getSourceDocumentTitle().slice(0, 300),
+        target: config.language.targetCode,
+      })
+    } catch (error) {
+      if (run.current === owner)
+        setStatus(
+          error instanceof Error
+            ? error.message + " Bấm bắt đầu lại nếu muốn; không tự thử lại tính phí."
+            : "Đã dừng tự phân tích.",
+        )
+    } finally {
+      if (run.current === owner) {
+        run.current = null
+        setBusy(false)
+      }
+    }
+    return false
+  }
+  useEffect(() => {
+    if (enabled && mode === "automatic") void automatic()
+    // Explicit enable/mode changes start one owned loop; status/profile renders do not restart it.
+    // eslint-disable-next-line react/exhaustive-deps
+  }, [enabled, mode])
   const prepare = async () => {
+    if (mode === "automatic") return automatic()
     if (run.current) return false
     if (!enabledRef.current) return true
     if (!file.current && profile && ui.getSmartProfile?.() === profile) return true
@@ -177,6 +274,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
       if (result.trackHash !== smartTrackHash(cues)) throw new Error("Phân tích không khớp CC.")
       const { trackHash: _hash, ...wire } = result,
         next = parseSmartProfile(wire, cues)
+      notifyProfile()
       ui.setSmartProfile?.(next)
       keyRevision.current = key.revision
       setProfile(next)
@@ -199,6 +297,16 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
   return (
     <SmartVideoContext
       value={{
+        mode,
+        onProfileChange,
+        setMode: (next) => {
+          cancel()
+          notifyProfile()
+          ui.setSmartProfile?.(null, false)
+          setProfile(null)
+          file.current = null
+          setMode(next)
+        },
         enabled,
         busy,
         profile,
@@ -216,6 +324,7 @@ export function SmartVideoProvider({ children }: { children: React.ReactNode }) 
           enabledRef.current = value
           setEnabled(value)
           if (!value) {
+            notifyProfile()
             ui.setSmartProfile?.(null)
             setProfile(null)
             file.current = null

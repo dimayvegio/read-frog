@@ -1,5 +1,6 @@
-import { cp, mkdir, readdir, realpath, rm } from "node:fs/promises"
+import { cp, mkdir, readdir, realpath, rm, readFile, writeFile } from "node:fs/promises"
 import path from "node:path"
+import { localOnlyOcrWorker } from "./store-ocr"
 
 // All executable code and language data stay inside the extension. LSTM-only
 // mode uses three CPU variants; include all three so non-SIMD devices work too.
@@ -17,9 +18,11 @@ export async function buildOcrAssets() {
   for (const name of await readdir(target))
     if (/^tesseract-core(?:-simd|-relaxedsimd)?-lstm\.wasm$/.test(name))
       await rm(path.join(target, name))
-  await cp(
-    path.join(root, "node_modules/tesseract.js/dist/worker.min.js"),
+  await writeFile(
     path.join(target, "worker.min.js"),
+    localOnlyOcrWorker(
+      await readFile(path.join(root, "node_modules/tesseract.js/dist/worker.min.js"), "utf8"),
+    ),
   )
   const core = path.join(root, "node_modules/tesseract.js-core")
   for (const name of await readdir(core))

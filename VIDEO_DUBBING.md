@@ -1,6 +1,12 @@
-# Lồng tiếng video — 1.59.3A.6
+# Lồng tiếng video — 1.59.3A.7
 
-Package `1.59.3-a.6`, manifest `1.59.3.6`, display `1.59.3A`.
+Package `1.59.3-a.7`, manifest `1.59.3.7`, display `1.59.3A`.
+
+Mới: **Tự phân tích khi xem**, bật AI rồi tiếp tục phát, không cần tự chuẩn bị file.
+Lấy mẫu 15 giây mỗi phần 10 phút; chỉ gán người nói cho câu đã nghe, còn lại giọng
+mặc định. Không tự phân tích khi master tắt; giữ chế độ Chuẩn bị trước. Hợp đồng,
+giới hạn và store privacy trong [a.7](STORE_AUTOMATIC_AUDIO_A7.md). Các phần a.5/a.6
+dưới đây mô tả chế độ chuẩn bị trước và các điều khiển vẫn giữ nguyên.
 Baseline a.6: `6fd9206d` (a.5).
 Review/tối ưu: [DUBBING_PERFORMANCE_A6.md](DUBBING_PERFORMANCE_A6.md).
 Baseline a.5: `4bb30179` (a.4).

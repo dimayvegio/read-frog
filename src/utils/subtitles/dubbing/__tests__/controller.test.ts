@@ -93,6 +93,22 @@ afterEach(() => {
   vi.clearAllTimers()
   vi.useRealTimers()
 })
+it("refreshes AI profile without recreating audio or accepting stale synthesis", async () => {
+  const delayed = pending()
+  const s = setup(() => delayed.promise, true)
+  const oldSignal = s.generate.mock.calls[0]![1]
+  s.video.pause()
+  s.controller.refreshProfile()
+  expect(oldSignal.aborted).toBe(true)
+  delayed.resolve(audio)
+  await flush()
+  expect(s.player.play).not.toHaveBeenCalled()
+  expect(s.player.unlock).not.toHaveBeenCalled()
+  expect(s.player.destroy).not.toHaveBeenCalled()
+  expect(s.video.paused).toBe(true)
+  expect(s.state).toHaveBeenLastCalledWith(expect.objectContaining({ active: true }))
+  s.controller.stop()
+})
 describe("source-owned video voice", () => {
   it("bounds synthesis to two concurrent jobs and resumes only its own buffer pause", async () => {
     const jobs: ReturnType<typeof pending>[] = []

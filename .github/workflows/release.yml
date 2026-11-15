@@ -11,13 +11,11 @@ on:
         required: true
         type: string
 
-env:
-  WXT_GOOGLE_CLIENT_ID: ${{ secrets.WXT_GOOGLE_CLIENT_ID || vars.WXT_GOOGLE_CLIENT_ID }}
-  WXT_POSTHOG_API_KEY: ${{ secrets.WXT_POSTHOG_API_KEY || vars.WXT_POSTHOG_API_KEY }}
-  WXT_POSTHOG_HOST: ${{ secrets.WXT_POSTHOG_HOST || vars.WXT_POSTHOG_HOST }}
-  WXT_ANALYTICS_DAILY_FEATURE_CACHE_ENABLED: "true"
-
 concurrency: ${{ github.workflow }}-${{ github.ref }}
+
+env:
+  SKIP_FREE_API: "true"
+  NX_DAEMON: "false"
 
 jobs:
   release:
@@ -58,68 +56,6 @@ jobs:
           create-github-releases: true
         env:
           SKIP_FREE_API: true
-
-      - name: Send Discord Notification
-        if: steps.changesets.outputs.published == 'true'
-        run: |
-          VERSION=$(echo '${{ steps.changesets.outputs.published-packages }}' | jq -r '.[0].version')
-          TAG="v$VERSION"
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$TAG"
-
-          # Get release notes
-          RELEASE_DATA=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$TAG")
-          RELEASE_NOTES=$(echo "$RELEASE_DATA" | jq -r '.body // "No release notes available"')
-
-          # Clean up release notes
-          if [ -n "$RELEASE_NOTES" ] && [ "$RELEASE_NOTES" != "No release notes available" ]; then
-            RELEASE_NOTES=$(echo "$RELEASE_NOTES" | sed 's/<!--[^>]*-->//g')
-            RELEASE_NOTES=$(echo "$RELEASE_NOTES" | \
-              sed 's/^## \(.*\)$/**\1**/g' | \
-              sed 's/^### \(.*\)$/▸ **\1**/g' | \
-              sed 's/^#### \(.*\)$/  • **\1**/g')
-            RELEASE_NOTES=$(echo "$RELEASE_NOTES" | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-            if [ ${#RELEASE_NOTES} -gt 800 ]; then
-              RELEASE_NOTES=$(echo "$RELEASE_NOTES" | head -c 800)
-              RELEASE_NOTES="${RELEASE_NOTES}..."
-            fi
-          fi
-
-          # Build Discord payload
-          TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)
-          if [ -n "$RELEASE_NOTES" ] && [ "$RELEASE_NOTES" != "No release notes available" ]; then
-            FIELDS_JSON=$(jq -n --arg tag "$TAG" --arg notes "$RELEASE_NOTES" \
-              '[{"name": "🏷️ Tag", "value": ("`" + $tag + "`"), "inline": true}, {"name": "📝 Release Notes", "value": $notes, "inline": false}]')
-          else
-            FIELDS_JSON=$(jq -n --arg tag "$TAG" \
-              '[{"name": "🏷️ Tag", "value": ("`" + $tag + "`"), "inline": true}]')
-          fi
-
-          DISCORD_PAYLOAD=$(jq -n \
-            --arg version "$VERSION" \
-            --arg url "$RELEASE_URL" \
-            --argjson fields "$FIELDS_JSON" \
-            --arg timestamp "$TIMESTAMP" \
-            '{
-              embeds: [{
-                title: "🐸 Read Frog Release!",
-                description: ("**Read Frog** version `" + $version + "` has been released!"),
-                url: $url,
-                color: 48253,
-                fields: $fields,
-                footer: { text: "GitHub Actions", icon_url: "https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png" },
-                timestamp: $timestamp
-              }]
-            }')
-
-          # Send to Discord
-          RESPONSE=$(curl -s -w "%{http_code}" -H "Content-Type: application/json" -X POST -d "$DISCORD_PAYLOAD" ${{ secrets.DISCORD_WEBHOOK_URL }})
-          HTTP_CODE=$(echo "$RESPONSE" | tail -c 4)
-          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
-            echo "✅ Discord notification sent"
-          else
-            echo "❌ Discord notification failed (HTTP $HTTP_CODE)"
-          fi
 
       - name: Build and Zip Extension
         if: steps.changesets.outputs.published == 'true' || github.event_name == 'workflow_dispatch'

@@ -75,8 +75,8 @@ const browser = await puppeteer.launch({
   executablePath:
     process.env.VOCAB_BROWSER ?? "C:/Program Files/Google/Chrome/Application/chrome.exe",
   userDataDir: path.join(scratch, "profile"),
-  headless: false,
-  pipe: true,
+  headless: process.env.DEBUG_HEADLESS === "1",
+  pipe: process.env.DEBUG_PORT !== "1",
   enableExtensions: true,
   defaultViewport: { width: 1400, height: 1000 },
   args: ["--no-first-run", "--no-default-browser-check"],
@@ -459,6 +459,7 @@ try {
   })
   await frame.click('pierce/[aria-label="Back to subtitles menu"]')
   await clickText("AI phụ đề và giọng đọc")
+  await frame.select('pierce/[aria-label="Cách phân tích video"]', "prepared")
   check(
     "smart analysis defaults off with no audio upload",
     (await worker.evaluate(() => __smartCalls.length === 0)) &&
@@ -548,6 +549,73 @@ try {
     )
     await frame.click('pierce/[aria-label="Back to subtitles menu"]')
     await clickText("Lồng tiếng OpenAI")
+    await frame.click("pierce/[data-dubbing-toggle]")
+  }
+  if (process.env.DUBBING_AUTOMATIC === "1") {
+    // Start a fresh, file-free automatic session while ordinary playback continues.
+    await frame.click('pierce/[aria-label="Back to subtitles menu"]')
+    await clickText("AI phụ đề và giọng đọc")
+    await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
+    await frame.select('pierce/[aria-label="Cách phân tích video"]', "automatic")
+    const baseline = await worker.evaluate(() => __smartCalls.length)
+    await frame.evaluate(async () => {
+      const v = document.querySelector("video")
+      v.pause()
+      v.currentTime = 0
+      v.playbackRate = 1
+      v.volume = 0.8
+      window.__autoEvents = []
+      for (const name of ["seeking", "pause", "ratechange"])
+        v.addEventListener(name, () => window.__autoEvents.push(name))
+      await v.play()
+    })
+    // Allow the fixture seek event to settle before measuring passive capture.
+    await new Promise((r) => setTimeout(r, 150))
+    await frame.evaluate(() => {
+      window.__autoEvents = []
+    })
+    await frame.click('pierce/[aria-label="AI phân tích phụ đề và nhiều giọng"]')
+    await waitWorker((n) => __smartCalls.length === n + 1, baseline)
+    await frame.waitForFunction(() =>
+      [...document.querySelectorAll("*")].some((n) =>
+        n.shadowRoot
+          ?.querySelector("[data-smart-status]")
+          ?.textContent.includes("Đã áp dụng ngữ cảnh AI"),
+      ),
+    )
+    check(
+      "automatic analysis samples actual playing audio without file, seek, pause, rate or volume mutation",
+      await frame.evaluate(() => {
+        const v = document.querySelector("video")
+        return (
+          !v.paused &&
+          v.currentTime >= 15 &&
+          v.playbackRate === 1 &&
+          v.volume === 0.8 &&
+          window.__autoEvents.length === 0
+        )
+      }),
+    )
+    check(
+      "automatic analysis sends bounded full-caption context only as data",
+      await worker.evaluate(() => {
+        const body = JSON.stringify(__smartCalls.at(-1))
+        return (
+          body.includes("contextTranscript") &&
+          body.includes("Friendship matters") &&
+          !body.includes("https://www.youtube.com") &&
+          !body.includes("https://ani.pm")
+        )
+      }),
+    )
+    await new Promise((r) => setTimeout(r, 700))
+    check(
+      "no repeated paid analysis in the same timeline part",
+      await worker.evaluate((n) => __smartCalls.length === n + 1, baseline),
+    )
+    await frame.click('pierce/[aria-label="Back to subtitles menu"]')
+    await clickText("Lồng tiếng OpenAI")
+    // Ensure source ownership cancellation below has an active voice session.
     await frame.click("pierce/[data-dubbing-toggle]")
   }
   await frame.evaluate(() => {

@@ -5,3 +5,8 @@
 - pdf-lib 1.17.1: MIT, https://github.com/Hopding/pdf-lib.
 
 OCR runs locally after an explicit action. Worker, WASM and model files are bundled; no CDN is used. Export creates a local annotated copy. See bundled license files and existing PDF_THIRD_PARTY_NOTICES.md for PDF.js notices.
+
+FlowRead store build modifies the Tesseract.js 7.0.0 browser worker/defaults at build time:
+removes CDN fallback expressions and the legacy Function global detector, and restricts worker
+script/model loads to the packaged extension OCR directory. The pinned transformation and source
+fingerprint are in scripts/store-ocr.ts. Original Apache-2.0 notices remain in the package.

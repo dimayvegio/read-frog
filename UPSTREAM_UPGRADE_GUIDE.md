@@ -1,5 +1,10 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung a.7: giữ [automatic audio/store contracts](STORE_AUTOMATIC_AUDIO_A7.md),
+master OFF, passive capture/15s, một attempt mỗi phần 10 phút, heard-only voice mapping,
+key/source cancellation và controller refresh không unlock lại. Giữ logo ngựa/privacy
+và IDs riêng; không phục hồi OCR CDN/new Function/telemetry hoặc upstream submit IDs.
+
 Bổ sung a.6: giữ trần smart preparation 600 giây và các ownership/PCM/envelope
 optimizations trong [DUBBING_PERFORMANCE_A6.md](DUBBING_PERFORMANCE_A6.md); đây
 là giới hạn preparation, không giới hạn native CC hay lồng tiếng thường.

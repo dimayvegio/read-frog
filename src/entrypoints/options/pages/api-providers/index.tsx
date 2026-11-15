@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useAtomValue, useSetAtom } from "jotai"
 import { useRef, useState } from "react"
+import { browser } from "#imports"
 import { Button } from "@/components/ui/base-ui/button"
 import { Input } from "@/components/ui/base-ui/input"
 import {
@@ -116,6 +117,36 @@ export function ApiProvidersPage() {
       description="Translate, analyze text and enable OpenAI speech with your API key. Choose speech providers and voices under Text to Speech."
       innerClassName="flex flex-col gap-8"
     >
+      <aside
+        data-openai-disclosure
+        className="max-w-2xl space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm"
+      >
+        <h2 className="font-semibold">Your content and OpenAI · Nội dung gửi OpenAI</h2>
+        <p>
+          AI features send the text, selected image crop or audio you choose directly to OpenAI
+          using your API key. Enabled automatic translation rules may also send page text. OpenAI
+          usage can incur charges; a ChatGPT subscription does not include API credits.
+        </p>
+        <p>
+          PDF files stay on your device. Only translation text or explicitly selected OCR crops are
+          sent. Local OCR, PDF tools and saved-word review work locally. API keys stay in separate
+          local credential storage and are excluded from settings exports and browser configuration
+          sync.
+        </p>
+        <p>
+          Tính năng AI gửi nội dung bạn chọn trực tiếp tới OpenAI và có thể tính phí. File PDF được
+          xử lý trên máy; chỉ văn bản cần dịch hoặc vùng ảnh OCR được chọn mới gửi đi. Ghi âm/phân
+          tích audio chỉ bắt đầu bằng thao tác của bạn.
+        </p>
+        <a
+          className="underline"
+          href={new URL("privacy.html", browser.runtime.getURL("/")).href}
+          target="_blank"
+          rel="noreferrer"
+        >
+          Privacy policy / Chính sách quyền riêng tư
+        </a>
+      </aside>
       <section className="flex max-w-2xl flex-col gap-3">
         <h2 className="text-lg font-semibold">API key</h2>
         <p>
