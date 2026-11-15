@@ -34,7 +34,12 @@ const notices = await Promise.all(
     "node_modules/dexie/NOTICE",
     "node_modules/zod/LICENSE",
     "node_modules/js-sha256/LICENSE.txt",
-  ].map(async (name) => `${name}\n${await fs.readFile(path.join(root, name), "utf8")}`),
+  ].map(async (name) => {
+    const content = await fs.readFile(path.join(root, name), "utf8")
+    // Preserve the already-shipped standalone HTML footer bytes on both LF
+    // and CRLF checkouts. The historical LICENSE embedding uses CRLF.
+    return `${name}\n${name === "LICENSE" ? content.replace(/\r?\n/g, "\r\n") : content}`
+  }),
 )
 await fs.writeFile(
   path.join(root, "public/vocabulary-review.html"),
