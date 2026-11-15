@@ -41,10 +41,23 @@ export async function decodeImage(file: Blob) {
   if (!supported) throw new Error("Chỉ hỗ trợ PNG, JPEG hoặc WebP.")
   return createImageBitmap(file)
 }
-export function encodeCrop(source: CanvasImageSource, width: number, height: number, crop: Crop) {
+export function encodeCrop(
+  source: CanvasImageSource,
+  width: number,
+  height: number,
+  crop: Crop,
+  preservePixels = false,
+) {
   const box = cropPixels(crop, width, height)
   if (box.width < 8 || box.height < 8)
     throw new Error("Vùng chọn quá nhỏ. Hãy kéo một vùng lớn hơn.")
+  if (
+    preservePixels &&
+    (box.width * box.height > 8_000_000 || Math.max(box.width, box.height) > 4096)
+  )
+    throw new Error(
+      "Vùng ảnh gốc tối đa 8 triệu pixel / cạnh 4.096. Hãy crop nhỏ hơn để không phải giảm độ phân giải.",
+    )
   const ratio = Math.min(
     1,
     4096 / Math.max(box.width, box.height),
@@ -54,10 +67,18 @@ export function encodeCrop(source: CanvasImageSource, width: number, height: num
   canvas.width = Math.max(1, Math.round(box.width * ratio))
   canvas.height = Math.max(1, Math.round(box.height * ratio))
   const context = canvas.getContext("2d")!
-  context.fillStyle = "white"
-  context.fillRect(0, 0, canvas.width, canvas.height)
+  if (!preservePixels) {
+    context.fillStyle = "white"
+    context.fillRect(0, 0, canvas.width, canvas.height)
+  }
   context.drawImage(source, box.x, box.y, box.width, box.height, 0, 0, canvas.width, canvas.height)
   let image = canvas.toDataURL("image/png")
-  if (image.length > MAX_IMAGE_DATA_URL) image = canvas.toDataURL("image/jpeg", 0.92)
+  if (image.length > MAX_IMAGE_DATA_URL) {
+    if (preservePixels)
+      throw new Error(
+        "PNG crop quá lớn; hãy chọn vùng nhỏ hơn để giữ nguyên pixel và độ trong suốt.",
+      )
+    image = canvas.toDataURL("image/jpeg", 0.92)
+  }
   return imageDataURLSchema.parse(image)
 }

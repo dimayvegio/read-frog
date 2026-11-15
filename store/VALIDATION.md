@@ -1,3 +1,16 @@
+# Candidate A.14 validation — 15 November 2026
+
+Baseline 27c1a7cc / A.13. Package 1.59.3-a.14 / numeric 1.59.3.14 / display 1.59.3A. No dependency, permissions, model, endpoint or published migration/config/DB schema additions.
+
+- **4,792 unit tests passed / one intentional free-service skip**, 495 passing files / one skipped, SKIP_FREE_API=true. Final source log `.codex/image-overlay-tests.log`; type-aware lint and formatter pass. Coverage includes strict overlay ID parsing/model-coordinate rejection, geometry/fit/color/alpha, separate cache namespace/current source identity, key/config/epoch cancellation, worker-init late cleanup/one lease, and lossless crop/PNG limits.
+- Final production Chrome overlay **15 checks**, `.codex/image-overlay-1794754739552`, with actual bundled local Tesseract OCR and synthetic OpenAI responses. Zero paid calls while measuring; one cold vision call on explicit Translate; unchanged/corrected-source/style edits reuse cache; editing/drag/region marking/PNG do not call provider. PNG bytes match the rendered canvas; pixel comparison preserves source dimensions and non-text colored artwork exactly in the fixture. Invalid output does not auto retry; crop change rejects late output; phone fits viewport; zero uncaught errors. This is not a live OpenAI quality claim or proof of perfect inpainting on textured images.
+- A.14 regression runs: **22** structured-image checks `.codex/image-structure-1794754530775` and **83** previous PDF/image/fast-cache checks (path in `.codex/image-overlay-pdf.log`). These ran before the final overlay-only status-wording adjustment; final overlay checks and full unit suite reran after it. Earlier source-run artifacts remain for diagnostics, not final pass claims.
+- Static runtime/store audits: 471 files, 201 JS, nine locales; known-forbidden endpoint scan empty. Local OCR uses existing fixed packaged assets, selected vision uses existing private OpenAI Responses, no PDF binary upload or remote OCR service. Static scan is complemented by runtime mock request/payload checks, not a universal egress proof.
+- ZIP **22,093,189 bytes** (+8,660 versus A.13), SHA-256 `c1aba386dff7d0ceaf271352e0957d2ca7af80bda095ab66c6b278f28f007428`. Vocabulary review HTML unchanged (`a640c20d7aa510642dbda1dd59411e41c0660670ae2a97594d3654ab56aedb64`). CRC/root paths/build inventory and final installed hashes/key/permissions checked via filesystem; assets first, manifest last, fixed old folder, no browser profile touched. User Reload required.
+- Limits: fonts/word masking on complex backgrounds/vertical text are approximate; manual selection/style correction is provided. No neural inpainting, live paid API, OS RAM benchmark, 120-minute soak or main Edge UI control. See IMAGE_OVERLAY_A14.md.
+
+## Historical A.13 evidence
+
 # Candidate A.13 validation — 15 November 2026
 
 Baseline 6860ae91 / A.12. Package 1.59.3-a.13, numeric 1.59.3.13, display 1.59.3A.

@@ -1,5 +1,9 @@
 # Chụp vùng và dịch ảnh
 
+## A.14 — Dịch trên ảnh gốc
+
+Chọn **Dịch trên ảnh gốc — thay chữ**, crop rồi **Đo vùng chữ** (local, chưa tốn API). Kiểm tra/bỏ vùng sai hoặc thêm vùng thủ công; bấm **Dịch vùng đang bật** để OpenAI đọc/dịch và vẽ chữ vào ảnh. Có chỉnh font/màu/vị trí, zoom và tải PNG. Giữ nền/bố cục ngoài vùng thay chữ, không hứa giống tuyệt đối với font hiếm/nền hoa văn. [Chi tiết A.14](IMAGE_OVERLAY_A14.md).
+
 ## A.12 — Giữ cấu trúc ảnh
 
 Chọn **Giữ cấu trúc — bảng, danh sách, code** tại trang Dịch ảnh. Có thể sửa từng khối/ô, gộp/tách đoạn và bỏ khối trước khi dịch lại. Cold dùng hai lượt, cùng kết quả có cache; không tự retry. Chỉ giữ cấu trúc nội dung, chưa font/màu/tọa độ chính xác. Xem [hợp đồng, giới hạn và kiểm chứng A.12](IMAGE_STRUCTURE_A12.md). Các phần bên dưới là lịch sử và đường plain cũ.

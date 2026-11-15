@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**Mới A.14 / manifest 1.59.3.14:** thay chữ dịch trên ảnh gốc bằng local OCR boxes + OpenAI, sửa font/màu/geometry, thêm vùng thủ công và PNG lossless. [Hợp đồng/giới hạn](IMAGE_OVERLAY_A14.md).
+
 **Mới A.13 / manifest 1.59.3.13:** sửa ảnh chỉ có bảng/code hiển thị Markdown thô; renderer cấu trúc không phụ thuộc heading/list. [Chi tiết](IMAGE_STRUCTURE_A12.md#a13--chỉ-có-bảngcode-vẫn-hiển-thị-đúng).
 
 **Mới 1.59.3-a.12 / manifest 1.59.3.12:** OCR ảnh typed blocks/table cells, sửa/gộp/tách/bỏ khối, dịch theo ID giữ code và cache riêng. [A.12](IMAGE_STRUCTURE_A12.md).

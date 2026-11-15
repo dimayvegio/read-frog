@@ -147,6 +147,155 @@
   object-fit: contain;
   margin-top: 8px;
 }
+.rf-overlay-editor {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.rf-overlay-stage {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 20px;
+  background: var(--rf-muted);
+}
+.rf-overlay-image {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  line-height: 0;
+  background: white;
+}
+.rf-overlay-image canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.rf-overlay-box {
+  position: absolute;
+  background: transparent;
+  border: 1px dashed #15803d55;
+  cursor: move;
+  touch-action: none;
+  padding: 0;
+}
+.rf-overlay-box.selected {
+  border: 2px solid #2563eb;
+}
+.rf-overlay-box.disabled {
+  border-color: #8888;
+}
+.rf-overlay-badge {
+  display: none;
+  position: absolute;
+  top: -16px;
+  left: -2px;
+  font:
+    10px/14px Arial,
+    sans-serif;
+  background: #2563eb;
+  color: white;
+  padding: 0 4px;
+  border-radius: 3px 3px 0 0;
+}
+.rf-overlay-box.selected .rf-overlay-badge {
+  display: block;
+}
+.rf-overlay-resize {
+  position: absolute;
+  display: none;
+  width: 10px;
+  height: 10px;
+  right: -6px;
+  bottom: -6px;
+  background: white;
+  border: 2px solid #2563eb;
+  cursor: nwse-resize;
+}
+.rf-overlay-box.selected .rf-overlay-resize {
+  display: block;
+}
+.rf-overlay-controls {
+  width: 340px;
+  flex: none;
+  padding: 18px;
+  border-left: 1px solid var(--rf-border);
+  overflow-y: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.rf-overlay-controls h2 {
+  font-size: 17px;
+  font-weight: 650;
+  margin-bottom: 10px;
+}
+.rf-overlay-controls label {
+  display: block;
+  margin: 8px 0;
+}
+.rf-overlay-controls :is(select, input:not([type="checkbox"]), textarea) {
+  display: block;
+  width: 100%;
+  background: var(--rf-background);
+  color: var(--rf-foreground);
+  border: 1px solid var(--rf-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font: inherit;
+}
+.rf-overlay-controls input[type="color"] {
+  height: 32px;
+  padding: 2px;
+}
+.rf-overlay-controls textarea {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.5;
+}
+.rf-overlay-controls fieldset {
+  min-width: 0;
+}
+.rf-overlay-controls fieldset:disabled {
+  opacity: 0.6;
+}
+.rf-overlay-hint {
+  color: var(--rf-muted-foreground);
+  font-size: 12px;
+  margin: 8px 0;
+}
+.rf-overlay-warning {
+  color: #d97706;
+  margin: 8px 0;
+}
+.rf-overlay-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+}
+.rf-overlay-controls button {
+  border: 1px solid var(--rf-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  background: var(--rf-background);
+  color: var(--rf-foreground);
+  cursor: pointer;
+}
+.rf-overlay-controls button:hover:not(:disabled) {
+  background: var(--rf-muted);
+}
+.rf-overlay-controls :is(button, input, select, textarea):focus-visible,
+.rf-overlay-box:focus-visible {
+  outline: 2px solid var(--rf-ring);
+  outline-offset: 2px;
+}
+.rf-overlay-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 10px;
+}
 .rf-structure-editor {
   margin-top: 18px;
   max-width: 100%;
@@ -298,6 +447,19 @@
   padding: 8px 14px;
 }
 @media (max-width: 760px) {
+  .rf-overlay-editor {
+    flex-direction: column;
+  }
+  .rf-overlay-stage {
+    flex: none;
+    max-height: 65dvh;
+  }
+  .rf-overlay-controls {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--rf-border);
+    overflow: visible;
+  }
   .rf-image-app {
     height: auto;
     min-height: 100dvh;

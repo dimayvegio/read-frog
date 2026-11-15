@@ -1,12 +1,14 @@
 import type { Config } from "@/types/config/config"
 import type { ImagePretranslation } from "@/types/image-translation"
 import type { NativeSelectionRequest } from "@/types/native-selection"
+import type { OverlayImage } from "@/utils/image-translation/overlay-model"
 import { useEffect, useRef, useState } from "react"
 import { browser } from "#imports"
 import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { getLocalConfig } from "@/utils/config/storage"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
 import { clearImageCache } from "@/utils/image-translation/cache"
+import { detectOverlayRegions } from "@/utils/image-translation/overlay-ocr"
 import { recognizeImage } from "@/utils/image-translation/recognize"
 import { imageShortcutLabel, openImageShortcuts } from "@/utils/image-translation/shortcut"
 import {
@@ -18,6 +20,7 @@ import { sendMessage } from "@/utils/message"
 import { DEFAULT_PDF_TEXT_OPTIONS } from "@/utils/selection-result/pdf-text"
 import { SelectionTranslation } from "../selection-result/app"
 import { cropBetween, decodeImage, encodeCrop, type Point, type Crop } from "./image"
+import { ImageOverlayEditor } from "./overlay-editor"
 import { ImageStructureEditor } from "./structure-editor"
 
 const FULL: Crop = { x: 0, y: 0, width: 1, height: 1 }
@@ -38,8 +41,14 @@ export function ImageTranslation({ config }: { config: Config }) {
   const [request, setRequest] = useState<NativeSelectionRequest | null>(null)
   const [pretranslated, setPretranslated] = useState<ImagePretranslation>()
   const [fastOutput, setFastOutput] = useState("")
-  const [mode, setMode] = useState<"fast" | "two-step" | "structure">("fast")
+  const [mode, setMode] = useState<"fast" | "two-step" | "structure" | "overlay">("fast")
+  const activeMode = useRef(mode)
+  useEffect(() => {
+    activeMode.current = mode
+  }, [mode])
   const [structure, setStructure] = useState<ImageStructure>()
+  const [overlay, setOverlay] = useState<OverlayImage>()
+  const [ocrLanguage, setOcrLanguage] = useState("eng")
   const modeChanged = useRef(false)
   const [shortcut, setShortcut] = useState("")
   const [options, setOptions] = useState(DEFAULT_PDF_TEXT_OPTIONS)
@@ -52,6 +61,7 @@ export function ImageTranslation({ config }: { config: Config }) {
     setPretranslated(undefined)
     setFastOutput("")
     setStructure(undefined)
+    setOverlay(undefined)
     setStatus("")
     setError("")
   }
@@ -69,6 +79,15 @@ export function ImageTranslation({ config }: { config: Config }) {
       if (token !== version.current) {
         image.close()
         return
+      }
+      if (
+        activeMode.current === "overlay" &&
+        (image.width * image.height > 12_000_000 || Math.max(image.width, image.height) > 6000)
+      ) {
+        image.close()
+        throw new Error(
+          "Ảnh quá lớn để giữ nguyên pixel trong editor (12 triệu pixel / cạnh 6.000). Hãy mở một ảnh/crop nhỏ hơn.",
+        )
       }
       // Limit the editor backing canvas; cropped payloads are bounded again.
       const scale = Math.min(
@@ -104,7 +123,8 @@ export function ImageTranslation({ config }: { config: Config }) {
         !modeChanged.current &&
         (value.imageTranslationMode === "fast" ||
           value.imageTranslationMode === "two-step" ||
-          value.imageTranslationMode === "structure")
+          value.imageTranslationMode === "structure" ||
+          value.imageTranslationMode === "overlay")
       )
         setMode(value.imageTranslationMode)
     })
@@ -171,10 +191,32 @@ export function ImageTranslation({ config }: { config: Config }) {
     setBusy(true)
     setText("")
     try {
-      const image = encodeCrop(canvas.current, canvas.current.width, canvas.current.height, crop)
+      const image = encodeCrop(
+        canvas.current,
+        canvas.current.width,
+        canvas.current.height,
+        crop,
+        mode === "overlay",
+      )
       setPreview(image)
       const current = await getLocalConfig()
       abort.signal.throwIfAborted()
+      if (mode === "overlay") {
+        const geometry = await detectOverlayRegions(image, ocrLanguage, abort.signal, (message) => {
+          if (token === version.current && !abort.signal.aborted) setStatus(message)
+        })
+        abort.signal.throwIfAborted()
+        if (token !== version.current) return
+        if (token === version.current) {
+          setOverlay({ image, ...geometry })
+          setStatus(
+            geometry.regions.length
+              ? "Kiểm tra các vùng đo trên máy rồi bấm Dịch vùng đang bật. Tiến trình hiển thị ở khung bên phải."
+              : "Chưa dò được chữ. Bấm Thêm vùng chữ để chọn trên ảnh, rồi bấm Dịch vùng đang bật khi sẵn sàng.",
+          )
+        }
+        return
+      }
       const result = await recognizeImage({
         image,
         mode,
@@ -235,11 +277,13 @@ export function ImageTranslation({ config }: { config: Config }) {
             onChange={(event) => {
               if (loadingImage) return
               const value =
-                event.target.value === "structure"
-                  ? "structure"
-                  : event.target.value === "fast"
-                    ? "fast"
-                    : "two-step"
+                event.target.value === "overlay"
+                  ? "overlay"
+                  : event.target.value === "structure"
+                    ? "structure"
+                    : event.target.value === "fast"
+                      ? "fast"
+                      : "two-step"
               modeChanged.current = true
               resetRun()
               setText("")
@@ -250,8 +294,28 @@ export function ImageTranslation({ config }: { config: Config }) {
             <option value="fast">Nhanh — một lượt</option>
             <option value="two-step">Đọc chữ trước — hai bước</option>
             <option value="structure">Giữ cấu trúc — bảng, danh sách, code</option>
+            <option value="overlay">Dịch trên ảnh gốc — thay chữ</option>
           </select>
         </label>
+        {mode === "overlay" && (
+          <label>
+            OCR vị trí{" "}
+            <select
+              aria-label="Ngôn ngữ OCR vị trí"
+              value={ocrLanguage}
+              disabled={busy || loadingImage}
+              onChange={(e) => {
+                resetRun()
+                setOcrLanguage(e.target.value)
+              }}
+            >
+              <option value="eng">English</option>
+              <option value="vie">Tiếng Việt + English</option>
+              <option value="chi_sim">中文 + English</option>
+              <option value="jpn">日本語 + English</option>
+            </select>
+          </label>
+        )}
         <button type="button" onClick={() => input.current?.click()}>
           Mở ảnh
         </button>
@@ -297,14 +361,14 @@ export function ImageTranslation({ config }: { config: Config }) {
           disabled={!crop || busy || loadingImage}
           onClick={() => void recognize(false)}
         >
-          Đọc chữ và dịch
+          {mode === "overlay" ? "Đo vùng chữ" : "Đọc chữ và dịch"}
         </button>
         <button
           type="button"
           disabled={!crop || busy || loadingImage}
           onClick={() => void recognize(true)}
         >
-          Đọc lại ảnh
+          {mode === "overlay" ? "Đo lại vùng" : "Đọc lại ảnh"}
         </button>
         <button
           type="button"
@@ -355,6 +419,12 @@ export function ImageTranslation({ config }: { config: Config }) {
           dựng chính xác font, màu hoặc vị trí.
         </p>
       )}
+      {mode === "overlay" && (
+        <p className="rf-image-help">
+          Giữ ảnh gốc, đo vùng chữ bằng OCR local, rồi OpenAI đọc và dịch. Font/nền hoa văn và bản
+          dịch dài có thể cần chỉnh; không bảo đảm giống tuyệt đối tự động.
+        </p>
+      )}
       <p role="status" className="rf-image-status">
         {status}
       </p>
@@ -364,7 +434,7 @@ export function ImageTranslation({ config }: { config: Config }) {
         </p>
       )}
       <div className="rf-image-body">
-        <section className="rf-image-editor" aria-label="Chọn vùng ảnh">
+        <section className="rf-image-editor" aria-label="Chọn vùng ảnh" hidden={!!overlay}>
           {!hasImage && (
             <div className="rf-image-empty">
               Dán ảnh bằng <strong>Ctrl+V</strong>, kéo thả ảnh hoặc bấm <strong>Mở ảnh</strong>.
@@ -484,6 +554,7 @@ export function ImageTranslation({ config }: { config: Config }) {
             </section>
           )}
         </section>
+        {overlay && <ImageOverlayEditor value={overlay} />}
         {busy && fastOutput && (
           <aside className="rf-image-result">
             <p className="p-4 text-sm" role="status">

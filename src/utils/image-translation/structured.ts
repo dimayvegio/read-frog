@@ -44,6 +44,7 @@ async function scope(config: Config, signal: AbortSignal) {
     },
   }
 }
+export { scope as imageTranslationScope }
 
 export async function recognizeStructuredImage({
   image,

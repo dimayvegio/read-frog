@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung A.14: giữ [original-image overlay](IMAGE_OVERLAY_A14.md), local measurement trước paid Translate riêng, no AI geometry, mask/fit/edit/PNG local và lease cleanup; không upload PDF/thêm dịch vụ OCR.
+
 Bổ sung A.12: giữ [OCR ảnh có cấu trúc](IMAGE_STRUCTURE_A12.md), exact cell IDs, local rendering/editing và frozen image DB1 namespaces; không flatten code/bảng hoặc tự retry có phí.
 
 Bổ sung A.11: giữ [fallback cache/Markdown/PDF panel preferences](WEB_MARKDOWN_PDF_PANELS_A11.md); không đoán mọi nguồn thiếu document là HTML, không bật raw HTML/ảnh từ output AI, không ghi storage/relayout PDF mỗi pointermove.
