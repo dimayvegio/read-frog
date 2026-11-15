@@ -85,6 +85,8 @@ export interface SubtitlesProvidersAdapter {
   readonly containerShrinkRatio: ((container: HTMLElement) => number | null) | undefined
   readonly supportsAiSubtitles: boolean
   getControlsConfig: () => ControlsConfig | undefined
+  readonly supportsDubbing?: boolean
+  getDubbingVideoElement?: () => HTMLVideoElement | null
   readonly supportsSidebar: boolean
   generateVideoSummary: (config: Config, videoId?: string | null) => Promise<string | null>
   hasSubtitlesAvailable: () => Promise<boolean>
@@ -175,6 +177,15 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
   get containerShrinkRatio() {
     return this.config.containerShrinkRatio
   }
+
+  get supportsDubbing() {
+    return this.config.platform === "youtube" || this.config.platform === "anipm"
+  }
+
+  getDubbingVideoElement = () =>
+    this.videoIdChanged
+      ? null
+      : document.querySelector<HTMLVideoElement>(this.config.selectors.video)
 
   get supportsSidebar() {
     return this.config.supportsSidebar ?? false

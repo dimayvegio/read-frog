@@ -54,8 +54,12 @@ try {
   await worker.evaluate(preparePdfWorker)
   await options.goto(base + "options.html#/tts")
   await options.bringToFront()
-  await options.waitForSelector("#tts-provider-choice")
-  check("Microsoft has no MP3 download button", (await options.$("[data-tts-download]")) === null)
+  await options.waitForSelector("#openai-tts-preview")
+  check(
+    "OpenAI-only settings expose MP3 without reintroducing Microsoft execution",
+    (await options.$("[data-tts-download]")) !== null &&
+      (await options.$("#tts-provider-choice")) === null,
+  )
   const session = await options.createCDPSession()
   await session.send("Browser.setDownloadBehavior", {
     behavior: "allowAndName",

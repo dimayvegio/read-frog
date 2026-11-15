@@ -8,11 +8,14 @@ import { createContext, use, useMemo } from "react"
 import { TooltipProvider } from "@/components/ui/base-ui/tooltip"
 import { queryClient } from "@/utils/tanstack-query"
 import { subtitlesStore } from "../atoms"
+import { DubbingProvider } from "./dubbing-provider"
 
 interface SubtitlesUIContextValue {
   toggleSubtitles: (enabled: boolean) => void
   requestAiSubtitles: () => Promise<void>
   supportsAiSubtitles: boolean
+  supportsDubbing?: boolean
+  getDubbingVideoElement?: () => HTMLVideoElement | null
   supportsSidebar: boolean
   generateVideoSummary: (config: Config, videoId?: string | null) => Promise<string | null>
   hasSubtitlesAvailable: () => Promise<boolean>
@@ -55,6 +58,8 @@ export function SubtitlesProviders({
       toggleSubtitles: adapter.toggleSubtitlesManually,
       requestAiSubtitles: adapter.requestAiSubtitles,
       supportsAiSubtitles: adapter.supportsAiSubtitles,
+      supportsDubbing: adapter.supportsDubbing,
+      getDubbingVideoElement: adapter.getDubbingVideoElement,
       supportsSidebar: adapter.supportsSidebar,
       generateVideoSummary: adapter.generateVideoSummary,
       hasSubtitlesAvailable: adapter.hasSubtitlesAvailable,
@@ -79,7 +84,13 @@ export function SubtitlesProviders({
     <JotaiProvider store={subtitlesStore}>
       <QueryClientProvider client={queryClient}>
         <SubtitlesUIContext value={contextValue}>
-          <TooltipProvider>{children}</TooltipProvider>
+          {contextValue.supportsDubbing ? (
+            <DubbingProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+            </DubbingProvider>
+          ) : (
+            <TooltipProvider>{children}</TooltipProvider>
+          )}
         </SubtitlesUIContext>
       </QueryClientProvider>
     </JotaiProvider>

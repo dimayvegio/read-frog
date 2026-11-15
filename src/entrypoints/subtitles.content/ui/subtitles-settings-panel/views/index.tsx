@@ -2,10 +2,11 @@ import type { ComponentType } from "react"
 import { i18n } from "@/utils/i18n"
 import { AnimeContextView } from "./anime-context"
 import { DownloadView } from "./download"
+import { DubbingView } from "./dubbing"
 import { SettingsView } from "./settings"
 import { StyleView } from "./style"
 
-export type ViewId = "main" | "download" | "settings" | "style" | "anime-context"
+export type ViewId = "main" | "download" | "settings" | "style" | "anime-context" | "dubbing"
 export type SubpageId = Exclude<ViewId, "main">
 export const ROOT_VIEW = "main" satisfies ViewId
 
@@ -21,6 +22,7 @@ export interface SubpageConfig {
 }
 
 export const SUBPAGES: Record<SubpageId, SubpageConfig> = {
+  dubbing: { parent: ROOT_VIEW, title: () => "Lồng tiếng OpenAI", component: DubbingView },
   "anime-context": {
     parent: ROOT_VIEW,
     title: () => "Ngữ cảnh anime",

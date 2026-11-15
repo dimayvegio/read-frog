@@ -1,5 +1,11 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.3 / manifest 1.59.3.3 (display 1.59.3A):** lồng tiếng OpenAI
+lời gốc/lời dịch trên YouTube và ani.pm, đệm 30 giây/6 câu/2 job, duck âm gốc,
+pause ownership và hủy theo nguồn/key/config. Chỉ RAM; không thêm schema/quyền.
+Xem [VIDEO_DUBBING.md](VIDEO_DUBBING.md). Các mục 1.59.1 dưới đây là lịch sử;
+baseline upstream vẫn v1.59.1, giữ toàn bộ hợp đồng a.2/PDF cũ.
+
 **Hiện tại1.59.1-a.9 / manifest1.59.1.9:** icon/popup ghi chú, inline ô chữ,
 bảng sửa hình gọn, search thu nâng cao/bỏ Loại tài liệu, bỏ Quên vị trí.
 Xem [PDF_ANNOTATION_UX_A9.md](PDF_ANNOTATION_UX_A9.md).

@@ -1,5 +1,10 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung local a.3: giữ [lồng tiếng video](VIDEO_DUBBING.md), private TTS file
+transport, giới hạn RAM/job và hủy theo nguồn; lời dịch chỉ đọc track đã commit,
+không tạo translator/queue/AI segmentation riêng. Đừng đổi native caption/ASR
+hoặc mang endpoint VOT/Mouse Tooltip Translator vào runtime khi merge.
+
 Tài liệu dành cho người tiếp tục phát triển repo `dimayvegio/read-frog`.
 Không dùng tài liệu này để khôi phục bản upstream đè lên bản local.
 
