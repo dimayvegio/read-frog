@@ -39,7 +39,7 @@ export default defineConfig({
     : {},
   manifest: ({ mode, browser }) => ({
     name: "__MSG_extName__",
-    version: "1.59.3.9",
+    version: "1.59.3.10",
     version_name: "1.59.3A",
     commands: {
       "capture-and-translate": {

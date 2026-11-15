@@ -1,12 +1,12 @@
-FlowRead 1.59.3A.9 — reuse HTML selection translations
+FlowRead 1.59.3A.10 — MP3/SRT upload diagnostics
 
-- Package 1.59.3-a.9, manifest 1.59.3.9, display 1.59.3A; baseline 901a488e / A.8.
-- Sửa khung dịch HTML: quay từ Giải thích/Tóm tắt về Dịch hoặc chọn lại cùng đoạn đã hoàn tất dùng cache local, không gọi OpenAI thêm. Bấm lại tab đang chọn không gọi API. Nút tạo lại vẫn chủ động dịch mới.
-- Cache có giới hạn 500 mục / 16MiB / 30 ngày, phân biệt nội dung/ngôn ngữ/model/prompt/glossary/key revision. Không lưu kết quả đang dở/bị hủy; đổi cấu hình hoặc xóa cache chặn kết quả cũ đến muộn. Bản dịch trước khi cập nhật chưa có cache này có thể cần dịch lại một lần.
-- Không đổi API/permission/schema/migration, không upload PDF; giữ tính năng HTML/PDF/video/learning hiện tại.
-- 4.701 tests đạt, 1 intentionally skipped; 35 focused tests; 16 production Chrome assertions với API mock. Full-suite/build/audit xem VALIDATION.md. Chưa kiểm API thật, Edge runtime hoặc đo chi phí; PDF/video a.8 là bằng chứng lịch sử.
-- ZIP được stage/copy manifest cuối vào ReadFrog-Edge-1.58.0A; giữ ID/browser data. Reload entry cũ, numeric 1.59.3.9.
+- Package 1.59.3-a.10, numeric 1.59.3.10, display 1.59.3A. Baseline 310c785e / A.9.
+- Chuẩn bị 100% được ghi rõ là trên máy; chưa xác nhận OpenAI nhận file. Lỗi sau đó có mã AT-* để phân biệt network, HTTP/key/model/limit/format, phản hồi SRT hoặc timeout 15 phút.
+- Không hiển thị response body/key/path/exception, không tự retry/đổi model/gửi thêm audio. Giữ timestamp API hợp lệ và fixed OpenAI endpoints, không đổi permission/schema.
+- MP3 tổng hợp 18.001.772 byte truyền đủ và xuất SRT với API mock. Chưa tái hiện lỗi của file người dùng trên OpenAI thật; bản này cải thiện chẩn đoán, không tuyên bố đã sửa nguyên nhân chưa biết.
+- 4.711 unit tests đạt / 1 skip; Chrome probe với MP3 18 MB và tám trường hợp lỗi giả lập đạt.
+- Validation và giới hạn: store/VALIDATION.md. Reload entry cũ sau cập nhật, numeric 1.59.3.10.
 
-[Bộ hồ sơ store](https://github.com/dimayvegio/read-frog/tree/v1.59.3A.9/store) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.9/PRIVACY_POLICY.md) · [Thay đổi và giới hạn](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.9/HTML_SELECTION_CACHE_A9.md).
+[Chi tiết](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.10/AUDIO_UPLOAD_DIAGNOSTICS_A10.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.10/PRIVACY_POLICY.md).
 
-SHA-256 ZIP: `87fb8c738a1380c5dde0612f001803e6137ec5e930cbbde558050c4918c3341f`. Corresponding source at v1.59.3A.9.
+SHA-256 ZIP: `319a8b339165361c3f780dc323ff3e55650314b6e9ee1e34c4a46cf613430eee`.

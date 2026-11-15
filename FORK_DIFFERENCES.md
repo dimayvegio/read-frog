@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**Mới 1.59.3-a.10 / manifest 1.59.3.10:** chẩn đoán lỗi MP3/SRT sau chuẩn bị 100%: network, HTTP, mốc phụ đề và timeout; giữ private payload/no retry. [Chi tiết A.10](AUDIO_UPLOAD_DIAGNOSTICS_A10.md).
+
 **Mới 1.59.3-a.9 / manifest 1.59.3.9:** cache bản dịch HTML hoàn tất; chuyển tab hoặc chọn lại cùng đoạn không gọi API thừa. Tạo lại vẫn chủ động bypass. Xem [a.9](HTML_SELECTION_CACHE_A9.md).
 
 **Mới 1.59.3-a.8 / manifest 1.59.3.8:** khung cố định dùng cho HTML, cập nhật từ

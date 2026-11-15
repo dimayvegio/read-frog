@@ -8,6 +8,8 @@
 
 ## Local Fork Upgrades
 
+- Preserve A.10 [audio upload diagnostics](AUDIO_UPLOAD_DIAGNOSTICS_A10.md): local preparation 100% never claims OpenAI acceptance; expose only app-owned AT-* status/network/timing/timeout messages, never provider bodies or exception details. Keep fixed endpoints/models, timestamp validation, cancellation, bounds and no automatic paid retry. No schema/permission changes.
+
 - Preserve a.9 [HTML_SELECTION_CACHE_A9.md](HTML_SELECTION_CACHE_A9.md): repeated HTML fixed-pane Translate/mode switches/reselections reuse complete local translations from existing bounded AI DB2. Key effective text/prompt/glossary terms/output settings/credential revision; invalidate pending work on config/key/cache changes, never persist partial/aborted output or retry automatically. Explicit regenerate alone bypasses a matching cache. No PDF/image/schema/permission changes.
 
 - Preserve a.8 [HTML_FIXED_PANE_AUDIO_A8.md](HTML_FIXED_PANE_AUDIO_A8.md): HTML selections in the fixed pane never acquire PDF document/history/cleanup metadata. Only a mounted trusted pane for the same window/tab/route may own later explicit toolbar/menu translations; validate current frame/document IDs, keep close/visibility/TTL/cancellation fallback and no duplicate provider call. Highlights are bounded native CSS paint with DOM-preserving cleanup. Keep tab-RAM analysis durations 15/30/60/120/300/600 seconds for passive sampling and explicit prepared intervals on long videos, exact capture bounds, user-intent/late-pause guards and owned restore. Duration changes turn AI off, no automatic billing/retries/new permission/schema.

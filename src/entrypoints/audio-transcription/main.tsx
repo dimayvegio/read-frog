@@ -180,10 +180,16 @@ function App() {
             if (!mounted.current || abort.signal.aborted) return
             if (value.loaded !== undefined)
               update(id, {
-                message: `Đang chuẩn bị file ${Math.round((value.loaded / item.file.size) * 100)}%`,
+                message:
+                  value.loaded === item.file.size
+                    ? "Đã chuẩn bị file 100% trên máy; chưa xác nhận OpenAI đã nhận file."
+                    : `Đang chuẩn bị file ${Math.round((value.loaded / item.file.size) * 100)}%`,
               })
             if (value.processing)
-              update(id, { status: "processing", message: "Đang gửi OpenAI và nhận bản chép lời…" })
+              update(id, {
+                status: "processing",
+                message: "Đang tải file lên OpenAI và chờ kết quả…",
+              })
             if (value.text !== undefined) update(id, { text: value.text })
           })
           if (!mounted.current || abort.signal.aborted) break

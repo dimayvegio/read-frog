@@ -1,6 +1,6 @@
 # Corresponding source and licenses
 
-GPL-3.0 derivative of Read Frog: retain LICENSE, upstream copyright and third-party notices. Corresponding source is the complete repository at tag **v1.59.3A.9**, including lockfile, build scripts, local public assets and horse master/provenance. GitHub supplies source archives for the exact tag. Verify public source/tag access before distributing binaries. Minified ZIP alone is not corresponding source.
+GPL-3.0 derivative of Read Frog: retain LICENSE, upstream copyright and third-party notices. Corresponding source is the complete repository at tag **v1.59.3A.10**, including lockfile, build scripts, local public assets and horse master/provenance. GitHub supplies source archives for the exact tag. Verify public source/tag access before distributing binaries. Minified ZIP alone is not corresponding source.
 
 Rebuild on Node 26 and the packageManager pnpm version:
 

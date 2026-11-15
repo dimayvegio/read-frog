@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung A.10: giữ [audio upload diagnostics](AUDIO_UPLOAD_DIAGNOSTICS_A10.md), local progress không được coi là remote acceptance, AT-* không chứa provider body và không tự retry/upload sửa lỗi.
+
 Bổ sung a.9: giữ [cache dịch HTML hoàn tất](HTML_SELECTION_CACHE_A9.md); regression phải kiểm số lần gọi provider khi đổi tab/chọn lại, invalidation và explicit regenerate. Không đổi schema hay đường dịch PDF/ảnh.
 
 Bổ sung a.8: giữ [HTML fixed pane / analysis intervals](HTML_FIXED_PANE_AUDIO_A8.md),

@@ -1,5 +1,7 @@
 # F23 — Audio thành văn bản và chép lời tab trực tiếp
 
+**A.10 / manifest 1.59.3.10:** phân biệt chuẩn bị local 100%, upload/network/HTTP, phản hồi SRT và timeout bằng mã AT-* an toàn; không lộ response body/key, không tự gửi lại. Chưa xác định nguyên nhân lỗi MP3 gốc của người dùng. Xem [diagnostics A.10](AUDIO_UPLOAD_DIAGNOSTICS_A10.md).
+
 **Bản a.3 / manifest1.59.1.3:** local cap6s cho cả fallback, voiced silence500ms,
 ASR delay low, implicit live reasoning low (giữ explicit choice), hủy các job
 đã ra khỏi cửa sổ bounded. Không đổi model hay schema; vẫn final-only và tối đa

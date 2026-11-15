@@ -100,6 +100,57 @@ it("does not send after credential change, does not retry a failed paid call, an
   ).rejects.toThrow(/giới hạn/)
   expect(fetch).toHaveBeenCalledTimes(1)
 })
+it.each([400, 401, 403, 404, 413, 415, 429, 500])(
+  "reports a safe HTTP %i diagnostic after preparation without retrying or leaking response content",
+  async (httpStatus) => {
+    vi.mocked(fetch).mockResolvedValue(
+      new Response("private-provider-body", { status: httpStatus }),
+    )
+    const failure = await executeTranscription(
+      { ...metadata(), languages: ["en"], output: "subtitles" },
+      [bytes()],
+      4,
+      new AbortController().signal,
+      () => {},
+    ).catch((issue: Error) => issue)
+    expect(failure).toBeInstanceOf(Error)
+    const message = (failure as Error).message
+    expect(message).toContain(`AT-HTTP-${httpStatus}`)
+    expect(message).not.toMatch(/private-provider-body|transcription-private-sentinel/)
+    expect(message).toContain(
+      httpStatus === 413 ? "25 MB" : httpStatus === 404 ? "whisper-1" : `AT-HTTP-${httpStatus}`,
+    )
+    expect(fetch).toHaveBeenCalledTimes(1)
+  },
+)
+it("distinguishes upload-network failures and processing timeouts without exposing exception details", async () => {
+  vi.mocked(fetch).mockRejectedValue(new TypeError("private-network-diagnostic"))
+  await expect(
+    executeTranscription(metadata(), [bytes()], 4, new AbortController().signal, () => {}),
+  ).rejects.toThrow(/AT-UPLOAD-NETWORK:.*100%/)
+  const controller = new AbortController()
+  vi.mocked(fetch).mockImplementation(async () => {
+    controller.abort(new DOMException("private-timeout-detail", "TimeoutError"))
+    throw controller.signal.reason
+  })
+  await expect(
+    executeTranscription(metadata(), [bytes()], 4, controller.signal, () => {}),
+  ).rejects.toThrow(/AT-TIMEOUT:.*tính phí/)
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
+it("labels invalid SRT responses separately from upload and does not invent timing or retry", async () => {
+  vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ text: "No timestamps" })))
+  await expect(
+    executeTranscription(
+      { ...metadata(), languages: ["en"], output: "subtitles" },
+      [bytes()],
+      4,
+      new AbortController().signal,
+      () => {},
+    ),
+  ).rejects.toThrow(/AT-SRT-RESPONSE:.*Chưa tạo SRT/)
+  expect(fetch).toHaveBeenCalledOnce()
+})
 it("rejects late results after key replacement and preserves actual usage", async () => {
   status.mockResolvedValue({ configured: true, revision: 5 })
   await expect(

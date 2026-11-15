@@ -1,3 +1,19 @@
+# Candidate A.10 validation — 15 November 2026
+
+Baseline 310c785e / A.9, package 1.59.3-a.10, manifest 1.59.3.10, display 1.59.3A. No schema/permission/model/endpoint changes.
+
+## Current A.10
+
+- 27 focused tests passed, including 10 new HTTP/network/privacy/timeout/invalid-SRT diagnostic cases.
+- Full Vitest: **4,711 passed / one intentional skip**, 488 passing files / one skipped, SKIP_FREE_API=true. Current full run 88.89s; pre-push repeats/checks current source through Nx. Type-aware lint passed. Build and static audits passed: 470 packaged files / 201 JS / nine manifest locales.
+- Production Chrome 157 probe `.codex/srt-18mb-1794738967754`: real synthetic 18,001,772-byte MP3 transferred intact once, SRT download with API-mock segment timestamps; eight UI error cases (400/413/415/429/404/500/network/invalid timing) show safe codes, no provider detail leakage and no automatic re-upload. Unit tests cover auth and timeout too.
+- Original user file/live OpenAI acceptance/failure are unverified; no live paid requests. Current change improves diagnosis, not a proven root-cause fix.
+- SHA-256 ZIP: `319a8b339165361c3f780dc323ff3e55650314b6e9ee1e34c4a46cf613430eee`.
+- Production Audio/PiP/SRT regression on candidate: 31 checks passed in `.codex/audio-1794739084123-0c29165d`, controlled API/WebRTC peer.
+- Fixed installation update verified all 470 file hashes, manifest last, numeric 1.59.3.10/display 1.59.3A; same identity/permissions and no profile writes. User Reload required.
+
+## Historical A.9 validation (not a new A.10 run)
+
 # Candidate validation — 15 November 2026
 
 Baseline `901a488e` / 1.59.3-a.8. Candidate 1.59.3-a.9, numeric 1.59.3.9, display 1.59.3A. No upstream merge, permission or published schema changes.

@@ -72,24 +72,40 @@ export async function executeTranscription(
   const span = await beginUsage("other", model)
   try {
     signal.throwIfAborted()
-    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      body,
-      headers: { Authorization: `Bearer ${credential.apiKey}` },
-      credentials: "omit",
-      redirect: "error",
-      signal,
-    })
+    let response: Response
+    try {
+      response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        body,
+        headers: { Authorization: `Bearer ${credential.apiKey}` },
+        credentials: "omit",
+        redirect: "error",
+        signal,
+      })
+    } catch (issue) {
+      if (signal.aborted) throw issue
+      // Never forward browser/provider diagnostics: they can contain private data.
+      throw error(
+        "AT-UPLOAD-NETWORK: Không gửi/nhận được file với OpenAI. Kiểm tra kết nối, VPN/proxy hoặc phần mềm chặn mạng. Chuẩn bị 100% trên máy chưa có nghĩa OpenAI đã nhận file; không tự gửi lại.",
+      )
+    }
     if (!response.ok) {
       await response.body?.cancel().catch(() => {})
       throw error(
-        response.status === 401 || response.status === 403
-          ? "OpenAI từ chối khóa hoặc quyền dùng model chép lời. Kiểm tra OpenAI Settings."
-          : response.status === 429
-            ? "OpenAI giới hạn yêu cầu hoặc hết hạn mức. Kiểm tra tài khoản rồi thử lại."
-            : response.status === 400 || response.status === 413 || response.status === 415
-              ? "OpenAI chưa nhận được định dạng, dung lượng hoặc mã ngôn ngữ này. Kiểm tra file và gợi ý ngôn ngữ; không tự gửi lại."
-              : `OpenAI chưa chép lời được (HTTP ${response.status}). Bạn có thể thử lại.`,
+        `AT-HTTP-${response.status}: ` +
+          (response.status === 401
+            ? "OpenAI từ chối khóa API. Kiểm tra khóa trong OpenAI Settings."
+            : response.status === 403 || response.status === 404
+              ? `OpenAI chưa cho phép dùng hoặc không tìm thấy model ${model}. Kiểm tra quyền model/tài khoản trong OpenAI Settings.`
+              : response.status === 429
+                ? "OpenAI giới hạn yêu cầu hoặc hết hạn mức. Kiểm tra tài khoản rồi thử lại."
+                : response.status === 413
+                  ? "OpenAI từ chối vì yêu cầu tải lên quá lớn. Giới hạn file hiện tại là 25 MB; có thể nén hoặc chia file trước khi gửi lại."
+                  : response.status === 415
+                    ? "OpenAI không nhận định dạng nội dung file. Kiểm tra file có thực sự là MP3/WAV được hỗ trợ; đổi đuôi file không chuyển đổi định dạng."
+                    : response.status === 400
+                      ? "OpenAI từ chối file hoặc tham số chép lời. Kiểm tra file phát được, chọn đúng định dạng và thử ngôn ngữ tự nhận dạng khi phù hợp. Chưa xác định lỗi giải mã hay tham số; không tự gửi lại."
+                      : "OpenAI chưa xử lý được yêu cầu. Không tự gửi lại; hãy thử sau hoặc gửi mã lỗi này để kiểm tra."),
       )
     }
     let parsed
@@ -99,8 +115,8 @@ export async function executeTranscription(
       if (signal.aborted) throw issue
       throw error(
         timed
-          ? "OpenAI chưa trả mốc phụ đề hợp lệ hoặc phản hồi vượt giới hạn. Chưa tạo SRT; không tự gửi lại."
-          : "Luồng chép lời chưa hoàn tất hoặc vượt giới hạn. Phần đang hiện chỉ là bản nháp; có thể thử lại.",
+          ? "AT-SRT-RESPONSE: OpenAI đã phản hồi nhưng mốc phụ đề chưa hợp lệ, phản hồi bị ngắt hoặc vượt giới hạn. Chưa tạo SRT; đây không phải lỗi chuẩn bị file. Không tự gửi lại."
+          : "AT-TEXT-RESPONSE: Luồng chép lời chưa hoàn tất hoặc vượt giới hạn. Phần đang hiện chỉ là bản nháp; không tự gửi lại.",
       )
     }
     const usage = parsed.usage
@@ -117,6 +133,10 @@ export async function executeTranscription(
     return parsed.result
   } catch (issue) {
     await span.finish(signal.aborted ? "cancelled" : "error")
+    if (signal.aborted && signal.reason?.name === "TimeoutError")
+      throw error(
+        "AT-TIMEOUT: Đã hết thời gian chờ OpenAI (15 phút). File có thể đã được gửi và tính phí; chưa có kết quả hoàn chỉnh. Không tự gửi lại.",
+      )
     throw issue
   }
 }
