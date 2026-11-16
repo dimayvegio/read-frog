@@ -10,6 +10,7 @@ import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
 import { initI18n, setUiLanguage } from "@/utils/i18n"
 import { IMAGE_EDIT_PORT } from "@/utils/image-translation/generated-schema"
 import { logger } from "@/utils/logger"
+import { setupBackgroundLogging } from "@/utils/logging/setup-background"
 import { onMessage } from "@/utils/message"
 import { openOptionsPage } from "@/utils/navigation"
 import { PRONUNCIATION_PORT } from "@/utils/pronunciation/schema"
@@ -30,6 +31,7 @@ import {
   cleanupAllTranslationCache,
   setUpDatabaseCleanup,
 } from "./db-cleanup"
+import { setupDiagnosticsHandlers } from "./diagnostics"
 import { setupEdgeTTSMessageHandlers } from "./edge-tts"
 import { handleImageEditPort } from "./generated-image"
 import { setupGlossaryMessageHandlers } from "./glossary"
@@ -59,6 +61,8 @@ import { handleVocabularyPort, setupVocabularyHandlers, VOCABULARY_PORT } from "
 export default defineBackground({
   type: "module",
   main: () => {
+    setupBackgroundLogging()
+    setupDiagnosticsHandlers()
     // Retire alarms created by older builds; no rules server requests.
     void browser.alarms.clear("site-rules-update")
     // Upgraded profiles may retain the old recurring alarm, even after its listener is gone.
@@ -87,7 +91,6 @@ export default defineBackground({
     })
     setupSidePanelMessageHandler({
       extensionBrowser: browser,
-      logger,
       registerMessageHandler: onMessage,
     })
     onMessage("aiSegmentSubtitles", async (message) => runAiSegmentSubtitles(message.data))

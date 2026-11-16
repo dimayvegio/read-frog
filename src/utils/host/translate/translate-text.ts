@@ -1,4 +1,5 @@
 import type { LanguageTag, LangLevel } from "@read-frog/definitions"
+import type { ParagraphDiagnosis } from "./paragraph-diagnosis"
 import type { Config } from "@/types/config/config"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type { WebPagePromptContext } from "@/types/content"
@@ -11,7 +12,7 @@ import { isNoTranslationSentinel } from "@/utils/constants/prompt"
 import { detectLanguage } from "@/utils/content/language"
 import { resolveGlossaryTerms } from "@/utils/glossary/active-matcher"
 import { i18n } from "@/utils/i18n"
-import { logger } from "@/utils/logger"
+import { createLogger } from "@/utils/logging/logger"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
 import { getProviderCacheIdentity, serializeProviderRef } from "@/utils/providers/provider-ref"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
@@ -21,6 +22,8 @@ import { sendMessage } from "../../message"
 import { getInMemoryTranslation, storeInMemoryTranslation } from "./in-memory-translation-cache"
 import { prepareTranslationText } from "./text-preparation"
 import { getPageTranslationSessionId } from "./translation-session"
+
+const log = createLogger("host/translate/translate-text")
 
 /**
  * Minimum text length before a skip decision is attempted at all. Deliberately
@@ -152,6 +155,7 @@ export async function resolvePageProviderRef(
 }
 
 export interface TranslateTextOptions {
+  diagnosis?: ParagraphDiagnosis
   text: string
   langConfig: {
     sourceCode: LanguageTag | "auto"
@@ -184,6 +188,7 @@ export interface TranslateTextOptions {
 export async function translateTextCore(options: TranslateTextOptions): Promise<string> {
   const {
     text,
+    diagnosis,
     langConfig,
     providerConfig,
     enableAIContentAware = false,
@@ -198,6 +203,7 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
 
   const preparedText = prepareTranslationText(text)
   if (preparedText === "") {
+    diagnosis?.untranslated("noProse")
     return ""
   }
 
@@ -265,7 +271,7 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
   if (sessionId !== undefined && !forceRetranslation) {
     const memoryHit = getInMemoryTranslation(hash)
     if (memoryHit !== undefined) {
-      return isNoTranslationSentinel(memoryHit) ? "" : memoryHit
+      return toDisplayedResult(memoryHit, diagnosis)
     }
   }
 
@@ -296,7 +302,17 @@ export async function translateTextCore(options: TranslateTextOptions): Promise<
   // toolbar standard path) routes through this function and already handles
   // "" gracefully. Mapping earlier — in the background — would fall out of
   // the truthy-only cache write and re-hit the provider on every request.
-  return isNoTranslationSentinel(result) ? "" : result
+  return toDisplayedResult(result, diagnosis)
+}
+
+/** The one place the "no translation needed" sentinel becomes "" (see above). */
+function toDisplayedResult(result: string, diagnosis: ParagraphDiagnosis | undefined): string {
+  if (isNoTranslationSentinel(result)) {
+    diagnosis?.untranslated("noTranslationNeeded")
+    return ""
+  }
+  if (!result.trim()) diagnosis?.untranslated("emptyResult")
+  return result
 }
 
 export function validateTranslationConfigAndToast(
@@ -317,7 +333,7 @@ export function validateTranslationConfigAndToast(
     isSameLanguage(languageConfig.sourceCode, languageConfig.targetCode)
   ) {
     toastManager.add({ type: "error", title: i18n.t("translation.sameLanguage") })
-    logger.info("validateTranslationConfig: returning false (same language)")
+    log.info("Page translation not started: source and target language are the same")
     return false
   }
 

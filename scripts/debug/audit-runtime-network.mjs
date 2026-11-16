@@ -13,6 +13,8 @@ const forbidden = [
   "api.unisvg.com",
   "unpkg.com/@lobehub",
   "https://api.readfrog.app",
+  "cn.ifapi.org",
+  "api.ifapi.org",
   "read-frog-settings-sync",
   "rf-config:head:",
   "rf-config:data:",

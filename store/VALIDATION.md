@@ -1,3 +1,57 @@
+# FlowRead1.60.0A validation — 17 November 2026
+
+Baseline local `ea4d6d5b` / A.19; upstream `v1.60.0` / `0528cfa6b15e49e858786205b7104b7592c20da5`; package `1.60.0-a.1`, numeric `1.60.0.1`, display `1.60.0A`. [Integration decisions](../UPSTREAM_1_60_0_REPORT.md). True merge from the latest fork, preserving ancestry. No dependency or permission changes; account sync remains retired.
+
+## Current evidence
+
+- Full fresh unit suite: **5,002 passed / 1 intentionally skipped, 521 passing files / 1 skipped**. `SKIP_FREE_API=true`, `NX_DAEMON=false`, `NX_SKIP_NX_CACHE=true`; `.codex/review-160/unit-final.log`. Historical external free-translation test excluded intentionally. New CSS/timeout migration tests, diagnostics sender/redaction/oversize tests and stalled-log-write bounds are included.
+- **22 production browser suites / 663 final passing checks**, actual Edge-MV3 package in isolated Chrome157 profiles, synthetic pages/audio/PDFs and mocked OpenAI. Local Tesseract en/vi/zh/ja, PDF.js, native DOM/media paths exercised. **Live OpenAI spending $0**. No claim of live model quality, Edge-main-profile UI validation, physical phone, account/DRM or 120-minute soak.
+- Actual **A.19 ZIP → 1.60.0A copy-only upgrade**, same QA directory/ID. Key/revision, public settings, feature preferences, notebooks and inert sync DB preserved. Config and existing backups acquire only the documented migration fields (CSS selectors/queue timeout/schema127); backup IDs/metadata remain. Worker restart removes only the retired sync alarm, keeping backup/unrelated alarms. Local JSON export/import uses schema127 and excludes credentials. Retired sync RPCs/entrypoint stay unavailable/inert. App storage.sync and external fetches from these local settings actions: **0**; bundled icon loads are recorded separately.
+- New production UI test: both timeout inputs reject999s without saving a prefix, commit45s/60s correctly; all three live previews render without provider calls. Diagnosis opens/closes/outlines existing paragraph verdicts without more AI or source-text mutation. A content frame cannot export the private diagnostics/config report. Explicit Options export data has sanitized logs/schema127 and no fake key/header/response-body sentinels. No new survey/sponsor/feedback launcher.
+- Type-aware lint/typecheck and formatting passed. Runtime network audit: **213 scripts / zero forbidden endpoints or retired sync RPC/transport strings**, including new IF API endpoint checks. Store audit with `STORE_REQUIRE_SCREENSHOTS=true` passed. All124 existing migration-file hashes (versions through125) match A.19 byte-for-byte. New steps are fork125→126 and126→127; AppDB8 appends only `logRecord` beside stores1–7. Standalone vocabulary HTML hash unchanged.
+- Artifacts/logs: `.codex/review-160/`; final browser ledger `browser-final-summary.json`, upgrade `.codex/sync-removal-1794851393168/evidence.json`, new UI `.codex/upstream-160-1794851778542/evidence.json`.
+
+| Suite                       | Passing checks |
+| --------------------------- | -------------: |
+| check-upstream-160          |             17 |
+| check-settings-sync-removal |             21 |
+| check-image-overlay         |             15 |
+| check-image-structure       |             22 |
+| check-pdf-image-translation |             37 |
+| check-pdf-reading           |             81 |
+| check-web-bilingual         |             26 |
+| check-pdf-study             |             35 |
+| check-pdf-workspace         |             23 |
+| check-pdf-bilingual         |             33 |
+| check-audio-transcription   |             31 |
+| check-pronunciation         |             37 |
+| check-tts-download          |             11 |
+| check-reading-lab           |             20 |
+| check-study-flow            |             59 |
+| check-vocabulary-scale      |             25 |
+| check-anipm-context         |             14 |
+| check-html-fixed-pane       |             21 |
+| check-generated-image       |             21 |
+| check-vocabulary            |             70 |
+| check-video-dubbing-youtube |             22 |
+| check-video-dubbing-anipm   |             22 |
+
+## Failed candidates and harness corrections
+
+Early merge validation failures were retained rather than counted as passes: missing new migration fixtures; upstream tests assuming hosted/Google providers and jsdom31 despite the fork retaining OpenAI-only dependencies; static logger tests naming an empty legacy entrypoint directory; merge-conflict omissions in diagnosis/cache typing. Applicable tests were adapted to the actual fork contracts, retaining existing native DOM/style assertions and adding independent expected snapshots126/127. Timeout integration tests now include batch-size allowance, wait for real batch admission and cancel their hanging fixture requests between cases.
+
+New browser harness setup failures are also retained (`browser-new-features*.log`, initial `check-upstream-160.log`): wrong subtitle input selector, a filter fixture written to the wrong config nesting, closure state not passed to CDP, and waiting on background-tab rAF during Help navigation. Corrected selectors/config/serialization and foreground/reload/polling; all17 new production checks then passed on the unchanged final runtime. Upgrade expectations explicitly model the existing backup-cleanup migration; no actual user fields were discarded to make an equality check pass. Final reruns are in `new-features-final.log` and `check-settings-sync-removal.log`; the initial failing ledger stays in `browser-initial-summary.json`.
+
+## Package and installation
+
+One ZIP: `FlowRead-Edge-1.60.0A.zip`, **21,584,739 bytes**, SHA256 `7fede1a2439e6ff56831191cfd3640d0ccab6a209b200830e866d0fa6f5242c5`. Root manifest/CRC/safe paths and final build bytes are checked by the installer. Copy-only staging targets the fixed `C:\Users\TIEN\Downloads\ReadFrog-Edge-1.58.0A`, assets/entrypoints before manifest; **482 hashes**, identity and permissions must match. No main browser-profile data or destination cleanup/reinstall. User Reload pending at numeric1.60.0.1/display1.60.0A. Installation report is linked by `.codex/latest-local-extension-update.json`.
+
+Standalone vocabulary HTML SHA256 remains `39fccc0d40d091efa55731358b0ee0066f7824731375720cf1ab9c1902433f9a`. GitHub release asset is uploaded only after the merge commit/tag is pushed, then verified against the tested ZIP digest; GitHub publication is not store approval.
+
+---
+
+## Historical A.19 evidence (not a 1.60.0A rerun)
+
 # A.19 validation — 16 November 2026
 
 Baseline `27fefff3` / A.18; package `1.59.3-a.19`, numeric `1.59.3.19`, display `1.59.3A`. Review and removal contract: [EDGE_SYNC_REMOVAL_A19.md](../EDGE_SYNC_REMOVAL_A19.md). User-requested removal of Edge account settings sync; no dependency, permission, config125 migration or other published data-format changes.

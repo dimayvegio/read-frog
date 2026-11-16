@@ -1,3 +1,5 @@
+**Đối chiếu khi merge1.60.0 (17/11/2026):** [OpenAI Transcription guide](https://developers.openai.com/api/docs/guides/transcription) vẫn ghi `whisper-1` shutdown26/02/2027 và là legacy path cho SRT/VTT có timestamps. Giữ timed-file mode explicit; không đổi model/tạo timing giả hoặc tự retry trong đợt merge này. Mốc shutdown không phải bằng chứng đã gọi API thật.
+
 # F23 — Audio thành văn bản và chép lời tab trực tiếp
 
 **A.10 / manifest 1.59.3.10:** phân biệt chuẩn bị local 100%, upload/network/HTTP, phản hồi SRT và timeout bằng mã AT-* an toàn; không lộ response body/key, không tự gửi lại. Chưa xác định nguyên nhân lỗi MP3 gốc của người dùng. Xem [diagnostics A.10](AUDIO_UPLOAD_DIAGNOSTICS_A10.md).

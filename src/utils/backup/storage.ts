@@ -7,7 +7,9 @@ import { toPortableConfig } from "@/utils/config/portable"
 import { BACKUP_ID_PREFIX, MAX_BACKUPS_COUNT } from "@/utils/constants/backup"
 import { CONFIG_SCHEMA_VERSION } from "@/utils/constants/config"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
-import { logger } from "@/utils/logger"
+import { createLogger } from "@/utils/logging/logger"
+
+const log = createLogger("backup/storage")
 
 /**
  * Generate a unique ID for a backup based on timestamp
@@ -99,9 +101,9 @@ export async function addBackup(config: Config, extensionVersion: string): Promi
     // Update backup IDs list
     await storage.setItem("local:backup_ids", backupIds)
 
-    logger.info("Backup created:", backupId)
+    log.info("Backup created", { backupId })
   } catch (error) {
-    logger.error("Error adding backup:", error)
+    log.error("Error adding backup", { error })
     throw error
   }
 }
@@ -117,9 +119,9 @@ export async function removeBackup(backupId: string): Promise<void> {
     await storage.setItem("local:backup_ids", updatedIds)
     await storage.removeItem(`local:${backupId}`, { removeMeta: true })
 
-    logger.info("Backup removed:", backupId)
+    log.info("Backup removed", { backupId })
   } catch (error) {
-    logger.error("Error removing backup:", error)
+    log.error("Error removing backup", { error })
     throw error
   }
 }
@@ -139,9 +141,9 @@ export async function clearAllBackups(): Promise<void> {
     // Clear backup IDs list
     await storage.removeItem("local:backup_ids")
 
-    logger.info("All backups cleared")
+    log.info("All backups cleared")
   } catch (error) {
-    logger.error("Error clearing backups:", error)
+    log.error("Error clearing backups", { error })
     throw error
   }
 }

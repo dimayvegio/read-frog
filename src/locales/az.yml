@@ -69,6 +69,7 @@ popup:
     emailUs: Bizə e-poçt göndər
     featureRequest: Funksiya təklif et
     bugReport: Xəta bildir
+    diagnosePage: "Bu səhifəni diaqnoz et"
     community: İcma
     joinDiscord: Discord icmasına qoşul
     joinWechat: WeChat qrupuna qoşul
@@ -135,6 +136,13 @@ options:
     bugReport:
       title: Xəta bildir
       description: Dəstək sorğusu açın və problem həll edilənədək onu izləyin
+    troubleshooting:
+      title: "Problemlərin həlli"
+    diagnostics:
+      title: "Diaqnostika məlumatlarını ixrac et"
+      description: "Xəta hesabatına əlavə etmək üçün son jurnalları və ayarlarınızı (API açarları olmadan) yadda saxlayın"
+      exportSuccess: "Diaqnostika məlumatları yadda saxlanıldı"
+      exportFailed: "Diaqnostika məlumatlarını ixrac etmək mümkün olmadı"
     community:
       title: İcma
     discord:
@@ -171,12 +179,14 @@ options:
         pdfTranslation: PDF tərcüməsi
     sponsorCta: Sürətli və sərfəli süni intellekt əldə et
     sponsorCtaJalapenoCloud: GLM 5.3 üçün 50% endirim əldə et
+    sponsorCtaIfapi: READFROG kodu ilə +10% balans
     setApiKeyWarning:
       message: API açarını $1 səhifəsində təyin edin
     badges:
       featureCount: $1 funksiya
       sponsor: Dəstəkçi
       sponsorJalapenoCloud: $$1 hədiyyə
+      sponsorIfapi: Modellər -90%
     dialog:
       title: Yeni provayder əlavə et
       groups:
@@ -269,6 +279,7 @@ options:
         xai: Real vaxt məlumatlarına çıxışı olan Grok modellərini təqdim edən, Elon Musk tərəfindən qurulmuş süni intellekt şirkəti
         atlascloud: Yeni DeepSeek, Kimi, Qwen, Doubao, GLM və digər modellərə OpenAI ilə uyğun vahid çıxış
         jalapenocloud: Aparıcı komandaların istifadə etdiyi korporativ səviyyəli süni intellekt indi sizin üçün də əlçatandır!
+        ifapi: GPT, Claude, Gemini və digərləri, rəsmi qiymətin 10%-indən başlayaraq
         siliconflow: Çin və beynəlxalq modellər üçün yüksək məhsuldarlıqlı model icrası platforması
         tensdaq: Bazar əsasında qiymət qoyan, baha sabit tarifləri aradan qaldıran yenilikçi hərrac əsaslı süni intellekt MaaS platforması
         openaiCompatible: OpenAI Chat Completions API ilə uyğun fərdi xidmət ünvanına qoşulun
@@ -1326,7 +1337,7 @@ options:
         error: Dəyər $1 ilə $2 arasında olmalıdır
     translationQueue:
       title: Tərcümə növbəsi
-      description: Sorğuların göndərilmə sürətini, hər sorğudakı mətn miqdarını və oxuduğunuz hissədən nə qədər sonrakı məzmunun əvvəlcədən tərcümə olunacağını təyin edin
+      description: Sorğuların göndərilmə sürətini, hər sorğudakı mətn miqdarını, hər sorğunun nə qədər gözləyə biləcəyini və oxuduğunuz hissədən nə qədər sonrakı məzmunun əvvəlcədən tərcümə olunacağını təyin edin
       manageQueue: Növbəni idarə et
       requestQueueConfig:
         title: Tərcümə sürəti
@@ -1341,6 +1352,9 @@ options:
           description: "Maksimum simvol sayı: bir süni intellekt sorğusunun daşıdığı mətn miqdarı"
         maxItemsPerBatch:
           description: "Maksimum abzas sayı: bir sorğuda neçə abzas birləşdirilir. Süni intellektdən istifadə etməyən provayderlər hər iki parametrə məhəl qoymur"
+      requestTimeout:
+        title: Sorğunun vaxt limiti
+        description: "İmtina edib yenidən cəhd etməzdən əvvəl cavab üçün neçə saniyə gözlənilir. Süni intellektin toplu sorğularına uzunluğuna görə əlavə vaxt verilir, ən çox 100 saniyə. Yavaş model tez-tez vaxt limitini keçirsə, artırın"
       preloadConfig:
         title: Öncədən tərcümə əhatəsi
         description: API xərclərinə qənaət üçün görünən sahənin altındakı məzmunun nə qədərinin öncədən tərcümə ediləcəyini idarə edin
@@ -1512,7 +1526,7 @@ options:
           videoSummary: Videonun xülasəsi (süni intellektlə ağıllı kontekst tələb olunur)
     subtitlesQueue:
       title: Subtitr növbəsi
-      description: Subtitr sorğularının göndərilmə sürəti və hər sorğudakı sətir sayı
+      description: Subtitr sorğularının göndərilmə sürəti, hər sorğudakı sətir sayı və hər sorğunun nə qədər gözləyə biləcəyi
       manageQueue: Növbəni idarə et
       requestQueueConfig:
         title: Tərcümə sürəti
@@ -1527,6 +1541,9 @@ options:
           description: "Maksimum simvol sayı: bir süni intellekt sorğusunun daşıdığı mətn miqdarı"
         maxItemsPerBatch:
           description: "Maksimum subtitr sətri sayı: bir sorğuda neçə sətir birləşdirilir. Süni intellektdən istifadə etməyən provayderlər hər iki parametrə məhəl qoymur"
+      requestTimeout:
+        title: Sorğunun vaxt limiti
+        description: "İmtina edib yenidən cəhd etməzdən əvvəl cavab üçün neçə saniyə gözlənilir. Süni intellektin toplu sorğularına uzunluğuna görə əlavə vaxt verilir, ən çox 100 saniyə. Yavaş model tez-tez vaxt limitini keçirsə, artırın"
     cache:
       title: Keş
       clearCache:
@@ -1584,6 +1601,24 @@ translation:
   sameLanguage: Mənbə və hədəf dilləri fərqli olmalıdır
   autoModeSameLanguage: Aşkarlanan '$1' dili hədəf dili ilə eynidir
   extensionContextInvalidated: Genişlənmə yeniləndi. Bu səhifəni yeniləyib yenidən cəhd edin.
+pageDiagnosis:
+  title: "Səhifə diaqnostikası"
+  summary: "$1 tərcümə olundu, $2 tərcümə olunmadı"
+  empty: "Hələ göstəriləcək heç nə yoxdur. Səhifə tərcüməsini yandırın, sonra bunu yenidən açın."
+  emptyWhileTranslating: "Hələ göstəriləcək heç nə yoxdur. Səhifə tərcüməsi abzaslara çatdıqca onlar burada görünəcək."
+  framesNotIncluded: "Daxil edilmiş çərçivələrin içindəki mətn burada nəzərə alınmır."
+  hint: "Abzaslarını səhifədə işarələmək üçün bir səbəbə klikləyin."
+  close: "Bağla"
+  unavailable: "Read Frog bu səhifədə işləyə bilmir"
+  reasons:
+    noProse: "Tərcümə ediləcək söz yoxdur"
+    tooShort: "Tərcümə üçün çox qısadır"
+    targetLanguage: "Artıq hədəf dilinizdədir"
+    skipLanguage: "Atladığınız dildədir"
+    noTranslationNeeded: "Süni intellekt tərcüməyə ehtiyac olmadığını dedi"
+    sameAsSource: "Tərcümə orijinalla eynidir"
+    emptyResult: "Xidmət heç nə qaytarmadı"
+    error: "Tərcümə alınmadı"
 annotation:
   annotate: "Qeyd əlavə et"
   enterMode: "Qeyd rejimi"

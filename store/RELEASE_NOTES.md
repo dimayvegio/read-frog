@@ -1,3 +1,20 @@
+FlowRead1.60.0A — Merge upstream theo ưu tiên fork
+
+- Package1.60.0-a.1; numeric1.60.0.1; display1.60.0A. Tích hợp tagv1.60.0 (`0528cfa6`) từ local A.19 (`ea4d6d5b`).
+- Sửa CSS custom theo mã ngôn ngữ BCP47; thêm timeout hàng đợi trang/phụ đề (5–180 giây, mặc định20s) và rule hiển thị raea.io.
+- Preview cài đặt local thay ảnh tĩnh; chẩn đoán trang và xuất log local qua Help. Không tự gửi báo cáo; dữ liệu đã scrub vẫn cần xem trước khi chia sẻ.
+- Giữ toàn bộ tính năng riêng, OpenAI-only, key riêng, PDF local, sổ từ/tiến độ/cache, buffer120s và A.19 không có Edge sync.
+- Không nhận IF API/sponsor, khảo sát/feedback, cloud hoặc nâng dependency không cần thiết. Quy tắc fork-first đã thêm AGENTS.md.
+- Config127 thêm hai bước126/127; không sửa migration đã phát hành. AppDB8 chỉ thêm log bounded; dữ liệu/định dạng feature khác giữ nguyên.
+- 5.002 unit tests passed/1 skip có chủ đích; 22 browser suites/663 checks đạt với API mock/$0. ZIP21.584.739 bytes, SHA256 `7fede1a2439e6ff56831191cfd3640d0ccab6a209b200830e866d0fa6f5242c5`.
+- Kiểm thử và ZIP: xem VALIDATION.md và báo cáo nâng cấp. User Reload entry cũ sau khi copy, không cần cài mới.
+
+[Ma trận tích hợp](../UPSTREAM_1_60_0_REPORT.md) · [Privacy](../PRIVACY_POLICY.md)
+
+---
+
+## Lịch sử A.19
+
 FlowRead 1.59.3A.19 — Gỡ đồng bộ cấu hình tài khoản Edge
 
 - Package `1.59.3-a.19`, numeric `1.59.3.19`, display `1.59.3A`; baseline A.18 (`27fefff3`).

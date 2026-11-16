@@ -1,9 +1,10 @@
 import type { LanguageTag } from "@read-frog/definitions"
+import type { ParagraphDiagnosis } from "./paragraph-diagnosis"
 import type { Config, InputTranslationLang } from "@/types/config/config"
 import type { TranslationTextFormat } from "@/types/config/translate"
 import type { ResolvedProviderRef } from "@/utils/providers/provider-registry"
 import { getDetectedCodeFromStorage, getFinalSourceCode } from "@/utils/config/languages"
-import { logger } from "@/utils/logger"
+import { createLogger } from "@/utils/logging/logger"
 import {
   canResolvedProviderRefGenerateText,
   resolvePageTranslationProvider,
@@ -21,6 +22,8 @@ import {
 import { getPageTranslationSessionId } from "./translation-session"
 import { getOrCreateWebPageContext } from "./webpage-context"
 import { getOrGenerateWebPageSummary } from "./webpage-summary"
+
+const log = createLogger("host/translate/translate-variants")
 
 async function getConfigOrThrow(): Promise<Config> {
   const config = await getLocalConfig()
@@ -91,10 +94,13 @@ async function translateTextUsingPageConfig(
     // Session captured at pipeline entry by the caller; see translateTextForPage.
     sessionId?: string
     forceRetranslation?: boolean
+    diagnosis?: ParagraphDiagnosis
   } = {},
 ): Promise<string> {
+  const { diagnosis } = options
   const preparedText = prepareTranslationText(text)
   if (preparedText === "") {
+    diagnosis?.untranslated("noProse")
     return ""
   }
 
@@ -103,9 +109,8 @@ async function translateTextUsingPageConfig(
   // Backstop only: the page modes hoist this check before DOM insertion, but
   // other callers (e.g. the page title) still rely on it here.
   if (await shouldSkipAsTargetLanguage(preparedText, config)) {
-    logger.info(
-      `translateTextForPage: skipping translation because text is already in target language. text: ${preparedText}`,
-    )
+    log.debug("Skipped: already in the target language", { text: preparedText })
+    diagnosis?.untranslated("targetLanguage")
     return ""
   }
 
@@ -114,9 +119,8 @@ async function translateTextUsingPageConfig(
   if (skipLanguages.length > 0 && preparedText.length >= MIN_LENGTH_FOR_SKIP_LANGUAGE_DETECTION) {
     const shouldSkip = await shouldSkipByLanguage(preparedText, skipLanguages)
     if (shouldSkip) {
-      logger.info(
-        `translateTextForPage: skipping translation because text is in skip language list. text: ${preparedText}`,
-      )
+      log.debug("Skipped: in a language set to skip", { text: preparedText })
+      diagnosis?.untranslated("skipLanguage")
       return ""
     }
   }
@@ -133,12 +137,15 @@ async function translateTextUsingPageConfig(
     preserveLineBreaks: options.preserveLineBreaks,
     sessionId: options.sessionId,
     forceRetranslation: options.forceRetranslation,
+    diagnosis,
   })
 }
 
 export interface PageTranslationRequestOptions {
   preserveLineBreaks?: boolean
   forceRetranslation?: boolean
+  /** Told why the answer is empty, by whichever step made it so. */
+  diagnosis?: ParagraphDiagnosis
 }
 
 /**
@@ -170,6 +177,7 @@ export async function translateTextForPage(
     preserveLineBreaks: options?.preserveLineBreaks,
     sessionId,
     forceRetranslation: options?.forceRetranslation,
+    diagnosis: options?.diagnosis,
   })
 }
 

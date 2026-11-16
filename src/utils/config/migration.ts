@@ -2,10 +2,12 @@ import type { MigrationFunction } from "./migration-scripts/types"
 import type { Config } from "@/types/config/config"
 import { configSchema } from "@/types/config/config"
 import { i18n } from "@/utils/i18n"
+import { createLogger } from "@/utils/logging/logger"
 import { CONFIG_SCHEMA_VERSION } from "../constants/config"
-import { logger } from "../logger"
 import { ConfigVersionTooNewError } from "./errors"
 import { toPortableConfig } from "./portable"
+
+const log = createLogger("config/migration")
 
 export const LATEST_SCHEMA_VERSION = CONFIG_SCHEMA_VERSION
 
@@ -94,7 +96,7 @@ const modules = import.meta.glob<MigrationFunction>(["./migration-scripts/v*-to-
 })
 export const migrationScripts = buildMigrationRegistry(modules, 1, CONFIG_SCHEMA_VERSION)
 
-logger.log("Loaded migration modules:", migrationScripts)
+log.debug("Loaded migration modules", { migrationScripts })
 
 export async function runMigration(version: number, config: any): Promise<any> {
   const migrationFn = migrationScripts[version]

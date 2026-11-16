@@ -70,6 +70,7 @@ popup:
     emailUs: Email us
     featureRequest: Feature request
     bugReport: Report a bug
+    diagnosePage: "Diagnose this page"
     community: Community
     joinDiscord: Join Discord
     joinWechat: Join WeChat Group
@@ -136,6 +137,13 @@ options:
     bugReport:
       title: Report a bug
       description: Open a support ticket and follow it until it is fixed
+    troubleshooting:
+      title: "Troubleshooting"
+    diagnostics:
+      title: "Export diagnostics"
+      description: "Save recent logs and settings, with API keys removed, to attach to a bug report"
+      exportSuccess: "Diagnostics saved"
+      exportFailed: "Couldn't export diagnostics"
     community:
       title: Community
     discord:
@@ -172,12 +180,14 @@ options:
         pdfTranslation: PDF translation
     sponsorCta: Get fast, cost-effective AI
     sponsorCtaJalapenoCloud: Get 50% Off GLM 5.3
+    sponsorCtaIfapi: "+10% credit, use code READFROG"
     setApiKeyWarning:
       message: Please set your API key on the $1 page
     badges:
       featureCount: $1 features
       sponsor: Sponsor
       sponsorJalapenoCloud: $$1 Free
+      sponsorIfapi: 90% Off Models
     dialog:
       title: Add new provider
       groups:
@@ -270,6 +280,7 @@ options:
         xai: Elon Musk's AI company offering Grok models with real-time data access
         atlascloud: Unified OpenAI-compatible access to newer DeepSeek, Kimi, Qwen, Doubao, GLM, and other models
         jalapenocloud: Enterprise-grade AI used by top teams — now made for you!
+        ifapi: GPT, Claude, Gemini and more, from 10% of list price
         siliconflow: High-performance inference platform for Chinese and international models
         tensdaq: Revolutionary bidding AI MaaS platform with market-driven pricing, eliminating high-cost fixed pricing
         openaiCompatible: Connect to a custom endpoint compatible with the OpenAI Chat Completions API
@@ -1469,7 +1480,7 @@ options:
         error: Value must be between $1 and $2
     translationQueue:
       title: Translation queue
-      description: How fast requests go out, how much text each carries, and how far ahead of the reader they run
+      description: How fast requests go out, how much text each carries, how long each may take, and how far ahead of the reader they run
       manageQueue: Manage queue
       requestQueueConfig:
         title: Translation rate
@@ -1484,6 +1495,9 @@ options:
           description: "Maximum characters: how much text one AI request carries"
         maxItemsPerBatch:
           description: "Maximum paragraphs: how many paragraphs share one request. Providers that are not AI ignore both"
+      requestTimeout:
+        title: Request timeout
+        description: "Seconds to wait for a reply before giving up and retrying. AI batch requests get extra time for their length, up to 100 seconds more. Raise it if a slow model keeps timing out"
       preloadConfig:
         title: Pre-translate range
         description: Control how much content below the viewport gets pre-translated to save API costs
@@ -1655,7 +1669,7 @@ options:
           videoSummary: Video summary (requires AI smart context)
     subtitlesQueue:
       title: Subtitle queue
-      description: How fast subtitle requests go out and how many lines each carries
+      description: How fast subtitle requests go out, how many lines each carries, and how long each may take
       manageQueue: Manage queue
       requestQueueConfig:
         title: Translation rate
@@ -1670,6 +1684,9 @@ options:
           description: "Maximum characters: how much text one AI request carries"
         maxItemsPerBatch:
           description: "Maximum subtitle lines: how many lines share one request. Providers that are not AI ignore both"
+      requestTimeout:
+        title: Request timeout
+        description: "Seconds to wait for a reply before giving up and retrying. AI batch requests get extra time for their length, up to 100 seconds more. Raise it if a slow model keeps timing out"
     cache:
       title: Cache
       clearCache:
@@ -1727,6 +1744,24 @@ translation:
   sameLanguage: Source and target languages must be different
   autoModeSameLanguage: Detected language '$1' is the same as target language
   extensionContextInvalidated: The extension was updated. Refresh this page and try again.
+pageDiagnosis:
+  title: "Page diagnosis"
+  summary: "$1 translated, $2 not translated"
+  empty: "Nothing to show yet. Turn on page translation, then open this again."
+  emptyWhileTranslating: "Nothing to show yet. Paragraphs show up here as page translation reaches them."
+  framesNotIncluded: "Text inside embedded frames isn't included here."
+  hint: "Click a reason to outline its paragraphs on the page."
+  close: "Close"
+  unavailable: "Read Frog isn't running on this page"
+  reasons:
+    noProse: "No words to translate"
+    tooShort: "Too short to translate"
+    targetLanguage: "Already in your target language"
+    skipLanguage: "In a language you skip"
+    noTranslationNeeded: "The AI said no translation is needed"
+    sameAsSource: "The translation matched the original"
+    emptyResult: "The service returned nothing"
+    error: "Translation failed"
 annotation:
   annotate: "Annotate"
   enterMode: "Annotation mode"

@@ -4,7 +4,6 @@ import { browser, storage } from "#imports"
 import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import {
-  initializeContextMenu,
   MENU_ID_SELECTION_CUSTOM_ACTION_PREFIX,
   MENU_ID_SELECTION_READ_ALOUD,
   MENU_ID_SELECTION_TRANSLATE,
@@ -12,6 +11,7 @@ import {
   MENU_ID_PDF_PANEL,
   MENU_ID_IMAGE_TRANSLATE,
   registerContextMenuListeners,
+  initializeContextMenu,
 } from "../context-menu"
 
 // vi.mock factories run during the static imports above, before this module's

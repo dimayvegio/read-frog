@@ -1,5 +1,7 @@
 # FlowRead — hướng dẫn Gemini kiểm thử sử dụng liên tục
 
+**1.60.0A:** xem UPSTREAM_1_60_0_REPORT.md, config127/AppDB8. Với `check-settings-sync-removal.mjs`, đặt `FLOWREAD_UPSTREAM_160=1` và cung cấp ZIP A.19 thật ở `.codex/review-160/baseline-a19.zip` (SHA256 `a4965cb2cc5a5c1cca40b74de5afd67a7fb5d611d5bb0b9491aad7aa414092e4`). Kiểm thêm `check-upstream-160.mjs` cho timeout/preview/diagnostics. Các mốc báo cáo bên dưới là lịch sử.
+
 **Cập nhật A.19 (16/11/2026):** đồng bộ Edge đã gỡ; dùng S21 và [hợp đồng gỡ tính năng](EDGE_SYNC_REMOVAL_A19.md), không chạy harness transport đã xóa. Các mốc bên dưới là lịch sử.
 
 Mốc soạn: 15/11/2026. Đối chiếu repository ở commit `310c785e`, tag `v1.59.3A.9`, package `1.59.3-a.9`, manifest numeric `1.59.3.9`, display `1.59.3A`. Khi chạy trên commit khác, ghi lại HEAD thực tế; không âm thầm checkout hoặc reset về mốc này.

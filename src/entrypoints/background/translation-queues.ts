@@ -12,20 +12,19 @@ import { openAIPublicConfigSchema, publicProviderRefSchema } from "@/types/confi
 import { putBatchRequestRecord } from "@/utils/batch-request-record"
 import { CONFIG_STORAGE_KEY } from "@/utils/constants/config"
 import { BATCH_SEPARATOR, BATCH_SEPARATOR_LINE_PATTERN } from "@/utils/constants/prompt"
-import {
-  BATCH_TIMEOUT_BASE_MS,
-  BATCH_TIMEOUT_PER_CHAR_MS,
-  MAX_BATCH_TIMEOUT_MS,
-} from "@/utils/constants/translate"
+import { BATCH_TIMEOUT_PER_CHAR_MS, MAX_BATCH_EXTRA_TIMEOUT_MS } from "@/utils/constants/translate"
 import { Sha256Hex } from "@/utils/hash"
 import { logger } from "@/utils/logger"
+import { createLogger } from "@/utils/logging/logger"
 import { getSubtitlesTranslatePrompt } from "@/utils/prompts/subtitles"
 import { getTranslatePrompt } from "@/utils/prompts/translate"
 import { getOpenAIOutputIdentity } from "@/utils/providers/openai-profile"
 import { BatchQueue } from "@/utils/request/batch-queue"
-import { CancelledScopeRegistry } from "@/utils/request/cancellation"
+import { CancelledScopeRegistry, isTranslationCancelledError } from "@/utils/request/cancellation"
 import { RequestQueue } from "@/utils/request/request-queue"
 import { ensureInitializedConfig } from "./config"
+
+const log = createLogger("background/translation-queues")
 
 type QueuedTranslationProvider = OpenAIPublicConfig | SerializableProviderRef
 type QueuedTranslationRouting = { provider: QueuedTranslationProvider }
@@ -71,6 +70,16 @@ export function parseBatchResult(result: string): string[] {
     .trim()
     .split(BATCH_SEPARATOR_LINE_PATTERN)
     .map((t) => t.trim())
+}
+
+/**
+ * The time a batch gets on top of the user's request timeout, for its size.
+ * The cap is on this extra only, so raising the request timeout lengthens every
+ * batch by the same amount: a model slow to start answering is slow for a large
+ * batch as much as for a small one.
+ */
+export function getBatchExtraTimeoutMs(totalCharacters: number): number {
+  return Math.min(totalCharacters * BATCH_TIMEOUT_PER_CHAR_MS, MAX_BATCH_EXTRA_TIMEOUT_MS)
 }
 
 export function shouldUseBatchQueue(provider: QueuedTranslationProvider): boolean {
@@ -235,27 +244,29 @@ interface TranslationQueueSetupConfig<TContext = unknown> {
 }
 
 async function createTranslationQueues<TContext>(config: TranslationQueueSetupConfig<TContext>) {
-  const { rate, capacity } = config.requestQueueConfig
+  const { rate, capacity, timeoutMs } = config.requestQueueConfig
   const { maxCharactersPerBatch, maxItemsPerBatch } = config.batchQueueConfig
   const { promptResolver, isScopeCancelled, queueName, configSource } = config
+  const queueLog = log.with({ queue: queueName })
 
-  logger.info(`[translation-queues] ${queueName} queue init`, {
+  queueLog.debug("Queue initialized", {
     rate,
     capacity,
+    timeoutMs,
     maxCharactersPerBatch,
     maxItemsPerBatch,
     configSource,
   })
   if (configSource === "default") {
-    logger.error(
-      `[translation-queues] ${queueName} queue running on DEFAULT config (rate ${rate}, capacity ${capacity}) — user config unavailable at init`,
-    )
+    queueLog.error("Queue running on the default config: the user config was unavailable at init")
   }
 
   const requestQueue = new RequestQueue({
     rate,
     capacity,
-    timeoutMs: 20_000,
+    // The user's request timeout. watchQueueConfig re-applies it on every
+    // change, and each attempt reads it when it starts, batches included.
+    timeoutMs,
     maxRetries: 2,
     baseRetryDelayMs: 1_000,
   })
@@ -291,10 +302,6 @@ async function createTranslationQueues<TContext>(config: TranslationQueueSetupCo
       const hash = Sha256Hex(...dataList.map((d) => d.hash))
       const earliestScheduleAt = Math.min(...dataList.map((d) => d.scheduleAt))
       const totalCharacters = dataList.reduce((sum, d) => sum + d.text.length, 0)
-      const timeoutMs = Math.min(
-        BATCH_TIMEOUT_BASE_MS + totalCharacters * BATCH_TIMEOUT_PER_CHAR_MS,
-        MAX_BATCH_TIMEOUT_MS,
-      )
 
       const batchThunk = async (signal?: AbortSignal): Promise<string[]> => {
         const localProvider = getLocalProviderConfig(provider)
@@ -307,7 +314,9 @@ async function createTranslationQueues<TContext>(config: TranslationQueueSetupCo
         return await executeBatchTranslation(dataList, promptResolver, signal)
       }
 
-      return requestQueue.enqueue(batchThunk, earliestScheduleAt, hash, meta.scopes, { timeoutMs })
+      return requestQueue.enqueue(batchThunk, earliestScheduleAt, hash, meta.scopes, {
+        extraTimeoutMs: getBatchExtraTimeoutMs(totalCharacters),
+      })
     },
     executeIndividual: async (data) => {
       const { text, langConfig, provider, hash, scheduleAt, context, scope, glossaryTerms } = data
@@ -330,11 +339,13 @@ async function createTranslationQueues<TContext>(config: TranslationQueueSetupCo
       return requestQueue.enqueue(thunk, scheduleAt, hash, scope ? [scope] : undefined)
     },
     onError: (error, context) => {
-      const errorType = context.isFallback ? "Individual request" : "Batch request"
-      logger.error(
-        `${errorType} failed (batchKey: ${context.batchKey}, retry: ${context.retryCount}):`,
-        error.message,
-      )
+      // Turning page translation off cancels its batches on purpose: no failure to keep.
+      if (isTranslationCancelledError(error)) return
+      queueLog.error(context.isFallback ? "Individual request failed" : "Batch request failed", {
+        error,
+        batchKey: context.batchKey.slice(0, 12),
+        retry: context.retryCount,
+      })
     },
   })
 

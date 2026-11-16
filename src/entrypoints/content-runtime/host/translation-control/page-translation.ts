@@ -47,6 +47,7 @@ import {
   translateNodesBilingualMode,
   translateWalkedElement,
 } from "@/utils/host/translate/node-manipulation"
+import { endParagraphDiagnosisSession } from "@/utils/host/translate/paragraph-diagnosis"
 import { validateTranslationConfigAndToast } from "@/utils/host/translate/translate-text"
 import { translateTextForPageTitle } from "@/utils/host/translate/translate-variants"
 import {
@@ -58,7 +59,7 @@ import { cleanupNodeSiteRuleCSSIfUnused } from "@/utils/host/translate/ui/node-s
 import { cancelSpinnerAnimation } from "@/utils/host/translate/ui/spinner"
 import { ensureSiteRuleCSS, removeSiteRuleCSS } from "@/utils/host/translate/ui/style-injector"
 import { getOrCreateWebPageContext } from "@/utils/host/translate/webpage-context"
-import { logger } from "@/utils/logger"
+import { createLogger } from "@/utils/logging/logger"
 import { sendMessage } from "@/utils/message"
 import {
   canResolvedProviderRefGenerateText,
@@ -70,6 +71,8 @@ import { removeReactShadowHost } from "@/utils/react-shadow-host/create-shadow-h
 import { isTranslationCancelledError } from "@/utils/request/cancellation"
 import { createWorkPacer } from "@/utils/scheduler"
 import { getDocumentSiteRule } from "@/utils/site-rules/effective"
+
+const log = createLogger("content-runtime/host/translation-control/page-translation")
 
 type SimpleIntersectionOptions = Omit<IntersectionObserverInit, "threshold"> & {
   threshold?: number
@@ -330,11 +333,11 @@ export class PageTranslationManager implements IPageTranslationManager {
 
   async start(): Promise<void> {
     if (this.isPageTranslating) {
-      console.warn("PageTranslationManager is already active")
+      log.debug("Ignored a start: page translation is already on")
       return
     }
     if (this.pendingStart) {
-      console.warn("PageTranslationManager start is already pending")
+      log.info("Ignored a start: another one is already pending")
       return
     }
 
@@ -359,7 +362,7 @@ export class PageTranslationManager implements IPageTranslationManager {
       return
     }
     if (!config) {
-      console.warn("Config is not initialized")
+      log.error("Global config is not initialized")
       return
     }
     this.titleTranslationEnabled = config.pageTranslation.page.translateTitle
@@ -543,7 +546,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     this.pendingStart = null
 
     if (!this.isPageTranslating) {
-      console.warn("PageTranslationManager is already inactive")
+      log.debug("Ignored a stop: page translation is already off")
       return
     }
 
@@ -562,9 +565,10 @@ export class PageTranslationManager implements IPageTranslationManager {
     const endedSessionId = endPageTranslationSession()
     if (endedSessionId) {
       void sendMessage("cancelPageTranslationRequests", { sessionId: endedSessionId }).catch(
-        (error) => logger.warn("Failed to cancel pending translation requests", error),
+        (error) => log.warn("Failed to cancel pending translation requests", { error }),
       )
     }
+    endParagraphDiagnosisSession()
 
     this.isPageTranslating = false
     this.translationSessionVersion += 1
@@ -665,7 +669,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     try {
       await getOrCreateWebPageContext()
     } catch (error) {
-      logger.warn("Failed to prime webpage context before translating document title:", error)
+      log.warn("Failed to prime webpage context before translating document title", { error })
     }
   }
 
@@ -773,7 +777,7 @@ export class PageTranslationManager implements IPageTranslationManager {
       // A cancelled session's title request rejecting is expected, not noise.
       if (isTranslationCancelledError(error)) return
       if (requestVersion === this.titleRequestVersion) {
-        logger.warn("Failed to translate document title:", error)
+        log.warn("Failed to translate document title", { error })
       }
     }
   }
@@ -791,7 +795,7 @@ export class PageTranslationManager implements IPageTranslationManager {
 
     const config = existingConfig ?? (await getLocalConfig())
     if (!config) {
-      logger.error("Global config is not initialized")
+      log.error("Global config is not initialized")
       return
     }
     if (this.walkId !== walkId) return
@@ -1033,7 +1037,7 @@ export class PageTranslationManager implements IPageTranslationManager {
       // can deliver hundreds of entries at once (#1881).
       const currentConfig = await getLocalConfig()
       if (!currentConfig) {
-        logger.error("Global config is not initialized")
+        log.error("Global config is not initialized")
         return
       }
       if (this.walkId !== walkId) return
@@ -1302,7 +1306,7 @@ export class PageTranslationManager implements IPageTranslationManager {
     shadowWalkRoots.push(observationRoot)
     const config = await getLocalConfig()
     if (!config) {
-      logger.error("Global config is not initialized")
+      log.error("Global config is not initialized")
       return null
     }
     if (!this.isPageTranslating || this.translationSessionVersion !== sessionVersion) return null
@@ -1397,7 +1401,7 @@ export class PageTranslationManager implements IPageTranslationManager {
 
     const config = mutationConfig ?? (await getLocalConfig())
     if (!config) {
-      logger.error("Global config is not initialized")
+      log.error("Global config is not initialized")
       return
     }
     if (!this.isPageTranslating || this.translationSessionVersion !== sessionVersion) return

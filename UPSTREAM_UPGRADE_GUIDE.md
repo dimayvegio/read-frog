@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+**Mốc hiện tại: upstream v1.60.0 / `0528cfa6`, local1.60.0A / numeric1.60.0.1, config127, AppDB8.** Bắt đầu từ nhánh local mới nhất, áp dụng quy tắc fork-first trong AGENTS.md: chỉ lấy thay đổi có lợi và tương thích, skip phần không phù hợp, ghi lý do. Không phục hồi IF API, khảo sát/feedback, cloud sync hoặc Microsoft TTS. [Báo cáo đợt nâng cấp](UPSTREAM_1_60_0_REPORT.md).
+
 **A.19: đồng bộ tài khoản Edge đã gỡ theo yêu cầu.** Giữ [retirement và kiểm thử nâng cấp](EDGE_SYNC_REMOVAL_A19.md), không phục hồi service/RPC/page script/transport từ upstream. Các chỉ dẫn sync trong phần lịch sử không áp dụng cho runtime mới; không truy cập hoặc xóa dữ liệu sync cũ.
 
 Bổ sung A.18: giữ [model snapshot/cache, menu ảnh và review](FEATURE_MODELS_REVIEW_A18.md). Không khôi phục background model override sau hashing, catalog audio dùng lẫn endpoint, tự chọn ảnh khác/fetch không giới hạn hoặc repaint ngoài masks. Preference local riêng cần reload tab, không được đưa vào config125/sync bằng cách sửa migration cũ.
@@ -62,18 +64,18 @@ Ví dụ: upstream `v1.58.0` → bản local **1.58.0A**; upstream `v1.59.0` →
 
 | Trường                                   | Bản đang tích hợp                          |
 | ---------------------------------------- | ------------------------------------------ |
-| Upstream                                 | `mengxi-ream/read-frog`, tag `v1.59.1`     |
-| Commit upstream                          | `56d05e336486aa4fc92bbb76879fd00cd8235d40` |
+| Upstream                                 | `mengxi-ream/read-frog`, tag `v1.60.0`     |
+| Commit upstream                          | `0528cfa6b15e49e858786205b7104b7592c20da5` |
 | Tổ tiên chung với upstream 1.57.0        | `e361e991b4127dd0d03473ed9329c24885fe420a` |
-| Bản local ngay trước lần nâng cấp này    | `c2e595fc` (gồm F01–F24)                   |
-| Nhánh tích hợp                           | `codex/upstream-1.59.1-openai`             |
+| Bản local ngay trước lần nâng cấp này    | `ea4d6d5b` (A.19, toàn bộ fork hiện có)    |
+| Nhánh tích hợp                           | `codex/upstream-1.60.0-openai`             |
 | Nhánh tính năng ani.pm sau merge         | `codex/ani-pm-subtitles`, từ `c9505fad`    |
 | Nhánh khôi phục X/Netflix                | `codex/x-netflix-subtitles`, từ `c1ef4a28` |
-| `package.json`                           | `1.59.1-a.9` (SemVer hợp lệ)               |
-| `manifest.version` trong `wxt.config.ts` | `1.59.1.9` (số hợp lệ cho Edge/Chromium)   |
-| `manifest.version_name`                  | `1.59.1A`                                  |
-| Schema cấu hình của fork                 | `125`                                      |
-| Nhánh local hiện hành                    | `codex/upstream-1.59.1-openai`             |
+| `package.json`                           | `1.60.0-a.1` (SemVer hợp lệ)               |
+| `manifest.version` trong `wxt.config.ts` | `1.60.0.1` (số hợp lệ cho Edge/Chromium)   |
+| `manifest.version_name`                  | `1.60.0A`                                  |
+| Schema cấu hình của fork                 | `127`                                      |
+| Nhánh local hiện hành                    | `codex/upstream-1.60.0-openai`             |
 | Mốc source kiểm toán                     | `7ccf0ad7c6ff62a6551485eefe45e852bca087da` |
 
 Không viết chữ A vào `manifest.version`. Khi phát hành bản sửa tiếp theo trên
@@ -81,7 +83,7 @@ cùng upstream, tăng số build cuối, ví dụ `1.58.0.2`; có thể vẫn hi
 `1.58.0A`, và dùng `1.58.0-a.1` cho package. Phiên bản package/manifest và
 **schema dữ liệu là ba thứ khác nhau**; không ép chúng dùng cùng số.
 
-Báo cáo đợt hiện tại: [1.59.1A](UPSTREAM_1_59_1_REPORT.md). Các kết quả 1.58.0 ở cuối là lịch sử.
+Báo cáo đợt hiện tại: [1.60.0A](UPSTREAM_1_60_0_REPORT.md). Báo cáo [1.59.1A](UPSTREAM_1_59_1_REPORT.md) là lịch sử. Các kết quả 1.58.0 ở cuối là lịch sử.
 
 ## Những tính chất và tính năng bắt buộc giữ
 
@@ -401,10 +403,11 @@ Các mốc phát triển riêng giúp rà lại ý định khi có xung đột:
    nguyên package/lockfile upstream để kéo lại API contract, auth client,
    analytics hay server packages đã gỡ. Không nâng AI SDK đồng thời khi
    không cần thiết. Kiểm tra lại tài nguyên/network của dependency mới.
-8. Làm migration theo phần dưới **chỉ khi cần đổi dữ liệu**. Kiểm riêng
-   config124 và transport Edge sync1: schema mới cần reader/writer sync mới,
-   xử lý client cũ, conflict và recovery; không drop field mới để ép vừa124.
-   Giữ lựa chọn model/TTS/auto-start; tính năng AI mới không tự bật sau update.
+8. Làm migration theo phần dưới **chỉ khi cần đổi dữ liệu**. Giữ các bước đã
+   phát hành đến125; CSS lang dùng126, timeout dùng127. Edge sync đã bị gỡ:
+   không thêm reader/writer hoặc mở/xóa dữ liệu transport cũ. Kiểm import,
+   backup/restore và private credential journal; không drop field mới để ép vừa
+   schema cũ. Giữ lựa chọn model/TTS/auto-start; không tự bật AI sau update.
 9. Chạy validation source và production, rồi kiểm update tại chỗ từ ZIP đang
    phát hành. Đóng một ZIP và kiểm nội dung, tạo lại HTML ôn từ. Sau khi các
    kiểm tra cần thiết đạt mới commit/push. Cập nhật mốc upstream/local/version,
@@ -530,6 +533,7 @@ node scripts/debug/check-vocabulary.mjs
 node scripts/debug/check-vocabulary-scale.mjs
 $env:PDF_IMAGE_SKIP_BENCHMARK = '1'
 node scripts/debug/check-pdf-reading.mjs
+$env:FLOWREAD_UPSTREAM_160 = '1' # baseline ZIP A.19 thật, xem UPSTREAM_1_60_0_REPORT.md
 node scripts/debug/check-settings-sync-removal.mjs
 ```
 

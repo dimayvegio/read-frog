@@ -1,8 +1,11 @@
+import { setupExtensionPageLogging } from "@/utils/logging/setup"
 import { onMessage } from "@/utils/message"
 import { DOMAudioPlaybackController } from "@/utils/tts-playback/dom-audio-controller"
 import { setupOffscreenTabAudio } from "./tab-audio"
 
 setupOffscreenTabAudio()
+
+setupExtensionPageLogging("offscreen")
 
 const playbackController = new DOMAudioPlaybackController(
   "Failed to play audio in offscreen document",

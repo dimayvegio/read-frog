@@ -1,8 +1,19 @@
+import { Button } from "@/components/ui/base-ui/button"
+import { useExportDiagnostics } from "@/hooks/use-export-diagnostics"
+import { i18n } from "@/utils/i18n"
 import { PageLayout } from "../../components/page-layout"
 export function HelpAndCommunityPage() {
+  const exportDiagnostics = useExportDiagnostics()
   return (
     <PageLayout title="Help" description="OpenAI text translation and OpenAI speech">
       <div className="max-w-2xl space-y-4 text-sm">
+        <Button onClick={() => exportDiagnostics.mutate()} disabled={exportDiagnostics.isPending}>
+          {i18n.t("options.helpAndCommunity.diagnostics.title")}
+        </Button>
+        <p>
+          Diagnostics are saved locally. Review the file before sharing; nothing is uploaded
+          automatically.
+        </p>
         <p>
           Save your OpenAI API key and choose a model in OpenAI settings. Page translation,
           selection translation, input translation and custom actions use that same configuration.

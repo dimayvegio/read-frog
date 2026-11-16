@@ -69,6 +69,7 @@ popup:
     emailUs: メールで問い合わせ
     featureRequest: 機能リクエスト
     bugReport: 不具合を報告
+    diagnosePage: "このページを診断"
     community: コミュニティ
     joinDiscord: Discordに参加
     joinWechat: WeChatグループに参加
@@ -135,6 +136,13 @@ options:
     bugReport:
       title: 不具合を報告
       description: サポートチケットを作成し、解決までの状況を追えます
+    troubleshooting:
+      title: "トラブルシューティング"
+    diagnostics:
+      title: "診断情報をエクスポート"
+      description: "最近のログと設定（API キーは除く）を保存して、不具合の報告に添付できます"
+      exportSuccess: "診断情報を保存しました"
+      exportFailed: "診断情報をエクスポートできませんでした"
     community:
       title: コミュニティ
     discord:
@@ -171,12 +179,14 @@ options:
         pdfTranslation: PDF 翻訳
     sponsorCta: 高速で高コスパのAIを入手
     sponsorCtaJalapenoCloud: GLM 5.3 を 50% オフで入手
+    sponsorCtaIfapi: 初回チャージ +10%・コード READFROG
     setApiKeyWarning:
       message: API キーは $1 ページで設定してください
     badges:
       featureCount: $1 件の機能
       sponsor: スポンサー
       sponsorJalapenoCloud: $$1 無料
+      sponsorIfapi: モデル 90% オフ
     dialog:
       title: 新しいプロバイダーを追加
       groups:
@@ -268,6 +278,7 @@ options:
         xai: リアルタイムデータアクセス可能なGrokモデルを提供するイーロン・マスクのAI企業
         atlascloud: DeepSeek、Kimi、Qwen、Doubao、GLMなどの新しめのモデルにOpenAI互換でアクセスできる統合プラットフォーム
         jalapenocloud: トップチームが使うエンタープライズ級 AI を、あなたにも！
+        ifapi: GPT・Claude・Gemini など主要モデルを公式価格の最大 90% オフで
         siliconflow: 中国および国際モデル向けの高性能推論プラットフォーム
         tensdaq: 革命的入札型AI MaaSプラットフォーム、市場の需給で価格が決まり高コスト固定料金を排除
         openaiCompatible: OpenAI Chat Completions API 互換のカスタムエンドポイントに接続
@@ -1321,7 +1332,7 @@ options:
         error: 値は $1 から $2 の間である必要があります
     translationQueue:
       title: 翻訳キュー
-      description: リクエストを送る速さ、1回あたりのテキスト量、読者よりどれだけ先を翻訳するか
+      description: リクエストを送る速さ、1回あたりのテキスト量、1回あたりの最大待ち時間、読者よりどれだけ先を翻訳するか
       manageQueue: キューを管理
       requestQueueConfig:
         title: 翻訳速度
@@ -1336,6 +1347,9 @@ options:
           description: 最大文字数：1 回の AI リクエストで送るテキストの量
         maxItemsPerBatch:
           description: 最大段落数：1 回のリクエストにまとめる段落の数。AI 以外の翻訳サービスには効きません
+      requestTimeout:
+        title: リクエストのタイムアウト
+        description: "応答を待つ秒数。超えると打ち切って再試行します。AI のバッチリクエストは文章の長さに応じて最大 100 秒まで追加で待ちます。遅いモデルでタイムアウトが続くときは大きくしてください"
       preloadConfig:
         title: 事前翻訳範囲
         description: ビューポート下のコンテンツをどれだけ事前翻訳するかを制御し、API コストを節約します
@@ -1507,7 +1521,7 @@ options:
           videoSummary: 動画要約（AI スマートコンテキストが必要）
     subtitlesQueue:
       title: 字幕キュー
-      description: 字幕リクエストを送る速さと、1回あたりの行数
+      description: 字幕リクエストを送る速さ、1回あたりの行数、1回あたりの最大待ち時間
       manageQueue: キューを管理
       requestQueueConfig:
         title: 翻訳速度
@@ -1522,6 +1536,9 @@ options:
           description: 最大文字数：1 回の AI リクエストで送るテキストの量
         maxItemsPerBatch:
           description: 最大字幕行数：1 回のリクエストにまとめる字幕の数。AI 以外の翻訳サービスには効きません
+      requestTimeout:
+        title: リクエストのタイムアウト
+        description: "応答を待つ秒数。超えると打ち切って再試行します。AI のバッチリクエストは文章の長さに応じて最大 100 秒まで追加で待ちます。遅いモデルでタイムアウトが続くときは大きくしてください"
     cache:
       title: キャッシュ
       clearCache:
@@ -1579,6 +1596,24 @@ translation:
   sameLanguage: ソース言語とターゲット言語は異なる必要があります
   autoModeSameLanguage: 検出された言語 '$1' はターゲット言語と同じです
   extensionContextInvalidated: 拡張機能が更新されました。このページを再読み込みしてからもう一度お試しください。
+pageDiagnosis:
+  title: "ページ診断"
+  summary: "翻訳済み $1 段落、未翻訳 $2 段落"
+  empty: "まだ表示する内容がありません。ページ翻訳をオンにしてから、もう一度開いてください。"
+  emptyWhileTranslating: "まだ表示する内容がありません。ページ翻訳が段落に達すると、ここに表示されます。"
+  framesNotIncluded: "埋め込みフレーム内のテキストはここには含まれません。"
+  hint: "理由をクリックすると、該当する段落をページ上で囲んで表示します。"
+  close: "閉じる"
+  unavailable: "このページでは Read Frog を実行できません"
+  reasons:
+    noProse: "翻訳する文字がありません"
+    tooShort: "短すぎるため翻訳しません"
+    targetLanguage: "すでに翻訳先の言語です"
+    skipLanguage: "スキップする言語に設定されています"
+    noTranslationNeeded: "AI が翻訳不要と判断しました"
+    sameAsSource: "訳文が原文と同じでした"
+    emptyResult: "翻訳サービスから何も返されませんでした"
+    error: "翻訳に失敗しました"
 annotation:
   annotate: "注釈を付ける"
   enterMode: "注釈モード"

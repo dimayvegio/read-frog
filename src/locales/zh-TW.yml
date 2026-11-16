@@ -69,6 +69,7 @@ popup:
     emailUs: 電子郵件聯絡
     featureRequest: 功能建議
     bugReport: 回報問題
+    diagnosePage: "診斷此頁面"
     community: 社群
     joinDiscord: 加入 Discord
     joinWechat: 加入微信群
@@ -135,6 +136,13 @@ options:
     bugReport:
       title: 回報問題
       description: 建立支援工單，並追蹤到問題解決為止
+    troubleshooting:
+      title: "疑難排解"
+    diagnostics:
+      title: "匯出診斷資訊"
+      description: "儲存最近的日誌和設定（不含 API 金鑰），附在問題回報中"
+      exportSuccess: "診斷資訊已儲存"
+      exportFailed: "無法匯出診斷資訊"
     community:
       title: 社群
     discord:
@@ -171,12 +179,14 @@ options:
         pdfTranslation: PDF 翻譯
     sponsorCta: 取得高速高性價比 AI
     sponsorCtaJalapenoCloud: 取得 GLM 5.3 五折優惠
+    sponsorCtaIfapi: 首儲加贈 10%，優惠碼 READFROG
     setApiKeyWarning:
       message: 請在 $1 頁面設定 API 金鑰
     badges:
       featureCount: $1 個功能
       sponsor: 贊助
       sponsorJalapenoCloud: $$1 免費額度
+      sponsorIfapi: 1 折模型
     dialog:
       title: 新增提供者
       groups:
@@ -269,6 +279,7 @@ options:
         xai: 馬斯克的 AI 公司，提供具有即時資料存取能力的 Grok 模型
         atlascloud: 統一的 OpenAI 相容模型平台，提供 DeepSeek、Kimi、Qwen、豆包、GLM 等較新模型
         jalapenocloud: 頂尖團隊都在用的企業級 AI，現在為你而來！
+        ifapi: GPT、Claude、Gemini 等主流模型，最低官方價 1 折
         siliconflow: 針對中國和國際模型的高效能推理平台
         tensdaq: 革命性競價 AI MaaS 平台，價格由市場供需決定，告別高成本固定定價
         openaiCompatible: 連接與 OpenAI Chat Completions API 相容的自訂端點
@@ -1331,7 +1342,7 @@ options:
         error: 數值必須在 $1 到 $2 之間
     translationQueue:
       title: 翻譯佇列
-      description: 請求發出的速度、每個請求承載的文字量，以及提前於閱讀位置多遠開始翻譯
+      description: 請求發出的速度、每個請求承載的文字量、每個請求最多等多久，以及提前於閱讀位置多遠開始翻譯
       manageQueue: 管理佇列
       requestQueueConfig:
         title: 翻譯速率
@@ -1346,6 +1357,9 @@ options:
           description: 最大字元數：一次 AI 請求最多帶多少文字
         maxItemsPerBatch:
           description: 最大段落數：多少個段落合併成一次請求。非 AI 的翻譯服務不受這兩項影響
+      requestTimeout:
+        title: 請求逾時
+        description: "等待回應的秒數，逾時就放棄並重試。AI 批次請求會依文字長度額外多等，最多再加 100 秒。模型回應慢、經常逾時可以調大"
       preloadConfig:
         title: 預翻譯範圍
         description: 控制可視區域下方多少內容會被預先翻譯，以節省 API 費用
@@ -1517,7 +1531,7 @@ options:
           videoSummary: 影片摘要（需啟用 AI 智慧上下文）
     subtitlesQueue:
       title: 字幕佇列
-      description: 字幕請求發出的速度，以及每個請求承載的字幕行數
+      description: 字幕請求發出的速度、每個請求承載的字幕行數，以及每個請求最多等多久
       manageQueue: 管理佇列
       requestQueueConfig:
         title: 翻譯速率
@@ -1532,6 +1546,9 @@ options:
           description: 最大字元數：一次 AI 請求最多帶多少文字
         maxItemsPerBatch:
           description: 最大字幕條數：多少條字幕合併成一次請求。非 AI 的翻譯服務不受這兩項影響
+      requestTimeout:
+        title: 請求逾時
+        description: "等待回應的秒數，逾時就放棄並重試。AI 批次請求會依文字長度額外多等，最多再加 100 秒。模型回應慢、經常逾時可以調大"
     cache:
       title: 快取
       clearCache:
@@ -1589,6 +1606,24 @@ translation:
   sameLanguage: 來源語言和目標語言必須不同
   autoModeSameLanguage: 偵測到的語言「$1」與目標語言相同
   extensionContextInvalidated: 擴充功能已更新，請重新整理此頁面後再試一次。
+pageDiagnosis:
+  title: "頁面診斷"
+  summary: "已翻譯 $1 段，未翻譯 $2 段"
+  empty: "目前沒有內容。請先開啟網頁翻譯，再開啟此面板。"
+  emptyWhileTranslating: "目前沒有內容。網頁翻譯處理到的段落會顯示在這裡。"
+  framesNotIncluded: "嵌入框架（iframe）中的文字不在此統計範圍內。"
+  hint: "點選原因，在頁面上框出對應段落。"
+  close: "關閉"
+  unavailable: "陪讀蛙無法在此頁面執行"
+  reasons:
+    noProse: "沒有可翻譯的文字"
+    tooShort: "太短，不翻譯"
+    targetLanguage: "已是目標語言"
+    skipLanguage: "屬於你設定略過的語言"
+    noTranslationNeeded: "AI 認為無需翻譯"
+    sameAsSource: "譯文與原文相同"
+    emptyResult: "翻譯服務沒有傳回內容"
+    error: "翻譯失敗"
 annotation:
   annotate: "劃詞標註"
   enterMode: "進入標註模式"

@@ -1,12 +1,14 @@
 # FlowRead Privacy Policy
 
-Effective: 16 November 2026. Product: **FlowRead** for Microsoft Edge and Google Chrome. Maintainer and privacy/support contact: **admin@4dv.top**. [Source](https://github.com/dimayvegio/read-frog). FlowRead is an independent GPL fork of Read Frog, not an official upstream release. This policy describes this fork.
+Effective: 17 November 2026. Product: **FlowRead** for Microsoft Edge and Google Chrome. Maintainer and privacy/support contact: **admin@4dv.top**. [Source](https://github.com/dimayvegio/read-frog). FlowRead is an independent GPL fork of Read Frog, not an official upstream release. This policy describes this fork.
 
 ## Data on your device
 
 Settings, your OpenAI API key, translation caches, local document history, reading positions, PDF annotations/bookmarks, vocabulary notebooks, learning answers/statistics and optional saved reading recordings are stored in your browser's local storage/IndexedDB. The key is kept in separate local credential storage, excluded from normal settings exports. Local browser storage is not a hardware vault; people with access to your profile may access it.
 
 The extension-owned PDF reader processes the **PDF binary locally** with bundled PDF.js. It never uploads the PDF binary to OpenAI or a developer server. Bundled local OCR runs locally. Opening, scrolling, searching, editing, printing or extracting pages does not call an AI provider. Workspace metadata is not automatically included in every export or backup; use feature-specific exports and retain original files.
+
+Local diagnostics keep a bounded log of extension events (up to 3,000 records), including site hosts, error metadata and short text previews; full web URLs are reduced to origins, file URLs lose paths, and known secret fields, request headers and request/response bodies are scrubbed. The in-page diagnosis view reads paragraph verdicts locally and does not translate or upload content. An explicit diagnostics export contains sanitized logs, public settings and local table counts. Nothing is sent automatically: review the exported JSON before sharing it, since settings, snippets or sites can still be personal. These logs are separate from learning/usage histories and browser-account sync remains removed.
 
 ## Direct OpenAI processing
 

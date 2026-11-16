@@ -7,8 +7,11 @@ import { isDeepStrictEqual } from "node:util"
 import JSZip from "jszip"
 import { preparePdfWorker } from "./pdf-worker-fixture.mjs"
 
+const upstream160 = process.env.FLOWREAD_UPSTREAM_160 === "1"
+const targetVersion = upstream160 ? "1.60.0.1" : "1.59.3.19"
 const baselinePath = path.resolve(
-  process.env.SYNC_REMOVAL_BASELINE ?? ".codex/review-a19/baseline-a18.zip",
+  process.env.SYNC_REMOVAL_BASELINE ??
+    (upstream160 ? ".codex/review-160/baseline-a19.zip" : ".codex/review-a19/baseline-a18.zip"),
 )
 const candidate = path.resolve(".output/edge-mv3")
 const scratch = path.resolve(".codex/sync-removal-" + Date.now())
@@ -18,11 +21,16 @@ await fs.mkdir(downloads, { recursive: true })
 const raw = await fs.readFile(baselinePath)
 assert.equal(
   createHash("sha256").update(raw).digest("hex"),
-  "0215bfd24128ff6847c0837a736259240f7ac36cf2671d9d26ef0fc42da4efee",
-  "Use the real reviewed A.18 ZIP, never relabel the candidate as baseline",
+  upstream160
+    ? "a4965cb2cc5a5c1cca40b74de5afd67a7fb5d611d5bb0b9491aad7aa414092e4"
+    : "0215bfd24128ff6847c0837a736259240f7ac36cf2671d9d26ef0fc42da4efee",
+  "Use the real reviewed baseline ZIP, never relabel the candidate",
 )
 const zip = await JSZip.loadAsync(raw, { checkCRC32: true })
-assert.equal(JSON.parse(await zip.file("manifest.json").async("string")).version, "1.59.3.18")
+assert.equal(
+  JSON.parse(await zip.file("manifest.json").async("string")).version,
+  upstream160 ? "1.59.3.19" : "1.59.3.18",
+)
 for (const entry of Object.values(zip.files)) {
   if (entry.dir) continue
   assert.ok(!entry.name.includes("\\") && !entry.name.includes(":"))
@@ -166,7 +174,30 @@ try {
   let oldPage = await browser.newPage()
   await oldPage.goto(base + "settings-sync.html")
   await oldPage.waitForFunction(() => document.body.innerText.includes("Đồng bộ"), { polling: 100 })
-  check("baseline really contains the retired sync UI", (await oldPage.$("button")) !== null)
+  check(
+    "baseline has the expected sync retirement state",
+    upstream160
+      ? (await oldPage.$("[data-retired-feature]")) !== null
+      : (await oldPage.$("button")) !== null,
+  )
+  if (upstream160)
+    await worker.evaluate(async () => {
+      await new Promise((resolve, reject) => {
+        const request = indexedDB.open("read-frog-settings-sync", 1)
+        request.onupgradeneeded = () => {
+          request.result.createObjectStore("state", { keyPath: "id" })
+        }
+        request.onerror = reject
+        request.onsuccess = () => {
+          request.result.close()
+          resolve()
+        }
+      })
+      const { config } = await chrome.storage.local.get("config")
+      config.pageTranslation.translationNodeStyle.customCSS = '[lang="zh"] { color: green; }'
+      config.videoSubtitles.style.customCSS = '[lang="zh-TW"] { color: white; }'
+      await chrome.storage.local.set({ config })
+    })
   // Copy-only update leaves obsolete chunks on disk, exactly like the user's installation.
   const entries = []
   const walk = async (dir, relative = "") => {
@@ -248,10 +279,38 @@ try {
   await options.goto(base + "options.html#/api-providers")
   await options.waitForSelector("#openai-key")
   check(
-    "candidate version is A.19",
-    await worker.evaluate(() => chrome.runtime.getManifest().version === "1.59.3.19"),
+    "candidate manifest has the intended fork version",
+    await worker.evaluate(
+      (version) => chrome.runtime.getManifest().version === version,
+      targetVersion,
+    ),
   )
+  const expectedLocal = structuredClone(before.local)
+  if (upstream160) {
+    expectedLocal["config$"].schemaVersion = 127
+    expectedLocal.config.pageTranslation.requestQueueConfig.timeoutMs = 20000
+    expectedLocal.config.videoSubtitles.requestQueueConfig.timeoutMs = 20000
+    expectedLocal.config.pageTranslation.translationNodeStyle.customCSS =
+      ':is([lang="zh-Hans"], [lang="yue"]) { color: green; }'
+    expectedLocal.config.videoSubtitles.style.customCSS = '[lang="zh-Hant"] { color: white; }'
+    for (const backupId of expectedLocal.backup_ids ?? []) {
+      const backup = expectedLocal[backupId]
+      backup.schemaVersion = 127
+      backup.config.pageTranslation.requestQueueConfig.timeoutMs = 20000
+      backup.config.videoSubtitles.requestQueueConfig.timeoutMs = 20000
+    }
+  }
   const afterUpgrade = await worker.evaluate(snapshot)
+  const diff = (expected, actual, prefix = "") => {
+    if (isDeepStrictEqual(expected, actual)) return []
+    if (!expected || !actual || typeof expected !== "object" || typeof actual !== "object")
+      return [{ path: prefix, expected, actual }]
+    return [...new Set([...Object.keys(expected), ...Object.keys(actual)])].flatMap((key) =>
+      diff(expected[key], actual[key], prefix + "." + key),
+    )
+  }
+  evidence.expectedLocalDiff = diff(expectedLocal, afterUpgrade.local)
+
   evidence.preserved = Object.fromEntries(
     Object.keys(before).map((key) => [key, isDeepStrictEqual(before[key], afterUpgrade[key])]),
   )
@@ -275,7 +334,7 @@ try {
     )
   check(
     "private credential, settings, backups, notebooks and inert legacy DB survive",
-    isDeepStrictEqual(afterUpgrade.local, before.local) &&
+    isDeepStrictEqual(afterUpgrade.local, expectedLocal) &&
       sameCredentials(before.credentials, afterUpgrade.credentials) &&
       isDeepStrictEqual(afterUpgrade.vocabulary, before.vocabulary) &&
       isDeepStrictEqual(afterUpgrade.legacy, before.legacy),
@@ -453,9 +512,9 @@ try {
     file = path.join(downloads, filename)
   const exported = JSON.parse(await fs.readFile(file, "utf8"))
   check(
-    "local settings export remains config125 and excludes private keys",
-    exported.schemaVersion === 125 &&
-      isDeepStrictEqual(exported.config, before.local.config) &&
+    "local settings export has the current schema and excludes private keys",
+    exported.schemaVersion === (upstream160 ? 127 : 125) &&
+      isDeepStrictEqual(exported.config, expectedLocal.config) &&
       !JSON.stringify(exported).includes("pdf-reading-test-sentinel"),
   )
   await worker.evaluate(async () => {
@@ -475,7 +534,7 @@ try {
       .evaluate(snapshot)
       .then(
         (after) =>
-          isDeepStrictEqual(after.local.config, before.local.config) &&
+          isDeepStrictEqual(after.local.config, expectedLocal.config) &&
           sameCredentials(before.credentials, after.credentials) &&
           isDeepStrictEqual(after.vocabulary, before.vocabulary),
       ),

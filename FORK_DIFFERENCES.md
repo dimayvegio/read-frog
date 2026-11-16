@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**1.60.0A / manifest1.60.0.1:** merge tag upstream `0528cfa6` từ local A.19 `ea4d6d5b`. Ưu tiên fork: nhận CSS lang compatibility, timeout queue, raea.io, preview local và diagnosis/log local đã siết quyền riêng tư; bỏ IF API/quảng bá/khảo sát/cloud và dependency upgrades không cần. Config127 thêm migration126/127, không sửa125 trở về trước; AppDB8 chỉ thêm log bounded. Các mục dưới là lịch sử. [Báo cáo tích hợp](UPSTREAM_1_60_0_REPORT.md).
+
 **Mới A.19 / manifest1.59.3.19:** đã gỡ đồng bộ cấu hình qua tài khoản Edge. Không RPC/service/storage.sync; chỉ giữ xuất/nhập file và backup local. Retire alarm và URL cũ an toàn khi copy đè, không đọc/xóa dữ liệu sync cũ. [Review/nâng cấp](EDGE_SYNC_REMOVAL_A19.md). Các mô tả sync ở release cũ dưới đây là lịch sử, không phải tính năng hiện tại.
 
 **Mới A.18 / manifest1.59.3.18:** hoàn thiện FlowRead, model riêng theo tính năng với snapshot/cache thống nhất, menu dịch đúng ảnh, prompt/zoom ảnh và OCR/overlay an toàn. Các model audio vẫn theo endpoint đã kiểm thử; đổi preference cần tải lại tab. [Review/hợp đồng](FEATURE_MODELS_REVIEW_A18.md).

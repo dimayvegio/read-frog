@@ -69,6 +69,7 @@ popup:
     emailUs: Bize e-posta gönderin
     featureRequest: Özellik önerisi
     bugReport: Hata bildir
+    diagnosePage: "Bu sayfayı tanıla"
     community: Topluluk
     joinDiscord: Discord'a Katıl
     joinWechat: WeChat Grubuna Katıl
@@ -135,6 +136,13 @@ options:
     bugReport:
       title: Hata bildir
       description: Destek talebi açın ve çözülene kadar takip edin
+    troubleshooting:
+      title: "Sorun giderme"
+    diagnostics:
+      title: "Tanılama verilerini dışa aktar"
+      description: "Hata bildirimine eklemek için son günlükleri ve ayarlarınızı (API anahtarları hariç) kaydedin"
+      exportSuccess: "Tanılama verileri kaydedildi"
+      exportFailed: "Tanılama verileri dışa aktarılamadı"
     community:
       title: Topluluk
     discord:
@@ -171,12 +179,14 @@ options:
         pdfTranslation: PDF çevirisi
     sponsorCta: Hızlı ve uygun maliyetli yapay zekâ al
     sponsorCtaJalapenoCloud: GLM 5.3ʼte %50 indirim al
+    sponsorCtaIfapi: READFROG koduyla +%10 bakiye
     setApiKeyWarning:
       message: API anahtarınızı $1 sayfasında ayarlayın
     badges:
       featureCount: $1 özellik
       sponsor: Sponsor
       sponsorJalapenoCloud: $$1 ücretsiz
+      sponsorIfapi: Modeller -%90
     dialog:
       title: Yeni sağlayıcı ekle
       groups:
@@ -268,6 +278,7 @@ options:
         xai: Gerçek zamanlı veri erişimli Grok modelleri sunan Elon Musk'ın AI şirketi
         atlascloud: DeepSeek, Kimi, Qwen, Doubao ve GLM gibi yeni modellere OpenAI uyumlu birleşik erişim platformu
         jalapenocloud: En iyi ekiplerin kullandığı kurumsal düzeyde yapay zekâ, şimdi sizin için!
+        ifapi: GPT, Claude, Gemini ve daha fazlası, resmi fiyatın %10'undan başlayan fiyatlarla
         siliconflow: Çin ve uluslararası modeller için yüksek performanslı çıkarım platformu
         tensdaq: Yüksek maliyetli sabit fiyatlandırmayı ortadan kaldıran pazar odaklı fiyatlandırma ile devrimci açık artırma AI MaaS platformu
         openaiCompatible: OpenAI Chat Completions API ile uyumlu özel bir uç noktaya bağlanın
@@ -1321,7 +1332,7 @@ options:
         error: Değer $1 ile $2 arasında olmalıdır
     translationQueue:
       title: Çeviri kuyruğu
-      description: İsteklerin ne kadar hızlı gittiği, her birinin ne kadar metin taşıdığı ve okuyucunun ne kadar önünden gittikleri
+      description: İsteklerin ne kadar hızlı gittiği, her birinin ne kadar metin taşıdığı, her birinin ne kadar sürebileceği ve okuyucunun ne kadar önünden gittikleri
       manageQueue: Kuyruğu yönet
       requestQueueConfig:
         title: Çeviri hızı
@@ -1336,6 +1347,9 @@ options:
           description: "Maksimum karakter: tek bir yapay zekâ isteği ne kadar metin taşır"
         maxItemsPerBatch:
           description: "Maksimum paragraf: tek istekte kaç paragraf birleşir. Yapay zekâ olmayan sağlayıcılar ikisini de yok sayar"
+      requestTimeout:
+        title: İstek zaman aşımı
+        description: "Vazgeçip yeniden denemeden önce yanıt için kaç saniye beklenir. Yapay zekâ toplu istekleri uzunluklarına göre en fazla 100 saniye ek süre alır. Yavaş bir model sürekli zaman aşımına uğruyorsa artırın"
       preloadConfig:
         title: Ön çeviri aralığı
         description: API maliyetlerinden tasarruf etmek için görünüm alanının altındaki ne kadar içeriğin önceden çevrileceğini kontrol edin
@@ -1507,7 +1521,7 @@ options:
           videoSummary: Video özeti (AI akıllı bağlam gerektirir)
     subtitlesQueue:
       title: Altyazı kuyruğu
-      description: Altyazı isteklerinin ne kadar hızlı gittiği ve her birinin kaç satır taşıdığı
+      description: Altyazı isteklerinin ne kadar hızlı gittiği, her birinin kaç satır taşıdığı ve her birinin ne kadar sürebileceği
       manageQueue: Kuyruğu yönet
       requestQueueConfig:
         title: Çeviri hızı
@@ -1522,6 +1536,9 @@ options:
           description: "Maksimum karakter: tek bir yapay zekâ isteği ne kadar metin taşır"
         maxItemsPerBatch:
           description: "Maksimum altyazı satırı: tek istekte kaç satır birleşir. Yapay zekâ olmayan sağlayıcılar ikisini de yok sayar"
+      requestTimeout:
+        title: İstek zaman aşımı
+        description: "Vazgeçip yeniden denemeden önce yanıt için kaç saniye beklenir. Yapay zekâ toplu istekleri uzunluklarına göre en fazla 100 saniye ek süre alır. Yavaş bir model sürekli zaman aşımına uğruyorsa artırın"
     cache:
       title: Önbellek
       clearCache:
@@ -1579,6 +1596,24 @@ translation:
   sameLanguage: Kaynak ve hedef diller farklı olmalıdır
   autoModeSameLanguage: Algılanan dil '$1' hedef dille aynı
   extensionContextInvalidated: Uzantı güncellendi. Bu sayfayı yenileyip tekrar deneyin.
+pageDiagnosis:
+  title: "Sayfa tanılaması"
+  summary: "$1 çevrildi, $2 çevrilmedi"
+  empty: "Henüz gösterilecek bir şey yok. Sayfa çevirisini açın, ardından bunu yeniden açın."
+  emptyWhileTranslating: "Henüz gösterilecek bir şey yok. Sayfa çevirisi paragraflara ulaştıkça burada görünürler."
+  framesNotIncluded: "Gömülü çerçevelerin içindeki metin burada yer almaz."
+  hint: "Paragraflarını sayfada işaretlemek için bir nedene tıklayın."
+  close: "Kapat"
+  unavailable: "Read Frog bu sayfada çalışamıyor"
+  reasons:
+    noProse: "Çevrilecek kelime yok"
+    tooShort: "Çevrilemeyecek kadar kısa"
+    targetLanguage: "Zaten hedef dilinizde"
+    skipLanguage: "Atladığınız bir dilde"
+    noTranslationNeeded: "Yapay zekâ çeviriye gerek olmadığını söyledi"
+    sameAsSource: "Çeviri orijinalle aynı"
+    emptyResult: "Hizmet hiçbir şey döndürmedi"
+    error: "Çeviri başarısız oldu"
 annotation:
   annotate: "Not ekle"
   enterMode: "Not modu"

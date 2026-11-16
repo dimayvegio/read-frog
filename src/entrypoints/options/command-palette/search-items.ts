@@ -313,6 +313,13 @@ export const SEARCH_ITEMS: SearchItem[] = [
     pageKey: "options.translation.title",
   },
   {
+    sectionId: "request-timeout",
+    route: "/page-translation/translation-queue",
+    titleKey: "options.translation.translationQueue.requestTimeout.title",
+    descriptionKey: "options.translation.translationQueue.requestTimeout.description",
+    pageKey: "options.translation.title",
+  },
+  {
     sectionId: "preload-config",
     route: "/page-translation/translation-queue",
     titleKey: "options.translation.translationQueue.preloadConfig.title",

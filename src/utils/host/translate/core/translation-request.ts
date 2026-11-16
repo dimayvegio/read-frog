@@ -1,4 +1,5 @@
 import type { InlineAtomExtraction } from "../dom/inline-atoms"
+import type { UntranslatedReason } from "../paragraph-diagnosis"
 import type { PageTranslationRequestOptions } from "../translate-variants"
 import type { Config } from "@/types/config/config"
 import type { TranslationTextFormat } from "@/types/config/translate"
@@ -42,16 +43,20 @@ export function preparePageTranslationSource(
  * Pass prose (`filterText`), never the HTML request: language detection on
  * markup is noise.
  */
+export async function getPageTranslationSkipReason(
+  text: string,
+  config: Config,
+): Promise<UntranslatedReason | null> {
+  if (!text.trim() || isNumericContent(text)) return "noProse"
+  if (await shouldFilterSmallParagraph(text, config)) return "tooShort"
+  if (await shouldSkipAsTargetLanguage(text, config)) return "targetLanguage"
+  return null
+}
 export async function shouldSkipPageTranslationText(
   text: string,
   config: Config,
 ): Promise<boolean> {
-  return (
-    !text.trim() ||
-    isNumericContent(text) ||
-    (await shouldFilterSmallParagraph(text, config)) ||
-    (await shouldSkipAsTargetLanguage(text, config))
-  )
+  return (await getPageTranslationSkipReason(text, config)) !== null
 }
 
 export function getDisplayTranslation(
