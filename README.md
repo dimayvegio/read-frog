@@ -4,7 +4,7 @@ Independent GPL-3.0 fork of Read Frog for bilingual web/PDF/video reading and la
 
 Image OCR: choose **Giữ cấu trúc — bảng, danh sách, code** for editable structured source and validated cell-by-cell translation. [A.12 details and limits](IMAGE_STRUCTURE_A12.md).
 
-Bring your own OpenAI API key; AI usage is billed separately. Fixed OpenAI processing endpoints, local PDF/OCR, private credentials/notebooks and optional Edge config sync. Original PDF binaries never upload. See [privacy](PRIVACY_POLICY.md), [fork differences](FORK_DIFFERENCES.md), [upgrade guide](UPSTREAM_UPGRADE_GUIDE.md), [store handoff](store/README.md) and [source/licenses](store/SOURCE_AND_LICENSES.md).
+Bring your own OpenAI API key; AI usage is billed separately. Fixed OpenAI processing endpoints, local PDF/OCR, private credentials/notebooks and local settings-file backups. Browser-account settings sync has been removed. Original PDF binaries never upload. See [privacy](PRIVACY_POLICY.md), [fork differences](FORK_DIFFERENCES.md), [upgrade guide](UPSTREAM_UPGRADE_GUIDE.md), [store handoff](store/README.md) and [source/licenses](store/SOURCE_AND_LICENSES.md).
 
 Build: Node 26, pinned pnpm, pnpm install --frozen-lockfile, pnpm zip:edge. Set SKIP_FREE_API=true for local tests. Existing unpacked installations keep the fixed directory/Reload workflow in AGENTS.md.
 

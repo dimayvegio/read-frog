@@ -1,4 +1,4 @@
-import { AudioLines, Gauge, Headphones, Mic, RefreshCw } from "lucide-react"
+import { AudioLines, Gauge, Headphones, Mic } from "lucide-react"
 import { Icon } from "@/components/local-icon"
 import { i18n } from "@/utils/i18n"
 import { sendMessage } from "@/utils/message"
@@ -84,19 +84,11 @@ function App() {
             </button>
             <button
               type="button"
-              className="flex items-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-left text-xs font-medium text-foreground transition-colors hover:bg-muted"
+              className="col-span-2 flex items-center justify-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
               onClick={() => void sendMessage("openUsageDashboard", undefined)}
             >
               <Gauge className="size-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate">Chi phí OpenAI</span>
-            </button>
-            <button
-              type="button"
-              className="col-span-2 flex items-center justify-center gap-1.5 rounded-md border border-border/60 bg-muted/30 px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-              onClick={() => void sendMessage("openSettingsSync", undefined)}
-            >
-              <RefreshCw className="size-3.5 shrink-0 text-muted-foreground" />
-              <span>Đồng bộ cấu hình Edge</span>
             </button>
           </div>
         </div>

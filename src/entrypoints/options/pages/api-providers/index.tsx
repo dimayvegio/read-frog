@@ -131,8 +131,8 @@ export function ApiProvidersPage() {
         <p>
           PDF files stay on your device. Only translation text or explicitly selected OCR crops are
           sent. Local OCR, PDF tools and saved-word review work locally. API keys stay in separate
-          local credential storage and are excluded from settings exports and browser configuration
-          sync.
+          local credential storage and are excluded from settings exports. Browser-account
+          configuration sync is not available.
         </p>
         <p>
           Tính năng AI gửi nội dung bạn chọn trực tiếp tới OpenAI và có thể tính phí. File PDF được

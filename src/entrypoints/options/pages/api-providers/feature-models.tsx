@@ -45,9 +45,9 @@ export function OpenAIFeatureModelsSettings() {
         </Button>
       </div>
       <p className="text-xs text-muted-foreground">
-        Lưu riêng trên máy, chưa đồng bộ Edge. Sau khi lưu, tải lại các tab đang dùng FlowRead để áp
-        dụng. Model được giữ cố định trong mỗi tab để kết quả khớp cache. Xem/chỉnh tùy chọn không
-        gọi API tạo nội dung.
+        Lưu riêng trên máy. Sau khi lưu, tải lại các tab đang dùng FlowRead để áp dụng. Model được
+        giữ cố định trong mỗi tab để kết quả khớp cache. Xem/chỉnh tùy chọn không gọi API tạo nội
+        dung.
       </p>
       {status && (
         <p role="status" className="text-xs">

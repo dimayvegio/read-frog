@@ -341,7 +341,7 @@ options:
     unsupported: このアドレスは照合できません。ポート指定と、http・https 以外のスキームには対応していません。
   preference:
     title: 環境設定
-    pageDescription: Read Frog の外観、動作する範囲、設定の同期とバックアップ方法を指定します。
+    pageDescription: FlowRead の外観、動作する範囲、設定のローカル保存とバックアップを指定します。
     appearanceAndLanguage:
       title: 外観と言語
       theme:
@@ -454,7 +454,7 @@ options:
             confirm: 同期
             cancel: キャンセル
       manualSync:
-        title: 手動設定同期
+        title: 設定ファイルのエクスポート/インポート
         description: 設定を手動でインポート・エクスポートします。用語集も一緒に含まれます
         import: インポート
         export: エクスポート

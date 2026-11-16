@@ -342,7 +342,7 @@ options:
     unsupported: FlowRead không khớp được địa chỉ này. Cổng và các giao thức ngoài http, https đều không được hỗ trợ.
   preference:
     title: Tùy chọn
-    pageDescription: Đặt giao diện của FlowRead, nơi tiện ích hoạt động và cách cấu hình được đồng bộ, sao lưu.
+    pageDescription: Đặt giao diện của FlowRead, nơi tiện ích hoạt động và cách lưu cấu hình, sao lưu trên máy.
     appearanceAndLanguage:
       title: Giao diện & ngôn ngữ
       theme:
@@ -455,7 +455,7 @@ options:
             confirm: Đồng bộ
             cancel: Hủy
       manualSync:
-        title: Đồng bộ cấu hình thủ công
+        title: Xuất/nhập file cấu hình
         description: Nhập và xuất cấu hình thủ công, kèm theo bảng thuật ngữ của bạn
         import: Nhập
         export: Xuất

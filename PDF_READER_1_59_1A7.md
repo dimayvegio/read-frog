@@ -76,19 +76,19 @@ chỉ nạp một lần để tránh1.200 lượt IndexedDB read vô ích trên 
 
 Yêu cầu chỉ dùng OpenAI thay thế lựa chọn giữ Microsoft TTS trước đây:
 
-| Luồng                                                                 | Ra mạng                                                                                                  |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| Mở PDF local, đọc/cuộn/zoom, tìm, bookmark, vẽ/ô chữ, trích trang, in | Không                                                                                                    |
-| OCR local Tesseract                                                   | Không; worker/WASM/ngôn ngữ đóng gói sẵn                                                                 |
-| Bấm dịch PDF/song ngữ/dải trang                                       | Chỉ chữ của phần được chọn tới OpenAI Responses                                                          |
-| Bấm OCR ảnh OpenAI                                                    | Chỉ crop ảnh đã chọn tới OpenAI; không gửi binary PDF                                                    |
-| Dịch web/từ điển/phụ đề/học, TTS, chấm phát âm, audio transcription   | Endpoint OpenAI cố định, private credentials; không relay                                                |
-| Microsoft/Edge TTS                                                    | Đã tắt handler mạng và bỏ client khỏi production graph; setting cũ vẫn đọc được, runtime dùng OpenAI     |
-| Site rules từ rules.readfrog.app                                      | Tắt; xóa alarm cũ, dùng rules trong ZIP                                                                  |
-| Icon                                                                  | Offline inventory; thay các import Iconify online còn sót sau upstream                                   |
-| Native CC                                                             | Vẫn GET phụ đề từ website gốc đang xem, cần cho YTB/Netflix/ani.pm; không gửi PDF                        |
-| Mở PDF bằng URL                                                       | GET URL người dùng mở để tải file xuống reader; không upload                                             |
-| Edge account sync đã bật                                              | `browser.storage.sync` cấu hình nhỏ; browser/Microsoft quản lý vận chuyển, không gồm PDF/key/audio/sổ từ |
+| Luồng                                                                 | Ra mạng                                                                                              |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Mở PDF local, đọc/cuộn/zoom, tìm, bookmark, vẽ/ô chữ, trích trang, in | Không                                                                                                |
+| OCR local Tesseract                                                   | Không; worker/WASM/ngôn ngữ đóng gói sẵn                                                             |
+| Bấm dịch PDF/song ngữ/dải trang                                       | Chỉ chữ của phần được chọn tới OpenAI Responses                                                      |
+| Bấm OCR ảnh OpenAI                                                    | Chỉ crop ảnh đã chọn tới OpenAI; không gửi binary PDF                                                |
+| Dịch web/từ điển/phụ đề/học, TTS, chấm phát âm, audio transcription   | Endpoint OpenAI cố định, private credentials; không relay                                            |
+| Microsoft/Edge TTS                                                    | Đã tắt handler mạng và bỏ client khỏi production graph; setting cũ vẫn đọc được, runtime dùng OpenAI |
+| Site rules từ rules.readfrog.app                                      | Tắt; xóa alarm cũ, dùng rules trong ZIP                                                              |
+| Icon                                                                  | Offline inventory; thay các import Iconify online còn sót sau upstream                               |
+| Native CC                                                             | Vẫn GET phụ đề từ website gốc đang xem, cần cho YTB/Netflix/ani.pm; không gửi PDF                    |
+| Mở PDF bằng URL                                                       | GET URL người dùng mở để tải file xuống reader; không upload                                         |
+| Edge account sync                                                     | Đã gỡ ở A.19; mô tả các release cũ không cấp quyền phục hồi transport                                |
 
 Không tuyên bố browser hoặc website đang mở không phát sinh kết nối mạng.
 Không có PDF upload endpoint, Files API, dịch vụ PDF relay, Drive/OneDrive

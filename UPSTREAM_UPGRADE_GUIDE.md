@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+**A.19: đồng bộ tài khoản Edge đã gỡ theo yêu cầu.** Giữ [retirement và kiểm thử nâng cấp](EDGE_SYNC_REMOVAL_A19.md), không phục hồi service/RPC/page script/transport từ upstream. Các chỉ dẫn sync trong phần lịch sử không áp dụng cho runtime mới; không truy cập hoặc xóa dữ liệu sync cũ.
+
 Bổ sung A.18: giữ [model snapshot/cache, menu ảnh và review](FEATURE_MODELS_REVIEW_A18.md). Không khôi phục background model override sau hashing, catalog audio dùng lẫn endpoint, tự chọn ảnh khác/fetch không giới hạn hoặc repaint ngoài masks. Preference local riêng cần reload tab, không được đưa vào config125/sync bằng cách sửa migration cũ.
 
 Bổ sung A.17: giữ [prompt riêng/độ nét/dự toán PDF ảnh dịch](PDF_IMAGE_PROMPT_A17.md), prompt bounded/RAM-only, snapshot và cache hash; output-size validation/quality/không upscale output. Dự toán chỉ phần output, Auto/input unknown, không giả thành invoice hay thêm remote price API; giữ rounding/date/source.
@@ -214,12 +216,10 @@ dịch ảnh/PDF với prompt riêng và cache tách theo target code. Xem
 [STUDY_FLOW_AND_USAGE.md](STUDY_FLOW_AND_USAGE.md),
 [IMAGE_TRANSLATION.md](IMAGE_TRANSLATION.md).
 
-Từ build `1.58.0.17`, giữ Edge native configuration sync opt-in, DB riêng1 và
-transport1 frozen config124: gzip/chunks/checksum, head-last commit, vector
-conflicts, sender guard và persistent recovery/undo. Không sync credential hoặc
-DB glossary/vocabulary/PDF/image/usage, không đổi extension ID âm thầm. Khi
-nâng config schema phải thêm reader/writer sync mới. Không khôi phục nút Send
-feedback cũ. Xem [EDGE_SETTINGS_SYNC.md](EDGE_SETTINGS_SYNC.md).
+Edge native configuration sync từng có ở build `1.58.0.17` nhưng đã gỡ tại
+A.19 theo yêu cầu. Không phục hồi transport/service/RPC từ upstream; giữ các
+định dạng dữ liệu cũ nằm yên, key/ID và chức năng backup/file import/export.
+Không khôi phục nút Send feedback. Xem [gỡ đồng bộ A.19](EDGE_SYNC_REMOVAL_A19.md).
 
 Từ build `1.58.0.16`, giữ vocabulary DB5 additive store `sources`, ZIP6 và
 đọc ZIP1-5; không đổi định nghĩa DB1-4 hoặc schema review logs đã phát hành.
@@ -433,9 +433,9 @@ và backup riêng trước khi nạp binary cũ. Không uninstall extension đ�
 - Đồng bộ `CONFIG_SCHEMA_VERSION`, registry tự kiểm tra chuỗi liên tục,
   `portable.ts`, giới hạn `BootstrapJournal` trong credential storage và
   version đích của bootstrap. Tên DB `edge-openai-credentials` phải ổn định.
-- Schema124 hiện còn gắn với Edge sync transport1. Nếu lên125+, thêm protocol
-  reader/writer phù hợp và kiểm đồng bộ với client cũ/mới; không sửa reader1
-  để âm thầm lược bỏ dữ liệu. DB vocabulary5/PDF2/image1/usage1/sync1, ZIP6
+- Transport Edge cũ đã retired ở A.19, không cần writer/reader đồng bộ mới khi nâng
+  config. Không sửa migration đã phát hành hay mở/xóa DB sync cũ. Các DB
+  vocabulary5/PDF2/image1/usage1, ZIP6
   và report3 có version độc lập; xem ledger trong `FORK_DIFFERENCES.md`.
 - Thêm fixture cho schema mới và test upgrade từ schema fork đang dùng,
   cả import/restore cùng version. API key giả/sentinel phải không xuất hiện
@@ -520,7 +520,7 @@ Bổ sung các cửa kiểm tra từ các bản local sau merge1.58 ban đầu:
 | F11 Ảnh          | Fast1 request/hai bước2 request/warm0 khi cùng context; crop-only, sender, hủy/clear epoch; custom prompt ghi Chinese nhưng pickerViệt/Anh vẫn gửi đúng đích và không lẫn cache                     |
 | F12–F14 Sổ từ    | UpgradeDB cũ; nhiều sổ/ZIP riêng; nhậpZIP1–6; HTML file/HTTP/mobile; MP3/WAV, IDs, first-answer logs, assisted/SRS/source không đếm trùng; regression1.000 từ/2.000 audio                           |
 | F15 Usage        | Token SDK/cache/cost/unknown-price/latency/clear epoch; không prompt/URL/key hoặc giả số liệu live                                                                                                  |
-| F16 Edge sync    | Chunks-first/head-last, checksum, vector conflict/stale-preview, recovery/undo, quota, trusted sender và cùngID; relay mock phải báo đúng là mock                                                   |
+| F16 đã gỡ        | Nâng cấp cùngID/copy-only, retire alarm và trang cũ, không sync API/RPC; key/config/backup/sổ từ giữ nguyên, file export/import vẫn chạy                                                            |
 
 Các browser regression được theo dõi trong repo:
 
@@ -530,7 +530,7 @@ node scripts/debug/check-vocabulary.mjs
 node scripts/debug/check-vocabulary-scale.mjs
 $env:PDF_IMAGE_SKIP_BENCHMARK = '1'
 node scripts/debug/check-pdf-reading.mjs
-node scripts/debug/check-edge-settings-sync.mjs
+node scripts/debug/check-settings-sync-removal.mjs
 ```
 
 `check-study-flow` gọi cả `check-sidebar-window`; `check-pdf-reading` gọi PDF
@@ -708,8 +708,7 @@ profile, `.env`, `.pem`, CRX hoặc các sentinel key dùng trong test.
 Đọc [PDF_READER_1_59_1A7.md](PDF_READER_1_59_1A7.md) trước khi merge. Không
 khôi phục Microsoft TTS, remote site-rules updater, Iconify online, hosted
 PDF/OCR/translation relay. Chỉ OpenAI xử lý nội dung; native caption/PDF URL
-GET và opt-in Edge storage.sync giữ chức năng nguồn/vận chuyển, không upload
-PDF. Không sửa migration/config125 hay workspace `.version(1)` đã phát hành;
+GET giữ chức năng nguồn, không upload PDF. Edge storage.sync đã bị gỡ ở A.19. Không sửa migration/config125 hay workspace `.version(1)` đã phát hành;
 DB2 chỉ thêm ba store. Giữ structured PDF adapter/cache identity, bounded
 range cancellation, metadata source guards và production privacy assertions.
 

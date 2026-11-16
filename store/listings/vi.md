@@ -9,7 +9,7 @@ FlowRead hỗ trợ dịch trang web/đoạn bôi đen, từ điển, PDF cục 
 - Audio: file → chữ, phụ đề thời gian khi API được chọn trả timestamps; thu trước/chép lời trực tiếp từ tab và dịch ngữ cảnh tùy chọn.
 - Học: sổ từ có tên, ôn tập tương thích điện thoại, nhập/xuất/logs từng từ. Luyện phát âm tiếng Anh chỉ gửi ghi âm sau khi bạn bấm chấm điểm.
 
-Không cần tài khoản/thuê bao FlowRead. AI cần khóa OpenAI riêng, phát sinh phí API do OpenAI tính; ChatGPT subscription không bao gồm API credit. Nội dung gửi trực tiếp OpenAI, không qua máy chủ xử lý FlowRead; không quảng cáo/telemetry. Đọc/tìm kiếm/chú thích PDF cục bộ không cần khóa. Đồng bộ Edge tùy chọn chỉ gồm cấu hình nhỏ, không gồm khóa/sổ từ/audio.
+Không cần tài khoản/thuê bao FlowRead. AI cần khóa OpenAI riêng, phát sinh phí API do OpenAI tính; ChatGPT subscription không bao gồm API credit. Nội dung gửi trực tiếp OpenAI, không qua máy chủ xử lý FlowRead; không quảng cáo/telemetry. Đọc/tìm kiếm/chú thích PDF cục bộ không cần khóa. Xuất/nhập cấu hình qua file trên máy; không đồng bộ cấu hình qua tài khoản trình duyệt.
 
 Phụ đề/lấy audio phụ thuộc trang và player. AI tự phân tích nghe mẫu trong lúc phát, không lấy tức thì audio tương lai hoặc vượt DRM. Kết quả AI có thể sai. Giọng lồng tiếng là AI, không phải tác giả video.
 

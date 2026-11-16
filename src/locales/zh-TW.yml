@@ -342,7 +342,7 @@ options:
     unsupported: 無法比對這個位址。不支援連接埠，也不支援 http 與 https 以外的協定。
   preference:
     title: 偏好設定
-    pageDescription: 設定陪讀蛙的外觀與生效範圍，以及設定檔的同步與備份方式。
+    pageDescription: 設定 FlowRead 的外觀與生效範圍，以及設定檔的本機儲存與備份方式。
     appearanceAndLanguage:
       title: 外觀與語言
       theme:
@@ -455,7 +455,7 @@ options:
             confirm: 同步
             cancel: 取消
       manualSync:
-        title: 手動設定同步
+        title: 匯出/匯入設定檔
         description: 手動匯入匯出你的設定，術語庫也一併帶走
         import: 匯入
         export: 匯出

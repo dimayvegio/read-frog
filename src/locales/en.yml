@@ -343,7 +343,7 @@ options:
     unsupported: FlowRead cannot match this address. Ports and schemes other than http and https are not supported.
   preference:
     title: Preferences
-    pageDescription: Set how FlowRead looks, where it runs, and how your config is synced and backed up.
+    pageDescription: Set how FlowRead looks, where it runs, and how your settings are stored and backed up locally.
     appearanceAndLanguage:
       title: Appearance & language
       theme:
@@ -456,7 +456,7 @@ options:
             confirm: Sync
             cancel: Cancel
       manualSync:
-        title: Manual config sync
+        title: Export/import settings files
         description: Manually import and export your configuration settings, and your glossaries with them
         import: Import
         export: Export

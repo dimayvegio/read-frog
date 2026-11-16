@@ -342,7 +342,7 @@ options:
     unsupported: Read Frog bu ünvanı uyğunlaşdıra bilmir. Portlar və http ilə https xaricindəki sxemlər dəstəklənmir.
   preference:
     title: Ümumi parametrlər
-    pageDescription: Read Frog genişlənməsinin görünüşünü, harada işləyəcəyini, konfiqurasiyanın necə sinxronlaşdırılacağını və ehtiyat nüsxəsinin necə yaradılacağını təyin edin.
+    pageDescription: FlowRead görünüşünü, işlədiyi saytları, parametrlərin yerli saxlanmasını və ehtiyat nüsxələrini tənzimləyin.
     appearanceAndLanguage:
       title: Görünüş və dil
       theme:
@@ -455,7 +455,7 @@ options:
             confirm: Sinxronlaşdır
             cancel: Ləğv et
       manualSync:
-        title: Konfiqurasiyanın əl ilə sinxronlaşdırılması
+        title: Parametrləri fayla ixrac/idxal et
         description: Ayarlarınızı əl ilə idxal və ixrac edin, lüğətləriniz də birlikdə gəlir
         import: İdxal et
         export: İxrac et

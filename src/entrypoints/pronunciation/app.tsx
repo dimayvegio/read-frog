@@ -639,9 +639,9 @@ export function PronunciationPractice() {
             số. Không chấm khi AI chưa nghe đủ rõ.
           </p>
           <p>
-            Lịch sử tối đa 1.000 lần / 16 MiB, lưu tại extension trên máy, tách khỏi đồng bộ Edge và
-            Sổ từ. Xuất báo cáo trước khi xóa hoặc đổi máy. So sánh chỉ có ý nghĩa trong cùng đoạn,
-            ngữ cảnh, rubric và model thực tế; model có thể được OpenAI cập nhật.
+            Lịch sử tối đa 1.000 lần / 16 MiB, lưu tại extension trên máy, tách khỏi bản sao lưu cấu
+            hình và Sổ từ. Xuất báo cáo trước khi xóa hoặc đổi máy. So sánh chỉ có ý nghĩa trong
+            cùng đoạn, ngữ cảnh, rubric và model thực tế; model có thể được OpenAI cập nhật.
           </p>
         </details>
         <div className="actions">

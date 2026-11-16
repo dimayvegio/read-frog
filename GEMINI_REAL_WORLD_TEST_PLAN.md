@@ -1,5 +1,7 @@
 # FlowRead — hướng dẫn Gemini kiểm thử sử dụng liên tục
 
+**Cập nhật A.19 (16/11/2026):** đồng bộ Edge đã gỡ; dùng S21 và [hợp đồng gỡ tính năng](EDGE_SYNC_REMOVAL_A19.md), không chạy harness transport đã xóa. Các mốc bên dưới là lịch sử.
+
 Mốc soạn: 15/11/2026. Đối chiếu repository ở commit `310c785e`, tag `v1.59.3A.9`, package `1.59.3-a.9`, manifest numeric `1.59.3.9`, display `1.59.3A`. Khi chạy trên commit khác, ghi lại HEAD thực tế; không âm thầm checkout hoặc reset về mốc này.
 
 Đây là **kế hoạch kiểm thử**, không phải báo cáo các kịch bản dưới đây đã chạy. Bản A.9 trước đó có 4.701 tests đạt/1 skip và 16 assertions HTML production với API mock; những con số ấy không chứng minh đã qua soak test hai giờ hoặc OpenAI thật.
@@ -94,22 +96,22 @@ pnpm exec node scripts/debug/audit-store.mjs
 
 Chạy tuần tự, mỗi lệnh lưu stdout/stderr, exit code, thời gian, thư mục evidence mà script in ra. Mặc định các bài dưới dùng fixture/mock; vẫn phải đọc script/private mock trước để chắc không có fallback gọi thật. Chúng thường tạo profile mới cho mỗi lần: lặp script 100 lần **không** thay thế 100 thao tác trong cùng phiên.
 
-| Lệnh `pnpm exec node ...`                     | Phần cần kiểm tra                                 |
-| --------------------------------------------- | ------------------------------------------------- |
-| `scripts/debug/check-html-fixed-pane.mjs`     | Pane HTML thật, highlight, chuyển mode/cache A.9  |
-| `scripts/debug/check-web-bilingual.mjs`       | Khung song ngữ HTML/restore                       |
-| `scripts/debug/check-pdf-study.mjs`           | PDF search/drawing/note/OCR local                 |
-| `scripts/debug/check-pdf-workspace.mjs`       | Gộp/tách/exclude/bookmark/ink workspace           |
-| `scripts/debug/check-pdf-bilingual.mjs`       | PDF song ngữ/scroll/cancel/cache                  |
-| `scripts/debug/check-pdf-reading.mjs`         | Selection PDF và image capture/fast image helpers |
-| `scripts/debug/check-video-dubbing.mjs`       | Lồng tiếng, capture/analysis, mix/offset          |
-| `scripts/debug/check-audio-transcription.mjs` | File/live capture/source pane/SRT theo flags      |
-| `scripts/debug/check-pronunciation.mjs`       | Trang phát âm, recording/feedback/report          |
-| `scripts/debug/check-tts-download.mjs`        | MP3 download/playback isolation                   |
-| `scripts/debug/check-reading-lab.mjs`         | Thư viện đoạn, nghe/record/export                 |
-| `scripts/debug/check-study-flow.mjs`          | Listening/saved-word highlights/usage             |
-| `scripts/debug/check-vocabulary-scale.mjs`    | 1.000 từ, audio/history/report/round trip/mobile  |
-| `scripts/debug/check-edge-settings-sync.mjs`  | Transport/conflict/undo bằng storage giả lập      |
+| Lệnh `pnpm exec node ...`                       | Phần cần kiểm tra                                     |
+| ----------------------------------------------- | ----------------------------------------------------- |
+| `scripts/debug/check-html-fixed-pane.mjs`       | Pane HTML thật, highlight, chuyển mode/cache A.9      |
+| `scripts/debug/check-web-bilingual.mjs`         | Khung song ngữ HTML/restore                           |
+| `scripts/debug/check-pdf-study.mjs`             | PDF search/drawing/note/OCR local                     |
+| `scripts/debug/check-pdf-workspace.mjs`         | Gộp/tách/exclude/bookmark/ink workspace               |
+| `scripts/debug/check-pdf-bilingual.mjs`         | PDF song ngữ/scroll/cancel/cache                      |
+| `scripts/debug/check-pdf-reading.mjs`           | Selection PDF và image capture/fast image helpers     |
+| `scripts/debug/check-video-dubbing.mjs`         | Lồng tiếng, capture/analysis, mix/offset              |
+| `scripts/debug/check-audio-transcription.mjs`   | File/live capture/source pane/SRT theo flags          |
+| `scripts/debug/check-pronunciation.mjs`         | Trang phát âm, recording/feedback/report              |
+| `scripts/debug/check-tts-download.mjs`          | MP3 download/playback isolation                       |
+| `scripts/debug/check-reading-lab.mjs`           | Thư viện đoạn, nghe/record/export                     |
+| `scripts/debug/check-study-flow.mjs`            | Listening/saved-word highlights/usage                 |
+| `scripts/debug/check-vocabulary-scale.mjs`      | 1.000 từ, audio/history/report/round trip/mobile      |
+| `scripts/debug/check-settings-sync-removal.mjs` | Gỡ sync; nâng cấp A.18, giữ file backup/import/export |
 
 `check-image-translation.mjs`, `check-fast-image.mjs`, `check-pin-srt.mjs` là **helper có export**, không chạy riêng rồi thấy exit 0 mà kết luận đã test. Image helpers chạy qua `check-pdf-reading.mjs`; pin/SRT qua Audio với `AUDIO_PIN_SRT=1`.
 
@@ -359,13 +361,13 @@ Thử riêng đổi target/model/custom prompt/glossary có term khớp/key revi
 3. Chỉ bấm Grade mới upload; retry cùng recording vs recording mới; mock feedback valid/low-confidence/schema sai/401/timeout.
 4. PASS: không tự chấm/upload chỉ vì auto-stop; từ đơn không bị bắt buộc rhythm/fluency, điểm 0–10 bước 0,5, uncertain không bịa điểm, không paid repair. Cùng recording cached không nhân đôi attempts; local shadowing không upload/không ghi thành đáp án từ vựng. Mic/analyser/timer cleanup đúng.
 
-### S21 — Cấu hình, credentials, backup và sync giả lập
+### S21 — Cấu hình, credentials, backup và gỡ đồng bộ tài khoản
 
 1. Save/replace/delete fake key, Test connection explicit; export/import settings; 20 lần đổi setting từ hai trang Options.
-2. Chạy transport sync với hai client QA giả lập: cùng revision, conflict, lựa chọn stale, undo/recovery, checksum lỗi, chunk/head thiếu, unknown future fields. Restart giữ cùng test store.
-3. PASS: key không vào settings export/sync/public storage/log. Glossary rows, notebook/audio/progress/PDF/image/usage DB không bị sync cấu hình cuốn theo; không project/downgrade fields mới chưa biết.
-4. Verify transport2/config125 và frozen reader transport1/config124, checksum trước migration, vector clocks và local recovery. Không sửa frozen migrations để test qua.
-5. `browser.storage.sync` local write/mock PASS không chứng minh Microsoft cloud delivery. Không đăng nhập tài khoản thật hay xóa sync cloud trong QA này; test cloud thật là nhánh riêng được đồng ý.
+2. Chạy `check-settings-sync-removal.mjs` với ZIP A.18 thật: cùng thư mục/cùng ID, giữ config/key/sổ từ/backup, seed alarm và state sync cũ enabled=true.
+3. PASS: alarm cũ bị clear, RPC sync không còn; popup/options không còn nút đồng bộ. URL cũ chỉ có HTML tĩnh, không script hay thao tác kho sync. Các file/chunk cũ được giữ trên đĩa theo quy trình copy-only nhưng không được trang cũ tải lại.
+4. `storage.sync` được instrument sau bootstrap: không app call khi xem/sửa/export/import. Dữ liệu sync cũ được test fixture kiểm nguyên vẹn; không xóa cloud data, không đăng nhập tài khoản thật. Không coi đây là test Microsoft cloud delivery.
+5. Giữ import/export file, backup local, secret exclusion và frozen migrations; khôi phục cấu hình không làm mất key/sổ từ. Không khôi phục transport từ upstream.
 
 ### S22 — Privacy/network audit xuyên suốt mọi kịch bản
 
@@ -474,5 +476,5 @@ Không kết luận “không có lỗi” chỉ vì unit pass. Kết luận đ�
 - HTML: [cache A.9](HTML_SELECTION_CACHE_A9.md), [fixed pane A.8](HTML_FIXED_PANE_AUDIO_A8.md), [HTML bilingual](HTML_BILINGUAL_READING.md).
 - PDF: [reader tools](PDF_READER_TOOLS.md), [workspace](PDF_WORKSPACE_1_59_1A6.md), [reader ranges/search/print](PDF_READER_1_59_1A7.md), [annotation UX](PDF_ANNOTATION_UX_A9.md), [bilingual](PDF_BILINGUAL_READING.md), [performance](PDF_PERFORMANCE_1_59_1.md).
 - Video/audio: [dubbing](VIDEO_DUBBING.md), [audio transcription](AUDIO_TRANSCRIPTION.md), [ani.pm](ANI_PM_SUBTITLES.md), [X/Netflix](X_NETFLIX_SUBTITLES.md), [listening/usage](STUDY_FLOW_AND_USAGE.md).
-- Learning/data: [vocabulary](VOCABULARY_LEARNING.md), [reading lab](READING_LAB.md), [pronunciation](AMERICAN_PRONUNCIATION.md), [MP3 export](OPENAI_TTS_DOWNLOAD.md), [settings sync](EDGE_SETTINGS_SYNC.md), [privacy](PRIVACY_POLICY.md).
+- Learning/data: [vocabulary](VOCABULARY_LEARNING.md), [reading lab](READING_LAB.md), [pronunciation](AMERICAN_PRONUNCIATION.md), [MP3 export](OPENAI_TTS_DOWNLOAD.md), [gỡ đồng bộ A.19](EDGE_SYNC_REMOVAL_A19.md), [privacy](PRIVACY_POLICY.md).
 - Automation: [.agents/skills/extension-puppeteer-debugging/SKILL.md](.agents/skills/extension-puppeteer-debugging/SKILL.md), [performance attribution](.agents/skills/extension-perf-forensics/SKILL.md). Ví dụ upstream dùng free/Microsoft translator không áp dụng cho fork OpenAI-only; test phải giữ mock/private endpoints hiện tại.

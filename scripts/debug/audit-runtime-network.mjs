@@ -13,6 +13,16 @@ const forbidden = [
   "api.unisvg.com",
   "unpkg.com/@lobehub",
   "https://api.readfrog.app",
+  "read-frog-settings-sync",
+  "rf-config:head:",
+  "rf-config:data:",
+  "openSettingsSync",
+  "getEdgeSettingsSync",
+  "setEdgeSettingsSyncEnabled",
+  "syncEdgeSettingsNow",
+  "undoEdgeSettingsSync",
+  "acknowledgeEdgeSyncRecovery",
+  "openEdgeSyncSettings",
 ]
 const scripts = []
 async function walk(directory) {
@@ -36,6 +46,6 @@ console.log(
     scripts: scripts.length,
     forbiddenEndpoints: found,
     policy:
-      "OpenAI content processing; native source GETs and opt-in browser sync remain separate. This static scan complements runtime payload/network regressions.",
+      "OpenAI content processing; native source GETs remain separate. Browser-account settings sync is removed. This static scan complements runtime payload/network regressions.",
   }),
 )

@@ -342,7 +342,7 @@ options:
     unsupported: Read Frog no puede hacer coincidir esta dirección. No se admiten los puertos ni los esquemas distintos de http y https.
   preference:
     title: Preferencias
-    pageDescription: Define la apariencia de Read Frog, dónde se ejecuta y cómo se sincroniza y respalda tu configuración.
+    pageDescription: Configura la apariencia de FlowRead, dónde se ejecuta y cómo se guarda y respalda la configuración localmente.
     appearanceAndLanguage:
       title: Apariencia e idioma
       theme:
@@ -455,7 +455,7 @@ options:
             confirm: Sincronizar
             cancel: Cancelar
       manualSync:
-        title: Sincronización manual de configuración
+        title: Exportar/importar archivos de configuración
         description: Importa y exporta tu configuración manualmente, con tus glosarios incluidos
         import: Importar
         export: Exportar

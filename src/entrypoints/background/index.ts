@@ -45,7 +45,6 @@ import { setupPdfReaderHandlers } from "./pdf-reader"
 import { handlePronunciationPort, setupPronunciationHandlers } from "./pronunciation"
 import { handleReadingLabPort, setupReadingLabHandlers } from "./reading-lab"
 import { handleSentenceStudyPort } from "./sentence-study"
-import { setupSettingsSyncHandlers } from "./settings-sync"
 import { setupSidePanelMessageHandler } from "./side-panel"
 import { handleSmartVideoPort, trustedSmartVideoSender } from "./smart-video"
 import { setupSubtitlesTranslationHandlers } from "./subtitles-translation"
@@ -62,6 +61,10 @@ export default defineBackground({
   main: () => {
     // Retire alarms created by older builds; no rules server requests.
     void browser.alarms.clear("site-rules-update")
+    // Upgraded profiles may retain the old recurring alarm, even after its listener is gone.
+    void browser.alarms.clear("edge-settings-sync").catch(() => {
+      logger.warn("Unable to retire the obsolete settings alarm")
+    })
     void ensureRemoteSiteRulesLoaded()
     setBackgroundConfigReadyResolver(ensureInitializedConfig)
     // MV3 listeners register in this turn; handlers await the shared bootstrap.
@@ -154,7 +157,6 @@ export default defineBackground({
     setupTranscriptionHandlers()
     setupTabAudioHandlers()
     setupUsageHandlers()
-    setupSettingsSyncHandlers()
     setupGlossaryMessageHandlers()
     setupEdgeTTSMessageHandlers()
     setupTTSPlaybackMessageHandlers()

@@ -342,7 +342,7 @@ options:
     unsupported: 无法匹配这个地址。不支持端口，也不支持 http 和 https 以外的协议。
   preference:
     title: 偏好设置
-    pageDescription: 设置陪读蛙的外观与生效范围，以及配置的同步与备份方式。
+    pageDescription: 设置 FlowRead 的外观与生效范围，以及配置的本地存储与备份方式。
     appearanceAndLanguage:
       title: 外观与语言
       theme:
@@ -455,7 +455,7 @@ options:
             confirm: 同步
             cancel: 取消
       manualSync:
-        title: 手动配置同步
+        title: 导出/导入配置文件
         description: 手动导入导出你的配置，术语库也一并带走
         import: 导入
         export: 导出

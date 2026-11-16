@@ -1,3 +1,57 @@
+# A.19 validation — 16 November 2026
+
+Baseline `27fefff3` / A.18; package `1.59.3-a.19`, numeric `1.59.3.19`, display `1.59.3A`. Review and removal contract: [EDGE_SYNC_REMOVAL_A19.md](../EDGE_SYNC_REMOVAL_A19.md). User-requested removal of Edge account settings sync; no dependency, permission, config125 migration or other published data-format changes.
+
+## Current evidence
+
+- Fresh uncached Nx: **4,844 passed / 1 intentionally skipped; 502 passing files / 1 skipped**, 52.27s Vitest / 53.7s Nx. `SKIP_FREE_API=true`, `NX_DAEMON=false`, `NX_SKIP_NX_CACHE=true`; `pnpm exec nx test --output-style=static -- --exclude="**/free-api.test.ts"`. `.codex/review-a19/unit-final.log`. The removed sync implementation's 19 tests/two files are no longer applicable; they were replaced by an actual upgrade/removal browser regression.
+- **21 browser suites / 646 final passing checks**, Chrome157.0.8103.51, isolated profiles/synthetic fixtures. Twenty broad suites cover PDF.js/local OCR, translation caches, annotations, audio, dubbing, vocabulary and study. After those passed, only locale labels were updated; the final rebuild passed fresh units, the 21-check upgrade regression, lint/typecheck and both audits. No paid API calls; **OpenAI spending $0**. No main Edge UI/profile control, live model-quality, cloud-account-delivery, physical-phone, DRM or 120-minute soak claim.
+- Type-aware `oxlint --type-check` passed. Final runtime audit: **201 scripts, zero forbidden endpoint/retired RPC/transport strings**; store audit with `STORE_REQUIRE_SCREENSHOTS=true` passed. Generic vendor API namespaces are not app sync calls. Formatting and diff checks passed before commit.
+- Actual **A.18 ZIP → A.19 copy-only update in one isolated installation path/ID**: private key/revision, public config125, feature preferences, backup and notebook records retained; old cloud fixture and sync DB untouched. Local JSON settings export/import works and excludes keys. Old bookmarked HTML has zero scripts/inputs/forms even with orphan chunks still on disk. All seven old RPCs are unavailable. Worker-only restart removes the deliberately seeded sync alarm while preserving backup/unrelated alarms. App sync APIs and external fetches during local settings actions: **0**; bundled icon fetches are separately recorded.
+- Final summary: `.codex/review-a19/final-summary.json`; upgrade evidence: `.codex/sync-removal-1794845112812/evidence.json`; final upgrade log: `.codex/review-a19/upgrade-release4.log`. Fake keys only. Bootstrap journal digest refresh is expected; actual credential state and revision stay unchanged.
+
+| Suite                       | Passing checks |
+| --------------------------- | -------------: |
+| check-image-overlay         |             15 |
+| check-image-structure       |             22 |
+| check-pdf-image-translation |             37 |
+| check-pdf-reading           |             81 |
+| check-web-bilingual         |             26 |
+| check-pdf-study             |             35 |
+| check-pdf-workspace         |             23 |
+| check-pdf-bilingual         |             33 |
+| check-audio-transcription   |             31 |
+| check-pronunciation         |             37 |
+| check-tts-download          |             11 |
+| check-reading-lab           |             20 |
+| check-study-flow            |             59 |
+| check-vocabulary-scale      |             25 |
+| check-anipm-context         |             14 |
+| check-html-fixed-pane       |             21 |
+| check-generated-image       |             21 |
+| check-vocabulary            |             70 |
+| check-video-dubbing-youtube |             22 |
+| check-video-dubbing-anipm   |             22 |
+| check-settings-sync-removal |             21 |
+
+## Harness corrections and limits
+
+Earlier setup failures are retained in `.codex/review-a19/upgrade*.log` and their evidence directories; they are not counted as passes. Corrections: foreground/poll a hidden baseline backup page instead of waiting on background rAF; distinguish bootstrap journal housekeeping from actual key changes; account for DevTools extension reload resetting alarm/page targets; detach/close only the worker and exclude **all** pre-existing DevTools targets before attaching to the restarted worker. A known active RPC must respond before removed-RPC assertions. Local bundled icon fetches must not be mislabeled as provider/network calls. No production workaround was added for these harness issues and no assertion was dropped. A separate worker restart now demonstrates the selective alarm cleanup itself.
+
+Old synchronized data may remain on the browser/account; the release neither reads nor erases it. The static runtime audit targets the clean build/ZIP. Copy-only installed folders deliberately retain orphan assets; the new static `settings-sync.html` references none of their scripts. Normal browser/website traffic is not measured as application API traffic.
+
+## ZIP and local install
+
+- Delivered ZIP: `C:\Users\TIEN\Downloads\FlowRead-Edge-1.59.3A.zip`, **22,136,134 bytes**.
+- SHA256: `a4965cb2cc5a5c1cca40b74de5afd67a7fb5d611d5bb0b9491aad7aa414092e4`.
+- Root manifest/CRC/safe relative paths validated, extracted into separate staging and matched against the tested final build. **470 installed files hash-verified**, assets/entrypoints first and manifest last at the fixed `C:\Users\TIEN\Downloads\ReadFrog-Edge-1.58.0A` path. Identity/permissions unchanged; browser profile/data untouched; no destination cleanup or reinstall.
+- Filesystem installed numeric **1.59.3.19**, display **1.59.3A**; **user Reload pending**. Main Edge UI was not inspected. File copying is not a profile backup. Standalone vocabulary HTML remains SHA256 `39fccc0d40d091efa55731358b0ee0066f7824731375720cf1ab9c1902433f9a`.
+- Installation evidence: `.codex/extension-update/20261116T160546Z-f13fdb97/update-report.json`.
+
+---
+
+## Historical A.18 evidence (not an A.19 rerun)
+
 # A.18 validation — 16 November 2026
 
 Baseline `24277883`; package `1.59.3-a.18`, numeric `1.59.3.18`, display `1.59.3A`. Review/fixes: [FEATURE_MODELS_REVIEW_A18.md](../FEATURE_MODELS_REVIEW_A18.md). All current feature changes, including the previously uncommitted overlay work, are included after review. No dependency, permission or published config/DB/report/ZIP/migration changes.

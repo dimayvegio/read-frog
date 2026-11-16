@@ -14,7 +14,6 @@ import type {
   PdfPositionState,
   PdfReaderSource,
 } from "./selection-result/reading-position"
-import type { EdgeSyncView } from "./settings-sync/db"
 import type { usageSnapshot } from "./usage/db"
 import type { UsageTask, UsagePrice } from "./usage/schema"
 import type { NotebookSnapshot } from "./vocabulary/schema"
@@ -81,13 +80,6 @@ interface ProtocolMap {
   openReadingLab: (data?: ReadingCapture) => void
   consumeReadingCapture: (data: { channel: string }) => ReadingCapture | null
   downloadOpenAITTSMp3: (data: { audioBase64: string }) => { saved: boolean }
-  openSettingsSync: () => void
-  getEdgeSettingsSync: () => EdgeSyncView
-  setEdgeSettingsSyncEnabled: (data: { enabled: boolean }) => EdgeSyncView
-  syncEdgeSettingsNow: (data?: { token: string; source: string }) => EdgeSyncView
-  undoEdgeSettingsSync: () => EdgeSyncView
-  acknowledgeEdgeSyncRecovery: () => EdgeSyncView
-  openEdgeSyncSettings: () => void
   getUsageSnapshot: () => Awaited<ReturnType<typeof usageSnapshot>>
   clearUsage: () => void
   saveUsagePrice: (data: UsagePrice) => void

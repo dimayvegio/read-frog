@@ -341,7 +341,7 @@ options:
     unsupported: 이 주소는 일치시킬 수 없습니다. 포트와 http, https 이외의 스킴은 지원하지 않습니다.
   preference:
     title: 환경 설정
-    pageDescription: Read Frog의 모양과 실행 범위, 설정 동기화 및 백업 방식을 지정하세요.
+    pageDescription: FlowRead의 모양과 실행 범위, 설정의 로컬 저장 및 백업 방식을 지정하세요.
     appearanceAndLanguage:
       title: 모양 및 언어
       theme:
@@ -454,7 +454,7 @@ options:
             confirm: 동기화
             cancel: 취소
       manualSync:
-        title: 수동 설정 동기화
+        title: 설정 파일 내보내기/가져오기
         description: 설정을 수동으로 가져오고 내보냅니다. 용어집도 함께 포함됩니다
         import: 가져오기
         export: 내보내기

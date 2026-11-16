@@ -10,7 +10,7 @@ FlowRead brings bilingual webpages, local PDF reading and supported native video
 - Audio: explicit file transcription, timed subtitles when the selected API supplies timestamps, record-first/live tab transcription and optional contextual translation.
 - Learning: vocabulary notebooks, typing/dictation/cloze practice, portable exports and per-word progress reports. English pronunciation feedback after explicit recording/grading.
 
-No FlowRead account or subscription. Bring your own OpenAI API key: OpenAI usage is billed separately; a ChatGPT subscription does not include API credits. Models/features depend on your OpenAI account. Content processing goes directly to OpenAI; no FlowRead content proxy, advertising or telemetry. Local reading/search/annotation do not require a key. Optional Edge sync covers small settings, not credentials/notebooks/audio.
+No FlowRead account or subscription. Bring your own OpenAI API key: OpenAI usage is billed separately; a ChatGPT subscription does not include API credits. Models/features depend on your OpenAI account. Content processing goes directly to OpenAI; no FlowRead content proxy, advertising or telemetry. Local reading/search/annotation do not require a key. Settings can be exported/imported as local files. No browser-account configuration sync.
 
 Caption availability, site changes and player restrictions affect support. Automatic analysis samples while playing; it cannot obtain future audio instantly or bypass DRM. AI translations, voices, OCR and scores may be imperfect. Narration is generated speech, not the creator's voice.
 

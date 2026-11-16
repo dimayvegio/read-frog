@@ -1,3 +1,19 @@
+FlowRead 1.59.3A.19 — Gỡ đồng bộ cấu hình tài khoản Edge
+
+- Package `1.59.3-a.19`, numeric `1.59.3.19`, display `1.59.3A`; baseline A.18 (`27fefff3`).
+- Gỡ launcher, trang ứng dụng, service background, bảy RPC và codec/DB access của đồng bộ Edge. Vô hiệu hóa riêng alarm cũ và URL cũ khi copy đè; không mở hoặc xóa dữ liệu đồng bộ đã lưu trên browser/account.
+- Giữ xuất/nhập file cấu hình, backup local, khóa riêng và dữ liệu học. Không thay permission, dependency, migration đã phát hành hoặc schema dữ liệu.
+- Cập nhật privacy/listing/tài liệu nâng cấp; không phục hồi sync hoặc Send feedback khi merge upstream.
+- 4.844 unit tests passed/1 skip có chủ đích; 21 bộ browser/646 checks đạt, có nâng cấp thật A.18→A.19. API giả lập/$0; không tuyên bố đã thử site live/DRM hay soak dài.
+- ZIP SHA256 `a4965cb2cc5a5c1cca40b74de5afd67a7fb5d611d5bb0b9491aad7aa414092e4`, đã kiểm 470 hashes tại thư mục cài đặt cũ.
+- Kiểm thử và giới hạn được ghi trong [VALIDATION.md](VALIDATION.md). User Reload entry hiện tại sau khi copy vào thư mục cũ; không cài thêm extension. Lưu ảnh/audio đang giữ trong RAM trước khi Reload.
+
+[Hợp đồng A.19](../EDGE_SYNC_REMOVAL_A19.md) · [Privacy](../PRIVACY_POLICY.md)
+
+---
+
+## Lịch sử A.18 (không phải tính năng sync hiện tại)
+
 FlowRead 1.59.3A.18 — Review model riêng và dịch ảnh
 
 - Package 1.59.3-a.18, numeric 1.59.3.18, display 1.59.3A; baseline A.17.

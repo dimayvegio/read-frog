@@ -341,7 +341,7 @@ options:
     unsupported: Read Frog bu adresi eşleştiremiyor. Bağlantı noktaları ile http ve https dışındaki şemalar desteklenmiyor.
   preference:
     title: Tercihler
-    pageDescription: Read Frog'un görünümünü, nerede çalışacağını ve yapılandırmanızın nasıl eşitlenip yedekleneceğini ayarlayın.
+    pageDescription: FlowRead'in görünümünü, çalıştığı yerleri ve ayarların yerel olarak saklanıp yedeklenmesini ayarlayın.
     appearanceAndLanguage:
       title: Görünüm ve dil
       theme:
@@ -454,7 +454,7 @@ options:
             confirm: Eşitle
             cancel: İptal
       manualSync:
-        title: Manuel yapılandırma senkronizasyonu
+        title: Ayar dosyasını içe/dışa aktar
         description: Ayarlarınızı elle içe ve dışa aktarın, sözlükleriniz de birlikte gelir
         import: İçe Aktar
         export: Dışa Aktar
