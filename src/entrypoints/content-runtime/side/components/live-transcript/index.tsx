@@ -103,7 +103,7 @@ function Pane({
       .then((ok) => {
         if (!ok) setMessage("Phiên chép lời đã kết thúc hoặc trang Audio đã đóng.")
       })
-      .catch(() => setMessage("Kết nối extension đã ngắt. Mở lại popup Read Frog để kiểm tra."))
+      .catch(() => setMessage("Kết nối extension đã ngắt. Mở lại popup FlowRead để kiểm tra."))
   }
   return (
     <div

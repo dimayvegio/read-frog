@@ -113,7 +113,7 @@ export function setupTabAudioHandlers() {
       const channel = channels.get(data.channel)
       if (!channel || channel.owner !== message.sender.tab.id || Date.now() - channel.at > 300000)
         throw new Error(
-          "Quyền chọn tab đã hết hạn. Mở popup Read Frog tại tab đang phát rồi chọn Audio → Văn bản.",
+          "Quyền chọn tab đã hết hạn. Mở popup FlowRead tại tab đang phát rồi chọn Audio → Văn bản.",
         )
       channels.delete(data.channel)
       const session: Session = {
@@ -181,7 +181,7 @@ export function setupTabAudioHandlers() {
       } catch {
         await stop(session, true)
         throw new Error(
-          "Chưa thu được tab. Tại tab video đang phát, mở popup Read Frog → Audio → Văn bản rồi thử lại. Cần Edge/Chrome 116+ và tab cho phép thu âm.",
+          "Chưa thu được tab. Tại tab video đang phát, mở popup FlowRead → Audio → Văn bản rồi thử lại. Cần Edge/Chrome 116+ và tab cho phép thu âm.",
         )
       }
     }

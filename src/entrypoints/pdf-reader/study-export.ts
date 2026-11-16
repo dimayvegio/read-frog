@@ -77,7 +77,7 @@ export async function exportAnnotatedPdf(
           Subtype: "Text",
           Rect: [p.x, p.y - 18, p.x + 18, p.y],
           Contents: PDFHexString.fromText(item.text),
-          T: PDFString.of("Read Frog"),
+          T: PDFString.of("FlowRead"),
           Name: "Comment",
           C: [color.red, color.green, color.blue],
           F: 4,

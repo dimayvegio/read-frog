@@ -375,14 +375,14 @@ function App() {
         compression: "DEFLATE",
         compressionOptions: { level: 9 },
       }),
-      "ReadFrog-Transcripts.zip",
+      "FlowRead-Transcripts.zip",
     )
   }
   return (
     <main>
       <header>
         <div>
-          <span className="brand">READ FROG / AUDIO</span>
+          <span className="brand">FLOWREAD / AUDIO</span>
           <small>Build {browser.runtime.getManifest().version}</small>
           <h1>Âm thanh thành văn bản.</h1>
           <p>
@@ -487,8 +487,8 @@ function App() {
           <span className="badge">Edge / Chrome 116+</span>
         </div>
         <p>
-          Tại tab đang phát, mở popup Read Frog → <b>Audio → Văn bản</b> để chọn nguồn. Thu tối đa
-          30 phút. Chuyển tab được; đóng hoặc tải lại trang Audio sẽ dừng thu.
+          Tại tab đang phát, mở popup FlowRead → <b>Audio → Văn bản</b> để chọn nguồn. Thu tối đa 30
+          phút. Chuyển tab được; đóng hoặc tải lại trang Audio sẽ dừng thu.
         </p>
         {viewFallback && (
           <p role="status">

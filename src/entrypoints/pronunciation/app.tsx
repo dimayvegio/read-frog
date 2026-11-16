@@ -263,7 +263,7 @@ export function PronunciationPractice() {
     <main className="pronunciation-app">
       <header>
         <div>
-          <small>READ FROG · GENERAL AMERICAN</small>
+          <small>FLOWREAD · GENERAL AMERICAN</small>
           <h1>Phát âm</h1>
         </div>
         <a href="#history">Lịch sử</a>
@@ -569,7 +569,7 @@ export function PronunciationPractice() {
             onClick={() =>
               download(
                 pronunciationReport(history),
-                "ReadFrog-PhatAmMy-ChatGPT.md",
+                "FlowRead-PhatAmMy-ChatGPT.md",
                 "text/markdown;charset=utf-8",
               )
             }
@@ -591,7 +591,7 @@ export function PronunciationPractice() {
                   null,
                   2,
                 ),
-                "ReadFrog-PhatAmMy.json",
+                "FlowRead-PhatAmMy.json",
                 "application/json",
               )
             }

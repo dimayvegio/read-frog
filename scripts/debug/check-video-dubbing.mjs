@@ -85,7 +85,9 @@ const browser = await puppeteer.launch({
 })
 let fixtureFrame
 try {
-  const id = await browser.installExtension(path.resolve(".output/edge-mv3")),
+  const id = await browser.installExtension(
+      path.resolve(process.env.DUBBING_EXTENSION ?? ".output/edge-mv3"),
+    ),
     base = `chrome-extension://${id}/`
   evidence.browser = await browser.version()
   const worker = await (
@@ -640,6 +642,20 @@ try {
 } catch (error) {
   evidence.failure = String(error)
   if (fixtureFrame) {
+    try {
+      evidence.media = await fixtureFrame.evaluate(() => {
+        const v = document.querySelector("video")
+        return {
+          time: v.currentTime,
+          paused: v.paused,
+          ended: v.ended,
+          readyState: v.readyState,
+          volume: v.volume,
+          muted: v.muted,
+          duration: v.duration,
+        }
+      })
+    } catch {}
     try {
       evidence.status = await fixtureFrame.$eval(
         "pierce/[data-dubbing-status]",

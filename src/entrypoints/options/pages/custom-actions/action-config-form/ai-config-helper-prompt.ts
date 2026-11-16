@@ -38,7 +38,7 @@ import { resolveActionLayout } from "@/utils/layout-host/resolve"
 //
 // Holds no secrets: the provider and the Notebase account stay out.
 
-// What Read Frog's built-in AI accepts (the api-contract's hosted structured
+// What FlowRead's built-in AI accepts (the api-contract's hosted structured
 // object input). Bring-your-own providers take any size.
 const HOSTED_LIMITS = {
   instructions: 16_000,
@@ -158,7 +158,7 @@ function en(key: UiLabelKey) {
 function buildUiLabelGlossary(uiLocale: SupportedUiLocale, uiLanguage: string) {
   if (uiLocale === "en") return ""
   const rows = UI_LABEL_KEYS.map((key) => `- ${en(key)} → ${i18n.t(key)}`)
-  return `My Read Frog interface is in ${uiLanguage}, so the editor shows these labels instead of the English ones used below. Use the ones on the right when you tell me where to click or paste:
+  return `My FlowRead interface is in ${uiLanguage}, so the editor shows these labels instead of the English ones used below. Use the ones on the right when you tell me where to click or paste:
 ${rows.join("\n")}
 `
 }
@@ -180,7 +180,7 @@ function buildCurrentAction(
   const fields = action.outputSchema
     .map((field, index) => {
       if (isSelectionOutputField(field)) {
-        return `${index + 1}. Name: \`${field.name}\` · Holds the selected text itself: Read Frog fills it in, the model never writes it`
+        return `${index + 1}. Name: \`${field.name}\` · Holds the selected text itself: FlowRead fills it in, the model never writes it`
       }
       const description = field.description.trim()
         ? `\n${fence(field.description, "text")}`
@@ -242,9 +242,9 @@ export function buildAiConfigHelperPrompt({
     label(`${TEMPLATES}.improveWriting.name`),
   ].join(", ")
 
-  return `# Help me set up a custom AI action in Read Frog
+  return `# Help me set up a custom AI action in FlowRead
 
-I use Read Frog (陪读蛙), a browser extension for reading and learning languages on the web. It lets me create **custom AI actions**: buttons that send the text I select on a page to an AI model and show a structured answer in a popup. I'd like your help configuring one. You can't see my extension, so you'll design the settings and I'll copy them in by hand. Everything you need is below: how actions work, every setting and its rules, the layout language, and the action I have open.
+I use FlowRead, a browser extension for reading and learning languages on the web. It lets me create **custom AI actions**: buttons that send the text I select on a page to an AI model and show a structured answer in a popup. I'd like your help configuring one. You can't see my extension, so you'll design the settings and I'll copy them in by hand. Everything you need is below: how actions work, every setting and its rules, the layout language, and the action I have open.
 
 ## How to work with me
 
@@ -262,12 +262,12 @@ Talk to me in ${uiLanguage}, unless I write in another language.
 ${buildUiLabelGlossary(uiLocale, uiLanguage)}
 ## How a custom AI action runs
 
-1. I select text on a web page and click the action's icon in Read Frog's selection toolbar.
-2. Read Frog fills in the tokens (below) in the System prompt, the Prompt and every field description.
+1. I select text on a web page and click the action's icon in FlowRead's selection toolbar.
+2. FlowRead fills in the tokens (below) in the System prompt, the Prompt and every field description.
 3. It sends the System prompt (as the system instructions) and the Prompt (as the user message) to the AI provider chosen for the action, asking for **structured output**: one JSON object whose keys are exactly the output fields.
 4. The answer streams into a popup next to the selection (${POPUP_WIDTH.default}px wide by default, as narrow as ${POPUP_WIDTH.min}px), drawn by the action's Layout. Fields fill in as they arrive, in schema order.
 
-Read Frog appends an output contract to the end of the System prompt by itself. It lists every field (key, type, description, nullable) and tells the model to return one bare JSON object with exactly those keys, no markdown or code fences, \`null\` for unknown values, and numbers as JSON numbers. So:
+FlowRead appends an output contract to the end of the System prompt by itself. It lists every field (key, type, description, nullable) and tells the model to return one bare JSON object with exactly those keys, no markdown or code fences, \`null\` for unknown values, and numbers as JSON numbers. So:
 - don't repeat JSON formatting rules in the System prompt, and never ask for markdown or code fences;
 - do say precisely what each field holds in its **Description**: it is the model's main guide for that field.
 
@@ -289,8 +289,8 @@ The tooltip of the action's button in the selection toolbar. Required, and uniqu
 Choose one of these bundled icons: ${ACTION_ICON_IDS.join(", ")}.
 
 ### Provider
-Which AI model runs the action: Read Frog's built-in AI, or one of the providers I've set up with my own API key. The model must support structured output. I pick it myself; if the task needs a strong model (careful reasoning, long JSON inside a string), tell me.
-With Read Frog's built-in AI: the Prompt must not be empty, the System prompt must stay under ${HOSTED_LIMITS.instructions.toLocaleString("en")} characters once the tokens are filled in and the output contract is appended, the filled-in Prompt under ${HOSTED_LIMITS.prompt.toLocaleString("en")}, and there can be at most ${HOSTED_LIMITS.fields} output fields with names of at most ${HOSTED_LIMITS.fieldName} characters.
+Which AI model runs the action: FlowRead's built-in AI, or one of the providers I've set up with my own API key. The model must support structured output. I pick it myself; if the task needs a strong model (careful reasoning, long JSON inside a string), tell me.
+With FlowRead's built-in AI: the Prompt must not be empty, the System prompt must stay under ${HOSTED_LIMITS.instructions.toLocaleString("en")} characters once the tokens are filled in and the output contract is appended, the filled-in Prompt under ${HOSTED_LIMITS.prompt.toLocaleString("en")}, and there can be at most ${HOSTED_LIMITS.fields} output fields with names of at most ${HOSTED_LIMITS.fieldName} characters.
 
 ### System prompt
 The model's instructions: its role, the goal, rules, and one or two short examples, which help a lot with consistent output. Tokens are allowed. Good practice:
@@ -307,7 +307,7 @@ The fields of the JSON object the model returns, in order. At least one. Each ha
 - **Field name**: the JSON key, and the label the default layout shows above the value, so name it in the language I read. Unique within the action. ${reservedNames} are reserved in layouts; don't use them.
 - **Field type**: ${fieldTypes}. There is no boolean, array or object type. For a list or anything structured, use a \`string\` field whose description asks for **a compact JSON array serialized as a string**, spells out each item's keys, and gives a one-line example; the layout parses it with \`parse_json\`. For yes/no or a category, use a \`string\` with fixed values listed in the description. A \`number\` field reaches the layout as a real number.
 - **Description**: exactly what goes in the field, and in which language. Tokens are allowed.
-A field that holds the selected text itself (the built-in Sentence Analysis and Improve Writing start with one, so the Notebase keeps the sentence) is filled in by Read Frog and never sent to the model: keep it as it is, and leave it out of the System prompt.
+A field that holds the selected text itself (the built-in Sentence Analysis and Improve Writing start with one, so the Notebase keeps the sentence) is filled in by FlowRead and never sent to the model: keep it as it is, and leave it out of the System prompt.
 Fields stream in this order, so put what I want to read first at the top. Fewer fields make faster, more reliable answers; aim for no more than about eight. Any value may come back empty.
 In the editor, ${addField} adds a field, clicking a field edits it, and each field can be deleted. Renaming a field there also updates the layout's references to it.
 
@@ -315,7 +315,7 @@ In the editor, ${addField} adds a field, clicking a field edits it, and each fie
 How the result looks in the popup: HTML with Liquid, described in "Layout reference". ${edit} opens a code editor with a live preview on sample data (and lint messages); ${reset} replaces the layout with the default field list (or, when the fields fit, a Dictionary or Sentence analysis card). An empty layout shows the default field list: each field's name above its value. The default is often enough; write a layout when it clearly helps, e.g. a headword card, highlights on the selected text, a list or table, badges.
 
 ### Notebase tab
-Optionally saves every result as a row in one of my Notebases (Read Frog's online notes and flashcards; needs a readfrog.app account). I choose the Notebase and map output fields to its columns myself; you can't set that up. If I want to save results, plan one field per column, with \`number\` fields for number columns.
+Optionally saves every result as a row in one of my Notebases (FlowRead's online notes and flashcards; needs a readfrog.app account). I choose the Notebase and map output fields to its columns myself; you can't set that up. If I want to save results, plan one field per column, with \`number\` fields for number columns.
 
 ## Layout reference
 
@@ -348,7 +348,7 @@ A layout is HTML with Liquid (the liquidjs flavor of Shopify's template language
 ### CSS
 - Put CSS in \`<style>\` blocks (they always apply wherever they sit; Liquid doesn't run inside them) or in \`style\` attributes. It applies only inside this result.
 - No \`@import\`, no \`@font-face\`, no \`url()\` other than \`data:\` URIs. The font is the system UI font at 14px/1.5; use px sizes.
-- Theme variables, which follow light and dark mode: ${quoteList(LAYOUT_THEME_TOKENS.map((token) => `var(--rf-${token})`))}. All but one are neutral grays: \`--rf-popover\` is the popup's background, \`--rf-popover-foreground\` the main text, \`--rf-muted-foreground\` secondary text and labels, \`--rf-border\` lines and dividers, \`--rf-ring\` a mid gray for emphasis lines and focus outlines, and \`--rf-radius\` the corner radius. \`--rf-muted\` and \`--rf-secondary\` are one very light fill, only for box backgrounds and hover states: as a text, border or highlight color they are nearly invisible. \`--rf-accent\` is Read Frog's blue, for the one thing that should stand out; white text reads on it.
+- Theme variables, which follow light and dark mode: ${quoteList(LAYOUT_THEME_TOKENS.map((token) => `var(--rf-${token})`))}. All but one are neutral grays: \`--rf-popover\` is the popup's background, \`--rf-popover-foreground\` the main text, \`--rf-muted-foreground\` secondary text and labels, \`--rf-border\` lines and dividers, \`--rf-ring\` a mid gray for emphasis lines and focus outlines, and \`--rf-radius\` the corner radius. \`--rf-muted\` and \`--rf-secondary\` are one very light fill, only for box backgrounds and hover states: as a text, border or highlight color they are nearly invisible. \`--rf-accent\` is FlowRead's blue, for the one thing that should stand out; white text reads on it.
 - For real color (highlights, badges, categories), define your own variable for both themes and use it, as the example does: \`:host{--hl:oklch(0.72 0.16 60)} :host([data-theme=dark]){--hl:oklch(0.8 0.14 75)}\`. Translucent fills (\`color-mix(in oklab, var(--hl) 20%, transparent)\`) work on both backgrounds.
 - An invalid declaration is dropped without a warning, so only use real CSS (a wavy line is \`text-decoration: underline wavy\`; borders can't be wavy).
 - The host element carries \`data-status\` (\`streaming\` | \`done\` | \`error\`) and \`data-theme\` (\`light\` | \`dark\`): \`:host([data-status=streaming]) .skeleton{…}\`, \`:host([data-theme=dark]) .badge{…}\`.

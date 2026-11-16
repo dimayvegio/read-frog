@@ -341,7 +341,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     if (!cards.length)
       return empty(
         "Bắt đầu với những từ bạn đã gặp",
-        "Nhập bộ từ vựng ZIP xuất từ Read Frog. Mỗi từ mang theo nghĩa, ví dụ và giọng đọc OpenAI để nghe lại khi offline.",
+        "Nhập bộ từ vựng ZIP xuất từ FlowRead. Mỗi từ mang theo nghĩa, ví dụ và giọng đọc OpenAI để nghe lại khi offline.",
         `<button class="primary" data-action="import">Nhập bộ từ ZIP</button><button data-action="help">Cách thêm từ</button>`,
       )
     if (!card) {
@@ -570,7 +570,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
         new TextEncoder().encode(
           markdown ? reviewReportMarkdown(report) : JSON.stringify(report, null, 2),
         ),
-        `ReadFrog-${markdown ? "Cho-ChatGPT" : "NhatKy"}-${notebook?.id.slice(0, 8) ?? "so"}-${new Date().toISOString().slice(0, 10)}.${markdown ? "md" : "json"}`,
+        `FlowRead-${markdown ? "Cho-ChatGPT" : "NhatKy"}-${notebook?.id.slice(0, 8) ?? "so"}-${new Date().toISOString().slice(0, 10)}.${markdown ? "md" : "json"}`,
         markdown ? "text/markdown;charset=utf-8" : "application/json",
       )
       notice(
@@ -694,7 +694,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       if (passage?.locator.documentId && passage.locator.page && bridge?.openPdfSource) {
         const opened = await bridge.openPdfSource(passage.locator.documentId, passage.locator.page)
         if (!opened)
-          notice("Hãy mở lại đúng file trong trình đọc PDF Read Frog trước, rồi bấm về trang.")
+          notice("Hãy mở lại đúng file trong trình đọc PDF FlowRead trước, rồi bấm về trang.")
       }
       return
     }
@@ -761,7 +761,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
       }
     }
   }
-  root.innerHTML = `<header><a class="brand" href="#" data-action="home"><span class="brand-mark">${book}</span><span><strong>Read Frog · Sổ từ</strong><small>Gặp một lần, ôn để nhớ</small></span></a><div class="tools header-tools"><button data-action="import">Nhập ZIP</button><button data-action="export">Xuất ZIP</button><button data-action="theme" aria-label="Đổi giao diện sáng tối" title="Đổi sáng/tối">◐</button></div></header><main class="shell"><aside><nav class="nav" aria-label="Trang chính"><button data-tab="study" aria-current="page">Ôn tập</button><button data-tab="library">Sổ từ</button></nav><div class="sidebar-note"><p><strong>Học từ những gì bạn đọc</strong></p><p>Mỗi từ giữ lại câu gốc, nghĩa theo ngữ cảnh và giọng đọc OpenAI.</p><p>Cả ba kiểu học có lịch ôn riêng. Từ chưa nhớ sẽ trở lại sớm hơn.</p><button class="quiet" data-action="help">Hướng dẫn sử dụng</button>${bridge ? `<p style="margin-top:20px"><a href="${esc(bridge.htmlUrl)}" download="ReadFrog-OnTuVung.html">Tải HTML để học riêng</a></p>` : ""}</div></aside><section class="stage" aria-label="Nội dung học"><div id="notice" class="notice" role="status" aria-live="polite"></div><div id="content"></div></section></main><footer class="footer-note">Bộ từ lưu trên thiết bị này. Xuất ZIP để mang theo cả nội dung, audio và tiến độ. <button class="quiet" data-action="help">Hướng dẫn</button></footer><input id="import-file" type="file" accept=".zip,application/zip"><dialog id="dialog" aria-label="Thông tin từ vựng"></dialog>`
+  root.innerHTML = `<header><a class="brand" href="#" data-action="home"><span class="brand-mark">${book}</span><span><strong>FlowRead · Sổ từ</strong><small>Gặp một lần, ôn để nhớ</small></span></a><div class="tools header-tools"><button data-action="import">Nhập ZIP</button><button data-action="export">Xuất ZIP</button><button data-action="theme" aria-label="Đổi giao diện sáng tối" title="Đổi sáng/tối">◐</button></div></header><main class="shell"><aside><nav class="nav" aria-label="Trang chính"><button data-tab="study" aria-current="page">Ôn tập</button><button data-tab="library">Sổ từ</button></nav><div class="sidebar-note"><p><strong>Học từ những gì bạn đọc</strong></p><p>Mỗi từ giữ lại câu gốc, nghĩa theo ngữ cảnh và giọng đọc OpenAI.</p><p>Cả ba kiểu học có lịch ôn riêng. Từ chưa nhớ sẽ trở lại sớm hơn.</p><button class="quiet" data-action="help">Hướng dẫn sử dụng</button>${bridge ? `<p style="margin-top:20px"><a href="${esc(bridge.htmlUrl)}" download="FlowRead-OnTuVung.html">Tải HTML để học riêng</a></p>` : ""}</div></aside><section class="stage" aria-label="Nội dung học"><div id="notice" class="notice" role="status" aria-live="polite"></div><div id="content"></div></section></main><footer class="footer-note">Bộ từ lưu trên thiết bị này. Xuất ZIP để mang theo cả nội dung, audio và tiến độ. <button class="quiet" data-action="help">Hướng dẫn</button></footer><input id="import-file" type="file" accept=".zip,application/zip"><dialog id="dialog" aria-label="Thông tin từ vựng"></dialog>`
   const newLibraryButton = document.createElement("button")
   newLibraryButton.className = "quiet"
   newLibraryButton.dataset.action = "new-library"
@@ -999,7 +999,7 @@ export async function mountVocabularyReview(root: HTMLElement, bridge?: Vocabula
     })()
       .catch(() =>
         notice(
-          "Không nhập được. Cần ZIP từ vựng Read Frog phiên bản 1–5 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
+          "Không nhập được. Cần ZIP từ vựng FlowRead / Read Frog phiên bản 1–5 có đủ dữ liệu và audio, mỗi sổ tối đa 64 MB. Các sổ cũ vẫn được giữ.",
           true,
         ),
       )

@@ -10,6 +10,7 @@ import {
   MENU_ID_SELECTION_TRANSLATE,
   MENU_ID_TRANSLATE,
   MENU_ID_PDF_PANEL,
+  MENU_ID_IMAGE_TRANSLATE,
   registerContextMenuListeners,
 } from "../context-menu"
 
@@ -87,6 +88,7 @@ describe("background context menu", () => {
           "contextMenu.translateSelection": 'Translate "%s"',
           "contextMenu.readAloudSelection": 'Read aloud "%s"',
           "contextMenu.showOriginal": "Show Original",
+          "contextMenu.translateImage": "Translate image with FlowRead...",
           "options.selectionToolbar.customActions.templates.dictionary.name": "Dictionary",
           "options.selectionToolbar.customActions.templates.sentenceAnalysis.name":
             "Sentence Analysis",
@@ -121,6 +123,11 @@ describe("background context menu", () => {
       id: MENU_ID_PDF_PANEL,
       title: "Dịch trong khung cố định",
       contexts: ["selection"],
+    })
+    expect(browser.contextMenus.create).toHaveBeenCalledWith({
+      id: MENU_ID_IMAGE_TRANSLATE,
+      title: "Translate image with FlowRead...",
+      contexts: ["image"],
     })
     expect(browser.contextMenus.create).toHaveBeenNthCalledWith(1, {
       id: MENU_ID_TRANSLATE,
@@ -490,6 +497,37 @@ describe("background context menu", () => {
       "openSelectionCustomActionFromContextMenu",
       { actionId: "dictionary", selectionText: "Selected text" },
       { tabId: 5, frameId: 7 },
+    )
+  })
+
+  it("routes image translation menu clicks to open image translation editor", async () => {
+    registerContextMenuListeners()
+    const clickHandler = contextMenuClickListeners[0]
+    if (!clickHandler) {
+      throw new Error("Context menu click listener was not registered")
+    }
+    browser.tabs.create = vi.fn<(...args: any[]) => any>().mockResolvedValue({ id: 10 })
+    browser.tabs.get = vi
+      .fn<(...args: any[]) => any>()
+      .mockResolvedValue({ id: 2, windowId: 1, url: "https://example.com/image" })
+
+    await clickHandler(
+      {
+        menuItemId: MENU_ID_IMAGE_TRANSLATE,
+        srcUrl: "data:image/png;base64,iVBORw0KGgoAAA==",
+      },
+      {
+        id: 2,
+        windowId: 1,
+        url: "https://example.com/image",
+      },
+    )
+
+    expect(browser.tabs.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: expect.stringMatching(/image-translate\.html\?capture=.+&full=1$/),
+        windowId: 1,
+      }),
     )
   })
 })

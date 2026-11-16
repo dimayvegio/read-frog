@@ -10,6 +10,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { getTargetLanguageItems } from "@/components/language-combobox-options"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { getLocalConfig } from "@/utils/config/storage"
+import { getFeatureModelSync } from "@/utils/feature-models/resolver"
 import {
   clearGeneratedImages,
   generateTranslatedImage,
@@ -43,7 +44,11 @@ export function PdfImageTranslation({
   const state = useSyncExternalStore(session.subscribe, session.getSnapshot)
   const [from, setFrom] = useState(String(viewport.snapshot().page)),
     [to, setTo] = useState("")
-  const [model, setModel] = useState<ImageEditRequest["model"]>("gpt-image-2.6-sunburst")
+  const [model, setModel] = useState<ImageEditRequest["model"]>(
+    () =>
+      imageEditModel.safeParse(getFeatureModelSync("imageEdit")?.model).data ??
+      "gpt-image-2.6-sunburst",
+  )
   const [quality, setQuality] = useState<ImageEditRequest["quality"]>("high")
   const [instructions, setInstructions] = useState("")
   const [outputSize, setOutputSize] = useState<NonNullable<ImageEditRequest["outputSize"]>>("2k")

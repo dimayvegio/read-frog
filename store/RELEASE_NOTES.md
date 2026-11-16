@@ -1,13 +1,14 @@
-FlowRead 1.59.3A.17 — Yêu cầu riêng, độ nét và ước tính phí ảnh
+FlowRead 1.59.3A.18 — Review model riêng và dịch ảnh
 
-- Package 1.59.3-a.17, numeric 1.59.3.17, display 1.59.3A; baseline A.16.
-- Tạo PDF ảnh dịch có ô Yêu cầu bổ sung (tối đa4.000 ký tự). Gửi cùng mỗi trang sau khi bấm Tạo; chỉ nhớ trong tài liệu đang mở, không thêm vào settings/sync/history/usage/export. Sửa nội dung tách cache; khoảng trắng đầu/cuối không làm gọi thừa. Textarea khóa trong batch và không phát sinh thêm một lượt AI trung gian.
-- Preset Nhanh / Rõ nét / Chi tiết cao; mặc định PDF mới200DPI +2K +Cao. Có nguồn300DPI, output1K/2K/4K và quality Rất cao/Tối đa. Kích thước tính theo tỷ lệ trang và giới hạn API (cạnh3.840px,8,29MP,16px,3:1); mức lớn có thể thử nghiệm. Trang Dịch ảnh riêng cũng thêm output size/quality. Không phóng lớn bitmap trả về để giả tăng độ nét, raw PNG vẫn nguyên byte.
-- Khung Ước tính phí ảnh đầu ra theo mỗi trang/cả dải, dựa trên calculator OpenAI được đối chiếu15/11/2026, chạy offline/không gọi provider. Chưa gồm phí ảnh/prompt đầu vào, thuế và thay đổi giá; không phải báo giá trọn gói hay phí thực tế. Auto chưa xác định kích thước thì không ước tính, không hiển thị0USD. Dự toán không ghi vào actual usage.
-- Giữ PDF ảnh local assembly/ZIP/raw PNG, sequential completed-page cache/resume/cancel và private fixed OpenAI transport. Không upload PDF binary, thêm quyền/dependency/schema/migration hoặc tự retry/repair có phí. AI vẫn có thể sai hoặc mờ chữ nhỏ; high-resolution không đảm bảo nội dung chính xác.
-- 4.841 unit tests passed/1 intentional skip;37 PDF-image +19 standalone-image +81 PDF/image legacy production checks. API giả lập; chưa đo chất lượng/phí hóa đơn thật. Lint/formatter/runtime-store audits pass. Chi tiết VALIDATION.md.
-- ZIP đã staging/copy đè assets trước, manifest cuối vào thư mục extension cũ; Reload entry hiện tại và mở lại Reader để dùng numeric1.59.3.17. Ảnh/prompt đang giữ trong RAM cần lưu trước khi Reload. Ba file overlay local chưa commit vẫn giữ nguyên, không gộp vào release.
+- Package 1.59.3-a.18, numeric 1.59.3.18, display 1.59.3A; baseline A.17.
+- Model riêng theo tác vụ được xác định trước cache và request; background dùng đúng snapshot. Lưu rõ ràng, validate model custom/tham số và báo lỗi; tải lại tab để áp dụng. Preference mới chỉ local, chưa thuộc sync/backup cấu hình.
+- Các đường chấm phát âm, file text, SRT, live giữ model đúng endpoint đã kiểm thử. Danh sách model account chỉ tải chủ động, bounded/trusted/private; không tự dùng model ảnh/audio khác allowlist.
+- Dịch ảnh từ menu chỉ lấy đúng ảnh đã chọn hoặc mở screenshot để crop thủ công. Không fetch có credentials, chọn nhầm ảnh lớn khác hay tự gửi AI.
+- Prompt riêng trên trang ảnh/overlay; sửa prompt không hiển thị nhầm kết quả generate cũ. Sửa hidden/zoom/kích thước ảnh gốc, mặc định model ảnh dùng cùng allowlist ở PDF và trang ảnh. OCR gộp dòng bảo thủ trong paragraph/cột, dừng ở kẻ bảng; cleanup/clip không tràn vùng.
+- Hoàn thiện nhãn và tên file FlowRead. Giữ extension identity, schema/migration và định dạng dữ liệu; không upload PDF binary, thêm quyền/dependency/provider khác hay tự retry có phí.
+- 4.863 unit tests passed/1 skipped; 21 browser suites/649 final checks. API giả lập/$0, đã ghi rõ một lần timeout dubbing ban đầu và các lần chạy độc lập đạt 22/22; không tuyên bố test đầy đủ site live/DRM hoặc độ ổn định qua soak dài. Chi tiết VALIDATION.md.
+- ZIP đã copy vào thư mục cũ, manifest cuối, kiểm 472 hashes. Reload entry hiện tại và mở lại trang để dùng numeric1.59.3.18. Lưu ảnh/audio đang giữ trong RAM trước khi Reload.
 
-[Hướng dẫn/giới hạn](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.17/PDF_IMAGE_PROMPT_A17.md) · [Privacy](https://github.com/dimayvegio/read-frog/blob/v1.59.3A.17/PRIVACY_POLICY.md).
+[Review/hợp đồng](../FEATURE_MODELS_REVIEW_A18.md) · [Privacy](../PRIVACY_POLICY.md)
 
-SHA-256 ZIP: `61f78c4ab7afa593fcd0c69cf50deda4522604f77b92340d0a537d77495c1625`.
+SHA256 ZIP: `0215bfd24128ff6847c0837a736259240f7ac36cf2671d9d26ef0fc42da4efee`.

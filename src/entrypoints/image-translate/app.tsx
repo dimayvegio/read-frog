@@ -11,6 +11,7 @@ import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { getLocalConfig } from "@/utils/config/storage"
 import { getRandomUUID } from "@/utils/crypto-polyfill"
+import { getFeatureModelSync } from "@/utils/feature-models/resolver"
 import { clearImageCache } from "@/utils/image-translation/cache"
 import { clearGeneratedImages, generateTranslatedImage } from "@/utils/image-translation/generated"
 import {
@@ -55,8 +56,13 @@ export function ImageTranslation({ config }: { config: Config }) {
   const [mode, setMode] = useState<"generate" | "fast" | "two-step" | "structure" | "overlay">(
     "generate",
   )
+  const [instructions, setInstructions] = useState("")
   const [generated, setGenerated] = useState<GeneratedImage>()
-  const [model, setModel] = useState<ImageEditRequest["model"]>("gpt-image-2.6-sunburst")
+  const [model, setModel] = useState<ImageEditRequest["model"]>(
+    () =>
+      imageEditModel.safeParse(getFeatureModelSync("imageEdit")?.model).data ??
+      "gpt-image-2.6-sunburst",
+  )
   const [quality, setQuality] = useState<ImageEditRequest["quality"]>("high")
   const [outputSize, setOutputSize] = useState<NonNullable<ImageEditRequest["outputSize"]>>("auto")
   const { targetCode } = useAtomValue(configFieldsAtomMap.language)
@@ -96,8 +102,9 @@ export function ImageTranslation({ config }: { config: Config }) {
     }
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- resetRun only invalidates owned work; depend on the selected target.
   }, [targetCode])
-  const load = async (file: Blob) => {
+  const load = async (file: Blob): Promise<number | undefined> => {
     resetRun()
+    setHasImage(false)
     setLoadingImage(true)
     const token = version.current
     setError("")
@@ -109,7 +116,7 @@ export function ImageTranslation({ config }: { config: Config }) {
       const image = await decodeImage(file)
       if (token !== version.current) {
         image.close()
-        return
+        return undefined
       }
       if (
         (activeMode.current === "overlay" || activeMode.current === "generate") &&
@@ -136,6 +143,7 @@ export function ImageTranslation({ config }: { config: Config }) {
       }
       setHasImage(true)
       setStatus("Kéo chọn vùng chữ, hoặc bấm Toàn ảnh. Chưa gửi ảnh tới OpenAI.")
+      return token
     } catch (cause) {
       if (token === version.current) {
         setError(cause instanceof Error ? cause.message : "Không mở được ảnh.")
@@ -144,6 +152,7 @@ export function ImageTranslation({ config }: { config: Config }) {
     } finally {
       if (token === version.current) setLoadingImage(false)
     }
+    return undefined
   }
   useEffect(() => {
     void imageShortcutLabel()
@@ -170,7 +179,9 @@ export function ImageTranslation({ config }: { config: Config }) {
     if (new URLSearchParams(location.search).has("captureError"))
       setError("Chưa chụp được tab này. Hãy thử lại hoặc dùng Win+Shift+S rồi dán Ctrl+V tại đây.")
     const token = version.current,
-      channel = new URLSearchParams(location.search).get("capture")
+      searchParams = new URLSearchParams(location.search),
+      channel = searchParams.get("capture"),
+      autoFull = searchParams.get("full") === "1"
     if (channel) setLoadingImage(true)
     if (channel)
       void (async () => {
@@ -181,7 +192,15 @@ export function ImageTranslation({ config }: { config: Config }) {
             throw new Error("Ảnh chụp đã hết phiên. Hãy chụp lại hoặc dán ảnh bằng Ctrl+V.")
           const response = await fetch(value.image)
           const blob = await response.blob()
-          if (version.current === token) await load(blob)
+          if (version.current === token) {
+            const loaded = await load(blob)
+            if (autoFull && loaded !== undefined && version.current === loaded) {
+              setCrop(FULL)
+              setStatus(
+                "Đã chọn toàn bộ ảnh từ trang web. Nhập prompt dặn AI (nếu cần) rồi bấm Tạo ảnh dịch.",
+              )
+            }
+          }
         } catch {
           if (version.current === token) {
             setError("Ảnh chụp đã hết phiên. Hãy chụp lại hoặc dán ảnh bằng Ctrl+V.")
@@ -248,6 +267,7 @@ export function ImageTranslation({ config }: { config: Config }) {
           model,
           quality,
           outputSize,
+          extraInstructions: instructions,
           signal: abort.signal,
           bypass,
           onStatus: (message) => {
@@ -544,27 +564,32 @@ export function ImageTranslation({ config }: { config: Config }) {
         </button>
       </header>
       <p className="rf-image-help">
-        Chụp từ popup extension, hoặc Win+Shift+S rồi dán Ctrl+V tại đây. Chỉ vùng bạn chọn được gửi
-        tới OpenAI sau khi bấm đọc và dịch.
+        Chỉ vùng ảnh đã chọn được gửi khi bạn bấm dịch. Tạo ảnh có phí riêng; font/bố cục có thể
+        khác bản gốc. Xem, thu phóng và tải PNG không gọi API.
       </p>
       {mode === "generate" && (
-        <p className="rf-image-help">
-          Gửi vùng ảnh trực tiếp để OpenAI dịch chữ và tạo ảnh, giữ bố cục tối đa. Hiển thị/tải
-          nguyên PNG trả về; có phí tạo ảnh riêng. Font, chữ nhỏ và bố cục có thể chưa giống tuyệt
-          đối. Không áp dụng prompt/glossary của chế độ dịch văn bản.
-        </p>
-      )}
-      {mode === "structure" && (
-        <p className="rf-image-help">
-          Giữ cấu trúc: đọc ảnh rồi dịch theo từng khối / ô. Hai lượt khi chưa có cache; không phục
-          dựng chính xác font, màu hoặc vị trí.
-        </p>
-      )}
-      {mode === "overlay" && (
-        <p className="rf-image-help">
-          Giữ ảnh gốc, đo vùng chữ bằng OCR local, rồi OpenAI đọc và dịch. Font/nền hoa văn và bản
-          dịch dài có thể cần chỉnh; không bảo đảm giống tuyệt đối tự động.
-        </p>
+        <div className="rf-image-prompt-bar">
+          <label className="rf-image-prompt-label">
+            <span className="rf-image-prompt-title">
+              Yêu cầu bổ sung (Prompt):
+              <small className="rf-image-prompt-count">{instructions.length}/4000</small>
+            </span>
+            <input
+              type="text"
+              className="rf-image-prompt-input"
+              aria-label="Yêu cầu bổ sung tạo ảnh dịch"
+              placeholder="Ví dụ: Giữ nguyên thuật ngữ kỹ thuật RTL, STA, bảng biểu; dịch ngắn gọn; không đổi số liệu..."
+              value={instructions}
+              maxLength={4000}
+              disabled={busy || loadingImage}
+              spellCheck={false}
+              onChange={(e) => {
+                if (instructions.trim() !== e.target.value.trim()) resetRun()
+                setInstructions(e.target.value)
+              }}
+            />
+          </label>
+        </div>
       )}
       <p role="status" className="rf-image-status">
         {status}

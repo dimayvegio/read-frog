@@ -28,7 +28,7 @@ function Transcript({
   return (
     <main data-pinned-transcript>
       <header>
-        <strong>Read Frog · Chép lời đã ghim</strong>
+        <strong>FlowRead · Chép lời đã ghim</strong>
         <button type="button" disabled={!canStop} onClick={stop}>
           Dừng thu
         </button>

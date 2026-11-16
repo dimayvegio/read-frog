@@ -2,8 +2,9 @@ import type { ResolvedProviderRef } from "./provider-registry"
 import type { Config } from "@/types/config/config"
 import type { OpenAIPublicConfig } from "@/types/config/openai"
 import { openAIPublicConfigSchema, publicProviderRefSchema } from "@/types/config/openai"
+import { applyFeatureModelOverride, getFeatureModel } from "@/utils/feature-models/resolver"
 import { getOpenAIOutputIdentity } from "./openai-profile"
-import { resolveProviderRefForCapability } from "./provider-registry"
+import { getResolvedFeatureKey, resolveProviderRefForCapability } from "./provider-registry"
 import { ProviderSetupError } from "./provider-setup-error"
 
 export type SerializableProviderRef = { kind: "local"; config: OpenAIPublicConfig }
@@ -37,7 +38,11 @@ export async function serializeProviderRef(
   provider: ResolvedProviderRef,
   _route?: string,
 ): Promise<SerializableProviderRef> {
-  return publicProviderRefSchema.parse({ kind: provider.kind, config: provider.config })
+  const feature = getResolvedFeatureKey(provider)
+  const config = feature
+    ? applyFeatureModelOverride(provider.config, await getFeatureModel(feature))
+    : provider.config
+  return publicProviderRefSchema.parse({ kind: provider.kind, config })
 }
 export type ProviderAvailability<Ref extends SerializableProviderRef = SerializableProviderRef> =
   | { available: true; providerRef: Ref }

@@ -1,4 +1,5 @@
 import type { Config } from "@/types/config/config"
+import { loadFeatureModels } from "@/utils/feature-models/resolver"
 import { sendMessage } from "@/utils/message"
 
 let readiness: Promise<Config> | undefined
@@ -13,8 +14,9 @@ export function awaitConfigReady(retry = false): Promise<Config> {
   if (localResolver) return localResolver()
   if (!readiness || retry) {
     readiness = sendMessage("getInitialConfig", retry ? { retry: true } : undefined).then(
-      (result) => {
+      async (result) => {
         if (!result.ok) throw new Error(result.code)
+        await loadFeatureModels()
         return result.config
       },
     )

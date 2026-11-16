@@ -471,8 +471,8 @@ try {
   )
   const cdp = await page.createCDPSession()
   await cdp.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: scratch })
-  await page.click('a[download="ReadFrog-OnTuVung.html"]')
-  const standalonePath = path.join(scratch, "ReadFrog-OnTuVung.html")
+  await page.click('a[download="FlowRead-OnTuVung.html"]')
+  const standalonePath = path.join(scratch, "FlowRead-OnTuVung.html")
   await wait(async () => {
     try {
       return (await fs.stat(standalonePath)).size > 0

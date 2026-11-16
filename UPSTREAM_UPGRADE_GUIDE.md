@@ -1,5 +1,7 @@
 # Nâng cấp Read Frog bản local, giữ các tính năng riêng
 
+Bổ sung A.18: giữ [model snapshot/cache, menu ảnh và review](FEATURE_MODELS_REVIEW_A18.md). Không khôi phục background model override sau hashing, catalog audio dùng lẫn endpoint, tự chọn ảnh khác/fetch không giới hạn hoặc repaint ngoài masks. Preference local riêng cần reload tab, không được đưa vào config125/sync bằng cách sửa migration cũ.
+
 Bổ sung A.17: giữ [prompt riêng/độ nét/dự toán PDF ảnh dịch](PDF_IMAGE_PROMPT_A17.md), prompt bounded/RAM-only, snapshot và cache hash; output-size validation/quality/không upscale output. Dự toán chỉ phần output, Auto/input unknown, không giả thành invoice hay thêm remote price API; giữ rounding/date/source.
 
 Bổ sung A.16: giữ [PDF ảnh dịch theo dải trang](PDF_IMAGE_TRANSLATION_A16.md), local bounded raster/sequential image edits, completed-page RAM reuse/resume, nguyên PNG và export PDF/ZIP local; exact trusted PDF reader port và ownership/cancel guards. Không thay bằng upload PDF/auto OCR/paid retries hay làm mất native reading leases.

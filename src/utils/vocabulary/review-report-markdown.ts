@@ -21,7 +21,7 @@ export function reviewReportMarkdown(report: ReturnType<typeof createReviewRepor
   const lastDate = (at: number | null) =>
     at === null ? "—" : new Date(at).toISOString().slice(0, 10)
   const lines = [
-    "# Báo cáo ôn từ vựng Read Frog — bản ngắn",
+    "# Báo cáo ôn từ vựng FlowRead — bản ngắn",
     "",
     `Sổ: ${cell(report.notebook?.name ?? "Chưa đặt tên")} · ${new Date(report.exportedAt).toISOString().slice(0, 10)} · ${cell(report.timeZone)}`,
     "",

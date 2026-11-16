@@ -6,6 +6,7 @@ import { MAX_NATIVE_SELECTION_LENGTH } from "@/types/native-selection"
 import { aiContext } from "@/utils/ai-cache/context"
 import { readAiCache, saveAiCache } from "@/utils/ai-cache/db"
 import { streamBackgroundText } from "@/utils/content-script/background-stream-client"
+import { loadFeatureModels } from "@/utils/feature-models/resolver"
 import { createGlossaryMatcher } from "@/utils/glossary/matcher"
 import { prepareTranslationText } from "@/utils/host/translate/text-preparation"
 import { imageCacheKey, readImageCache, saveImageCache } from "@/utils/image-translation/cache"
@@ -97,8 +98,10 @@ export async function translateNativeSelection({
       return snapshot
     }
   }
+  await loadFeatureModels()
+  signal.throwIfAborted()
   const provider = resolveProviderRefForCapability(
-    "selectionTranslation",
+    imageCache ? "imageTranslate" : document ? "pdfTranslation" : "selectionTranslation",
     config.providersConfig,
     config.selectionToolbar.features.translate.providerId,
   )

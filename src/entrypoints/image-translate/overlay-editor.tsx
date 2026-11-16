@@ -21,6 +21,7 @@ export function ImageOverlayEditor({ value }: { value: OverlayImage }) {
       value.regions.find((r) => r.enabled)?.id ?? value.regions[0]?.id ?? "",
     ),
     [original, setOriginal] = useState(false)
+  const [instructions, setInstructions] = useState("")
   const [busy, setBusy] = useState(false),
     [status, setStatus] = useState(""),
     [error, setError] = useState("")
@@ -133,6 +134,7 @@ export function ImageOverlayEditor({ value }: { value: OverlayImage }) {
         config,
         abort.signal,
         bypass,
+        instructions,
       )
       if (token === owner.current && !abort.signal.aborted) {
         setRegions(result)
@@ -386,6 +388,22 @@ export function ImageOverlayEditor({ value }: { value: OverlayImage }) {
             Kéo trên ảnh gốc để chọn vùng chữ cần đọc/dịch. Esc để hủy; chưa gọi API.
           </p>
         )}
+        <label className="rf-overlay-prompt-label">
+          <span>
+            Yêu cầu bổ sung (Prompt)
+            <small>{instructions.length}/4000</small>
+          </span>
+          <textarea
+            className="rf-overlay-prompt-textarea"
+            aria-label="Yêu cầu dịch bổ sung"
+            value={instructions}
+            maxLength={4000}
+            disabled={busy}
+            spellCheck={false}
+            placeholder="Ví dụ: Giữ nguyên thuật ngữ HB1, R/W#, AS; dịch chuẩn ngữ cảnh kỹ thuật..."
+            onChange={(e) => setInstructions(e.target.value)}
+          />
+        </label>
         <div className="rf-overlay-actions">
           <button type="button" disabled={busy} onClick={() => void translate()}>
             Dịch vùng đang bật

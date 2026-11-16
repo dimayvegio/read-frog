@@ -18,8 +18,9 @@ contextMenu:
   translateSelection: Translate "%s"
   readAloudSelection: Read aloud "%s"
   showOriginal: Show Original
+  translateImage: Translate image with FlowRead...
 sidePanel:
-  firefoxUserActionHint: In Firefox, open Read Frog from the browser sidebar.
+  firefoxUserActionHint: In Firefox, open FlowRead from the browser sidebar.
   firefoxUserActionHelpText: Learn how to open the Firefox sidebar
   firefoxUserActionHelpUrl: https://support.mozilla.org/en-US/kb/use-sidebar-access-tools-and-vertical-tabs
 popup:
@@ -54,11 +55,11 @@ popup:
   discord:
     tooltip: Join Discord to connect with developers and get early access to new features
   blog:
-    notification: What's new in Read Frog
+    notification: What's new in FlowRead
   aiSmartContext: AI Smart Context
   aiSmartContextDescription: Uses webpage context to improve translation quality. Requires LLM translation provider.
   storeReview:
-    title: Enjoying Read Frog?
+    title: Enjoying FlowRead?
     description: A quick store review helps other readers find it.
     action: Write a review
     dismiss: Dismiss
@@ -120,12 +121,12 @@ options:
     roadmap: Roadmap
   helpAndCommunity:
     title: Help & Community
-    pageDescription: Learn how to use Read Frog, get help from the team, or join other users in the community.
+    pageDescription: Learn how to use FlowRead, get help from the team, or join other users in the community.
     help:
       title: Help
     tutorial:
       title: Tutorial
-      description: Read the docs and learn how to use Read Frog
+      description: Read the docs and learn how to use FlowRead
     email:
       title: Email us
       description: Reach the team directly at contact@readfrog.app
@@ -146,8 +147,8 @@ options:
       qrCodeAlt: WeChat QR code
   apiProviders:
     title: API Providers
-    pageDescription: Connect the AI services Read Frog calls, then choose which one runs each feature.
-    description: Add the providers Read Frog can call. Over 20 are built in, with custom support for Chat Completions-compatible and Open Responses APIs.
+    pageDescription: Connect the AI services FlowRead calls, then choose which one runs each feature.
+    description: Add the providers FlowRead can call. Over 20 are built in, with custom support for Chat Completions-compatible and Open Responses APIs.
     configTitle: Provider config
     addProvider: Add provider
     builtInProvider: Built-in provider
@@ -256,8 +257,8 @@ options:
         customChatComplete: Custom Chat Complete
         customResponses: Custom Responses
       attribution:
-        builtInAi: Read Frog's hosted standard model. Pro and Ultra members can use it on every feature, on a weekly quota; on the free plan it runs Custom AI Actions only.
-        builtInAiAdvance: Read Frog's hosted advanced model, exclusive to Ultra members. Runs page translation, Custom AI Actions, and every other Built-in AI feature on a shared weekly quota. Uses up the quota faster than the standard model.
+        builtInAi: FlowRead's hosted standard model. Pro and Ultra members can use it on every feature, on a weekly quota; on the free plan it runs Custom AI Actions only.
+        builtInAiAdvance: FlowRead's hosted advanced model, exclusive to Ultra members. Runs page translation, Custom AI Actions, and every other Built-in AI feature on a shared weekly quota. Uses up the quota faster than the standard model.
       description:
         openai: Provides models like GPT-4o
         azure: Azure-hosted OpenAI models through your deployments
@@ -339,15 +340,15 @@ options:
   patterns:
     duplicate: This pattern is already in the list
     gluedWildcard: A "*" has to stand for a whole part of the address, like *.example.com or example.*
-    unsupported: Read Frog cannot match this address. Ports and schemes other than http and https are not supported.
+    unsupported: FlowRead cannot match this address. Ports and schemes other than http and https are not supported.
   preference:
     title: Preferences
-    pageDescription: Set how Read Frog looks, where it runs, and how your config is synced and backed up.
+    pageDescription: Set how FlowRead looks, where it runs, and how your config is synced and backed up.
     appearanceAndLanguage:
       title: Appearance & language
       theme:
         title: Theme
-        description: Choose a theme for Read Frog.
+        description: Choose a theme for FlowRead.
         system: System
         light: Light
         dark: Dark
@@ -366,7 +367,7 @@ options:
         description: The language pages are translated into.
     extensionActivation:
       title: Extension activation
-      description: Whether Read Frog runs everywhere except the sites you list, or only on the sites you list
+      description: Whether FlowRead runs everywhere except the sites you list, or only on the sites you list
       manageSites: Manage sites
       mode:
         title: Activation mode
@@ -441,7 +442,7 @@ options:
           accountChangedRetry: The signed-in Google account changed while the dialog was open. Nothing was uploaded — sync again.
           busy: Another tab is syncing your glossaries right now.
           malformed: The glossary file in your Drive could not be read, so nothing was changed.
-          versionTooNew: That glossary file was written by a newer version of Read Frog. Update the extension first.
+          versionTooNew: That glossary file was written by a newer version of FlowRead. Update the extension first.
           duplicateFiles: Your Drive holds more than one glossary file. Nothing was changed - please remove the extra one.
           capExceeded: "Merging would go over the glossary limit by $1. Nothing was changed."
           failed: Glossary sync failed
@@ -468,7 +469,7 @@ options:
         glossaryUndone: Your glossaries were restored to how they were before the import
         glossaryUndoUnavailable: That undo is no longer available — your glossaries have changed since.
         glossaryMalformed: The glossaries in that file could not be read. Nothing was changed.
-        glossaryVersionTooNew: The glossaries in that file were written by a newer version of Read Frog. Update the extension first.
+        glossaryVersionTooNew: The glossaries in that file were written by a newer version of FlowRead. Update the extension first.
         glossaryCapExceeded: "That file holds $1 more glossary rows than the limit of $2. Nothing was changed."
         exportOptions:
           title: Select export options
@@ -522,8 +523,8 @@ options:
         description: Turn on experimental features that may still be unstable
       analytics:
         title: Help improve user experience
-        tooltip: When enabled, Read Frog sends anonymous product usage signals so we can catch bugs, verify feature reliability, improve performance and UX polish, and prioritize future work.
-        description: Improve Read Frog by helping us locate bugs, refine layouts, and more
+        tooltip: When enabled, FlowRead sends anonymous product usage signals so we can catch bugs, verify feature reliability, improve performance and UX polish, and prioritize future work.
+        description: Improve FlowRead by helping us locate bugs, refine layouts, and more
   shortcuts:
     title: Shortcuts
     pageDescription: Set the keys that translate, read aloud and run AI actions while you read.
@@ -593,7 +594,7 @@ options:
     demoImageAlt: Floating button demo
     enable:
       title: Enable floating button
-      description: Display the floating button on web pages for quick access to Read Frog features
+      description: Display the floating button on web pages for quick access to FlowRead features
     display:
       title: Display
       side:
@@ -1293,7 +1294,7 @@ options:
       importModeMerge: Add to list
       importModeReplace: Replace list
       importEmpty: No terms found in that file.
-      importMissingHeader: "That file is not a Read Frog glossary export. It needs these columns:"
+      importMissingHeader: "That file is not a FlowRead glossary export. It needs these columns:"
       importOverflow: "That import would exceed the limit by $1 terms. Nothing was changed."
       importSuccess: "Imported $1 new and updated $2 terms."
       importSkipped: "Skipped $1 invalid rows and $2 duplicates."
@@ -1315,7 +1316,7 @@ options:
           description: "All $1 terms will be permanently deleted. This action cannot be undone."
   contextMenu:
     title: Context Menu
-    pageDescription: Control the Read Frog entries in the browser's right-click menu.
+    pageDescription: Control the FlowRead entries in the browser's right-click menu.
     demoImageAlt: Context menu demo
     enable:
       title: Enable context menu translate
@@ -1536,9 +1537,9 @@ options:
       noVoicesFound: No voices found
       language:
         title: Language voice
-        description: Pick a language, then the voice that reads it aloud. Reset puts back the voice Read Frog picks for that language.
+        description: Pick a language, then the voice that reads it aloud. Reset puts back the voice FlowRead picks for that language.
         reset: Reset
-        previewSample: Hello from Read Frog! This is how I will sound when reading aloud.
+        previewSample: Hello from FlowRead! This is how I will sound when reading aloud.
       fallback:
         title: Fallback voice
         description: The voice for any language you have not given one of its own.
@@ -1689,7 +1690,7 @@ options:
   rateUs:
     title: Rate Us
   configMigration:
-    versionTooNew: The imported config version is newer, please upgrade Read Frog to the latest version
+    versionTooNew: The imported config version is newer, please upgrade FlowRead to the latest version
     validationError: Config validation failed
 side:
   sourceLang: Source Language
@@ -1778,13 +1779,13 @@ action:
   saveToNotebaseConnectExisting: Connect existing Notebase
   saveToNotebaseGoConfigure: Configure
   saveToNotebaseLoginConnectedTitle: Log in to save?
-  saveToNotebaseLoginConnectedDescription: This Custom Action is connected to the account below. After login, Read Frog will save to the existing Notebase when possible, or create a new Notebase for the logged-in account.
+  saveToNotebaseLoginConnectedDescription: This Custom Action is connected to the account below. After login, FlowRead will save to the existing Notebase when possible, or create a new Notebase for the logged-in account.
   saveToNotebaseConnectionUnavailableTitle: Notebase connection unavailable
   saveToNotebaseMissingNotebaseDescription: The old Notebase no longer exists or cannot be opened by this account. Create a new Notebase and save this result, or connect an existing Notebase in Custom AI Actions.
   saveToNotebaseAccountUnavailableDescription: The logged-in account does not match the connected account below. Creating and saving will replace the previous connection and field mappings. You can also connect an existing Notebase in Custom AI Actions.
   saveToNotebasePendingLogin: Log in to finish saving
-  saveToNotebasePendingLoginDescription: After login, Read Frog will create the Notebase and save this result automatically.
-  saveToNotebasePendingConnectedLoginDescription: After login, Read Frog will save to the connected Notebase when possible. If this account cannot use it, Read Frog will create a new Notebase and save this result.
+  saveToNotebasePendingLoginDescription: After login, FlowRead will create the Notebase and save this result automatically.
+  saveToNotebasePendingConnectedLoginDescription: After login, FlowRead will save to the connected Notebase when possible. If this account cannot use it, FlowRead will create a new Notebase and save this result.
   upgrade: Upgrade
   updatePayment: Update payment
   openCustomActions: Open Custom AI Actions
@@ -1854,7 +1855,7 @@ subtitles:
     downloadTranslatedComplete: Translated subtitles downloaded
     downloadSource: Download source subtitles
   state:
-    loading: Read Frog loading captions
+    loading: FlowRead loading captions
     translating: Translating…
     error: Error occurred
   errors:
@@ -2152,8 +2153,8 @@ selectionResult:
   failed: Unable to translate. Check your OpenAI settings and try again.
   loadFailed: Unable to load the selected text. Try again, or select the passage in the PDF again.
   tooLong: Select a shorter passage (up to $1 characters).
-  empty: This selection has expired. Select text in the PDF and use Read Frog → Translate again.
-  hint: To translate another passage, select it in the PDF, then right-click and choose Read Frog → Translate. Only the selected text is sent for translation.
+  empty: This selection has expired. Select text in the PDF and use FlowRead → Translate again.
+  hint: To translate another passage, select it in the PDF, then right-click and choose FlowRead → Translate. Only the selected text is sent for translation.
   translateTab: Translation
   technicalExplain: Technical Explanation
   sectionSummary: Section Summary

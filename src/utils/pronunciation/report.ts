@@ -4,7 +4,7 @@ export function pronunciationReport(attempts: PronunciationAttempt[]): string {
   const rows = [...attempts].sort((a, b) => a.createdAt - b.createdAt)
   const assessed = rows.filter((a) => a.score !== null)
   const lines = [
-    "# Tiến trình luyện phát âm Mỹ — Read Frog",
+    "# Tiến trình luyện phát âm Mỹ — FlowRead",
     "",
     "Điểm AI ước lượng theo rubric en-us-v1; thang 0–10, bước 0,5. Không phải điểm thi. Không suy ra phát âm chỉ từ transcript. Chỉ so sánh cùng đoạn/ngữ cảnh, rubric và model thực tế. Không có audio, API key hoặc dữ liệu SRS trong báo cáo.",
     "",

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { browser } from "#imports"
 import { DEFAULT_OPENAI_CONFIG } from "@/types/config/openai"
 import { setupOpenAISettingsHandlers } from "../openai-settings"
@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   save: vi.fn<(key: string) => Promise<unknown>>(),
   remove: vi.fn<() => Promise<unknown>>(),
   status: vi.fn<() => Promise<unknown>>(),
+  credential: vi.fn<() => Promise<unknown>>(),
   execution: vi.fn<() => Promise<unknown>>(),
   generate: vi.fn<() => Promise<unknown>>(),
 }))
@@ -24,6 +25,7 @@ vi.mock("../openai-credentials", () => ({
   saveOpenAIKey: mocks.save,
   deleteOpenAIKey: mocks.remove,
   readOpenAIKeyStatus: mocks.status,
+  readOpenAIExecutionCredential: mocks.credential,
 }))
 vi.mock("../openai-runtime", () => ({ resolveOpenAIExecution: mocks.execution }))
 vi.mock("ai", () => ({ generateText: mocks.generate }))
@@ -31,6 +33,7 @@ vi.mock("ai", () => ({ generateText: mocks.generate }))
 function sender() {
   return { id: browser.runtime.id, url: browser.runtime.getURL("/options.html"), frameId: 0 }
 }
+afterEach(() => vi.restoreAllMocks())
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.handlers.clear()
@@ -43,7 +46,12 @@ beforeEach(() => {
 
 describe("privileged settings messages", () => {
   it("rejects website and content senders before privileged IO", async () => {
-    for (const name of ["saveOpenAIKey", "deleteOpenAIKey", "testOpenAIConnection"]) {
+    for (const name of [
+      "saveOpenAIKey",
+      "deleteOpenAIKey",
+      "testOpenAIConnection",
+      "fetchOpenAILiveModels",
+    ]) {
       await expect(
         mocks.handlers.get(name)!({
           sender: { ...sender(), url: "https://example.com/options.html" },
@@ -85,5 +93,61 @@ describe("privileged settings messages", () => {
     })
     expect(result).toMatchObject({ ok: false, code })
     expect(JSON.stringify(result)).not.toContain("secret-sentinel")
+  })
+  it("fetches and filters live models when authorized", async () => {
+    mocks.credential.mockResolvedValue({ apiKey: "sk-test", revision: 1 })
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: "gpt-4o" },
+            { id: "gpt-4o-mini" },
+            { id: "whisper-1" },
+            { id: "dall-e-3" }, // filtered out
+            { id: "text-embedding-ada-002" }, // filtered out
+          ],
+        }),
+        { status: 200 },
+      ),
+    )
+    const result = (await mocks.handlers.get("fetchOpenAILiveModels")!({
+      sender: sender(),
+    })) as { ok: boolean; models: string[] }
+    expect(result.ok).toBe(true)
+    expect(result.models).toEqual(["gpt-4o", "gpt-4o-mini", "whisper-1"])
+    fetchSpy.mockRestore()
+  })
+  it("does not return a catalog belonging to a key replaced during the request", async () => {
+    mocks.credential
+      .mockResolvedValueOnce({ apiKey: "sk-sentinel", revision: 1 })
+      .mockResolvedValueOnce({ apiKey: "sk-new", revision: 2 })
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: "gpt-4o" }] })))
+    expect(await mocks.handlers.get("fetchOpenAILiveModels")!({ sender: sender() })).toMatchObject({
+      ok: false,
+      models: [],
+    })
+    expect(fetchSpy).toHaveBeenCalledOnce()
+  })
+  it("bounds catalog bodies and sanitizes malformed objects/provider errors", async () => {
+    mocks.credential.mockResolvedValue({ apiKey: "sk-sentinel", revision: 1 })
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response("secret-sentinel".repeat(100000)))
+    const result = await mocks.handlers.get("fetchOpenAILiveModels")!({ sender: sender() })
+    expect(result).toMatchObject({ ok: false, models: [] })
+    expect(JSON.stringify(result)).not.toContain("sentinel")
+    fetchSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: [null, 4, {}, { id: "gpt-4o" }, { id: "gpt-4o" }, { id: "gpt-" + "x".repeat(200) }],
+        }),
+      ),
+    )
+    expect(await mocks.handlers.get("fetchOpenAILiveModels")!({ sender: sender() })).toMatchObject({
+      ok: true,
+      models: ["gpt-4o"],
+    })
   })
 })

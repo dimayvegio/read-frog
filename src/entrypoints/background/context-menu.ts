@@ -12,6 +12,7 @@ import { i18n } from "@/utils/i18n"
 import { logger } from "@/utils/logger"
 import { sendMessage } from "@/utils/message"
 import { ensureInitializedConfig } from "./config"
+import { openImageInTranslatePage } from "./image-translation"
 import { isPdfContext, openNativePdfPanel, updateActiveNativePanelSelection } from "./native-panel"
 import { openNativeSelectionResult } from "./native-selection"
 import { getPageTranslationEnabled, setPageTranslationEnabled } from "./page-translation-state"
@@ -19,6 +20,7 @@ import { getPageTranslationEnabled, setPageTranslationEnabled } from "./page-tra
 export const MENU_ID_TRANSLATE = "read-frog-translate"
 export const MENU_ID_SELECTION_TRANSLATE = "read-frog-selection-translate"
 export const MENU_ID_PDF_PANEL = "read-frog-pdf-panel"
+export const MENU_ID_IMAGE_TRANSLATE = "read-frog-image-translate"
 export const MENU_ID_SELECTION_READ_ALOUD = "read-frog-selection-read-aloud"
 export const MENU_ID_SELECTION_CUSTOM_ACTION_PREFIX = "read-frog-selection-custom-action:"
 
@@ -136,6 +138,11 @@ async function updateContextMenuItems(config: Config) {
       title: "Dịch trong khung cố định",
       contexts: ["selection"],
     })
+    browser.contextMenus.create({
+      id: MENU_ID_IMAGE_TRANSLATE,
+      title: i18n.t("contextMenu.translateImage"),
+      contexts: ["image"],
+    })
   }
 
   // Update translate menu title for current tab
@@ -214,6 +221,11 @@ async function handleContextMenuClick(
     return
   }
 
+  if (info.menuItemId === MENU_ID_IMAGE_TRANSLATE) {
+    await handleImageTranslateClick(info, tab)
+    return
+  }
+
   if (
     typeof info.menuItemId === "string" &&
     info.menuItemId.startsWith(MENU_ID_SELECTION_CUSTOM_ACTION_PREFIX)
@@ -224,6 +236,78 @@ async function handleContextMenuClick(
     }
 
     await handleSelectionCustomActionClick(info, tab.id, actionId)
+  }
+}
+
+async function handleImageTranslateClick(
+  info: Browser.contextMenus.OnClickData,
+  tab?: Browser.tabs.Tab,
+) {
+  if (!isTabId(tab?.id) || tab.windowId === undefined) return
+  const source = await browser.tabs.get(tab.id).catch(() => undefined)
+  if (!source || source.url !== tab.url) return
+  let image: string | undefined
+  const src = info.srcUrl
+  if (src && src.length <= 32 * 1024 * 1024 && /^data:image\/(?:png|jpeg);base64,/u.test(src))
+    image = src
+  if (!image && src) {
+    try {
+      const [result] = await browser.scripting.executeScript({
+        target: { tabId: tab.id, frameIds: [info.frameId ?? 0] },
+        func: (url: string) => {
+          // Read the exact already-loaded image. No authenticated fetches,
+          // cross-origin retries, unrelated image guesses or unbounded bodies.
+          const img = Array.from(document.images).find(
+            (candidate) => candidate.currentSrc === url || candidate.src === url,
+          )
+          if (
+            !img?.complete ||
+            !img.naturalWidth ||
+            !img.naturalHeight ||
+            img.naturalWidth * img.naturalHeight > 12_000_000
+          )
+            return null
+          const scale = Math.min(
+            1,
+            4096 / Math.max(img.naturalWidth, img.naturalHeight),
+            Math.sqrt(8_000_000 / (img.naturalWidth * img.naturalHeight)),
+          )
+          const canvas = document.createElement("canvas")
+          canvas.width = Math.max(1, Math.round(img.naturalWidth * scale))
+          canvas.height = Math.max(1, Math.round(img.naturalHeight * scale))
+          try {
+            canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height)
+            return canvas.toDataURL("image/png")
+          } catch {
+            return null
+          } finally {
+            canvas.width = canvas.height = 1
+          }
+        },
+        args: [src],
+      })
+      if (typeof result?.result === "string" && result.result.length <= 32 * 1024 * 1024)
+        image = result.result
+    } catch {
+      /* Protected/tainted frame: ask for an explicit crop below. */
+    }
+  }
+  const current = await browser.tabs.get(tab.id).catch(() => undefined)
+  if (current?.url !== source.url) return
+  try {
+    if (image) {
+      await openImageInTranslatePage(image, tab.windowId, true)
+      return
+    }
+    const [active] = await browser.tabs.query({ active: true, windowId: tab.windowId })
+    if (active?.id !== tab.id || active.url !== source.url) return
+    const captured = await browser.tabs.captureVisibleTab(tab.windowId, { format: "png" })
+    const [after] = await browser.tabs.query({ active: true, windowId: tab.windowId })
+    if (after?.id !== tab.id || after.url !== source.url) return
+    // A screenshot is not the selected image. Keep manual crop, never full=1.
+    await openImageInTranslatePage(captured, tab.windowId)
+  } catch {
+    logger.warn("Không đọc được ảnh. Dùng Chụp vùng & dịch ảnh trong FlowRead.")
   }
 }
 

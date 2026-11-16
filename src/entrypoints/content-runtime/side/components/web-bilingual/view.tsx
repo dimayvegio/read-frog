@@ -122,7 +122,7 @@ export default function WebBilingualView({ onClose }: { onClose: () => void }) {
         aria-label="Khung song ngữ HTML"
       >
         <header className="rf-web-heading">
-          <strong>Read Frog · Song ngữ HTML</strong>
+          <strong>FlowRead · Song ngữ HTML</strong>
           <div>
             <button
               type="button"

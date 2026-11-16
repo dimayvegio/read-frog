@@ -817,11 +817,11 @@ export function PdfStudyTools({
                 const url = URL.createObjectURL(blob),
                   link = document.createElement("a")
                 link.href = url
-                link.download = `${title.replace(/[\\/:*?"<>|]/g, "-")}-ReadFrog.pdf`
+                link.download = `${title.replace(/[\\/:*?"<>|]/g, "-")}-FlowRead.pdf`
                 link.click()
                 setTimeout(() => URL.revokeObjectURL(url), 60000)
                 setMessage(
-                  "Đã xuất bản PDF có chú thích. File gốc không đổi; lớp chữ OCR và bản dịch chỉ lưu trong Read Frog.",
+                  "Đã xuất bản PDF có chú thích. File gốc không đổi; lớp chữ OCR và bản dịch chỉ lưu trong FlowRead.",
                 )
               } catch (error) {
                 report(error)
@@ -1348,7 +1348,7 @@ export function PdfStudyTools({
               <p>
                 OCR cục bộ, không gửi PDF hay ảnh lên mạng. Chọn đúng ngôn ngữ chính; trang phức
                 tạp, công thức hoặc chữ viết tay có thể nhận sai. Chữ OCR sẽ thay lớp chọn chữ của
-                trang này trong Read Frog.
+                trang này trong FlowRead.
               </p>
               <button type="button" disabled={imageBusy} onClick={() => void onOpenAiOcr()}>
                 <ScanText size={16} /> OpenAI OCR vùng khó

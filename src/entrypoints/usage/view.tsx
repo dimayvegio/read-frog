@@ -85,14 +85,14 @@ export function UsageDashboard() {
     const url = URL.createObjectURL(blob),
       link = document.createElement("a")
     link.href = url
-    link.download = `ReadFrog-Usage-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = `FlowRead-Usage-${new Date().toISOString().slice(0, 10)}.json`
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
   return (
     <main className="rf-usage">
       <header>
-        <p className="rf-usage-eyebrow">READ FROG · THỐNG KÊ TRÊN MÁY</p>
+        <p className="rf-usage-eyebrow">FLOWREAD · THỐNG KÊ TRÊN MÁY</p>
         <h1>Chi phí và tốc độ OpenAI</h1>
         <p>
           Ghi từ bản cập nhật này. Không đọc hóa đơn hoặc dữ liệu sử dụng của các ứng dụng khác

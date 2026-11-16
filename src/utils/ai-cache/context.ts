@@ -3,6 +3,7 @@ import type { Config } from "@/types/config/config"
 import { liveQuery } from "dexie"
 import { browser } from "#imports"
 import { getLocalConfig } from "@/utils/config/storage"
+import { loadFeatureModels } from "@/utils/feature-models/resolver"
 import { sendMessage } from "@/utils/message"
 import { resolveProviderRefForCapability } from "@/utils/providers/provider-registry"
 import { getPdfHistoryEpoch } from "@/utils/selection-result/pdf-history"
@@ -25,8 +26,10 @@ export async function aiContext(
   invalidate?: () => void,
   matchesConfig?: (next: Config) => boolean,
 ) {
+  await loadFeatureModels()
+  signal.throwIfAborted()
   const provider = resolveProviderRefForCapability(
-    "selectionTranslation",
+    kind === "translate" ? "selectionTranslation" : "customAction",
     config.providersConfig,
     config.selectionToolbar.features.translate.providerId,
   )
@@ -105,6 +108,14 @@ export async function aiContext(
     provider,
     epoch,
     current,
-    key: aiCacheKey(kind, identity, status.revision, documentId ?? "", documentEpoch, ...parts),
+    key: aiCacheKey(
+      kind,
+      identity,
+      status.revision,
+      documentId ?? "",
+      documentEpoch,
+      provider.config,
+      ...parts,
+    ),
   }
 }

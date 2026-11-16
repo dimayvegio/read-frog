@@ -27,7 +27,7 @@ export function requirePdfReaderSender(sender: SettingsSender, pages = ["pdf-rea
       ),
     )
   )
-    throw new Error("This operation requires the Read Frog PDF reader")
+    throw new Error("This operation requires the FlowRead PDF reader")
 }
 export function setupPdfReaderHandlers() {
   onMessage("openPdfReader", async (message) => {

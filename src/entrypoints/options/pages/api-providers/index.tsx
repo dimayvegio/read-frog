@@ -18,6 +18,7 @@ import { sendMessage } from "@/utils/message"
 import { getOpenAIOutputIdentity } from "@/utils/providers/openai-profile"
 import { PageLayout } from "../../components/page-layout"
 import { AIContentAwareConfig } from "./ai-content-aware"
+import { OpenAIFeatureModelsSettings } from "./feature-models"
 import { LanguageDetectionConfig } from "./language-detection"
 
 const MODEL_ITEMS = LLM_PROVIDER_MODELS.openai.map((value) => ({ value, label: value }))
@@ -291,6 +292,7 @@ export function ApiProvidersPage() {
           }}
         />
       </section>
+      <OpenAIFeatureModelsSettings />
       <LanguageDetectionConfig />
       <AIContentAwareConfig />
     </PageLayout>

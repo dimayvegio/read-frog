@@ -21,7 +21,7 @@ export function PdfReaderButton() {
         Đọc PDF và tự lưu vị trí
       </Button>
       <p className="mt-1 text-xs text-muted-foreground">
-        Mở bằng trình đọc Read Frog để tự nhớ trang, vị trí cuộn và thu phóng.
+        Mở bằng trình đọc FlowRead để tự nhớ trang, vị trí cuộn và thu phóng.
       </p>
       {error && <p role="alert">{error}</p>}
     </div>

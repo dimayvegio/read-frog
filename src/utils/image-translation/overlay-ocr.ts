@@ -15,7 +15,8 @@ const union = (boxes: PixelBox[]): PixelBox => {
   }
 }
 export function overlayRegions(data: Pick<Page, "blocks">, pixels: ImageData): OverlayRegion[] {
-  const regions: OverlayRegion[] = []
+  const raw: OverlayRegion[] = []
+  const owners = new WeakMap<OverlayRegion, object>()
   let words = 0
   for (const block of data.blocks ?? [])
     for (const paragraph of block.paragraphs)
@@ -27,13 +28,13 @@ export function overlayRegions(data: Pick<Page, "blocks">, pixels: ImageData): O
             source = group.map((w) => w.text).join(" "),
             box = union(ink)
           const colors = sampleColors(pixels, ink[0]!)
-          regions.push({
-            id: `r${regions.length}`,
+          raw.push({
+            id: `r${raw.length}`,
             source,
             translation: "",
             ink,
             box: clampBox(
-              { ...box, y: box.y - box.height * 0.15, height: box.height * 1.5 },
+              { ...box, y: box.y - box.height * 0.1, height: box.height * 1.25 },
               pixels.width,
               pixels.height,
             ),
@@ -51,6 +52,8 @@ export function overlayRegions(data: Pick<Page, "blocks">, pixels: ImageData): O
             bold: /bold/iu.test(group[0]!.font),
             italic: /italic/iu.test(group[0]!.font),
           })
+          owners.set(raw.at(-1)!, paragraph)
+          if (raw.length > 256) throw new Error("Tối đa 256 vùng; hãy crop nhỏ hơn.")
           group = []
         }
         for (const word of line.words) {
@@ -80,6 +83,90 @@ export function overlayRegions(data: Pick<Page, "blocks">, pixels: ImageData): O
         }
         flush()
       }
+  // Merge vertically consecutive line wraps belonging to the same paragraph or table cell.
+  raw.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x)
+  const consumed = new Set<OverlayRegion>()
+  const regions: OverlayRegion[] = []
+  for (let i = 0; i < raw.length; i++) {
+    const current = raw[i]!
+    if (consumed.has(current)) continue
+    let base = current
+    let changed = true
+    while (changed) {
+      changed = false
+      for (let j = i + 1; j < Math.min(raw.length, i + 33); j++) {
+        const next = raw[j]!
+        if (
+          next === base ||
+          consumed.has(next) ||
+          regions.includes(next) ||
+          owners.get(base) !== owners.get(next)
+        )
+          continue
+        if (!base.enabled || !next.enabled) continue
+        const baseBox = union(base.ink)
+        const nextBox = union(next.ink)
+        const vGap = nextBox.y - (baseBox.y + baseBox.height)
+        const avgLineHeight = (base.ink[0]!.height + next.ink[0]!.height) / 2
+        const maxVGap = Math.max(8, avgLineHeight * 0.85)
+        if (vGap < -4 || vGap > maxVGap) continue
+        const xOverlap =
+          Math.min(baseBox.x + baseBox.width, nextBox.x + nextBox.width) -
+          Math.max(baseBox.x, nextBox.x)
+        const minW = Math.min(baseBox.width, nextBox.width)
+        const aligned =
+          xOverlap > 0 &&
+          xOverlap / minW >= 0.8 &&
+          Math.abs(baseBox.x - nextBox.x) <= Math.max(6, avgLineHeight * 0.5)
+        if (!aligned) continue
+        let hasRule = false
+        const yTop = Math.floor(baseBox.y + baseBox.height)
+        const yBottom = Math.ceil(nextBox.y)
+        if (yBottom > yTop) {
+          const xLeft = Math.max(0, Math.floor(Math.max(baseBox.x, nextBox.x)))
+          const xRight = Math.min(
+            pixels.width - 1,
+            Math.ceil(Math.min(baseBox.x + baseBox.width, nextBox.x + nextBox.width)),
+          )
+          const bg = sampleColors(pixels, base.ink[0]!)
+            .background.match(/[a-f0-9]{2}/gu)!
+            .map((c) => parseInt(c, 16))
+          for (let y = yTop; y <= yBottom; y++) {
+            let darkCount = 0,
+              samples = 0
+            for (let x = xLeft; x <= xRight; x += Math.max(1, Math.ceil((xRight - xLeft) / 64))) {
+              const idx = (y * pixels.width + x) * 4
+              samples++
+              if (bg.reduce((n, c, k) => n + Math.abs(c - pixels.data[idx + k]!), 0) > 65)
+                darkCount++
+            }
+            if (samples >= 4 && darkCount > samples * 0.7) {
+              hasRule = true
+              break
+            }
+          }
+        }
+        if (hasRule) continue
+        base.source = `${base.source}\n${next.source}`
+        base.ink.push(...next.ink)
+        const combined = union(base.ink)
+        const estimatedLines = Math.max(
+          1,
+          Math.round(combined.height / Math.max(8, base.ink[0]!.height)),
+        )
+        const lineH = combined.height / estimatedLines
+        base.box = clampBox(
+          { ...combined, y: combined.y - combined.height * 0.08, height: combined.height * 1.25 },
+          pixels.width,
+          pixels.height,
+        )
+        base.size = Math.max(8, Math.min(180, lineH * 1.25))
+        consumed.add(next)
+        changed = true
+      }
+    }
+    regions.push(base)
+  }
   if (regions.length > 256 || regions.reduce((n, r) => n + r.source.length, 0) > 20000)
     throw new Error("Tối đa 256 vùng / 20.000 ký tự; hãy crop nhỏ hơn.")
   regions.sort((a, b) => a.box.y - b.box.y || a.box.x - b.box.x)

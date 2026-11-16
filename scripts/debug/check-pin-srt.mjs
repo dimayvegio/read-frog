@@ -80,7 +80,7 @@ export async function checkPinAndSrt({ page, browser, worker, check, downloads, 
   )
     await pause(100)
   const zip = await JSZip.loadAsync(
-    await fs.readFile(path.join(downloads, "ReadFrog-Transcripts.zip")),
+    await fs.readFile(path.join(downloads, "FlowRead-Transcripts.zip")),
     { checkCRC32: true },
   )
   check(

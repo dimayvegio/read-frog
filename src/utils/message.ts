@@ -134,6 +134,7 @@ interface ProtocolMap {
   saveOpenAIKey: (data: { key: string }) => OpenAIKeyStatus
   deleteOpenAIKey: () => OpenAIKeyStatus
   testOpenAIConnection: (data: OpenAIPublicConfig) => OpenAIConnectionResult
+  fetchOpenAILiveModels: () => Promise<{ ok: boolean; models: string[]; error?: string }>
   // glossary — the terms live in IndexedDB, which a content script cannot open,
   // so it asks the background once per page and compiles a matcher locally.
   // `url` says which page is asking; glossaries scoped to other sites are left

@@ -365,7 +365,7 @@ export function ReadingLab() {
         signal,
       )
       signal.throwIfAborted()
-      downloadBytes(bytes, "ReadFrog-BaiNghe.mp3", "audio/mpeg")
+      downloadBytes(bytes, "FlowRead-BaiNghe.mp3", "audio/mpeg")
       setMessage("Đã xuất MP3 theo thứ tự câu, số lần lặp và khoảng nghỉ đang chọn.")
     })
   const exportZip = (ids: string[]) =>
@@ -397,7 +397,7 @@ export function ReadingLab() {
         includeRecordings,
       )
       signal.throwIfAborted()
-      downloadBytes(bytes, "ReadFrog-ThuVienDoanDoc.zip", "application/zip")
+      downloadBytes(bytes, "FlowRead-ThuVienDoanDoc.zip", "application/zip")
     })
   const importZip = (file: File) =>
     void run("Đang nhập thư viện…", async (signal) => {
@@ -430,7 +430,7 @@ export function ReadingLab() {
     <main className="reading-lab">
       <header className="lab-header">
         <div>
-          <p className="lab-eyebrow">READ FROG</p>
+          <p className="lab-eyebrow">FLOWREAD</p>
           <h1>Luyện nghe & Thư viện</h1>
           <p>Đọc một đoạn. Nghe từng câu. Tập nói bằng giọng của bạn.</p>
         </div>

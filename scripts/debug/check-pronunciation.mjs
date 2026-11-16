@@ -361,8 +361,8 @@ try {
     i++
   )
     await pause(100)
-  const report = await fs.readFile(path.join(downloads, "ReadFrog-PhatAmMy-ChatGPT.md"), "utf8"),
-    json = JSON.parse(await fs.readFile(path.join(downloads, "ReadFrog-PhatAmMy.json"), "utf8"))
+  const report = await fs.readFile(path.join(downloads, "FlowRead-PhatAmMy-ChatGPT.md"), "utf8"),
+    json = JSON.parse(await fs.readFile(path.join(downloads, "FlowRead-PhatAmMy.json"), "utf8"))
   check(
     "Actual Markdown and JSON downloads include per-attempt word feedback without audio/key",
     json.attempts.length === 2 &&

@@ -1,9 +1,16 @@
 import type { OpenAIPublicConfig } from "@/types/config/openai"
 import type { ProviderConfig, ProvidersConfig } from "@/types/config/provider"
+import type { FeatureModelKey } from "@/types/feature-models"
 import type { FeatureKey } from "@/utils/constants/feature-providers"
 import { openAIPublicConfigSchema } from "@/types/config/openai"
+import { applyFeatureModelOverride, getFeatureModelSync } from "@/utils/feature-models/resolver"
 
-export type ProviderCapability = FeatureKey | "customAction" | "languageDetection"
+export type ProviderCapability =
+  | FeatureKey
+  | "customAction"
+  | "languageDetection"
+  | "pdfTranslation"
+  | "imageTranslate"
 export interface LocalProviderRef<T extends ProviderConfig = OpenAIPublicConfig> {
   kind: "local"
   config: T
@@ -48,15 +55,37 @@ export function getSelectableProvidersForCapability(
     return result.success ? [result.data] : []
   })
 }
+const resolvedFeatures = new WeakMap<LocalProviderRef, FeatureModelKey>()
+export const getResolvedFeatureKey = (provider: LocalProviderRef) => resolvedFeatures.get(provider)
 export function resolveProviderRefForCapability<C extends ProviderCapability>(
-  _capability: C,
+  capability: C,
   providers: ProvidersConfig,
   providerId: string,
 ): ProviderRefForCapability<C> | null {
   const parsed = openAIPublicConfigSchema.safeParse(
     providers.find((provider) => provider.id === providerId),
   )
-  return parsed.success
-    ? { kind: "local", config: parsed.data, id: parsed.data.id, name: parsed.data.name }
-    : null
+  if (!parsed.success) return null
+  const keys: Partial<Record<ProviderCapability, FeatureModelKey>> = {
+    pageTranslation: "webTranslate",
+    pdfTranslation: "webTranslate",
+    selectionTranslation: "selectionTranslate",
+    inputTranslation: "selectionTranslate",
+    customAction: "aiExplanation",
+    videoSubtitles: "videoSubtitles",
+    imageTranslate: "imageTranslate",
+  }
+  const featureModelKey = keys[capability]
+  const config =
+    featureModelKey && typeof document !== "undefined"
+      ? applyFeatureModelOverride(parsed.data, getFeatureModelSync(featureModelKey))
+      : parsed.data
+  const result: LocalProviderRef = {
+    kind: "local",
+    config,
+    id: parsed.data.id,
+    name: parsed.data.name,
+  }
+  if (featureModelKey) resolvedFeatures.set(result, featureModelKey)
+  return result
 }

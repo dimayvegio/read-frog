@@ -1,5 +1,7 @@
 # Bản local khác upstream ở đâu?
 
+**Mới A.18 / manifest1.59.3.18:** hoàn thiện FlowRead, model riêng theo tính năng với snapshot/cache thống nhất, menu dịch đúng ảnh, prompt/zoom ảnh và OCR/overlay an toàn. Các model audio vẫn theo endpoint đã kiểm thử; đổi preference cần tải lại tab. [Review/hợp đồng](FEATURE_MODELS_REVIEW_A18.md).
+
 **Mới A.17 / manifest1.59.3.17:** ô yêu cầu bổ sung cho PDF ảnh dịch, preset độ nét/DPI/1K–4K/quality tối đa và dự toán phí ảnh đầu ra local theo trang/dải. [Hợp đồng/giới hạn](PDF_IMAGE_PROMPT_A17.md).
 
 **Mới A.16 / manifest 1.59.3.16:** chọn dải trang PDF → tạo PNG toàn trang trên máy → OpenAI tạo ảnh dịch tuần tự → xem/tải PNG, ZIP hoặc PDF ảnh ghép local. Giữ kết quả từng trang để tiếp tục không gọi thừa. [Hợp đồng/giới hạn](PDF_IMAGE_TRANSLATION_A16.md).

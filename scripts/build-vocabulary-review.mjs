@@ -22,7 +22,7 @@ const result = await build({
 const output = Array.isArray(result) ? result.flatMap((r) => r.output) : result.output
 const script = output.find((item) => item.type === "chunk")?.code
 if (!script) throw new Error("Vocabulary build produced no script")
-const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"><meta name="color-scheme" content="light dark"><title>Ôn từ vựng | Read Frog</title></head><body><div id="app"></div><script>${script.replace(/<\/script/gi, "<\\/script")}</script></body></html>`
+const html = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'"><meta name="color-scheme" content="light dark"><title>Ôn từ vựng | FlowRead</title></head><body><div id="app"></div><script>${script.replace(/<\/script/gi, "<\\/script")}</script></body></html>`
 const notices = await Promise.all(
   [
     "LICENSE",

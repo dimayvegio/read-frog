@@ -60,7 +60,7 @@ export function SettingsSyncPage() {
   return (
     <main className="rf-usage" data-testid="settings-sync">
       <header>
-        <p className="rf-usage-eyebrow">READ FROG · ĐỒNG BỘ EDGE</p>
+        <p className="rf-usage-eyebrow">FLOWREAD · ĐỒNG BỘ EDGE</p>
         <h1>Cấu hình đi cùng bạn</h1>
         <p>
           Dùng tài khoản đã đăng nhập Microsoft Edge. Không cần Client ID, Azure hoặc máy chủ trung
@@ -71,7 +71,7 @@ export function SettingsSyncPage() {
         <h2>Kết nối trình duyệt</h2>
         <p>
           Trên các máy, đăng nhập cùng tài khoản Edge và bật đồng bộ <strong>Extensions</strong>.
-          Read Frog tự lưu cấu hình vào kho đồng bộ của trình duyệt khi bạn bật bên dưới.
+          FlowRead tự lưu cấu hình vào kho đồng bộ của trình duyệt khi bạn bật bên dưới.
         </p>
         <div className="rf-usage-tools">
           <button type="button" onClick={() => void sendMessage("openEdgeSyncSettings", undefined)}>

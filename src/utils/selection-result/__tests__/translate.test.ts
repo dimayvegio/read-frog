@@ -103,6 +103,7 @@ describe("native PDF selected-text translation", () => {
     config.glossary.enabled = true
     const controller = new AbortController()
     const pending = run("PDF text", config, controller)
+    await vi.waitFor(() => expect(typeof finish).toBe("function"))
     controller.abort()
     finish({ entries: [] })
     await expect(pending).rejects.toThrow("aborted")

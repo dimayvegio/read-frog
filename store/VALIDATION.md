@@ -1,3 +1,53 @@
+# A.18 validation — 16 November 2026
+
+Baseline `24277883`; package `1.59.3-a.18`, numeric `1.59.3.18`, display `1.59.3A`. Review/fixes: [FEATURE_MODELS_REVIEW_A18.md](../FEATURE_MODELS_REVIEW_A18.md). All current feature changes, including the previously uncommitted overlay work, are included after review. No dependency, permission or published config/DB/report/ZIP/migration changes.
+
+## Current evidence
+
+- Full uncached Nx suite: **4,863 passed, 1 skipped; 504 passing files, 1 skipped**, 50.77s Vitest / 51.8s Nx. `SKIP_FREE_API=true`, `NX_DAEMON=false`; `pnpm exec nx test --output-style=static -- --exclude="**/free-api.test.ts"`. Log `.codex/review-a18/full-tests-final2.log`.
+- **21 production browser suites / 649 final passing checks**, Chrome157.0.8103.51, fresh isolated profiles and synthetic fixtures. Actual PDF.js, bundled Tesseract and browser media paths; OpenAI replies mocked, **live API spending $0**. No live model quality, invoice, physical-phone, DRM/account or 120-minute soak claim.
+- Type-aware lint/typecheck passed (`lint-final.log`). Formatting/diff checks are required before commit. Runtime audit: **202 scripts, zero forbidden endpoints**; store audit with `STORE_REQUIRE_SCREENSHOTS=true` passed. Static scan is complemented by runtime/payload tests; it does not prove store approval.
+- New form regression test plus schema/cache/model/credential-race tests. HTML model settings saved through actual UI, selection/explanation use distinct models in provider payloads, repeated mode switches reuse completed caches. Image UI checks actual computed hidden state and reachable zoom origins.
+
+| Suite                            | Final checks |
+| -------------------------------- | -----------: |
+| check-image-overlay              |           15 |
+| check-image-structure            |           22 |
+| check-pdf-image-translation      |           37 |
+| check-pdf-reading                |           81 |
+| check-web-bilingual              |           26 |
+| check-pdf-study                  |           35 |
+| check-pdf-workspace              |           23 |
+| check-pdf-bilingual              |           33 |
+| check-audio-transcription        |           31 |
+| check-pronunciation              |           37 |
+| check-tts-download               |           11 |
+| check-reading-lab                |           20 |
+| check-study-flow                 |           59 |
+| check-vocabulary-scale           |           25 |
+| check-edge-settings-sync         |           24 |
+| check-anipm-context              |           14 |
+| HTML feature settings/fixed pane |           21 |
+| Standalone generated image       |           21 |
+| YouTube dubbing                  |           22 |
+| ani.pm dubbing                   |           22 |
+| check-vocabulary                 |           70 |
+
+## Failed runs retained
+
+- Initial review candidate exposed a form-render typo introduced while rewriting the settings form; corrected, then covered by the new UI unit and successful production form tests. Initial async selection test assumed glossary loading began synchronously; it now waits for the actual pending glossary before canceling.
+- The first batched YouTube dubbing run timed out waiting for ducking after three checks (`check-video-dubbing.log`, `.codex/video-dubbing-youtube-1794832873879`). **Not declared fixed by a production change:** the unchanged runtime passed two independent fresh YouTube reruns, 22/22 each, plus ani.pm 22/22 including real capture/preparation/automatic sampling. Root cause of the one timing failure was not reproduced; the harness now retains media state on future failures. Both failure and rerun evidence remain local.
+- Earlier failed candidates are not counted as passing suites. Final summary: `.codex/review-a18/final-summary.json`; individual logs contain artifact paths. Native OS context-menu selection is unit/bridge-tested, not claimed to be OS-menu driven.
+
+## ZIP/local install
+
+- One delivered ZIP: `C:\Users\TIEN\Downloads\FlowRead-Edge-1.59.3A.zip`, **22,143,947 bytes**.
+- SHA256: `0215bfd24128ff6847c0837a736259240f7ac36cf2671d9d26ef0fc42da4efee`.
+- Root manifest/CRC/relative paths verified; separate staging compared byte-for-byte with tested build; **472 installed files hash-verified**, assets/entrypoints first and manifest last into the fixed `ReadFrog-Edge-1.58.0A` folder. Identity/permissions unchanged; browser profile/data untouched. This is code replacement, not a browser-data backup or migration test. User Reload remains pending; main Edge UI was not controlled.
+- Standalone HTML SHA256: `39fccc0d40d091efa55731358b0ee0066f7824731375720cf1ab9c1902433f9a`. Its title/UI/report filenames now use FlowRead; data formats/import compatibility and progress are protected by the 70-case vocabulary and 1,000-word scale runs.
+
+## Historical A.17 evidence (not an A.18 rerun)
+
 # Candidate A.17 validation — 16 November 2026
 
 Runtime/package commit `2b869f95`, baseline A.16. Package 1.59.3-a.17 / numeric 1.59.3.17 / display 1.59.3A. Isolated build/test checkout `.codex/release-a17-2b869f95`; three pre-existing local-overlay edits remain untouched/uncommitted in the main workspace and are not part of this release. No new dependencies/permissions/published schemas/migrations.

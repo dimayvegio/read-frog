@@ -108,4 +108,8 @@ describe("background OpenAI runtime", () => {
     ).rejects.toThrow("Unrecognized key")
     expect(key).not.toHaveBeenCalled()
   })
+  it("executes the caller snapshot unchanged for every usage task", async () => {
+    const execution = await resolveOpenAIExecution(DEFAULT_OPENAI_CONFIG, { usageTask: "image" })
+    expect(execution.model.modelId).toBe(DEFAULT_OPENAI_CONFIG.model.model)
+  })
 })

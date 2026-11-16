@@ -63,7 +63,13 @@ export function decodeOverlayReply(raw: string, regions: OverlayRegion[]) {
     throw new Error("Chữ nhận dạng quá dài; hãy chọn vùng nhỏ hơn.")
   return regions.map((r) => {
     const result = byId.get(r.id)
-    return result ? { ...r, readText: result.original, translation: result.translation } : r
+    return result
+      ? {
+          ...r,
+          readText: result.original.normalize("NFC"),
+          translation: result.translation.normalize("NFC"),
+        }
+      : r
   })
 }
 export function clampBox(box: PixelBox, width: number, height: number): PixelBox {
@@ -179,15 +185,16 @@ export function fitOverlayText(ctx: CanvasRenderingContext2D, region: OverlayReg
     const size = Math.floor((low + high) * 2) / 4
     ctx.font = `${region.italic ? "italic " : ""}${region.bold ? "bold " : ""}${size}px ${family[region.font]}`
     const lines = wrap(ctx, region.translation, Math.max(1, region.box.width - 2))
-    if (lines.length * size * 1.18 <= region.box.height) low = size
+    if (lines.length * size * 1.22 <= region.box.height) low = size
     else high = size
   }
   const size = low
   ctx.font = `${region.italic ? "italic " : ""}${region.bold ? "bold " : ""}${size}px ${family[region.font]}`
   const lines = wrap(ctx, region.translation, Math.max(1, region.box.width - 2))
-  const overflow = lines.length * size * 1.18 > region.box.height
+  const overflow = lines.length * size * 1.22 > region.box.height
   return { size, lines, overflow }
 }
+
 /** Pixels outside the original word masks and destination boxes are never repainted. */
 export function paintOverlay(
   canvas: HTMLCanvasElement,
@@ -208,33 +215,30 @@ export function paintOverlay(
     (r) =>
       r.enabled && r.translation.trim() && r.translation.trim() !== (r.readText ?? r.source).trim(),
   )
-  // Remove old letters inside measured OCR word boxes, never the entire paragraph/table cell.
-  for (const region of active)
+  // Remove old letters inside measured OCR word boxes without clipping into table/cell borders.
+  for (const region of active) {
     for (const word of region.ink) {
       const sampled = sampleColors(pixels, word)
       ctx.fillStyle = region.background ?? sampled.background
-      const rect = [
-        Math.max(0, word.x - 1),
-        Math.max(0, word.y - 1),
-        Math.min(width - word.x + 1, word.width + 2),
-        Math.min(height - word.y + 1, word.height + 2),
-      ] as const
-      if (sampled.transparent && !region.background) ctx.clearRect(...rect)
-      else ctx.fillRect(...rect)
+      const box = { x: word.x, y: word.y, width: word.width, height: word.height }
+      if (sampled.transparent && !region.background)
+        ctx.clearRect(box.x, box.y, box.width, box.height)
+      else ctx.fillRect(box.x, box.y, box.width, box.height)
     }
+  }
   const warnings: string[] = []
   for (const region of active) {
     ctx.save()
     const box = clampBox(region.box, width, height)
+    const fitted = fitOverlayText(ctx, region)
+    if (fitted.overflow || fitted.size < 10) warnings.push(region.id)
     ctx.beginPath()
     ctx.rect(box.x, box.y, box.width, box.height)
     ctx.clip()
-    const fitted = fitOverlayText(ctx, region)
-    if (fitted.overflow || fitted.size < 10) warnings.push(region.id)
     ctx.fillStyle = region.color
     ctx.textBaseline = "top"
     for (const [index, line] of fitted.lines.entries())
-      ctx.fillText(line, box.x + 1, box.y + index * fitted.size * 1.18)
+      ctx.fillText(line, box.x + 1, box.y + index * fitted.size * 1.22)
     ctx.restore()
   }
   return warnings

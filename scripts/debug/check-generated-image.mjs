@@ -153,6 +153,13 @@ try {
         output,
       )),
   )
+  check(
+    "source editor stays hidden while generated output is visible",
+    await page.$eval(
+      ".rf-image-editor",
+      (node) => node.hidden && getComputedStyle(node).display === "none",
+    ),
+  )
   const payload = await worker.evaluate(() => __editCalls[0])
   check(
     "Fixed image-edit contract, private authorization and crop-only inline input",
@@ -168,6 +175,14 @@ try {
   await click("Xem ảnh dịch")
   await page.select('select[aria-label="Thu phóng ảnh OpenAI"]', "150")
   check("Original/output toggle and zoom are free of provider calls", (await calls()) === 1)
+  check(
+    "zoomed image keeps its left/top pixels reachable",
+    await page.$eval(".rf-generated-scroll", (node) => {
+      const image = node.querySelector("img").getBoundingClientRect(),
+        box = node.getBoundingClientRect()
+      return image.left >= box.left && image.top >= box.top
+    }),
+  )
   const cdp = await page.createCDPSession()
   await cdp.send("Browser.setDownloadBehavior", { behavior: "allow", downloadPath: dir })
   await page.click(".rf-generated-download")

@@ -64,7 +64,7 @@ export function PdfHistoryPanel({
     const url = URL.createObjectURL(file),
       link = window.document.createElement("a")
     link.href = url
-    link.download = `ReadFrog-PDF-${document.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`
+    link.download = `FlowRead-PDF-${document.id.slice(0, 8)}-${new Date().toISOString().slice(0, 10)}.json`
     link.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }

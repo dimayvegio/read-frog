@@ -45,7 +45,7 @@ it("rejects websites, content frames and other extension pages before accessing 
     sender("options.html"),
   ])
     expect(() => call("loadPdfReadingPosition", { documentId: "x" }, from)).toThrow(
-      "requires the Read Frog PDF reader",
+      "requires the FlowRead PDF reader",
     )
   expect(load).not.toHaveBeenCalled()
 })

@@ -43,6 +43,34 @@ try {
   console.log("READY options")
   await worker.evaluate(preparePdfWorker)
   console.log("READY provider fixture")
+  if (process.env.FLOWREAD_FEATURE_MODELS === "1") {
+    for (const [feature, model] of [
+      ["selectionTranslate", "gpt-4o"],
+      ["aiExplanation", "gpt-4.1"],
+    ]) {
+      await options.select(`[aria-label="Model ${feature}"]`, model)
+      await options.$eval(`[aria-label="Model ${feature}"]`, (select) => {
+        ;[...select.closest("div.border-t").querySelectorAll("button")]
+          .find((b) => b.textContent.trim() === "Lưu")
+          .click()
+      })
+      for (let i = 0; i < 100; i++) {
+        const saved = await worker.evaluate(
+          async ({ feature: key, model: idValue }) =>
+            (await chrome.storage.local.get("openaiFeatureModelsV1")).openaiFeatureModelsV1?.[key]
+              ?.model === idValue,
+          { feature, model },
+        )
+        if (saved) break
+        if (i === 99) throw new Error("Feature preference was not saved")
+        await new Promise((r) => setTimeout(r, 50))
+      }
+    }
+    check(
+      "saving feature models through real settings UI makes zero content-provider calls",
+      await worker.evaluate(() => __pdfCalls.length === 0),
+    )
+  }
   source = await browser.newPage()
   source.on("pageerror", (e) => evidence.errors.push(e.message))
   await source.setRequestInterception(true)
@@ -138,6 +166,11 @@ try {
     )
     await panel.waitForSelector('[data-testid="native-selection-output"][aria-busy="false"]')
   }
+  if (process.env.FLOWREAD_FEATURE_MODELS === "1")
+    check(
+      "selection uses its captured override instead of the shared default",
+      await worker.evaluate(() => __pdfCalls[0].body.model === "gpt-4o"),
+    )
   let count = await calls()
   await select("#first")
   await expectPanel("Learning a little")
@@ -235,6 +268,11 @@ try {
     }),
   )
   await panel.screenshot({ path: path.join(scratch, "technical-markdown.png") })
+  if (process.env.FLOWREAD_FEATURE_MODELS === "1")
+    check(
+      "explanation uses its own model with an independent cache identity",
+      await worker.evaluate(() => __pdfCalls.at(-1).body.model === "gpt-4.1"),
+    )
   const afterExplain = await calls()
   check("first explanation is an explicit separate request", afterExplain === count + 1)
   await clickMode("translate")

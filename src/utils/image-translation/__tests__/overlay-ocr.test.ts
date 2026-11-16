@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, expect, it, vi } from "vitest"
-import { detectOverlayRegions } from "../overlay-ocr"
+import { overlayRegions, detectOverlayRegions } from "../overlay-ocr"
 const { create, recognize, terminate } = vi.hoisted(() => ({
   create: vi.fn<(...args: any[]) => any>(),
   recognize: vi.fn<(...args: any[]) => any>(),
@@ -128,4 +128,38 @@ it("cancel during recognition terminates exactly once and permits a later explic
   await vi.waitFor(() => expect(terminate).toHaveBeenCalledOnce())
   await detectOverlayRegions(image, "eng", new AbortController().signal, () => {})
   expect(create).toHaveBeenCalledTimes(2)
+})
+
+it("keeps neighboring lines from different OCR paragraphs separate", () => {
+  const line = (y: number) => ({
+    words: [{ text: "Example", font_name: "Arial", bbox: { x0: 10, y0: y, x1: 60, y1: y + 10 } }],
+  })
+  const pixels = {
+    width: 100,
+    height: 100,
+    data: new Uint8ClampedArray(40000).fill(255),
+  } as ImageData
+  const input = {
+    blocks: [{ paragraphs: [{ lines: [line(10)] }, { lines: [line(25)] }] }],
+  } as unknown as Parameters<typeof overlayRegions>[0]
+  expect(overlayRegions(input, pixels)).toHaveLength(2)
+})
+it("merges only aligned wraps in the same paragraph and preserves their line break", () => {
+  const line = (y: number) => ({
+    words: [{ text: "Example", font_name: "Arial", bbox: { x0: 10, y0: y, x1: 60, y1: y + 10 } }],
+  })
+  const pixels = {
+    width: 100,
+    height: 100,
+    data: new Uint8ClampedArray(40000).fill(255),
+  } as ImageData
+  const input = {
+    blocks: [{ paragraphs: [{ lines: [line(10), line(25)] }] }],
+  } as unknown as Parameters<typeof overlayRegions>[0]
+  const regions = overlayRegions(input, pixels)
+  expect(regions).toHaveLength(1)
+  expect(regions[0]!.source).toBe("Example\nExample")
+  // A continuous table rule blocks an otherwise geometrically valid merge.
+  for (let x = 10; x <= 60; x++) for (let k = 0; k < 3; k++) pixels.data[(22 * 100 + x) * 4 + k] = 0
+  expect(overlayRegions(input, pixels)).toHaveLength(2)
 })

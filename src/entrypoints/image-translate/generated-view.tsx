@@ -4,6 +4,8 @@ import { useState } from "react"
 export function GeneratedImageView({ value, source }: { value: GeneratedImage; source: string }) {
   const [original, setOriginal] = useState(false)
   const [zoom, setZoom] = useState("fit")
+  const [sourceSize, setSourceSize] = useState({ width: value.width, height: value.height })
+  const width = original ? sourceSize.width : value.width
   return (
     <section className="rf-generated" aria-label="Ảnh OpenAI trả về">
       <div className="rf-generated-controls">
@@ -21,7 +23,8 @@ export function GeneratedImageView({ value, source }: { value: GeneratedImage; s
             value={zoom}
             onChange={(e) => setZoom(e.target.value)}
           >
-            <option value="fit">Vừa khung</option>
+            <option value="fit">Vừa khung nhìn (Toàn bộ ảnh)</option>
+            <option value="fit-width">Vừa chiều rộng (Cuộn dọc)</option>
             <option value="100">100% — pixel gốc</option>
             <option value="150">150%</option>
             <option value="200">200%</option>
@@ -37,12 +40,37 @@ export function GeneratedImageView({ value, source }: { value: GeneratedImage; s
       </div>
       <div className="rf-generated-scroll">
         <img
+          key={original ? source : value.image}
+          onLoad={(e) => {
+            if (original)
+              setSourceSize({
+                width: e.currentTarget.naturalWidth,
+                height: e.currentTarget.naturalHeight,
+              })
+          }}
           src={original ? source : value.image}
           alt={original ? "Vùng ảnh gốc gửi OpenAI" : "Ảnh dịch nguyên bản OpenAI trả về"}
-          style={{
-            width: zoom === "fit" ? "100%" : (value.width * Number(zoom)) / 100,
-            maxWidth: zoom === "fit" ? value.width : "none",
-          }}
+          style={
+            zoom === "fit"
+              ? {
+                  maxWidth: "100%",
+                  maxHeight: "100%",
+                  width: "auto",
+                  height: "auto",
+                  objectFit: "contain",
+                }
+              : zoom === "fit-width"
+                ? {
+                    width: "100%",
+                    maxWidth: width,
+                    height: "auto",
+                  }
+                : {
+                    width: (width * Number(zoom)) / 100,
+                    maxWidth: "none",
+                    height: "auto",
+                  }
+          }
         />
       </div>
     </section>

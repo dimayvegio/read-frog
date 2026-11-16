@@ -11,6 +11,45 @@ import { isTrustedOptionsSender, type SettingsSender } from "./settings-sender"
 
 export const IMAGE_CAPTURE_TTL = 5 * 60 * 1000
 const MAX_CAPTURE_BYTES = 32 * 1024 * 1024
+
+// Full screenshots and web images stay in worker memory for a one-time handoff; never in
+// local/session storage, settings, exports, URLs or provider logs.
+const captures = new Map<string, CapturedImage>()
+
+export async function openImageInTranslatePage(image?: string, windowId?: number, full = false) {
+  let channel = ""
+  if (image) {
+    if (
+      image.length > MAX_CAPTURE_BYTES ||
+      !(
+        image.startsWith("data:image/png;base64,iVBORw0KGgo") ||
+        image.startsWith("data:image/jpeg;base64,/9j/")
+      )
+    )
+      throw new Error(
+        "Ảnh chụp quá lớn hoặc không hợp lệ. Hãy dùng Win+Shift+S rồi dán một vùng nhỏ hơn.",
+      )
+    for (const [key, value] of captures)
+      if (Date.now() - value.createdAt > IMAGE_CAPTURE_TTL) captures.delete(key)
+    while (captures.size >= 2) captures.delete(captures.keys().next().value!)
+    channel = getRandomUUID()
+    captures.set(channel, { image, createdAt: Date.now() })
+  }
+  try {
+    const query = [channel ? `capture=${channel}` : "", full ? "full=1" : ""]
+      .filter(Boolean)
+      .join("&")
+    await browser.tabs.create({
+      ...(windowId === undefined ? {} : { windowId }),
+      url: new URL(`image-translate.html${query ? `?${query}` : ""}`, browser.runtime.getURL("/"))
+        .href,
+    })
+  } catch (error) {
+    if (channel) captures.delete(channel)
+    throw error
+  }
+}
+
 function requirePage(sender: SettingsSender, pages: string[]) {
   if (
     !pages.some((page) =>
@@ -24,41 +63,7 @@ function requirePage(sender: SettingsSender, pages: string[]) {
     throw new Error("This operation requires the image translation page")
 }
 export function setupImageTranslationHandlers() {
-  // Full screenshots stay in worker memory for a one-time handoff; never in
-  // local/session storage, settings, exports, URLs or provider logs.
-  const captures = new Map<string, CapturedImage>()
-  const open = async (image?: string, windowId?: number) => {
-    let channel = ""
-    if (image) {
-      if (
-        image.length > MAX_CAPTURE_BYTES ||
-        !(
-          image.startsWith("data:image/png;base64,iVBORw0KGgo") ||
-          image.startsWith("data:image/jpeg;base64,/9j/")
-        )
-      )
-        throw new Error(
-          "Ảnh chụp quá lớn hoặc không hợp lệ. Hãy dùng Win+Shift+S rồi dán một vùng nhỏ hơn.",
-        )
-      for (const [key, value] of captures)
-        if (Date.now() - value.createdAt > IMAGE_CAPTURE_TTL) captures.delete(key)
-      while (captures.size >= 2) captures.delete(captures.keys().next().value!)
-      channel = getRandomUUID()
-      captures.set(channel, { image, createdAt: Date.now() })
-    }
-    try {
-      await browser.tabs.create({
-        ...(windowId === undefined ? {} : { windowId }),
-        url: new URL(
-          `image-translate.html${channel ? `?capture=${channel}` : ""}`,
-          browser.runtime.getURL("/"),
-        ).href,
-      })
-    } catch (error) {
-      captures.delete(channel)
-      throw error
-    }
-  }
+  const open = openImageInTranslatePage
   const captureInWindow = async (windowId: number) => {
     const [source] = await browser.tabs.query({ active: true, windowId })
     if (source?.id === undefined || source.id < 0) throw new Error("Không tìm được tab cần chụp.")
